@@ -188,3 +188,4 @@ The mobile app currently writes to these resource paths:
 
 After a successful mutation, the app refreshes `/api/bootstrap` so derived lists and summaries are recalculated from server state.
 
+Work-log creation has an offline-safe mobile fallback. If `POST /api/work-logs` fails because the backend is unreachable, the mobile app stores the work-log payload as a local AsyncStorage draft, shows it in the Work Logs screen, and retries it during later workspace sync. Draft retry uses a local fingerprint of task, date, hours, participants, and notes to avoid posting duplicate matching work logs.

@@ -2,23 +2,8 @@ import { Pressable, View } from "react-native";
 
 import { Text } from "../i18n";
 import {
-  ARCHIVE_FILTER_OPTIONS,
-  BLOCKER_FILTER_OPTIONS,
-  EVENT_TYPE_OPTIONS,
-  EVENT_TYPE_STYLES,
-  INVENTORY_VIEW_OPTIONS,
-  MANUFACTURING_STATUS_OPTIONS,
-  MANUFACTURING_VIEW_OPTIONS,
-  MATERIAL_CATEGORY_OPTIONS,
-  PURCHASE_APPROVAL_OPTIONS,
-  PURCHASE_STATUS_OPTIONS,
-  STATUS_LABELS,
+  PART_STATUS_OPTIONS,
   SUBVIEW_INTERACTION_GUIDANCE,
-  TASK_PRIORITY_OPTIONS,
-  TASK_STATUS_OPTIONS,
-  TASK_SUBTEAM_OPTIONS,
-  TASK_VIEW_OPTIONS,
-  WORKLOG_SORT_OPTIONS,
 } from "../ui/constants";
 import { styles } from "../ui/styles";
 import {
@@ -31,7 +16,6 @@ import {
   SummaryRow,
   WorkspacePanel,
 } from "../ui/ui";
-import { PART_STATUS_OPTIONS } from "../ui/constants";
 
 import type { AppScreenProps } from "./types";
 
@@ -43,7 +27,6 @@ export function InventoryPartsScreen(props: AppScreenProps) {
     filteredPartInstances,
     openCreatePartDefinitionEditor,
     openEditPartDefinitionEditor,
-    partDefinitions,
     partDefinitionsById,
     partInstancesWithStatus,
     partsSearch,
@@ -57,30 +40,24 @@ export function InventoryPartsScreen(props: AppScreenProps) {
     setPartsSubsystemFilter,
   } = props;
 
-const renderScreen = () => {
-  const partDefinitionStatsById = Object.fromEntries(
-    partDefinitions.map((partDefinition) => {
-      const matchingInstances = partInstancesWithStatus.filter(
-        ({ partInstance }) => partInstance.partDefinitionId === partDefinition.id,
-      );
-      const count = matchingInstances.reduce(
-        (sum, { partInstance }) => sum + partInstance.quantity,
-        0,
-      );
-      const spares = matchingInstances
-        .filter(({ status }) => status === "available")
-        .reduce((sum, { partInstance }) => sum + partInstance.quantity, 0);
-
-      return [partDefinition.id, { count, spares }];
-    }),
-  ) as Record<string, { count: number; spares: number }>;
-  const visibleInstanceCount = filteredPartInstances.reduce(
-    (sum, { partInstance }) => sum + partInstance.quantity,
-    0,
+  const partDefinitionStatsById = partInstancesWithStatus.reduce<Record<string, { count: number; spares: number }>>(
+    (statsById, { partInstance, status }) => {
+      const stats = statsById[partInstance.partDefinitionId] ?? { count: 0, spares: 0 };
+      statsById[partInstance.partDefinitionId] = {
+        count: stats.count + partInstance.quantity,
+        spares: stats.spares + (status === "available" ? partInstance.quantity : 0),
+      };
+      return statsById;
+    },
+    {},
   );
-  const visibleSpareCount = filteredPartInstances
-    .filter(({ status }) => status === "available")
-    .reduce((sum, { partInstance }) => sum + partInstance.quantity, 0);
+  const visibleInventoryCounts = filteredPartInstances.reduce(
+    (summary, { partInstance, status }) => ({
+      instanceCount: summary.instanceCount + partInstance.quantity,
+      spareCount: summary.spareCount + (status === "available" ? partInstance.quantity : 0),
+    }),
+    { instanceCount: 0, spareCount: 0 },
+  );
 
   return (
     <WorkspacePanel
@@ -120,8 +97,8 @@ const renderScreen = () => {
       <SummaryRow
         chips={[
           { label: "Definitions", value: String(filteredPartDefinitions.length) },
-          { label: "Instances", value: String(visibleInstanceCount) },
-          { label: "Spares", value: String(visibleSpareCount) },
+          { label: "Instances", value: String(visibleInventoryCounts.instanceCount) },
+          { label: "Spares", value: String(visibleInventoryCounts.spareCount) },
         ]}
       />
 
@@ -192,7 +169,4 @@ const renderScreen = () => {
       <InteractionNote steps={SUBVIEW_INTERACTION_GUIDANCE.parts} />
     </WorkspacePanel>
   );
-};
-
-  return renderScreen();
 }

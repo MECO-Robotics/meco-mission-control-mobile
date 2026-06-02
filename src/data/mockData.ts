@@ -25,6 +25,26 @@ const members: Member[] = [
   { id: "jordan", name: "Jordan Lee", role: "mentor" },
   { id: "riley", name: "Riley Kim", role: "mentor" },
   { id: "maya", name: "Maya Ortiz", role: "admin" },
+  { id: "noah", name: "Noah Martinez", role: "student", disciplineId: "software" },
+  { id: "zoe", name: "Zoe Park", role: "lead", disciplineId: "integration" },
+  {
+    id: "diego",
+    name: "Diego Alvarez",
+    role: "student",
+    disciplineId: "mechanical",
+    plannedWeeklyAttendanceHours: 7,
+    plannedAttendanceDays: ["tuesday", "thursday", "saturday"],
+    plannedAttendanceNotes: "Primary offseason shop-night coverage for drivetrain service.",
+  },
+  {
+    id: "emma",
+    name: "Emma Nguyen",
+    role: "mentor",
+    disciplineId: "qa-test",
+    plannedWeeklyAttendanceHours: 5,
+    plannedAttendanceDays: ["wednesday", "saturday"],
+    plannedAttendanceNotes: "Mentor QA rotation for summer scrimmage readiness.",
+  },
 ];
 
 const subsystems: Subsystem[] = [
@@ -78,6 +98,26 @@ const subsystems: Subsystem[] = [
     mentorIds: ["riley"],
     risks: ["Camera calibration", "Lighting variability"],
   },
+  {
+    id: "pit-readiness",
+    name: "Pit Readiness",
+    description: "Battery health, spare bins, cart labels, and event loadout workflow.",
+    isCore: false,
+    parentSubsystemId: null,
+    responsibleEngineerId: "diego",
+    mentorIds: ["emma"],
+    risks: ["Weak battery depth", "Missing spare wheel sets"],
+  },
+  {
+    id: "scouting",
+    name: "Scouting",
+    description: "Tablet setup, match data cleanup, and strategy review handoffs.",
+    isCore: false,
+    parentSubsystemId: null,
+    responsibleEngineerId: "noah",
+    mentorIds: ["riley"],
+    risks: ["Missing match rows", "Rubric drift"],
+  },
 ];
 
 const disciplines: Discipline[] = [
@@ -112,6 +152,30 @@ const mechanisms: Mechanism[] = [
     subsystemId: "controls",
     name: "Auto Safety",
     description: "Autonomous path checks and driver abort behavior.",
+  },
+  {
+    id: "swerve-service-cart",
+    subsystemId: "drive",
+    name: "Swerve Service Cart",
+    description: "Offseason service station for wheel swaps and module checks.",
+  },
+  {
+    id: "battery-checkout",
+    subsystemId: "pit-readiness",
+    name: "Battery Checkout",
+    description: "Battery health, charger labeling, and event-ready checkout workflow.",
+  },
+  {
+    id: "driver-station-replay",
+    subsystemId: "controls",
+    name: "Driver Station Replay",
+    description: "Driver station image, replay logs, and autonomous regression runs.",
+  },
+  {
+    id: "event-data-review",
+    subsystemId: "scouting",
+    name: "Event Data Review",
+    description: "Post-event scouting normalization and strategy handoff.",
   },
 ];
 
@@ -148,6 +212,30 @@ const requirements: Requirement[] = [
     moscowPriority: "must",
     status: "planned",
   },
+  {
+    id: "drive-req-2",
+    subsystemId: "drive",
+    title: "Swerve spares must cover one full module service cycle.",
+    description: "Wheel, tread, bearing, and encoder bracket stock must be verified before scrimmage.",
+    moscowPriority: "must",
+    status: "in-progress",
+  },
+  {
+    id: "pit-req-1",
+    subsystemId: "pit-readiness",
+    title: "Battery cart must only show event-ready batteries.",
+    description: "Retired packs must be removed from active slots and reflected in the runbook.",
+    moscowPriority: "must",
+    status: "in-progress",
+  },
+  {
+    id: "scouting-req-1",
+    subsystemId: "scouting",
+    title: "Scouting export must normalize every match row.",
+    description: "Tablet data must reconcile missing rows before strategy review.",
+    moscowPriority: "should",
+    status: "in-progress",
+  },
 ];
 
 const partDefinitions: PartDefinition[] = [
@@ -174,6 +262,33 @@ const partDefinitions: PartDefinition[] = [
     revision: "A",
     type: "custom",
     source: "Print template",
+  },
+  {
+    id: "pd-swerve-wheel-service-kit",
+    name: "Swerve Wheel Service Kit",
+    partNumber: "DRV-330",
+    revision: "A",
+    type: "service kit",
+    source: "WCP",
+    description: "Practice-wear wheel, tread, and fastener bundle for module service work.",
+  },
+  {
+    id: "pd-battery-cart-harness",
+    name: "Battery Cart Harness",
+    partNumber: "OPS-305",
+    revision: "B",
+    type: "custom",
+    source: "In-house wiring",
+    description: "Service harness used for battery checkout, charger labeling, and event readiness.",
+  },
+  {
+    id: "pd-driver-station-image",
+    name: "Driver Station Image",
+    partNumber: "CTL-410",
+    revision: "C",
+    type: "software artifact",
+    source: "Team repository",
+    description: "Pinned driver station configuration image with logging tools and controller profiles.",
   },
 ];
 
@@ -204,6 +319,36 @@ const partInstances: PartInstance[] = [
     name: "Robot power label set",
     quantity: 1,
     trackIndividually: false,
+  },
+  {
+    id: "pi-swerve-wheel-service-kit",
+    subsystemId: "drive",
+    mechanismId: "swerve-service-cart",
+    partDefinitionId: "pd-swerve-wheel-service-kit",
+    name: "Offseason swerve wheel service kit",
+    quantity: 4,
+    trackIndividually: false,
+    status: "available",
+  },
+  {
+    id: "pi-battery-cart-harness",
+    subsystemId: "pit-readiness",
+    mechanismId: "battery-checkout",
+    partDefinitionId: "pd-battery-cart-harness",
+    name: "Battery checkout cart harness",
+    quantity: 1,
+    trackIndividually: true,
+    status: "installed",
+  },
+  {
+    id: "pi-driver-station-image",
+    subsystemId: "controls",
+    mechanismId: "driver-station-replay",
+    partDefinitionId: "pd-driver-station-image",
+    name: "Driver station laptop image",
+    quantity: 2,
+    trackIndividually: true,
+    status: "needed",
   },
 ];
 
@@ -238,6 +383,46 @@ const events: Event[] = [
     description: "External milestone that key finishing work aligns to.",
     relatedSubsystemIds: ["drive", "manipulator", "controls"],
   },
+  {
+    id: "offseason-maintenance-review-may-30",
+    title: "Offseason Maintenance Review",
+    type: "internal-review",
+    startDateTime: "2026-05-30T10:00:00-04:00",
+    endDateTime: "2026-05-30T12:00:00-04:00",
+    isExternal: false,
+    description: "Review robot service list, battery health, and mentor QA ownership before June work starts.",
+    relatedSubsystemIds: ["drive", "pit-readiness", "controls"],
+  },
+  {
+    id: "scouting-data-retro-jun-06",
+    title: "Scouting Data Retro",
+    type: "internal-review",
+    startDateTime: "2026-06-06T14:00:00-04:00",
+    endDateTime: "2026-06-06T15:30:00-04:00",
+    isExternal: false,
+    description: "Validate normalized scouting exports and agree on rubrics before summer scrimmage.",
+    relatedSubsystemIds: ["scouting", "controls"],
+  },
+  {
+    id: "summer-scrimmage-jun-13",
+    title: "Summer Scrimmage",
+    type: "competition",
+    startDateTime: "2026-06-13T08:00:00-04:00",
+    endDateTime: "2026-06-13T18:00:00-04:00",
+    isExternal: true,
+    description: "Offseason scrimmage used to validate reliability, field reset flow, and scouting handoffs.",
+    relatedSubsystemIds: ["drive", "controls", "pit-readiness", "scouting"],
+  },
+  {
+    id: "sponsor-open-house-jun-27",
+    title: "Sponsor Open House",
+    type: "demo",
+    startDateTime: "2026-06-27T17:30:00-04:00",
+    endDateTime: "2026-06-27T19:30:00-04:00",
+    isExternal: true,
+    description: "Community and sponsor event with robot demos, student talks, and offseason progress review.",
+    relatedSubsystemIds: ["drive", "manipulator", "vision"],
+  },
 ];
 
 const meetings: Meeting[] = [
@@ -249,6 +434,24 @@ const meetings: Meeting[] = [
     rsvpsYes: 17,
     rsvpsMaybe: 4,
     openSignIns: 3,
+  },
+  {
+    id: "offseason-maintenance-review",
+    title: "Offseason maintenance review",
+    date: "2026-05-30",
+    time: "10:00 AM",
+    rsvpsYes: 18,
+    rsvpsMaybe: 3,
+    openSignIns: 2,
+  },
+  {
+    id: "summer-scrimmage-logistics",
+    title: "Summer scrimmage logistics",
+    date: "2026-06-04",
+    time: "6:30 PM",
+    rsvpsYes: 16,
+    rsvpsMaybe: 5,
+    openSignIns: 4,
   },
 ];
 
@@ -293,6 +496,46 @@ const workLogs: WorkLog[] = [
     participantIds: ["ava"],
     notes: "Captured final screenshots and notebook evidence.",
   },
+  {
+    id: "log-6",
+    taskId: "drive-module-spares-audit",
+    date: "2026-05-28",
+    hours: 1.5,
+    participantIds: ["diego", "ava"],
+    notes: "Sorted module bins and flagged two worn wheel sets for replacement before June scrimmage.",
+  },
+  {
+    id: "log-7",
+    taskId: "battery-health-cull",
+    date: "2026-05-29",
+    hours: 2,
+    participantIds: ["zoe", "emma"],
+    notes: "Load-tested eight batteries and marked two as retired pending mentor signoff.",
+  },
+  {
+    id: "log-8",
+    taskId: "scouting-schema-normalization",
+    date: "2026-05-29",
+    hours: 2.25,
+    participantIds: ["noah", "riley"],
+    notes: "Reconciled missing match rows and updated the import notes for scouting tablets.",
+  },
+  {
+    id: "log-9",
+    taskId: "auto-replay-suite",
+    date: "2026-05-30",
+    hours: 1.5,
+    participantIds: ["ethan", "emma"],
+    notes: "Loaded first replay logs and captured drift notes from the left-start autonomous path.",
+  },
+  {
+    id: "log-10",
+    taskId: "rookie-drive-practice-plan",
+    date: "2026-05-30",
+    hours: 1,
+    participantIds: ["zoe", "diego"],
+    notes: "Drafted station rotation and reset-crew assignments for the June training night.",
+  },
 ];
 
 const attendanceRecords: AttendanceRecord[] = [
@@ -301,6 +544,11 @@ const attendanceRecords: AttendanceRecord[] = [
   { id: "att-3", memberId: "priya", date: "2026-04-20", totalHours: 3 },
   { id: "att-4", memberId: "ethan", date: "2026-04-20", totalHours: 2 },
   { id: "att-5", memberId: "jordan", date: "2026-04-20", totalHours: 2.5 },
+  { id: "att-6", memberId: "diego", date: "2026-05-28", totalHours: 1.5 },
+  { id: "att-7", memberId: "emma", date: "2026-05-29", totalHours: 2 },
+  { id: "att-8", memberId: "noah", date: "2026-05-29", totalHours: 2.25 },
+  { id: "att-9", memberId: "ethan", date: "2026-05-30", totalHours: 1.5 },
+  { id: "att-10", memberId: "zoe", date: "2026-05-30", totalHours: 1 },
 ];
 
 const manufacturingItems: ManufacturingItem[] = [
@@ -344,6 +592,36 @@ const manufacturingItems: ManufacturingItem[] = [
     mentorReviewed: true,
     qaReviewCount: 0,
   },
+  {
+    id: "battery-cart-harness-refresh",
+    title: "Battery cart harness refresh",
+    subsystemId: "pit-readiness",
+    requestedById: "zoe",
+    process: "fabrication",
+    dueDate: "2026-06-01",
+    material: "Anderson connectors and 12 AWG wire",
+    partDefinitionId: "pd-battery-cart-harness",
+    quantity: 1,
+    status: "qa",
+    mentorReviewed: true,
+    batchLabel: "OPS-22",
+    qaReviewCount: 1,
+  },
+  {
+    id: "swerve-wheel-tread-prep",
+    title: "Swerve wheel tread prep",
+    subsystemId: "drive",
+    requestedById: "diego",
+    process: "fabrication",
+    dueDate: "2026-06-03",
+    material: "4 in traction wheel set",
+    partDefinitionId: "pd-swerve-wheel-service-kit",
+    quantity: 4,
+    status: "approved",
+    mentorReviewed: true,
+    batchLabel: "DRV-42",
+    qaReviewCount: 0,
+  },
 ];
 
 const purchaseItems: PurchaseItem[] = [
@@ -383,6 +661,32 @@ const purchaseItems: PurchaseItem[] = [
     finalCost: 61,
     approvedByMentor: true,
     status: "delivered",
+  },
+  {
+    id: "swerve-wheel-restock",
+    title: "Swerve wheel restock",
+    subsystemId: "drive",
+    requestedById: "diego",
+    partDefinitionId: "pd-swerve-wheel-service-kit",
+    quantity: 2,
+    vendor: "WCP",
+    linkLabel: "wcproducts.com/traction-wheels",
+    estimatedCost: 96,
+    approvedByMentor: true,
+    status: "approved",
+  },
+  {
+    id: "battery-terminal-covers",
+    title: "Battery terminal cover set",
+    subsystemId: "pit-readiness",
+    requestedById: "zoe",
+    partDefinitionId: "pd-battery-cart-harness",
+    quantity: 12,
+    vendor: "AndyMark",
+    linkLabel: "andymark.com/battery-terminal-covers",
+    estimatedCost: 42,
+    approvedByMentor: true,
+    status: "purchased",
   },
 ];
 
@@ -431,6 +735,39 @@ const qaReviews: QaReview[] = [
     mentorApproved: false,
     notes: "Needs a new iteration task if hard-stop assumptions change after drive tuning.",
   },
+  {
+    id: "qa-5",
+    taskId: "battery-health-cull",
+    subjectId: "battery-health-cull",
+    subjectType: "task",
+    subjectTitle: "Cull weak batteries before scrimmage",
+    participantIds: ["zoe", "emma"],
+    result: "minor-fix",
+    mentorApproved: false,
+    notes: "Two batteries sagged below threshold. Mark retired and update cart labels before scrimmage.",
+  },
+  {
+    id: "qa-6",
+    taskId: "scouting-schema-normalization",
+    subjectId: "scouting-schema-normalization",
+    subjectType: "task",
+    subjectTitle: "Normalize scouting export schema",
+    participantIds: ["noah", "riley"],
+    result: "pass",
+    mentorApproved: true,
+    notes: "Normalized export includes every scrimmage row and matches the strategy dashboard import contract.",
+  },
+  {
+    id: "qa-7",
+    taskId: "battery-health-cull",
+    subjectId: "battery-cart-harness-refresh",
+    subjectType: "manufacturing",
+    subjectTitle: "Battery cart harness refresh",
+    participantIds: ["zoe", "emma"],
+    result: "minor-fix",
+    mentorApproved: false,
+    notes: "Harness strain relief is clean, but retired battery labels need one more pass before approval.",
+  },
 ];
 
 const escalations: Escalation[] = [
@@ -444,6 +781,18 @@ const escalations: Escalation[] = [
     title: "Controls review is blocked on drive calibration evidence",
     detail:
       "The controls mentor cannot sign off the auto safety review until the sensor validation notebook is attached.",
+    severity: "medium",
+  },
+  {
+    title: "Battery depth is thin for summer scrimmage",
+    detail:
+      "Two weak packs should be retired, leaving little buffer for back-to-back practice matches unless charging discipline improves.",
+    severity: "high",
+  },
+  {
+    title: "Driver station image freeze depends on vendor tool stability",
+    detail:
+      "The controls team needs final CTRE and REV tool versions before they can freeze the practice laptop image.",
     severity: "medium",
   },
 ];

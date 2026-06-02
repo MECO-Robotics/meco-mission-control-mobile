@@ -3,6 +3,7 @@ import type { StyleProp, TextStyle, ViewStyle } from "react-native";
 
 import type { AppThemeColors } from "../theme";
 import type { HelpRequestInput } from "../data/helpRequests";
+import type { WorkLogDraftSyncStatus } from "../services/workLogDraftSync";
 import type {
   Discipline,
   Event,
@@ -80,6 +81,12 @@ export type SubsystemCounts = {
   tasks: number;
 };
 
+export type WorkLogListItem = WorkLog & {
+  localDraftId?: string;
+  syncError?: string;
+  syncStatus?: WorkLogDraftSyncStatus;
+};
+
 type StateSetter<T> = Dispatch<SetStateAction<T>>;
 type TextSetter = StateSetter<string>;
 type ResponsiveScreenStyles = {
@@ -127,7 +134,7 @@ export interface AppScreenProps {
   filteredPurchases: PurchaseItem[];
   filteredSubsystems: Subsystem[];
   filteredTaskQueue: Task[];
-  filteredWorkLogs: WorkLog[];
+  filteredWorkLogs: WorkLogListItem[];
   helpRequests: HelpRequest[];
   homeInventoryNeeds: PurchaseItem[];
   homeActionItems: HomeActionItem[];
