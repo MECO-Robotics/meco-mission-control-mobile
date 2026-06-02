@@ -112,6 +112,7 @@ import {
   getDefaultWorkLogParticipantIds,
   getTaskAssignmentConflict,
   getTaskAssignmentConflictMessage,
+  getTaskAssignmentState,
   reassignTaskRequest,
   releaseTaskRequest,
 } from "./src/data/taskAssignment";
@@ -1542,12 +1543,19 @@ export default function App() {
 
         const conflict = getTaskAssignmentConflict(error);
         if (conflict) {
-          await refreshWorkspaceFromServer(apiToken);
-          setBackendStatus("connected");
+          let refreshed = false;
+          try {
+            await refreshWorkspaceFromServer(apiToken);
+            refreshed = true;
+          } catch {
+            refreshed = false;
+          }
+          setBackendStatus(refreshed ? "connected" : "offline");
           setSyncError(
             getTaskAssignmentConflictMessage(
               conflict,
               Object.fromEntries(members.map((member) => [member.id, member])),
+              refreshed,
             ),
           );
           return false;
@@ -1589,12 +1597,8 @@ export default function App() {
   }, [members, sessionUser]);
 
   const signedInMember = useMemo(() => {
-    if (sessionMember) {
-      return sessionMember;
-    }
-
-    return members[0] ?? null;
-  }, [members, sessionMember]);
+    return sessionMember;
+  }, [sessionMember]);
   const canUseSignedInMemberRoleFallback =
     sessionMember !== null && signedInMember?.id === sessionMember.id;
   const canMentorApprove =
@@ -3952,26 +3956,30 @@ export default function App() {
   const startTask = async (task: Task, options: StartTaskOptions = {}) => {
     const { openWorkLog = true } = options;
     const currentTaskById = taskByIdRef.current;
-    const status = getAutoTaskStatus(task, currentTaskById);
+    const currentTask = currentTaskById[task.id] ?? task;
+    const status = getAutoTaskStatus(currentTask, currentTaskById);
+    const hasOpenDependencies = currentTask.dependencyIds
+      .map((dependencyId) => currentTaskById[dependencyId])
+      .some((dependency) => dependency && dependency.status !== "complete");
+    const assignmentState = getTaskAssignmentState({
+      canReassignTasks,
+      hasOpenDependencies,
+      membersById,
+      signedInMember,
+      task: currentTask,
+    });
 
-    if (task.status === "complete") {
+    if (!assignmentState.canStartWork || task.status === "complete") {
       return;
     }
 
-    if (!task.ownerId) {
+    if (!currentTask.ownerId) {
       const ok = await runTaskAssignmentMutation(() =>
         claimTaskRequest(apiBaseUrl, task.id, true, apiToken),
       );
       if (ok && openWorkLog) {
         openCreateWorkLogEditor(task.id);
       }
-      return;
-    }
-
-    if (signedInMember && task.ownerId !== signedInMember.id) {
-      await runTaskAssignmentMutation(() =>
-        claimTaskRequest(apiBaseUrl, task.id, true, apiToken),
-      );
       return;
     }
 

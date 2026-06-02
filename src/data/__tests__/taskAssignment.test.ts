@@ -10,6 +10,7 @@ import type { Member, Task } from "../../types/domain";
 const student: Member = { id: "ava", name: "Ava Chen", role: "student" };
 const otherStudent: Member = { id: "lucas", name: "Lucas Brooks", role: "student" };
 const mentor: Member = { id: "jordan", name: "Jordan Lee", role: "mentor" };
+const external: Member = { id: "sam", name: "Sam Rivera", role: "external" };
 
 const baseTask: Task = {
   id: "task-1",
@@ -87,6 +88,52 @@ describe("task assignment state", () => {
     expect(state.ownerName).toBe("Lucas Brooks");
   });
 
+  it("does not expose claim or start controls without a matched signed-in roster member", () => {
+    const state = getTaskAssignmentState({
+      canReassignTasks: false,
+      hasOpenDependencies: false,
+      membersById,
+      signedInMember: null,
+      task: baseTask,
+    });
+
+    expect(state.canClaim).toBe(false);
+    expect(state.canStartWork).toBe(false);
+  });
+
+  it("does not expose claim or start controls for non task-owning roles", () => {
+    const state = getTaskAssignmentState({
+      canReassignTasks: false,
+      hasOpenDependencies: false,
+      membersById,
+      signedInMember: external,
+      task: baseTask,
+    });
+
+    expect(state.canClaim).toBe(false);
+    expect(state.canStartWork).toBe(false);
+  });
+
+  it("does not expose start controls while blockers or dependencies are open", () => {
+    const blockedState = getTaskAssignmentState({
+      canReassignTasks: false,
+      hasOpenDependencies: false,
+      membersById,
+      signedInMember: student,
+      task: { ...baseTask, blockers: ["Waiting on mentor review"], ownerId: student.id },
+    });
+    const dependencyState = getTaskAssignmentState({
+      canReassignTasks: false,
+      hasOpenDependencies: true,
+      membersById,
+      signedInMember: student,
+      task: { ...baseTask, ownerId: student.id },
+    });
+
+    expect(blockedState.canStartWork).toBe(false);
+    expect(dependencyState.canStartWork).toBe(false);
+  });
+
   it("lets mentors reassign claimed tasks", () => {
     const state = getTaskAssignmentState({
       canReassignTasks: true,
@@ -118,6 +165,9 @@ describe("task assignment conflict handling", () => {
     });
     expect(getTaskAssignmentConflictMessage(conflict!, membersById)).toBe(
       "Already claimed by Lucas Brooks. The task list has been refreshed.",
+    );
+    expect(getTaskAssignmentConflictMessage(conflict!, membersById, false)).toBe(
+      "Already claimed by Lucas Brooks. Refresh failed; pull to refresh before trying again.",
     );
   });
 });

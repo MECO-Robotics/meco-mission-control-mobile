@@ -33,6 +33,10 @@ type AssignmentStateInput = {
   task: Task;
 };
 
+function canOwnTask(member: Member | null) {
+  return member?.role === "student" || member?.role === "lead";
+}
+
 function isConflictPayload(value: unknown): value is {
   code?: unknown;
   message?: unknown;
@@ -68,12 +72,15 @@ export function getTaskAssignmentConflict(error: unknown): TaskAssignmentConflic
 export function getTaskAssignmentConflictMessage(
   conflict: TaskAssignmentConflict,
   membersById: Record<string, Member>,
+  refreshed = true,
 ) {
   const ownerName = conflict.ownerId
     ? membersById[conflict.ownerId]?.name ?? "someone else"
     : "someone else";
 
-  return `Already claimed by ${ownerName}. The task list has been refreshed.`;
+  return refreshed
+    ? `Already claimed by ${ownerName}. The task list has been refreshed.`
+    : `Already claimed by ${ownerName}. Refresh failed; pull to refresh before trying again.`;
 }
 
 export function getTaskAssignmentState({
@@ -84,20 +91,21 @@ export function getTaskAssignmentState({
   task,
 }: AssignmentStateInput): TaskAssignmentState {
   const isClaimed = Boolean(task.ownerId);
+  const canSignedInMemberOwnTasks = canOwnTask(signedInMember);
   const isClaimedByCurrentMember = Boolean(
-    signedInMember && task.ownerId === signedInMember.id,
+    canSignedInMemberOwnTasks && task.ownerId === signedInMember?.id,
   );
   const isClaimedByOtherMember = isClaimed && !isClaimedByCurrentMember;
   const isDone = task.status === "complete";
   const isBlocked = task.blockers.length > 0 || hasOpenDependencies;
 
   return {
-    canClaim: Boolean(signedInMember) && !isDone && !isClaimed,
+    canClaim: canSignedInMemberOwnTasks && !isDone && !isClaimed,
     canRelease:
       !isDone && (isClaimedByCurrentMember || (canReassignTasks && isClaimed)),
     canReassign: canReassignTasks && !isDone,
     canStartWork:
-      Boolean(signedInMember) &&
+      canSignedInMemberOwnTasks &&
       !isDone &&
       !isBlocked &&
       (task.status === "not-started" || task.status === "in-progress") &&

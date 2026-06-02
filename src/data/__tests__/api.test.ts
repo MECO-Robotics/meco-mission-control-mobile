@@ -40,6 +40,24 @@ describe("mobile auth API fail-safe handling", () => {
     expect(classifyMobileAuthError(error)).toBe("unknown");
   });
 
+  it("does not classify permission 403 responses as expired sessions", () => {
+    const error = new ApiRequestError("Only the assignee can start this task.", 403, {
+      code: "forbidden",
+      message: "Only the assignee can start this task.",
+    });
+
+    expect(classifyMobileAuthError(error, "authenticated")).toBe("unknown");
+  });
+
+  it("classifies explicit 403 auth expiry payloads as expired sessions", () => {
+    const error = new ApiRequestError("Token expired", 403, {
+      code: "token_expired",
+      message: "Token expired",
+    });
+
+    expect(classifyMobileAuthError(error, "authenticated")).toBe("expired-session");
+  });
+
   it("classifies network loss without clearing the session", async () => {
     const networkError = new TypeError("Network request failed");
     global.fetch = jest.fn().mockRejectedValue(networkError);
