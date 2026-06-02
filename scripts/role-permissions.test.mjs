@@ -8,9 +8,10 @@ const manufacturingSource = readFileSync(new URL("../src/screens/ManufacturingSc
 
 test("App derives mentor approval permission from trusted mentor and admin roles", () => {
   const signedInMemberBlock = appSource.match(
-    /const signedInMember\s*=\s*useMemo\([\s\S]*?\n  \}, \[members, sessionMember\]\);/,
+    /const signedInMember\s*=\s*useMemo\([\s\S]*?\n  \}, \[sessionMember\]\);/,
   )?.[0];
   assert.ok(signedInMemberBlock);
+  assert.match(signedInMemberBlock, /return sessionMember;/);
   assert.doesNotMatch(signedInMemberBlock, /selectedMemberId/);
   assert.doesNotMatch(signedInMemberBlock, /activePersonFilter/);
   assert.match(appSource, /const canUseSignedInMemberRoleFallback\s*=\s*[\s\S]*sessionMember !== null[\s\S]*signedInMember\?\.id === sessionMember\.id/);

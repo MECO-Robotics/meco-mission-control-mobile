@@ -133,6 +133,7 @@ export interface Task {
   artifactId?: string | null;
   artifactIds?: string[];
   ownerId: string | null;
+  assigneeIds?: string[];
   mentorId: string | null;
   startDate?: string;
   dueDate: string;

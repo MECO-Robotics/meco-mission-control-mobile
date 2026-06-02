@@ -11,6 +11,7 @@ import {
   localTodayDate,
 } from "../ui/helpers";
 import { getDefaultHelpMentorId } from "../data/helpRequests";
+import { getTaskAssignmentState } from "../data/taskAssignment";
 import { styles } from "../ui/styles";
 import {
   EditorModal,
@@ -25,12 +26,16 @@ import type { Task } from "../types/domain";
 import type { AppScreenProps } from "./types";
 import { NeedHelpModal } from "./help/NeedHelpModal";
 import { TaskQueueFilterSheet } from "./TaskQueueFilterSheet";
+import { TaskReassignModal } from "./TaskReassignModal";
+import { useTaskReassignModal } from "./useTaskReassignModal";
 
 export function TaskQueueScreen(props: AppScreenProps) {
   const {
     activeTaskSubteam,
     activeTaskSubteamLabel,
     appResponsiveStyles,
+    canReassignTasks,
+    claimTask,
     clearTaskBlockers,
     disciplinesById,
     editTagStyle,
@@ -49,7 +54,10 @@ export function TaskQueueScreen(props: AppScreenProps) {
     partInstancesById,
     requestHelp,
     requestTaskQa,
+    reassignTask,
+    releaseTask,
     rosterMentors,
+    rosterStudents,
     setActiveTaskSubteam,
     setTaskArchiveFilter,
     setTaskBlockerFilter,
@@ -59,6 +67,7 @@ export function TaskQueueScreen(props: AppScreenProps) {
     setTaskStatusFilter,
     setTaskSubsystemFilter,
     shiftTaskDueDates,
+    signedInMember,
     startTask,
     subsystems,
     subsystemsById,
@@ -82,9 +91,14 @@ export function TaskQueueScreen(props: AppScreenProps) {
   const [isShiftDueDatesOpen, setIsShiftDueDatesOpen] = useState(false);
   const [shiftDayDelta, setShiftDayDelta] = useState("7");
   const [shiftDueDateError, setShiftDueDateError] = useState<string | null>(null);
+  const taskReassignModal = useTaskReassignModal({ reassignTask });
   const mentorOptions = rosterMentors.map((mentor) => ({ id: mentor.id, name: mentor.name }));
   const defaultHelpMentorId = getDefaultHelpMentorId(helpRequestTask, rosterMentors);
   const shiftableTasks = filteredTaskQueue.filter((task) => task.status !== "complete");
+  const reassignOwnerOptions = rosterStudents.map((member) => ({
+    id: member.id,
+    name: member.name,
+  }));
 
   const openBlockerResolution = (task: Task) => {
     setBlockerResolutionTask(task);
@@ -258,11 +272,14 @@ const renderScreen = () => {
         const isOverdue = task.status !== "complete" && task.dueDate < today;
         const isDueSoon =
           task.status !== "complete" && task.dueDate >= today && task.dueDate <= soonDate;
-        const canStartTask =
-          task.status === "not-started" &&
-          task.blockers.length === 0 &&
-          openDependencies.length === 0 &&
-          Boolean(task.ownerId);
+        const assignmentState = getTaskAssignmentState({
+          canReassignTasks,
+          hasOpenDependencies: openDependencies.length > 0,
+          membersById,
+          signedInMember,
+          task,
+        });
+        const canStartTask = assignmentState.canStartWork;
         const canRequestQa =
           task.status === "in-progress" &&
           task.blockers.length === 0 &&
@@ -304,6 +321,12 @@ const renderScreen = () => {
                     <StatusPill label="Needs purchase" value="requested" />
                   ) : null}
                   {!task.ownerId ? <StatusPill label="Unassigned" value="warning" /> : null}
+                  {assignmentState.isClaimedByCurrentMember ? (
+                    <StatusPill label="Claimed by you" value="in-progress" />
+                  ) : null}
+                  {assignmentState.isClaimedByOtherMember ? (
+                    <StatusPill label={`Claimed by ${assignmentState.ownerName}`} value="waiting" />
+                  ) : null}
                   {openDependencies.length > 0 ? (
                     <StatusPill
                       label={`${openDependencies.length} dependency${openDependencies.length === 1 ? "" : "ies"} open`}
@@ -427,6 +450,18 @@ const renderScreen = () => {
             ) : null}
 
             <View style={styles.quickActionRow}>
+              {assignmentState.canClaim ? (
+                <Pressable
+                  onPress={() => {
+                    void claimTask(task);
+                  }}
+                  style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+                >
+                  <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
+                    Claim
+                  </Text>
+                </Pressable>
+              ) : null}
               {canStartTask ? (
                 <Pressable
                   onPress={() => {
@@ -435,7 +470,29 @@ const renderScreen = () => {
                   style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
                 >
                   <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                    Start task
+                    Start work
+                  </Text>
+                </Pressable>
+              ) : null}
+              {assignmentState.canRelease ? (
+                <Pressable
+                  onPress={() => {
+                    void releaseTask(task);
+                  }}
+                  style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+                >
+                  <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
+                    Unclaim
+                  </Text>
+                </Pressable>
+              ) : null}
+              {assignmentState.canReassign ? (
+                <Pressable
+                  onPress={() => taskReassignModal.open(task)}
+                  style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+                >
+                  <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
+                    Reassign
                   </Text>
                 </Pressable>
               ) : null}
@@ -553,6 +610,16 @@ const renderScreen = () => {
         taskSubsystemFilter={taskSubsystemFilter}
         themeColors={themeColors}
         visible={isFiltersOpen}
+      />
+      <TaskReassignModal
+        appResponsiveStyles={appResponsiveStyles}
+        membersById={membersById}
+        onCancel={taskReassignModal.close}
+        onSave={taskReassignModal.save}
+        onChangeOwner={taskReassignModal.setOwnerId}
+        ownerId={taskReassignModal.ownerId}
+        ownerOptions={reassignOwnerOptions}
+        task={taskReassignModal.task}
       />
       <EditorModal
         onCancel={closeShiftDueDates}

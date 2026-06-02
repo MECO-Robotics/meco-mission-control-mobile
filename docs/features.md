@@ -32,7 +32,7 @@ Task views:
 
 Task queue filters include subteam, subsystem, owner, status, priority, blocked, no blockers, over estimate, overdue, due soon, dependency wait, ready now, ready for QA, needs fabrication, needs purchase, unassigned, and archive mode.
 
-Task actions include create, edit, duplicate, start, request QA, resolve blockers, shift due dates, and delete. Task status is also affected by dependency state and QA readiness.
+Task actions include create, edit, duplicate, claim, unclaim, mentor reassign, start work, log work, request QA, resolve blockers, shift due dates, and delete. Start work can claim an unowned task first and open a prefilled work log; if another student claimed first, the queue refreshes and shows the conflict.
 
 ## Work Logs
 

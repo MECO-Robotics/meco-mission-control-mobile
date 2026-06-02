@@ -2,6 +2,7 @@ import {
   ApiNetworkError,
   ApiRequestError,
   classifyMobileAuthError,
+  getBackendConnectionErrorMessage,
   getMobileAuthErrorMessage,
   requestJson,
 } from "../api";
@@ -39,6 +40,24 @@ describe("mobile auth API fail-safe handling", () => {
     expect(classifyMobileAuthError(error)).toBe("unknown");
   });
 
+  it("does not classify permission 403 responses as expired sessions", () => {
+    const error = new ApiRequestError("Only the assignee can start this task.", 403, {
+      code: "forbidden",
+      message: "Only the assignee can start this task.",
+    });
+
+    expect(classifyMobileAuthError(error, "authenticated")).toBe("unknown");
+  });
+
+  it("classifies explicit 403 auth expiry payloads as expired sessions", () => {
+    const error = new ApiRequestError("Token expired", 403, {
+      code: "token_expired",
+      message: "Token expired",
+    });
+
+    expect(classifyMobileAuthError(error, "authenticated")).toBe("expired-session");
+  });
+
   it("classifies network loss without clearing the session", async () => {
     const networkError = new TypeError("Network request failed");
     global.fetch = jest.fn().mockRejectedValue(networkError);
@@ -63,6 +82,12 @@ describe("mobile auth API fail-safe handling", () => {
     );
     expect(getMobileAuthErrorMessage("auth-config-unavailable")).toBe(
       "Authentication service is unavailable. Check the backend auth configuration and try again.",
+    );
+  });
+
+  it("builds actionable backend connection guidance", () => {
+    expect(getBackendConnectionErrorMessage("http://localhost:8080")).toBe(
+      "Backend API is not reachable at http://localhost:8080. Start the platform server on that host/port, or set EXPO_PUBLIC_API_BASE_URL to the backend URL your device can reach.",
     );
   });
 });

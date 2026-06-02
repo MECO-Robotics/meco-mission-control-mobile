@@ -100,12 +100,22 @@ import {
   ApiNetworkError,
   ApiRequestError,
   classifyMobileAuthError,
+  getBackendConnectionErrorMessage,
   getMobileAuthErrorMessage,
   type MobileAuthErrorState,
   requestJson,
   resolveApiBaseUrl,
 } from "./src/data/api";
 import { buildHelpRequest, type HelpRequestInput } from "./src/data/helpRequests";
+import {
+  claimTaskRequest,
+  getDefaultWorkLogParticipantIds,
+  getTaskAssignmentConflict,
+  getTaskAssignmentConflictMessage,
+  getTaskAssignmentState,
+  reassignTaskRequest,
+  releaseTaskRequest,
+} from "./src/data/taskAssignment";
 import { mecoSnapshot } from "./src/data/mockData";
 import { tasks as seededTasks } from "./src/data/tasks";
 import type {
@@ -187,6 +197,9 @@ type WorkLogTimerState = {
   isPaused: boolean;
   reminderNotificationIds: string[];
   startedAt: number | null;
+};
+type StartTaskOptions = {
+  openWorkLog?: boolean;
 };
 
 type WorkLogMutationResponse = {
@@ -776,7 +789,9 @@ export default function App() {
   >([]);
   const pendingWorkLogDraftsRef = useRef<PendingWorkLogDraft[]>([]);
   const isSyncingWorkLogDraftsRef = useRef(false);
-  const startTaskRef = useRef<(task: Task) => Promise<void>>(async () => undefined);
+  const startTaskRef = useRef<(task: Task, options?: StartTaskOptions) => Promise<void>>(
+    async () => undefined,
+  );
   const activeWorkLogDraftOwnerKey = useMemo(
     () => getWorkLogDraftOwnerKey(sessionUser),
     [sessionUser],
@@ -1131,7 +1146,6 @@ export default function App() {
       setBackendStatus("connected");
       return config;
     } catch (error) {
-      const message = getClientErrorMessage(error, "auth-config");
       setBackendStatus("offline");
       setAuthConfig({
         enabled: false,
@@ -1140,6 +1154,10 @@ export default function App() {
         emailEnabled: true,
         devBypassAvailable: false,
       });
+      const message =
+        error instanceof ApiNetworkError
+          ? getBackendConnectionErrorMessage(apiBaseUrl)
+          : getClientErrorMessage(error, "auth-config");
       setAuthErrorState("auth-config-unavailable");
       setAuthError(message);
       setSyncError(message);
@@ -1501,6 +1519,65 @@ export default function App() {
     ],
   );
 
+  const runTaskAssignmentMutation = useCallback(
+    async (mutation: () => Promise<unknown>) => {
+      setIsSyncing(true);
+      setSyncError(null);
+
+      try {
+        await mutation();
+        const payload = await refreshWorkspaceFromServer(apiToken);
+        const draftSyncError = await syncPendingWorkLogDrafts(
+          apiToken,
+          ensureArray(payload.workLogs),
+          activeWorkLogDraftOwnerKey,
+        );
+        setBackendStatus(draftSyncError ? "offline" : "connected");
+        setSyncError(draftSyncError);
+        return true;
+      } catch (error) {
+        if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
+          endSessionForAuthFailure(getMobileAuthErrorMessage("expired-session"));
+          return false;
+        }
+
+        const conflict = getTaskAssignmentConflict(error);
+        if (conflict) {
+          let refreshed = false;
+          try {
+            await refreshWorkspaceFromServer(apiToken);
+            refreshed = true;
+          } catch {
+            refreshed = false;
+          }
+          setBackendStatus(refreshed ? "connected" : "offline");
+          setSyncError(
+            getTaskAssignmentConflictMessage(
+              conflict,
+              Object.fromEntries(members.map((member) => [member.id, member])),
+              refreshed,
+            ),
+          );
+          return false;
+        }
+
+        setBackendStatus("offline");
+        setSyncError(getClientErrorMessage(error));
+        return false;
+      } finally {
+        setIsSyncing(false);
+      }
+    },
+    [
+      activeWorkLogDraftOwnerKey,
+      apiToken,
+      endSessionForAuthFailure,
+      members,
+      refreshWorkspaceFromServer,
+      syncPendingWorkLogDrafts,
+    ],
+  );
+
   const membersById = useMemo(() => {
     return Object.fromEntries(
       members.map((member) => [member.id, member]),
@@ -1520,12 +1597,8 @@ export default function App() {
   }, [members, sessionUser]);
 
   const signedInMember = useMemo(() => {
-    if (sessionMember) {
-      return sessionMember;
-    }
-
-    return members[0] ?? null;
-  }, [members, sessionMember]);
+    return sessionMember;
+  }, [sessionMember]);
   const canUseSignedInMemberRoleFallback =
     sessionMember !== null && signedInMember?.id === sessionMember.id;
   const canMentorApprove =
@@ -1533,6 +1606,14 @@ export default function App() {
     sessionUser?.role === "admin" ||
     (canUseSignedInMemberRoleFallback &&
       (signedInMember?.role === "mentor" || signedInMember?.role === "admin"));
+  const canReassignTasks =
+    sessionUser?.role === "lead" ||
+    sessionUser?.role === "mentor" ||
+    sessionUser?.role === "admin" ||
+    (canUseSignedInMemberRoleFallback &&
+      (signedInMember?.role === "lead" ||
+        signedInMember?.role === "mentor" ||
+        signedInMember?.role === "admin"));
   const signedInEmailInitial =
     sessionUser?.email.trim().charAt(0).toUpperCase() || "M";
   const visiblePendingWorkLogDrafts = useMemo(
@@ -3842,11 +3923,74 @@ export default function App() {
     });
   };
 
-  const startTask = async (task: Task) => {
-    const currentTaskById = taskByIdRef.current;
-    const status = getAutoTaskStatus(task, currentTaskById);
+  const claimTask = async (task: Task) => {
+    if (!signedInMember || task.status === "complete") {
+      return;
+    }
 
-    if (status !== "in-progress" || task.status === "in-progress") {
+    await runTaskAssignmentMutation(() =>
+      claimTaskRequest(apiBaseUrl, task.id, false, apiToken),
+    );
+  };
+
+  const releaseTask = async (task: Task) => {
+    if (!task.ownerId || task.status === "complete") {
+      return;
+    }
+
+    await runTaskAssignmentMutation(() =>
+      releaseTaskRequest(apiBaseUrl, task.id, apiToken),
+    );
+  };
+
+  const reassignTask = async (task: Task, ownerId: string | null) => {
+    if (!canReassignTasks || task.status === "complete") {
+      return;
+    }
+
+    await runTaskAssignmentMutation(() =>
+      reassignTaskRequest(apiBaseUrl, task.id, ownerId, apiToken),
+    );
+  };
+
+  const startTask = async (task: Task, options: StartTaskOptions = {}) => {
+    const { openWorkLog = true } = options;
+    const currentTaskById = taskByIdRef.current;
+    const currentTask = currentTaskById[task.id] ?? task;
+    const status = getAutoTaskStatus(currentTask, currentTaskById);
+    const hasOpenDependencies = currentTask.dependencyIds
+      .map((dependencyId) => currentTaskById[dependencyId])
+      .some((dependency) => dependency && dependency.status !== "complete");
+    const assignmentState = getTaskAssignmentState({
+      canReassignTasks,
+      hasOpenDependencies,
+      membersById,
+      signedInMember,
+      task: currentTask,
+    });
+
+    if (!assignmentState.canStartWork || task.status === "complete") {
+      return;
+    }
+
+    if (!currentTask.ownerId) {
+      const ok = await runTaskAssignmentMutation(() =>
+        claimTaskRequest(apiBaseUrl, task.id, true, apiToken),
+      );
+      if (ok && openWorkLog) {
+        openCreateWorkLogEditor(task.id);
+      }
+      return;
+    }
+
+    if (status !== "in-progress") {
+      return;
+    }
+
+    if (task.status === "in-progress") {
+      if (openWorkLog) {
+        openCreateWorkLogEditor(task.id);
+      }
       return;
     }
 
@@ -3856,31 +4000,12 @@ export default function App() {
       ),
     );
 
-    await runMutation(`/api/tasks/${task.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({
-        title: task.title,
-        summary: task.summary,
-        subsystemId: task.subsystemId,
-        disciplineId: task.disciplineId,
-        mechanismId: task.mechanismId,
-        partInstanceId: task.partInstanceId,
-        targetEventId: task.targetEventId,
-        ownerId: task.ownerId,
-        mentorId: task.mentorId,
-        startDate: task.startDate || undefined,
-        dueDate: task.dueDate,
-        priority: task.priority,
-        status,
-        dependencyIds: task.dependencyIds,
-        checklistItems: task.checklistItems ?? [],
-        blockers: task.blockers,
-        linkedManufacturingIds: task.linkedManufacturingIds,
-        linkedPurchaseIds: task.linkedPurchaseIds,
-        estimatedHours: task.estimatedHours,
-        actualHours: task.actualHours,
-      }),
-    });
+    const ok = await runTaskAssignmentMutation(() =>
+      claimTaskRequest(apiBaseUrl, task.id, true, apiToken),
+    );
+    if (ok && openWorkLog) {
+      openCreateWorkLogEditor(task.id);
+    }
   };
   startTaskRef.current = startTask;
 
@@ -3970,7 +4095,7 @@ export default function App() {
       buildWorkLogDraft({
         taskId: selectedTaskId,
         date: isoToday(),
-        participantIds: members[0]?.id ? [members[0].id] : [],
+        participantIds: getDefaultWorkLogParticipantIds(signedInMember, members),
       }),
     );
     setWorkLogEditorMode("create");
@@ -4062,7 +4187,7 @@ export default function App() {
         taskId: tasks[0]?.id ?? "",
         date: isoToday(),
         hours: Number(formatHoursFromTimer(elapsedMs)),
-        participantIds: members[0]?.id ? [members[0].id] : [],
+        participantIds: getDefaultWorkLogParticipantIds(signedInMember, members),
       }),
     );
     workLogTimerRef.current = null;
@@ -4170,7 +4295,7 @@ export default function App() {
       if (ok) {
         const loggedTask = taskById[payload.taskId];
         if (loggedTask) {
-          await startTask(loggedTask);
+          await startTask(loggedTask, { openWorkLog: false });
         }
 
         closeWorkLogEditor();
@@ -4218,7 +4343,7 @@ export default function App() {
 
       const loggedTask = taskById[workLogDraft.taskId];
       if (loggedTask) {
-        await startTask(loggedTask);
+        await startTask(loggedTask, { openWorkLog: false });
       }
 
       closeWorkLogEditor();
@@ -5300,6 +5425,8 @@ export default function App() {
     attendancePreview,
     attendanceSummary,
     canMentorApprove,
+    canReassignTasks,
+    claimTask,
     clearTaskBlockers,
     disciplinesById,
     editTagStyle,
@@ -5402,7 +5529,9 @@ export default function App() {
     rosterExternal,
     rosterMentors,
     rosterStudents,
+    reassignTask,
     requestTaskQa,
+    releaseTask,
     selectedMemberId,
     selectedSubsystem,
     setActiveTab,
@@ -5448,6 +5577,7 @@ export default function App() {
     setWorkLogSortMode,
     setWorkLogSubsystemFilter,
     shiftTaskDueDates,
+    signedInMember,
     startWorkLogTimer,
     subsystemCountsById,
     subsystemSearch,

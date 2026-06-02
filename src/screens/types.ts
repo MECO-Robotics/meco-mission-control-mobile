@@ -119,6 +119,8 @@ export interface AppScreenProps {
   attendancePreview: AttendanceRow[];
   attendanceSummary: SummaryChipData[];
   canMentorApprove: boolean;
+  canReassignTasks: boolean;
+  claimTask: (task: Task) => Promise<void>;
   clearTaskBlockers: (task: Task, resolutionNote: string) => Promise<void>;
   disciplinesById: Record<string, Discipline>;
   editTagStyle: StyleProp<TextStyle>;
@@ -226,6 +228,8 @@ export interface AppScreenProps {
   rosterExternal: Member[];
   rosterMentors: Member[];
   rosterStudents: Member[];
+  reassignTask: (task: Task, ownerId: string | null) => Promise<void>;
+  releaseTask: (task: Task) => Promise<void>;
   selectedMemberId: string | null;
   selectedSubsystem: Subsystem | null;
   setActiveTab: StateSetter<ViewTab>;
@@ -271,6 +275,7 @@ export interface AppScreenProps {
   setWorkLogSortMode: StateSetter<WorkLogSortMode>;
   setWorkLogSubsystemFilter: TextSetter;
   shiftTaskDueDates: (tasksToShift: Task[], dayDelta: number) => Promise<void>;
+  signedInMember: Member | null;
   subsystemCountsById: Record<string, SubsystemCounts>;
   subsystemSearch: string;
   subsystems: Subsystem[];

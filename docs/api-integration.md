@@ -162,6 +162,9 @@ Milestones can be mapped into event-like records for mobile timeline behavior.
 The mobile app currently writes to these resource paths:
 
 - `POST /api/tasks`
+- `POST /api/tasks/:id/claim`
+- `POST /api/tasks/:id/release`
+- `POST /api/tasks/:id/reassign`
 - `PATCH /api/tasks/:id`
 - `DELETE /api/tasks/:id`
 - `POST /api/milestones`
