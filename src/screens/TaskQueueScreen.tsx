@@ -26,6 +26,8 @@ import type { Task } from "../types/domain";
 import type { AppScreenProps } from "./types";
 import { NeedHelpModal } from "./help/NeedHelpModal";
 import { TaskQueueFilterSheet } from "./TaskQueueFilterSheet";
+import { TaskReassignModal } from "./TaskReassignModal";
+import { useTaskReassignModal } from "./useTaskReassignModal";
 
 export function TaskQueueScreen(props: AppScreenProps) {
   const {
@@ -86,11 +88,10 @@ export function TaskQueueScreen(props: AppScreenProps) {
   const [blockerResolutionError, setBlockerResolutionError] = useState<string | null>(null);
   const [helpRequestTask, setHelpRequestTask] = useState<Task | null>(null);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-  const [reassignTaskTarget, setReassignTaskTarget] = useState<Task | null>(null);
-  const [reassignOwnerId, setReassignOwnerId] = useState<string | null>(null);
   const [isShiftDueDatesOpen, setIsShiftDueDatesOpen] = useState(false);
   const [shiftDayDelta, setShiftDayDelta] = useState("7");
   const [shiftDueDateError, setShiftDueDateError] = useState<string | null>(null);
+  const taskReassignModal = useTaskReassignModal({ reassignTask });
   const mentorOptions = rosterMentors.map((mentor) => ({ id: mentor.id, name: mentor.name }));
   const defaultHelpMentorId = getDefaultHelpMentorId(helpRequestTask, rosterMentors);
   const shiftableTasks = filteredTaskQueue.filter((task) => task.status !== "complete");
@@ -113,16 +114,6 @@ export function TaskQueueScreen(props: AppScreenProps) {
 
   const closeHelpRequest = () => {
     setHelpRequestTask(null);
-  };
-
-  const openReassignTask = (task: Task) => {
-    setReassignTaskTarget(task);
-    setReassignOwnerId(task.ownerId);
-  };
-
-  const closeReassignTask = () => {
-    setReassignTaskTarget(null);
-    setReassignOwnerId(null);
   };
 
   const submitTaskHelpRequest = ({
@@ -184,15 +175,6 @@ export function TaskQueueScreen(props: AppScreenProps) {
 
     await shiftTaskDueDates(shiftableTasks, dayDelta);
     closeShiftDueDates();
-  };
-
-  const saveReassignTask = async () => {
-    if (!reassignTaskTarget) {
-      return;
-    }
-
-    await reassignTask(reassignTaskTarget, reassignOwnerId);
-    closeReassignTask();
   };
 
   const resetTaskQueueFilters = () => {
@@ -506,7 +488,7 @@ const renderScreen = () => {
               ) : null}
               {assignmentState.canReassign ? (
                 <Pressable
-                  onPress={() => openReassignTask(task)}
+                  onPress={() => taskReassignModal.open(task)}
                   style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
                 >
                   <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
@@ -629,49 +611,16 @@ const renderScreen = () => {
         themeColors={themeColors}
         visible={isFiltersOpen}
       />
-      <EditorModal
-        onCancel={closeReassignTask}
-        onSave={saveReassignTask}
-        saveLabel="Reassign"
-        title="Reassign task"
-        visible={Boolean(reassignTaskTarget)}
-      >
-        {reassignTaskTarget ? (
-          <>
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                Current owner
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {reassignTaskTarget.ownerId
-                  ? membersById[reassignTaskTarget.ownerId]?.name ?? "Unknown owner"
-                  : "Unassigned"}
-              </Text>
-            </View>
-            <View style={styles.quickActionRow}>
-              <Pressable
-                onPress={() => setReassignOwnerId(null)}
-                style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
-              >
-                <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                  Unassigned
-                </Text>
-              </Pressable>
-              {reassignOwnerOptions.map((member) => (
-                <Pressable
-                  key={member.id}
-                  onPress={() => setReassignOwnerId(member.id)}
-                  style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
-                >
-                  <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                    {reassignOwnerId === member.id ? `${member.name} selected` : member.name}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </>
-        ) : null}
-      </EditorModal>
+      <TaskReassignModal
+        appResponsiveStyles={appResponsiveStyles}
+        membersById={membersById}
+        onCancel={taskReassignModal.close}
+        onSave={taskReassignModal.save}
+        onChangeOwner={taskReassignModal.setOwnerId}
+        ownerId={taskReassignModal.ownerId}
+        ownerOptions={reassignOwnerOptions}
+        task={taskReassignModal.task}
+      />
       <EditorModal
         onCancel={closeShiftDueDates}
         onSave={saveShiftDueDates}
