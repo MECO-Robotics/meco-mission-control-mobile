@@ -4326,6 +4326,23 @@ export default function App() {
       return;
     }
 
+    if (backendStatus === "offline") {
+      const result = enqueuePendingWorkLogDraft(
+        pendingWorkLogDraftsRef.current,
+        payload,
+        new Date(),
+        { ownerKey: activeWorkLogDraftOwnerKey },
+      );
+      await persistPendingWorkLogDrafts(result.drafts);
+      setSyncError(
+        result.didCreate
+          ? "Work log saved locally. It will sync when the backend is reachable."
+          : "Work log draft is already saved locally and waiting to sync.",
+      );
+      closeWorkLogEditor();
+      return;
+    }
+
     setIsSyncing(true);
     setSyncError(null);
 
