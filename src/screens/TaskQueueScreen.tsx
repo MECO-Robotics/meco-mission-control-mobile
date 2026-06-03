@@ -11,7 +11,10 @@ import {
   localTodayDate,
 } from "../ui/helpers";
 import { getDefaultHelpMentorId } from "../data/helpRequests";
-import { getTaskAssignmentState } from "../data/taskAssignment";
+import {
+  getTaskAssignmentState,
+  getTaskStartActionLabel,
+} from "../data/taskAssignment";
 import { styles } from "../ui/styles";
 import {
   EditorModal,
@@ -481,7 +484,7 @@ const renderScreen = () => {
                   style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
                 >
                   <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                    Claim
+                    Claim only
                   </Text>
                 </Pressable>
               ) : null}
@@ -493,7 +496,7 @@ const renderScreen = () => {
                   style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
                 >
                   <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                    Start work
+                    {getTaskStartActionLabel(task)}
                   </Text>
                 </Pressable>
               ) : null}
@@ -505,7 +508,7 @@ const renderScreen = () => {
                   style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
                 >
                   <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                    Unclaim
+                    Release
                   </Text>
                 </Pressable>
               ) : null}

@@ -129,6 +129,10 @@ export function getDefaultWorkLogParticipantIds(
   return members[0]?.id ? [members[0].id] : [];
 }
 
+export function getTaskStartActionLabel(task: Pick<Task, "ownerId">) {
+  return task.ownerId ? "Start work" : "Claim + log work";
+}
+
 export function claimTaskRequest(
   baseUrl: string,
   taskId: string,
