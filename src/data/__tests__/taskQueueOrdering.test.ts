@@ -114,4 +114,14 @@ describe("task queue ordering", () => {
       "electrical-qa",
     ]);
   });
+
+  it("keeps completed subteam work visible when filters return completed tasks", () => {
+    const tasks = [
+      makeTask({ disciplineId: "software", id: "mine-complete", status: "complete" }),
+      makeTask({ disciplineId: "mechanical", id: "other-complete", status: "complete" }),
+    ];
+
+    expect(taskIds("completed", tasks)).toEqual(["mine-complete"]);
+    expect(taskIds("primary-available", tasks)).toEqual([]);
+  });
 });

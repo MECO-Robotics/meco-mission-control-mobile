@@ -6,7 +6,8 @@ export type TaskQueueSectionId =
   | "primary-available"
   | "other-available"
   | "blocked"
-  | "waiting-qa";
+  | "waiting-qa"
+  | "completed";
 
 export type TaskQueueSection = {
   emptyBody?: string;
@@ -82,7 +83,10 @@ export function buildTaskQueueSections({
       return true;
     }
 
-    return getTaskSubteam(task, primarySubteam) === primarySubteam || isAvailableTask(task, taskById);
+    return (
+      getTaskSubteam(task, primarySubteam) === primarySubteam ||
+      isAvailableTask(task, taskById)
+    );
   });
 
   const primaryAvailable = scopedTasks
@@ -100,6 +104,9 @@ export function buildTaskQueueSections({
     .sort(compareTasksByDueDate);
   const waitingQa = scopedTasks
     .filter((task) => task.status === "waiting-for-qa")
+    .sort(compareTasksByDueDate);
+  const completed = scopedTasks
+    .filter((task) => task.status === "complete")
     .sort(compareTasksByDueDate);
 
   return [
@@ -127,6 +134,11 @@ export function buildTaskQueueSections({
       id: "waiting-qa",
       tasks: waitingQa,
       title: "Waiting QA",
+    },
+    {
+      id: "completed",
+      tasks: completed,
+      title: "Completed",
     },
   ];
 }
