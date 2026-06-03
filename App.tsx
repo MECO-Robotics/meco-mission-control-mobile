@@ -1559,14 +1559,20 @@ export default function App() {
         const conflict = getTaskAssignmentConflict(error);
         if (conflict) {
           let refreshed = false;
+          let refreshError: unknown = null;
           try {
             await refreshWorkspaceFromServer(apiToken);
             refreshed = true;
-          } catch {
+          } catch (error) {
+            refreshError = error;
             refreshed = false;
           }
           setBackendStatus(refreshed ? "connected" : "offline");
-          setBackendReachability(refreshed ? "reachable" : "unreachable");
+          setBackendReachability(
+            refreshed
+              ? "reachable"
+              : backendReachabilityAfterError(refreshError),
+          );
           setSyncError(
             getTaskAssignmentConflictMessage(
               conflict,
