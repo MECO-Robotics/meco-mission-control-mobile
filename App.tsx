@@ -3978,7 +3978,7 @@ export default function App() {
       task: currentTask,
     });
 
-    if (!assignmentState.canStartWork || task.status === "complete") {
+    if (!assignmentState.canStartWork || currentTask.status === "complete") {
       return;
     }
 

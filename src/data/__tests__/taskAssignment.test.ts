@@ -1,9 +1,13 @@
 import { ApiRequestError } from "../api";
 import {
+  claimTaskRequest,
   getDefaultWorkLogParticipantIds,
   getTaskAssignmentConflict,
   getTaskAssignmentConflictMessage,
   getTaskAssignmentState,
+  getTaskStartActionLabel,
+  reassignTaskRequest,
+  releaseTaskRequest,
 } from "../taskAssignment";
 import type { Member, Task } from "../../types/domain";
 
@@ -148,6 +152,15 @@ describe("task assignment state", () => {
   });
 });
 
+describe("task assignment action labels", () => {
+  it("makes the claim-only and claim-with-worklog paths distinct", () => {
+    expect(getTaskStartActionLabel(baseTask)).toBe("Claim + log work");
+    expect(getTaskStartActionLabel({ ...baseTask, ownerId: student.id })).toBe(
+      "Start work",
+    );
+  });
+});
+
 describe("task assignment conflict handling", () => {
   it("maps already-claimed conflicts into user-facing copy", () => {
     const error = new ApiRequestError("Task already claimed.", 409, {
@@ -169,6 +182,96 @@ describe("task assignment conflict handling", () => {
     expect(getTaskAssignmentConflictMessage(conflict!, membersById, false)).toBe(
       "Already claimed by Lucas Brooks. Refresh failed; pull to refresh before trying again.",
     );
+  });
+});
+
+describe("task assignment requests", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  function mockAssignmentResponse() {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: jest.fn().mockResolvedValue(JSON.stringify({ item: baseTask })),
+    } as unknown as Response);
+  }
+
+  it("posts claim-only and claim-with-start payloads", async () => {
+    mockAssignmentResponse();
+
+    await claimTaskRequest("https://api.example.test", baseTask.id, false, "token");
+    await claimTaskRequest("https://api.example.test", baseTask.id, true, "token");
+
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      1,
+      "https://api.example.test/api/tasks/task-1/claim",
+      expect.objectContaining({
+        body: JSON.stringify({ start: false }),
+        method: "POST",
+      }),
+    );
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      2,
+      "https://api.example.test/api/tasks/task-1/claim",
+      expect.objectContaining({
+        body: JSON.stringify({ start: true }),
+        method: "POST",
+      }),
+    );
+  });
+
+  it("posts release and mentor reassign requests", async () => {
+    mockAssignmentResponse();
+
+    await releaseTaskRequest("https://api.example.test", baseTask.id, "token");
+    await reassignTaskRequest(
+      "https://api.example.test",
+      baseTask.id,
+      otherStudent.id,
+      "token",
+    );
+
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      1,
+      "https://api.example.test/api/tasks/task-1/release",
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      2,
+      "https://api.example.test/api/tasks/task-1/reassign",
+      expect.objectContaining({
+        body: JSON.stringify({ ownerId: otherStudent.id }),
+        method: "POST",
+      }),
+    );
+  });
+
+  it("surfaces an already-claimed conflict from the claim endpoint", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      text: jest.fn().mockResolvedValue(
+        JSON.stringify({
+          code: "task_already_claimed",
+          message: "Task already claimed.",
+          ownerId: otherStudent.id,
+          taskId: baseTask.id,
+        }),
+      ),
+    } as unknown as Response);
+
+    await expect(
+      claimTaskRequest("https://api.example.test", baseTask.id, true, "token"),
+    ).rejects.toMatchObject({
+      body: expect.objectContaining({
+        code: "task_already_claimed",
+        ownerId: otherStudent.id,
+        taskId: baseTask.id,
+      }),
+      status: 409,
+    });
   });
 });
 
