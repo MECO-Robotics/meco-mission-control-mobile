@@ -2041,11 +2041,10 @@ export default function App() {
     return buildTaskQueueSections({
       activeTaskSubteam,
       canViewAllQueues: canMentorApprove,
-      signedInMember,
       taskById,
       tasks: filteredTaskQueueCandidates,
     });
-  }, [activeTaskSubteam, canMentorApprove, filteredTaskQueueCandidates, signedInMember, taskById]);
+  }, [activeTaskSubteam, canMentorApprove, filteredTaskQueueCandidates, taskById]);
 
   const filteredTaskQueue = useMemo(() => {
     return taskQueueSections.flatMap((section) => section.tasks);

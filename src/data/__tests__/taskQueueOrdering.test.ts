@@ -4,12 +4,6 @@ import {
 } from "../taskQueueOrdering";
 import type { Member, Task } from "../../types/domain";
 
-const student: Member = {
-  disciplineId: "software",
-  id: "student-1",
-  name: "Student One",
-  role: "student",
-};
 const mentor: Member = { id: "mentor-1", name: "Mentor One", role: "mentor" };
 
 const baseTask: Task = {
@@ -49,7 +43,6 @@ function taskIds(sectionId: string, tasks: Task[]) {
   const section = buildTaskQueueSections({
     activeTaskSubteam: "programming",
     canViewAllQueues: false,
-    signedInMember: student,
     taskById: Object.fromEntries(tasks.map((task) => [task.id, task])),
     tasks,
   }).find((candidate) => candidate.id === sectionId);
@@ -102,7 +95,6 @@ describe("task queue ordering", () => {
     const sections = buildTaskQueueSections({
       activeTaskSubteam: "programming",
       canViewAllQueues: true,
-      signedInMember: mentor,
       taskById: Object.fromEntries(tasks.map((task) => [task.id, task])),
       tasks,
     });
@@ -123,5 +115,29 @@ describe("task queue ordering", () => {
 
     expect(taskIds("completed", tasks)).toEqual(["mine-complete"]);
     expect(taskIds("primary-available", tasks)).toEqual([]);
+  });
+
+  it("honors a non-mentor selected subteam queue", () => {
+    const tasks = [
+      makeTask({ disciplineId: "software", id: "software-available" }),
+      makeTask({ disciplineId: "mechanical", id: "mechanical-available" }),
+      makeTask({ disciplineId: "mechanical", id: "mechanical-blocked", blockers: ["Need stock"] }),
+    ];
+    const sections = buildTaskQueueSections({
+      activeTaskSubteam: "mechanical",
+      canViewAllQueues: false,
+      taskById: Object.fromEntries(tasks.map((task) => [task.id, task])),
+      tasks,
+    });
+
+    expect(sections.find((section) => section.id === "primary-available")?.tasks.map((task) => task.id)).toEqual([
+      "mechanical-available",
+    ]);
+    expect(sections.find((section) => section.id === "other-available")?.tasks.map((task) => task.id)).toEqual([
+      "software-available",
+    ]);
+    expect(sections.find((section) => section.id === "blocked")?.tasks.map((task) => task.id)).toEqual([
+      "mechanical-blocked",
+    ]);
   });
 });

@@ -1,4 +1,4 @@
-import type { Member, Task } from "../types/domain";
+import type { Task } from "../types/domain";
 import { TASK_SUBTEAM_DISCIPLINE_IDS, TASK_SUBTEAM_OPTIONS } from "../ui/constants";
 import type { TaskSubteamTab } from "../ui/types";
 
@@ -20,7 +20,6 @@ export type TaskQueueSection = {
 type BuildTaskQueueSectionsInput = {
   activeTaskSubteam: TaskSubteamTab;
   canViewAllQueues: boolean;
-  signedInMember: Member | null;
   taskById: Record<string, Task>;
   tasks: Task[];
 };
@@ -70,13 +69,10 @@ function getTaskSubteam(task: Task, fallback: TaskSubteamTab) {
 export function buildTaskQueueSections({
   activeTaskSubteam,
   canViewAllQueues,
-  signedInMember,
   taskById,
   tasks,
 }: BuildTaskQueueSectionsInput): TaskQueueSection[] {
-  const primarySubteam = canViewAllQueues
-    ? activeTaskSubteam
-    : getTaskSubteamForDisciplineId(signedInMember?.disciplineId, activeTaskSubteam);
+  const primarySubteam = activeTaskSubteam;
   const primarySubteamLabel = getSubteamLabel(primarySubteam);
   const scopedTasks = tasks.filter((task) => {
     if (canViewAllQueues) {
