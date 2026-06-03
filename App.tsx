@@ -290,11 +290,14 @@ const ATTENDANCE_STATUS_BY_MEMBER_ID: Record<string, AttendanceStatus> = {
   zoe: "maybe",
   diego: "yes",
   emma: "yes",
+  samira: "yes",
+  caleb: "maybe",
+  nina: "yes",
 };
 
 const INITIAL_SEASONS: SeasonOption[] = [
-  { id: "2026-offseason", label: "2026 Competition & Offseason" },
-  { id: "2027-preseason", label: "2027 Preseason" },
+  { id: "2026-offseason", label: "2026 FRC Offseason" },
+  { id: "2027-preseason", label: "2027 FRC Preseason" },
 ];
 
 const PLANNED_ATTENDANCE_DAY_OPTIONS = [

@@ -15,6 +15,26 @@ import {
   Subsystem,
   WorkLog,
 } from "../types/domain";
+import {
+  offseasonAttendanceRecords,
+  offseasonEscalations,
+  offseasonEvents,
+  offseasonMeetings,
+  offseasonQaReviews,
+  offseasonWorkLogs,
+} from "./fallback/offseasonActivity";
+import {
+  offseasonManufacturingItems,
+  offseasonPartDefinitions,
+  offseasonPartInstances,
+  offseasonPurchaseItems,
+} from "./fallback/offseasonInventory";
+import { offseasonMembers } from "./fallback/offseasonRoster";
+import {
+  offseasonMechanisms,
+  offseasonRequirements,
+  offseasonSubsystems,
+} from "./fallback/offseasonSystems";
 import { tasks } from "./tasks";
 
 const members: Member[] = [
@@ -45,6 +65,7 @@ const members: Member[] = [
     plannedAttendanceDays: ["wednesday", "saturday"],
     plannedAttendanceNotes: "Mentor QA rotation for summer scrimmage readiness.",
   },
+  ...offseasonMembers,
 ];
 
 const subsystems: Subsystem[] = [
@@ -118,6 +139,7 @@ const subsystems: Subsystem[] = [
     mentorIds: ["riley"],
     risks: ["Missing match rows", "Rubric drift"],
   },
+  ...offseasonSubsystems,
 ];
 
 const disciplines: Discipline[] = [
@@ -177,6 +199,7 @@ const mechanisms: Mechanism[] = [
     name: "Event Data Review",
     description: "Post-event scouting normalization and strategy handoff.",
   },
+  ...offseasonMechanisms,
 ];
 
 const requirements: Requirement[] = [
@@ -236,6 +259,7 @@ const requirements: Requirement[] = [
     moscowPriority: "should",
     status: "in-progress",
   },
+  ...offseasonRequirements,
 ];
 
 const partDefinitions: PartDefinition[] = [
@@ -290,6 +314,7 @@ const partDefinitions: PartDefinition[] = [
     source: "Team repository",
     description: "Pinned driver station configuration image with logging tools and controller profiles.",
   },
+  ...offseasonPartDefinitions,
 ];
 
 const partInstances: PartInstance[] = [
@@ -350,6 +375,7 @@ const partInstances: PartInstance[] = [
     trackIndividually: true,
     status: "needed",
   },
+  ...offseasonPartInstances,
 ];
 
 const events: Event[] = [
@@ -423,6 +449,7 @@ const events: Event[] = [
     description: "Community and sponsor event with robot demos, student talks, and offseason progress review.",
     relatedSubsystemIds: ["drive", "manipulator", "vision"],
   },
+  ...offseasonEvents,
 ];
 
 const meetings: Meeting[] = [
@@ -453,6 +480,7 @@ const meetings: Meeting[] = [
     rsvpsMaybe: 5,
     openSignIns: 4,
   },
+  ...offseasonMeetings,
 ];
 
 const workLogs: WorkLog[] = [
@@ -536,6 +564,7 @@ const workLogs: WorkLog[] = [
     participantIds: ["zoe", "diego"],
     notes: "Drafted station rotation and reset-crew assignments for the June training night.",
   },
+  ...offseasonWorkLogs,
 ];
 
 const attendanceRecords: AttendanceRecord[] = [
@@ -549,6 +578,7 @@ const attendanceRecords: AttendanceRecord[] = [
   { id: "att-8", memberId: "noah", date: "2026-05-29", totalHours: 2.25 },
   { id: "att-9", memberId: "ethan", date: "2026-05-30", totalHours: 1.5 },
   { id: "att-10", memberId: "zoe", date: "2026-05-30", totalHours: 1 },
+  ...offseasonAttendanceRecords,
 ];
 
 const manufacturingItems: ManufacturingItem[] = [
@@ -622,6 +652,7 @@ const manufacturingItems: ManufacturingItem[] = [
     batchLabel: "DRV-42",
     qaReviewCount: 0,
   },
+  ...offseasonManufacturingItems,
 ];
 
 const purchaseItems: PurchaseItem[] = [
@@ -688,6 +719,7 @@ const purchaseItems: PurchaseItem[] = [
     approvedByMentor: true,
     status: "purchased",
   },
+  ...offseasonPurchaseItems,
 ];
 
 const qaReviews: QaReview[] = [
@@ -768,6 +800,7 @@ const qaReviews: QaReview[] = [
     mentorApproved: false,
     notes: "Harness strain relief is clean, but retired battery labels need one more pass before approval.",
   },
+  ...offseasonQaReviews,
 ];
 
 const escalations: Escalation[] = [
@@ -795,6 +828,7 @@ const escalations: Escalation[] = [
       "The controls team needs final CTRE and REV tool versions before they can freeze the practice laptop image.",
     severity: "medium",
   },
+  ...offseasonEscalations,
 ];
 
 export const mecoSnapshot = {
