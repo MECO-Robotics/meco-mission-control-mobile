@@ -73,6 +73,41 @@ Keep OAuth client IDs and any tokens in environment/config files only and never 
 
 Refer to `mobile-auth-smoke-tests.md` for the mobile-auth smoke checklist before shipping.
 
+## Repository labels
+
+Use the shared Mission Control label vocabulary when filing or triaging issues.
+Every issue should have at least one area label, one type label, and one
+priority label. Add a workflow label when the issue is blocked or waiting on
+design input.
+
+Area labels:
+
+- `area:mobile` - mobile app code, Expo configuration, simulator workflow, or app UX.
+- `area:docs` - repository documentation, checklists, templates, or contributor guidance.
+- `area:backend` - platform API contracts or mobile/backend integration work.
+- `area:data` - mock data, bootstrap data, seed references, or data integrity.
+- `area:qa` - test coverage, smoke checks, validation workflows, or release verification.
+
+Type labels:
+
+- `type:bug` - incorrect behavior or regression.
+- `type:feature` - new user-facing behavior or workflow.
+- `type:tech-debt` - cleanup, refactor, dependency, or maintainability work.
+- `type:docs` - documentation-only work.
+- `type:test` - test-only or validation-only work.
+
+Priority labels:
+
+- `priority:p0` - production-blocking or release-blocking.
+- `priority:p1` - high-impact work needed soon.
+- `priority:p2` - normal backlog priority.
+- `priority:p3` - low-priority polish or follow-up.
+
+Workflow labels:
+
+- `blocked` - cannot proceed until an external dependency is resolved.
+- `needs-design` - needs UI, content, or workflow design input before implementation.
+
 ## Release automation
 
 - `CI` workflow runs `npm run typecheck` on pull requests and `main`.
