@@ -116,6 +116,10 @@ import {
   reassignTaskRequest,
   releaseTaskRequest,
 } from "./src/data/taskAssignment";
+import {
+  buildTaskQueueSections,
+  getTaskSubteamForDisciplineId,
+} from "./src/data/taskQueueOrdering";
 import { mecoSnapshot } from "./src/data/mockData";
 import { tasks as seededTasks } from "./src/data/tasks";
 import type {
@@ -549,14 +553,6 @@ function mapTaskPayloadToServer<T extends { targetEventId?: string | null }>(
     ...serverPayload,
     targetMilestoneId: targetEventId ?? null,
   };
-}
-
-function getTaskSubteamForDiscipline(disciplineId: string, fallback: TaskSubteamTab) {
-  return (
-    TASK_SUBTEAM_OPTIONS.find((option) =>
-      TASK_SUBTEAM_DISCIPLINE_IDS[option.value].includes(disciplineId),
-    )?.value ?? fallback
-  );
 }
 
 function mapTaskPriorityToRiskPriority(priority: TaskPriority): RiskPriority {
@@ -1891,10 +1887,10 @@ export default function App() {
     }, {});
   }, [workLogsForDisplay]);
 
-  const filteredTaskQueue = useMemo(() => {
+  const filteredTaskQueueCandidates = useMemo(() => {
     const search = taskSearch.trim().toLowerCase();
 
-    return [...activeTaskSubteamTasks]
+    return [...tasks]
       .filter((task) => {
         if (
           activePersonFilter !== "all" &&
@@ -2025,7 +2021,6 @@ export default function App() {
       })
       .sort((left, right) => left.dueDate.localeCompare(right.dueDate));
   }, [
-    activeTaskSubteamTasks,
     activePersonFilter,
     membersById,
     mechanismsById,
@@ -2039,7 +2034,22 @@ export default function App() {
     taskSearch,
     taskStatusFilter,
     taskSubsystemFilter,
+    tasks,
   ]);
+
+  const taskQueueSections = useMemo(() => {
+    return buildTaskQueueSections({
+      activeTaskSubteam,
+      canViewAllQueues: canMentorApprove,
+      signedInMember,
+      taskById,
+      tasks: filteredTaskQueueCandidates,
+    });
+  }, [activeTaskSubteam, canMentorApprove, filteredTaskQueueCandidates, signedInMember, taskById]);
+
+  const filteredTaskQueue = useMemo(() => {
+    return taskQueueSections.flatMap((section) => section.tasks);
+  }, [taskQueueSections]);
 
   const taskSummary = useMemo(() => {
     const blocked = filteredTaskQueue.filter((task) => task.blockers.length > 0).length;
@@ -3425,7 +3435,7 @@ export default function App() {
   };
 
   const openTaskQueueFromTask = (task: Task) => {
-    const nextSubteam = getTaskSubteamForDiscipline(task.disciplineId, activeTaskSubteam);
+    const nextSubteam = getTaskSubteamForDisciplineId(task.disciplineId, activeTaskSubteam);
 
     setActiveTaskSubteam(nextSubteam);
     setTaskView("queue");
@@ -3666,7 +3676,7 @@ export default function App() {
     );
 
     if (ok) {
-      setActiveTaskSubteam(getTaskSubteamForDiscipline(taskDraft.disciplineId, activeTaskSubteam));
+      setActiveTaskSubteam(getTaskSubteamForDisciplineId(taskDraft.disciplineId, activeTaskSubteam));
       closeTaskEditor();
     }
   };
@@ -5590,6 +5600,7 @@ export default function App() {
     taskById,
     taskOwnerFilter,
     taskPriorityFilter,
+    taskQueueSections,
     taskSearch,
     taskStatusFilter,
     taskSubsystemFilter,
