@@ -45,6 +45,33 @@ const members: Member[] = [
     plannedAttendanceDays: ["wednesday", "saturday"],
     plannedAttendanceNotes: "Mentor QA rotation for summer scrimmage readiness.",
   },
+  {
+    id: "samira",
+    name: "Samira Haddad",
+    role: "lead",
+    disciplineId: "electrical",
+    plannedWeeklyAttendanceHours: 6,
+    plannedAttendanceDays: ["monday", "wednesday", "saturday"],
+    plannedAttendanceNotes: "Electrical lead for battery, radio, and pit loadout readiness.",
+  },
+  {
+    id: "caleb",
+    name: "Caleb Wright",
+    role: "student",
+    disciplineId: "mechanical",
+    plannedWeeklyAttendanceHours: 4,
+    plannedAttendanceDays: ["thursday", "saturday"],
+    plannedAttendanceNotes: "Practice-field reset crew and spare bumper repair support.",
+  },
+  {
+    id: "nina",
+    name: "Nina Rossi",
+    role: "mentor",
+    disciplineId: "software",
+    plannedWeeklyAttendanceHours: 3,
+    plannedAttendanceDays: ["tuesday", "saturday"],
+    plannedAttendanceNotes: "Vision calibration and scouting tablet mentor support.",
+  },
 ];
 
 const subsystems: Subsystem[] = [
@@ -118,6 +145,16 @@ const subsystems: Subsystem[] = [
     mentorIds: ["riley"],
     risks: ["Missing match rows", "Rubric drift"],
   },
+  {
+    id: "practice-field",
+    name: "Practice Field",
+    description: "Portable field elements, driver drills, reset crew flow, and safety boundaries.",
+    isCore: false,
+    parentSubsystemId: null,
+    responsibleEngineerId: "caleb",
+    mentorIds: ["emma"],
+    risks: ["Field element wear", "Reset timing drift"],
+  },
 ];
 
 const disciplines: Discipline[] = [
@@ -176,6 +213,18 @@ const mechanisms: Mechanism[] = [
     subsystemId: "scouting",
     name: "Event Data Review",
     description: "Post-event scouting normalization and strategy handoff.",
+  },
+  {
+    id: "practice-grid",
+    subsystemId: "practice-field",
+    name: "Practice Grid",
+    description: "Portable taped lanes, reset bins, driver station boundary, and drill timing aids.",
+  },
+  {
+    id: "vision-calibration",
+    subsystemId: "vision",
+    name: "Vision Calibration",
+    description: "Camera mounting, AprilTag target checks, and pose-estimator regression notes.",
   },
 ];
 
@@ -236,6 +285,22 @@ const requirements: Requirement[] = [
     moscowPriority: "should",
     status: "in-progress",
   },
+  {
+    id: "field-req-1",
+    subsystemId: "practice-field",
+    title: "Practice field must support six-minute match cycles.",
+    description: "Reset flow, taped boundaries, and spare game pieces must keep drills on schedule.",
+    moscowPriority: "should",
+    status: "planned",
+  },
+  {
+    id: "vision-req-1",
+    subsystemId: "vision",
+    title: "Vision calibration must remain stable across practice lighting.",
+    description: "Camera transforms and tag detection notes must be documented before scrimmage.",
+    moscowPriority: "should",
+    status: "in-progress",
+  },
 ];
 
 const partDefinitions: PartDefinition[] = [
@@ -289,6 +354,24 @@ const partDefinitions: PartDefinition[] = [
     type: "software artifact",
     source: "Team repository",
     description: "Pinned driver station configuration image with logging tools and controller profiles.",
+  },
+  {
+    id: "pd-practice-field-kit",
+    name: "Portable Practice Field Kit",
+    partNumber: "OPS-512",
+    revision: "A",
+    type: "field kit",
+    source: "In-house fabrication",
+    description: "Reusable cones, tape markers, reset bins, and driver station boundary hardware.",
+  },
+  {
+    id: "pd-vision-camera-mount",
+    name: "Vision Camera Mount",
+    partNumber: "VIS-118",
+    revision: "D",
+    type: "custom",
+    source: "Onshape",
+    description: "Adjustable camera mount used for offseason pose-estimation testing.",
   },
 ];
 
@@ -349,6 +432,26 @@ const partInstances: PartInstance[] = [
     quantity: 2,
     trackIndividually: true,
     status: "needed",
+  },
+  {
+    id: "pi-practice-field-kit",
+    subsystemId: "practice-field",
+    mechanismId: "practice-grid",
+    partDefinitionId: "pd-practice-field-kit",
+    name: "Portable summer practice field kit",
+    quantity: 1,
+    trackIndividually: true,
+    status: "available",
+  },
+  {
+    id: "pi-vision-camera-mount-front",
+    subsystemId: "vision",
+    mechanismId: "vision-calibration",
+    partDefinitionId: "pd-vision-camera-mount",
+    name: "Front camera adjustable mount",
+    quantity: 1,
+    trackIndividually: true,
+    status: "installed",
   },
 ];
 
@@ -423,6 +526,26 @@ const events: Event[] = [
     description: "Community and sponsor event with robot demos, student talks, and offseason progress review.",
     relatedSubsystemIds: ["drive", "manipulator", "vision"],
   },
+  {
+    id: "vision-drive-calibration-jun-20",
+    title: "Vision Drive Calibration",
+    type: "drive-practice",
+    startDateTime: "2026-06-20T09:00:00-04:00",
+    endDateTime: "2026-06-20T12:00:00-04:00",
+    isExternal: false,
+    description: "Closed-field practice for camera calibration, autonomous replay, and driver feedback loops.",
+    relatedSubsystemIds: ["vision", "controls", "drive", "practice-field"],
+  },
+  {
+    id: "offseason-volunteer-day-jul-11",
+    title: "Offseason Volunteer Day",
+    type: "demo",
+    startDateTime: "2026-07-11T10:00:00-04:00",
+    endDateTime: "2026-07-11T14:00:00-04:00",
+    isExternal: true,
+    description: "Community volunteer event with robot demos, practice-field teardown, and pit safety walkthroughs.",
+    relatedSubsystemIds: ["practice-field", "pit-readiness", "drive"],
+  },
 ];
 
 const meetings: Meeting[] = [
@@ -452,6 +575,15 @@ const meetings: Meeting[] = [
     rsvpsYes: 16,
     rsvpsMaybe: 5,
     openSignIns: 4,
+  },
+  {
+    id: "vision-calibration-night",
+    title: "Vision calibration night",
+    date: "2026-06-18",
+    time: "6:00 PM",
+    rsvpsYes: 12,
+    rsvpsMaybe: 4,
+    openSignIns: 2,
   },
 ];
 
@@ -536,6 +668,30 @@ const workLogs: WorkLog[] = [
     participantIds: ["zoe", "diego"],
     notes: "Drafted station rotation and reset-crew assignments for the June training night.",
   },
+  {
+    id: "log-11",
+    taskId: "vision-apriltag-recalibration",
+    date: "2026-06-01",
+    hours: 2.5,
+    participantIds: ["noah", "nina", "ethan"],
+    notes: "Checked camera transforms against practice lighting and captured drift notes for replay testing.",
+  },
+  {
+    id: "log-12",
+    taskId: "practice-field-reset-flow",
+    date: "2026-06-02",
+    hours: 2,
+    participantIds: ["caleb", "samira", "emma"],
+    notes: "Laid out taped lanes, timed reset crew flow, and tagged field-kit repairs before scrimmage setup.",
+  },
+  {
+    id: "log-13",
+    taskId: "radio-brownout-checklist",
+    date: "2026-06-03",
+    hours: 1.25,
+    participantIds: ["samira", "priya"],
+    notes: "Validated radio retention clips and added brownout checks to the pre-match pit card.",
+  },
 ];
 
 const attendanceRecords: AttendanceRecord[] = [
@@ -549,6 +705,9 @@ const attendanceRecords: AttendanceRecord[] = [
   { id: "att-8", memberId: "noah", date: "2026-05-29", totalHours: 2.25 },
   { id: "att-9", memberId: "ethan", date: "2026-05-30", totalHours: 1.5 },
   { id: "att-10", memberId: "zoe", date: "2026-05-30", totalHours: 1 },
+  { id: "att-11", memberId: "nina", date: "2026-06-01", totalHours: 2.5 },
+  { id: "att-12", memberId: "caleb", date: "2026-06-02", totalHours: 2 },
+  { id: "att-13", memberId: "samira", date: "2026-06-03", totalHours: 1.25 },
 ];
 
 const manufacturingItems: ManufacturingItem[] = [
@@ -622,6 +781,36 @@ const manufacturingItems: ManufacturingItem[] = [
     batchLabel: "DRV-42",
     qaReviewCount: 0,
   },
+  {
+    id: "practice-field-marker-refresh",
+    title: "Practice field marker refresh",
+    subsystemId: "practice-field",
+    requestedById: "caleb",
+    process: "fabrication",
+    dueDate: "2026-06-09",
+    material: "Gaff tape, coroplast, and reset-bin labels",
+    partDefinitionId: "pd-practice-field-kit",
+    quantity: 1,
+    status: "in-progress",
+    mentorReviewed: true,
+    batchLabel: "FLD-07",
+    qaReviewCount: 0,
+  },
+  {
+    id: "vision-camera-mount-recut",
+    title: "Vision camera mount recut",
+    subsystemId: "vision",
+    requestedById: "noah",
+    process: "3d-print",
+    dueDate: "2026-06-12",
+    material: "PETG-CF",
+    partDefinitionId: "pd-vision-camera-mount",
+    quantity: 2,
+    status: "approved",
+    mentorReviewed: true,
+    batchLabel: "VIS-15",
+    qaReviewCount: 0,
+  },
 ];
 
 const purchaseItems: PurchaseItem[] = [
@@ -687,6 +876,32 @@ const purchaseItems: PurchaseItem[] = [
     estimatedCost: 42,
     approvedByMentor: true,
     status: "purchased",
+  },
+  {
+    id: "april-tag-print-set",
+    title: "AprilTag calibration print set",
+    subsystemId: "vision",
+    requestedById: "noah",
+    partDefinitionId: "pd-vision-camera-mount",
+    quantity: 1,
+    vendor: "AndyMark",
+    linkLabel: "andymark.com/apriltag",
+    estimatedCost: 28,
+    approvedByMentor: true,
+    status: "delivered",
+  },
+  {
+    id: "practice-field-tape-restock",
+    title: "Practice field tape restock",
+    subsystemId: "practice-field",
+    requestedById: "caleb",
+    partDefinitionId: "pd-practice-field-kit",
+    quantity: 3,
+    vendor: "Uline",
+    linkLabel: "uline.com/gaffers-tape",
+    estimatedCost: 54,
+    approvedByMentor: false,
+    status: "requested",
   },
 ];
 
@@ -768,6 +983,28 @@ const qaReviews: QaReview[] = [
     mentorApproved: false,
     notes: "Harness strain relief is clean, but retired battery labels need one more pass before approval.",
   },
+  {
+    id: "qa-8",
+    taskId: "vision-apriltag-recalibration",
+    subjectId: "vision-apriltag-recalibration",
+    subjectType: "task",
+    subjectTitle: "Recalibrate AprilTag vision",
+    participantIds: ["noah", "nina", "ethan"],
+    result: "iteration-worthy",
+    mentorApproved: false,
+    notes: "Pose estimates are stable near center field, but edge lighting still needs another camera exposure pass.",
+  },
+  {
+    id: "qa-9",
+    taskId: "practice-field-reset-flow",
+    subjectId: "practice-field-reset-flow",
+    subjectType: "task",
+    subjectTitle: "Tune practice-field reset flow",
+    participantIds: ["caleb", "emma"],
+    result: "minor-fix",
+    mentorApproved: false,
+    notes: "Reset bins and lane tape work, but human-player station labels need clearer numbering before scrimmage.",
+  },
 ];
 
 const escalations: Escalation[] = [
@@ -793,6 +1030,18 @@ const escalations: Escalation[] = [
     title: "Driver station image freeze depends on vendor tool stability",
     detail:
       "The controls team needs final CTRE and REV tool versions before they can freeze the practice laptop image.",
+    severity: "medium",
+  },
+  {
+    title: "Practice field reset is not yet at match cadence",
+    detail:
+      "Reset timing is still above the six-minute target until field labels and volunteer station assignments are cleaned up.",
+    severity: "medium",
+  },
+  {
+    title: "Vision calibration needs one more lighting pass",
+    detail:
+      "AprilTag pose estimates drift near the edge of the taped field when shop doors are open during evening practice.",
     severity: "medium",
   },
 ];
