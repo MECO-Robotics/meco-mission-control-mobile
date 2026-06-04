@@ -154,8 +154,16 @@ The payload may include:
 - qaFindings
 - testFindings
 - designIterations
+- actions
 
 Milestones can be mapped into event-like records for mobile timeline behavior.
+
+`actions` are platform audit history for create, update, and delete activity. They follow the
+platform audit retention policy: retain for 3 years after the related season ends, then delete or
+anonymize actor/member references and free-text labels/messages. Archive hides records from active
+views but does not shorten retention; delete removes the domain record while leaving a minimal
+tombstone until retention expires. Audit history must avoid sensitive minor data and should only be
+shown to authenticated leads, mentors, admins, or scoped users with a legitimate operational need.
 
 ## Mutation Endpoints Used By The App
 
