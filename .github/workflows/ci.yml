@@ -103,7 +103,7 @@ jobs:
         if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
         env:
           GH_TOKEN: ${{ secrets.MECO_PLATFORM_CONTRACT_READ_TOKEN }}
-          PLATFORM_BOOTSTRAP_CONTRACT_BRANCH: ${{ ((github.head_ref == 'staging' || startsWith(github.head_ref, 'staging/')) && github.head_ref) || (github.head_ref == 'development' && 'development') || github.base_ref || (github.ref_name == 'main' && 'main') || 'development' }}
+          PLATFORM_BOOTSTRAP_CONTRACT_BRANCH: ${{ ((github.head_ref == 'staging' || startsWith(github.head_ref, 'staging/')) && github.head_ref) || (github.head_ref == 'development' && 'development') || github.base_ref || ((github.ref_name == 'staging' || startsWith(github.ref_name, 'staging/')) && github.ref_name) || (github.ref_name == 'main' && 'main') || 'development' }}
           CI: true
         run: npm run verify
 
