@@ -1,5 +1,6 @@
 import { ApiRequestError } from "../api";
 import {
+  buildOwnedTaskStartPayload,
   claimTaskRequest,
   getDefaultWorkLogParticipantIds,
   getTaskAssignmentConflict,
@@ -272,6 +273,27 @@ describe("task assignment requests", () => {
       }),
       status: 409,
     });
+  });
+});
+
+describe("owned task start payloads", () => {
+  it("updates status without using the claim endpoint for already-owned starts", () => {
+    const payload = buildOwnedTaskStartPayload(
+      {
+        ...baseTask,
+        ownerId: student.id,
+        status: "not-started",
+        targetEventId: "summer-scrimmage",
+      },
+      "in-progress",
+    );
+
+    expect(payload).toMatchObject({
+      ownerId: student.id,
+      status: "in-progress",
+      targetMilestoneId: "summer-scrimmage",
+    });
+    expect(payload).not.toHaveProperty("targetEventId");
   });
 });
 

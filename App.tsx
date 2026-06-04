@@ -108,6 +108,7 @@ import {
 } from "./src/data/api";
 import { buildHelpRequest, type HelpRequestInput } from "./src/data/helpRequests";
 import {
+  buildOwnedTaskStartPayload,
   claimTaskRequest,
   getDefaultWorkLogParticipantIds,
   getTaskAssignmentConflict,
@@ -4043,9 +4044,10 @@ export default function App() {
       ),
     );
 
-    const ok = await runTaskAssignmentMutation(() =>
-      claimTaskRequest(apiBaseUrl, task.id, true, apiToken),
-    );
+    const ok = await runMutation(`/api/tasks/${task.id}`, {
+      method: "PATCH",
+      body: JSON.stringify(buildOwnedTaskStartPayload(currentTask, status)),
+    });
     if (ok && openWorkLog) {
       openCreateWorkLogEditor(task.id);
     }
