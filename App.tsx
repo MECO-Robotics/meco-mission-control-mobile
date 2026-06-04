@@ -1063,7 +1063,7 @@ export default function App() {
               (task) => task.id === draft.payload.taskId,
             );
             if (loggedTask) {
-              await startTaskRef.current(loggedTask);
+              await startTaskRef.current(loggedTask, { openWorkLog: false });
             }
           } catch (error) {
             if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
