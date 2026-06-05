@@ -1,23 +1,23 @@
 import { Modal, Pressable, ScrollView, View } from "react-native";
 
-import { Text } from "../i18n";
+import { Text } from "../../i18n";
 import {
   ARCHIVE_FILTER_OPTIONS,
   BLOCKER_FILTER_OPTIONS,
   TASK_PRIORITY_OPTIONS,
   TASK_STATUS_OPTIONS,
   TASK_SUBTEAM_OPTIONS,
-} from "../ui/constants";
-import { styles } from "../ui/styles";
+} from "../../ui/constants";
+import { styles } from "../../ui/styles";
 import {
   FilterToolbar,
   OptionChipRow,
   SearchField,
   SectionTabs,
-} from "../ui/ui";
-import type { ArchiveFilterMode, BlockerFilterMode } from "../ui/types";
+} from "../../ui/ui";
+import type { ArchiveFilterMode, BlockerFilterMode } from "../../ui/types";
 
-import type { AppScreenProps } from "./types";
+import type { AppScreenProps } from "../types";
 
 type TaskQueueFilterSheetProps = Pick<
   AppScreenProps,

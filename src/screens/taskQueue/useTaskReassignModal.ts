@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import type { Task } from "../types/domain";
+import type { Task } from "../../types/domain";
 
 type UseTaskReassignModalOptions = {
   reassignTask: (task: Task, ownerId: string | null) => Promise<void>;

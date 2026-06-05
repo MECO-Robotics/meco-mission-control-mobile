@@ -1,11 +1,11 @@
 import { Pressable, View } from "react-native";
 
-import { Text } from "../i18n";
-import { styles } from "../ui/styles";
-import { EditorModal } from "../ui/ui";
-import type { Member, Task } from "../types/domain";
+import { Text } from "../../i18n";
+import type { Member, Task } from "../../types/domain";
+import { styles } from "../../ui/styles";
+import { EditorModal } from "../../ui/ui";
 
-import type { AppScreenProps } from "./types";
+import type { AppScreenProps } from "../types";
 
 type TaskReassignModalProps = Pick<AppScreenProps, "appResponsiveStyles" | "membersById"> & {
   onCancel: () => void;
