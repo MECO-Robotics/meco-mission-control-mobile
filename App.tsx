@@ -108,6 +108,10 @@ import {
 } from "./src/data/api";
 import { buildHelpRequest, type HelpRequestInput } from "./src/data/helpRequests";
 import {
+<<<<<<< HEAD
+=======
+  buildOwnedTaskStartPayload,
+>>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
   claimTaskRequest,
   getDefaultWorkLogParticipantIds,
   getTaskAssignmentConflict,
@@ -116,6 +120,13 @@ import {
   reassignTaskRequest,
   releaseTaskRequest,
 } from "./src/data/taskAssignment";
+<<<<<<< HEAD
+=======
+import {
+  buildTaskQueueSections,
+  getTaskSubteamForDisciplineId,
+} from "./src/data/taskQueueOrdering";
+>>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
 import { mecoSnapshot } from "./src/data/mockData";
 import { tasks as seededTasks } from "./src/data/tasks";
 import type {
@@ -201,6 +212,10 @@ type WorkLogTimerState = {
 type StartTaskOptions = {
   openWorkLog?: boolean;
 };
+<<<<<<< HEAD
+=======
+type BackendReachability = "unknown" | "reachable" | "unreachable";
+>>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
 
 type WorkLogMutationResponse = {
   item?: WorkLog;
@@ -211,6 +226,10 @@ function shouldQueueWorkLogDraftAfterError(error: unknown) {
     error instanceof ApiNetworkError ||
     (error instanceof ApiRequestError && error.status >= 500)
   );
+}
+
+function backendReachabilityAfterError(error: unknown): BackendReachability {
+  return error instanceof ApiNetworkError ? "unreachable" : "reachable";
 }
 
 function mapPendingWorkLogDraftToWorkLog(
@@ -281,11 +300,14 @@ const ATTENDANCE_STATUS_BY_MEMBER_ID: Record<string, AttendanceStatus> = {
   zoe: "maybe",
   diego: "yes",
   emma: "yes",
+  samira: "yes",
+  caleb: "maybe",
+  nina: "yes",
 };
 
 const INITIAL_SEASONS: SeasonOption[] = [
-  { id: "2026-offseason", label: "2026 Competition & Offseason" },
-  { id: "2027-preseason", label: "2027 Preseason" },
+  { id: "2026-offseason", label: "2026 FRC Offseason" },
+  { id: "2027-preseason", label: "2027 FRC Preseason" },
 ];
 
 const PLANNED_ATTENDANCE_DAY_OPTIONS = [
@@ -551,14 +573,6 @@ function mapTaskPayloadToServer<T extends { targetEventId?: string | null }>(
   };
 }
 
-function getTaskSubteamForDiscipline(disciplineId: string, fallback: TaskSubteamTab) {
-  return (
-    TASK_SUBTEAM_OPTIONS.find((option) =>
-      TASK_SUBTEAM_DISCIPLINE_IDS[option.value].includes(disciplineId),
-    )?.value ?? fallback
-  );
-}
-
 function mapTaskPriorityToRiskPriority(priority: TaskPriority): RiskPriority {
   if (priority === "critical" || priority === "high") {
     return "high";
@@ -705,6 +719,8 @@ export default function App() {
   const [backendStatus, setBackendStatus] = useState<
     "connecting" | "connected" | "offline"
   >("connecting");
+  const [backendReachability, setBackendReachability] =
+    useState<BackendReachability>("unknown");
   const [syncError, setSyncError] = useState<string | null>(null);
   const envGoogleClientId =
     process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID?.trim() ?? "";
@@ -752,6 +768,7 @@ export default function App() {
     setAuthErrorState("expired-session");
     setAuthError(message);
     setBackendStatus("connected");
+    setBackendReachability("reachable");
   }, []);
 
   const [activeTab, setActiveTab] = useState<ViewTab>("home");
@@ -1056,7 +1073,7 @@ export default function App() {
               (task) => task.id === draft.payload.taskId,
             );
             if (loggedTask) {
-              await startTaskRef.current(loggedTask);
+              await startTaskRef.current(loggedTask, { openWorkLog: false });
             }
           } catch (error) {
             if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
@@ -1133,6 +1150,7 @@ export default function App() {
 
   const loadPublicAuthConfig = useCallback(async () => {
     setBackendStatus("connecting");
+    setBackendReachability("unknown");
     setSyncError(null);
 
     try {
@@ -1144,9 +1162,11 @@ export default function App() {
       setAuthErrorState(null);
       setAuthError(null);
       setBackendStatus("connected");
+      setBackendReachability("reachable");
       return config;
     } catch (error) {
       setBackendStatus("offline");
+      setBackendReachability(backendReachabilityAfterError(error));
       setAuthConfig({
         enabled: false,
         googleClientId: null,
@@ -1181,9 +1201,11 @@ export default function App() {
           getWorkLogDraftOwnerKey(user),
         );
         setBackendStatus(draftSyncError ? "offline" : "connected");
+        setBackendReachability("reachable");
         setSyncError(draftSyncError);
       } catch (error) {
         setBackendStatus("offline");
+        setBackendReachability(backendReachabilityAfterError(error));
         setSyncError(parseClientError(error));
       } finally {
         setIsSyncing(false);
@@ -1428,6 +1450,7 @@ export default function App() {
   const syncFromBackend = useCallback(async () => {
     setIsSyncing(true);
     setBackendStatus("connecting");
+    setBackendReachability("unknown");
     setSyncError(null);
 
     try {
@@ -1460,6 +1483,7 @@ export default function App() {
         getWorkLogDraftOwnerKey(syncSessionUser),
       );
       setBackendStatus(draftSyncError ? "offline" : "connected");
+      setBackendReachability("reachable");
       setSyncError(draftSyncError);
     } catch (error) {
       if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
@@ -1468,6 +1492,7 @@ export default function App() {
       }
 
       setBackendStatus("offline");
+      setBackendReachability(backendReachabilityAfterError(error));
       setSyncError(getClientErrorMessage(error));
     } finally {
       setIsSyncing(false);
@@ -1494,6 +1519,7 @@ export default function App() {
           activeWorkLogDraftOwnerKey,
         );
         setBackendStatus(draftSyncError ? "offline" : "connected");
+        setBackendReachability("reachable");
         setSyncError(draftSyncError);
         return true;
       } catch (error) {
@@ -1503,6 +1529,7 @@ export default function App() {
         }
 
         setBackendStatus("offline");
+        setBackendReachability(backendReachabilityAfterError(error));
         setSyncError(getClientErrorMessage(error));
         return false;
       } finally {
@@ -1533,6 +1560,10 @@ export default function App() {
           activeWorkLogDraftOwnerKey,
         );
         setBackendStatus(draftSyncError ? "offline" : "connected");
+<<<<<<< HEAD
+=======
+        setBackendReachability("reachable");
+>>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
         setSyncError(draftSyncError);
         return true;
       } catch (error) {
@@ -1544,6 +1575,7 @@ export default function App() {
         const conflict = getTaskAssignmentConflict(error);
         if (conflict) {
           let refreshed = false;
+<<<<<<< HEAD
           try {
             await refreshWorkspaceFromServer(apiToken);
             refreshed = true;
@@ -1551,6 +1583,22 @@ export default function App() {
             refreshed = false;
           }
           setBackendStatus(refreshed ? "connected" : "offline");
+=======
+          let refreshError: unknown = null;
+          try {
+            await refreshWorkspaceFromServer(apiToken);
+            refreshed = true;
+          } catch (error) {
+            refreshError = error;
+            refreshed = false;
+          }
+          setBackendStatus(refreshed ? "connected" : "offline");
+          setBackendReachability(
+            refreshed
+              ? "reachable"
+              : backendReachabilityAfterError(refreshError),
+          );
+>>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
           setSyncError(
             getTaskAssignmentConflictMessage(
               conflict,
@@ -1562,6 +1610,10 @@ export default function App() {
         }
 
         setBackendStatus("offline");
+<<<<<<< HEAD
+=======
+        setBackendReachability(backendReachabilityAfterError(error));
+>>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
         setSyncError(getClientErrorMessage(error));
         return false;
       } finally {
@@ -1891,10 +1943,10 @@ export default function App() {
     }, {});
   }, [workLogsForDisplay]);
 
-  const filteredTaskQueue = useMemo(() => {
+  const filteredTaskQueueCandidates = useMemo(() => {
     const search = taskSearch.trim().toLowerCase();
 
-    return [...activeTaskSubteamTasks]
+    return [...tasks]
       .filter((task) => {
         if (
           activePersonFilter !== "all" &&
@@ -2025,7 +2077,6 @@ export default function App() {
       })
       .sort((left, right) => left.dueDate.localeCompare(right.dueDate));
   }, [
-    activeTaskSubteamTasks,
     activePersonFilter,
     membersById,
     mechanismsById,
@@ -2039,7 +2090,21 @@ export default function App() {
     taskSearch,
     taskStatusFilter,
     taskSubsystemFilter,
+    tasks,
   ]);
+
+  const taskQueueSections = useMemo(() => {
+    return buildTaskQueueSections({
+      activeTaskSubteam,
+      canViewAllQueues: canMentorApprove,
+      taskById,
+      tasks: filteredTaskQueueCandidates,
+    });
+  }, [activeTaskSubteam, canMentorApprove, filteredTaskQueueCandidates, taskById]);
+
+  const filteredTaskQueue = useMemo(() => {
+    return taskQueueSections.flatMap((section) => section.tasks);
+  }, [taskQueueSections]);
 
   const taskSummary = useMemo(() => {
     const blocked = filteredTaskQueue.filter((task) => task.blockers.length > 0).length;
@@ -3425,7 +3490,7 @@ export default function App() {
   };
 
   const openTaskQueueFromTask = (task: Task) => {
-    const nextSubteam = getTaskSubteamForDiscipline(task.disciplineId, activeTaskSubteam);
+    const nextSubteam = getTaskSubteamForDisciplineId(task.disciplineId, activeTaskSubteam);
 
     setActiveTaskSubteam(nextSubteam);
     setTaskView("queue");
@@ -3524,6 +3589,7 @@ export default function App() {
       );
       await refreshWorkspaceFromServer(apiToken);
       setBackendStatus("connected");
+      setBackendReachability("reachable");
     } catch (error) {
       if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
         endSessionForAuthFailure(getMobileAuthErrorMessage("expired-session"));
@@ -3531,6 +3597,7 @@ export default function App() {
       }
 
       setBackendStatus("offline");
+      setBackendReachability(backendReachabilityAfterError(error));
       setSyncError(getClientErrorMessage(error));
     } finally {
       setIsSyncing(false);
@@ -3666,7 +3733,7 @@ export default function App() {
     );
 
     if (ok) {
-      setActiveTaskSubteam(getTaskSubteamForDiscipline(taskDraft.disciplineId, activeTaskSubteam));
+      setActiveTaskSubteam(getTaskSubteamForDisciplineId(taskDraft.disciplineId, activeTaskSubteam));
       closeTaskEditor();
     }
   };
@@ -3808,6 +3875,7 @@ export default function App() {
         ),
       );
       setBackendStatus("connected");
+      setBackendReachability("reachable");
       closeMilestoneEditor();
     } catch (error) {
       if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
@@ -3816,6 +3884,7 @@ export default function App() {
       }
 
       setBackendStatus("offline");
+      setBackendReachability(backendReachabilityAfterError(error));
       setSyncError(getClientErrorMessage(error));
     } finally {
       setIsSyncing(false);
@@ -3969,7 +4038,11 @@ export default function App() {
       task: currentTask,
     });
 
+<<<<<<< HEAD
     if (!assignmentState.canStartWork || task.status === "complete") {
+=======
+    if (!assignmentState.canStartWork || currentTask.status === "complete") {
+>>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
       return;
     }
 
@@ -4000,9 +4073,16 @@ export default function App() {
       ),
     );
 
+<<<<<<< HEAD
     const ok = await runTaskAssignmentMutation(() =>
       claimTaskRequest(apiBaseUrl, task.id, true, apiToken),
     );
+=======
+    const ok = await runMutation(`/api/tasks/${task.id}`, {
+      method: "PATCH",
+      body: JSON.stringify(buildOwnedTaskStartPayload(currentTask, status)),
+    });
+>>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
     if (ok && openWorkLog) {
       openCreateWorkLogEditor(task.id);
     }
@@ -4317,6 +4397,23 @@ export default function App() {
       return;
     }
 
+    if (backendStatus === "offline" && backendReachability === "unreachable") {
+      const result = enqueuePendingWorkLogDraft(
+        pendingWorkLogDraftsRef.current,
+        payload,
+        new Date(),
+        { ownerKey: activeWorkLogDraftOwnerKey },
+      );
+      await persistPendingWorkLogDrafts(result.drafts);
+      setSyncError(
+        result.didCreate
+          ? "Work log saved locally. It will sync when the backend is reachable."
+          : "Work log draft is already saved locally and waiting to sync.",
+      );
+      closeWorkLogEditor();
+      return;
+    }
+
     setIsSyncing(true);
     setSyncError(null);
 
@@ -4339,6 +4436,7 @@ export default function App() {
         activeWorkLogDraftOwnerKey,
       );
       setBackendStatus(draftSyncError ? "offline" : "connected");
+      setBackendReachability("reachable");
       setSyncError(draftSyncError);
 
       const loggedTask = taskById[workLogDraft.taskId];
@@ -4355,6 +4453,7 @@ export default function App() {
 
       if (serverCreateSucceeded) {
         setBackendStatus("offline");
+        setBackendReachability("reachable");
         setSyncError(getClientErrorMessage(error));
         closeWorkLogEditor();
         return;
@@ -4362,6 +4461,7 @@ export default function App() {
 
       if (!shouldQueueWorkLogDraftAfterError(error)) {
         setBackendStatus("offline");
+        setBackendReachability(backendReachabilityAfterError(error));
         setSyncError(getClientErrorMessage(error));
         return;
       }
@@ -4380,6 +4480,7 @@ export default function App() {
       );
       await persistPendingWorkLogDrafts(result.drafts);
       setBackendStatus("offline");
+      setBackendReachability(backendReachabilityAfterError(error));
       setSyncError(
         result.didCreate
           ? "Work log saved locally. It will sync when the backend is reachable."
@@ -5590,6 +5691,7 @@ export default function App() {
     taskById,
     taskOwnerFilter,
     taskPriorityFilter,
+    taskQueueSections,
     taskSearch,
     taskStatusFilter,
     taskSubsystemFilter,

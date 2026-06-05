@@ -1,9 +1,20 @@
 import { ApiRequestError } from "../api";
 import {
+<<<<<<< HEAD
+=======
+  buildOwnedTaskStartPayload,
+  claimTaskRequest,
+>>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
   getDefaultWorkLogParticipantIds,
   getTaskAssignmentConflict,
   getTaskAssignmentConflictMessage,
   getTaskAssignmentState,
+<<<<<<< HEAD
+=======
+  getTaskStartActionLabel,
+  reassignTaskRequest,
+  releaseTaskRequest,
+>>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
 } from "../taskAssignment";
 import type { Member, Task } from "../../types/domain";
 
@@ -148,6 +159,18 @@ describe("task assignment state", () => {
   });
 });
 
+<<<<<<< HEAD
+=======
+describe("task assignment action labels", () => {
+  it("makes the claim-only and claim-with-worklog paths distinct", () => {
+    expect(getTaskStartActionLabel(baseTask)).toBe("Claim + log work");
+    expect(getTaskStartActionLabel({ ...baseTask, ownerId: student.id })).toBe(
+      "Start work",
+    );
+  });
+});
+
+>>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
 describe("task assignment conflict handling", () => {
   it("maps already-claimed conflicts into user-facing copy", () => {
     const error = new ApiRequestError("Task already claimed.", 409, {
@@ -172,6 +195,120 @@ describe("task assignment conflict handling", () => {
   });
 });
 
+<<<<<<< HEAD
+=======
+describe("task assignment requests", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  function mockAssignmentResponse() {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: jest.fn().mockResolvedValue(JSON.stringify({ item: baseTask })),
+    } as unknown as Response);
+  }
+
+  it("posts claim-only and claim-with-start payloads", async () => {
+    mockAssignmentResponse();
+
+    await claimTaskRequest("https://api.example.test", baseTask.id, false, "token");
+    await claimTaskRequest("https://api.example.test", baseTask.id, true, "token");
+
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      1,
+      "https://api.example.test/api/tasks/task-1/claim",
+      expect.objectContaining({
+        body: JSON.stringify({ start: false }),
+        method: "POST",
+      }),
+    );
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      2,
+      "https://api.example.test/api/tasks/task-1/claim",
+      expect.objectContaining({
+        body: JSON.stringify({ start: true }),
+        method: "POST",
+      }),
+    );
+  });
+
+  it("posts release and mentor reassign requests", async () => {
+    mockAssignmentResponse();
+
+    await releaseTaskRequest("https://api.example.test", baseTask.id, "token");
+    await reassignTaskRequest(
+      "https://api.example.test",
+      baseTask.id,
+      otherStudent.id,
+      "token",
+    );
+
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      1,
+      "https://api.example.test/api/tasks/task-1/release",
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(global.fetch).toHaveBeenNthCalledWith(
+      2,
+      "https://api.example.test/api/tasks/task-1/reassign",
+      expect.objectContaining({
+        body: JSON.stringify({ ownerId: otherStudent.id }),
+        method: "POST",
+      }),
+    );
+  });
+
+  it("surfaces an already-claimed conflict from the claim endpoint", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      text: jest.fn().mockResolvedValue(
+        JSON.stringify({
+          code: "task_already_claimed",
+          message: "Task already claimed.",
+          ownerId: otherStudent.id,
+          taskId: baseTask.id,
+        }),
+      ),
+    } as unknown as Response);
+
+    await expect(
+      claimTaskRequest("https://api.example.test", baseTask.id, true, "token"),
+    ).rejects.toMatchObject({
+      body: expect.objectContaining({
+        code: "task_already_claimed",
+        ownerId: otherStudent.id,
+        taskId: baseTask.id,
+      }),
+      status: 409,
+    });
+  });
+});
+
+describe("owned task start payloads", () => {
+  it("updates status without using the claim endpoint for already-owned starts", () => {
+    const payload = buildOwnedTaskStartPayload(
+      {
+        ...baseTask,
+        ownerId: student.id,
+        status: "not-started",
+        targetEventId: "summer-scrimmage",
+      },
+      "in-progress",
+    );
+
+    expect(payload).toMatchObject({
+      ownerId: student.id,
+      status: "in-progress",
+      targetMilestoneId: "summer-scrimmage",
+    });
+    expect(payload).not.toHaveProperty("targetEventId");
+  });
+});
+
+>>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
 describe("worklog participant defaults", () => {
   it("prefills worklogs with the signed-in member before roster fallback", () => {
     expect(getDefaultWorkLogParticipantIds(otherStudent, [student, otherStudent])).toEqual([
