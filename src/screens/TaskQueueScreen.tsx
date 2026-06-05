@@ -11,6 +11,10 @@ import {
   localTodayDate,
 } from "../ui/helpers";
 import { getDefaultHelpMentorId } from "../data/helpRequests";
+import {
+  getTaskAssignmentState,
+  getTaskStartActionLabel,
+} from "../data/taskAssignment";
 import { styles } from "../ui/styles";
 import {
   EditorModal,
@@ -472,6 +476,18 @@ const renderScreen = () => {
             ) : null}
 
             <View style={styles.quickActionRow}>
+              {assignmentState.canClaim ? (
+                <Pressable
+                  onPress={() => {
+                    void claimTask(task);
+                  }}
+                  style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+                >
+                  <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
+                    Claim only
+                  </Text>
+                </Pressable>
+              ) : null}
               {canStartTask ? (
                 <Pressable
                   onPress={() => {
@@ -480,7 +496,29 @@ const renderScreen = () => {
                   style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
                 >
                   <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                    Start task
+                    {getTaskStartActionLabel(task)}
+                  </Text>
+                </Pressable>
+              ) : null}
+              {assignmentState.canRelease ? (
+                <Pressable
+                  onPress={() => {
+                    void releaseTask(task);
+                  }}
+                  style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+                >
+                  <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
+                    Release
+                  </Text>
+                </Pressable>
+              ) : null}
+              {assignmentState.canReassign ? (
+                <Pressable
+                  onPress={() => taskReassignModal.open(task)}
+                  style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+                >
+                  <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
+                    Reassign
                   </Text>
                 </Pressable>
               ) : null}

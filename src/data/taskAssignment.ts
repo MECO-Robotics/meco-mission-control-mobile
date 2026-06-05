@@ -1,10 +1,6 @@
 import type { ApiRequestError } from "./api";
 import { requestJson } from "./api";
-<<<<<<< HEAD
-import type { Member, Task } from "../types/domain";
-=======
 import type { Member, Task, TaskStatus } from "../types/domain";
->>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
 
 export const TASK_ALREADY_CLAIMED_CODE = "task_already_claimed";
 
@@ -133,8 +129,6 @@ export function getDefaultWorkLogParticipantIds(
   return members[0]?.id ? [members[0].id] : [];
 }
 
-<<<<<<< HEAD
-=======
 export function getTaskStartActionLabel(task: Pick<Task, "ownerId">) {
   return task.ownerId ? "Start work" : "Claim + log work";
 }
@@ -163,7 +157,6 @@ export function buildOwnedTaskStartPayload(task: Task, status: TaskStatus) {
   };
 }
 
->>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
 export function claimTaskRequest(
   baseUrl: string,
   taskId: string,

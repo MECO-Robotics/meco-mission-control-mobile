@@ -1,20 +1,14 @@
 import { ApiRequestError } from "../api";
 import {
-<<<<<<< HEAD
-=======
   buildOwnedTaskStartPayload,
   claimTaskRequest,
->>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
   getDefaultWorkLogParticipantIds,
   getTaskAssignmentConflict,
   getTaskAssignmentConflictMessage,
   getTaskAssignmentState,
-<<<<<<< HEAD
-=======
   getTaskStartActionLabel,
   reassignTaskRequest,
   releaseTaskRequest,
->>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
 } from "../taskAssignment";
 import type { Member, Task } from "../../types/domain";
 
@@ -159,8 +153,6 @@ describe("task assignment state", () => {
   });
 });
 
-<<<<<<< HEAD
-=======
 describe("task assignment action labels", () => {
   it("makes the claim-only and claim-with-worklog paths distinct", () => {
     expect(getTaskStartActionLabel(baseTask)).toBe("Claim + log work");
@@ -170,7 +162,6 @@ describe("task assignment action labels", () => {
   });
 });
 
->>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
 describe("task assignment conflict handling", () => {
   it("maps already-claimed conflicts into user-facing copy", () => {
     const error = new ApiRequestError("Task already claimed.", 409, {
@@ -195,8 +186,6 @@ describe("task assignment conflict handling", () => {
   });
 });
 
-<<<<<<< HEAD
-=======
 describe("task assignment requests", () => {
   afterEach(() => {
     jest.restoreAllMocks();
@@ -308,7 +297,6 @@ describe("owned task start payloads", () => {
   });
 });
 
->>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
 describe("worklog participant defaults", () => {
   it("prefills worklogs with the signed-in member before roster fallback", () => {
     expect(getDefaultWorkLogParticipantIds(otherStudent, [student, otherStudent])).toEqual([

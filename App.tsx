@@ -108,10 +108,7 @@ import {
 } from "./src/data/api";
 import { buildHelpRequest, type HelpRequestInput } from "./src/data/helpRequests";
 import {
-<<<<<<< HEAD
-=======
   buildOwnedTaskStartPayload,
->>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
   claimTaskRequest,
   getDefaultWorkLogParticipantIds,
   getTaskAssignmentConflict,
@@ -120,13 +117,10 @@ import {
   reassignTaskRequest,
   releaseTaskRequest,
 } from "./src/data/taskAssignment";
-<<<<<<< HEAD
-=======
 import {
   buildTaskQueueSections,
   getTaskSubteamForDisciplineId,
 } from "./src/data/taskQueueOrdering";
->>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
 import { mecoSnapshot } from "./src/data/mockData";
 import { tasks as seededTasks } from "./src/data/tasks";
 import type {
@@ -212,10 +206,7 @@ type WorkLogTimerState = {
 type StartTaskOptions = {
   openWorkLog?: boolean;
 };
-<<<<<<< HEAD
-=======
 type BackendReachability = "unknown" | "reachable" | "unreachable";
->>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
 
 type WorkLogMutationResponse = {
   item?: WorkLog;
@@ -1560,10 +1551,7 @@ export default function App() {
           activeWorkLogDraftOwnerKey,
         );
         setBackendStatus(draftSyncError ? "offline" : "connected");
-<<<<<<< HEAD
-=======
         setBackendReachability("reachable");
->>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
         setSyncError(draftSyncError);
         return true;
       } catch (error) {
@@ -1575,15 +1563,6 @@ export default function App() {
         const conflict = getTaskAssignmentConflict(error);
         if (conflict) {
           let refreshed = false;
-<<<<<<< HEAD
-          try {
-            await refreshWorkspaceFromServer(apiToken);
-            refreshed = true;
-          } catch {
-            refreshed = false;
-          }
-          setBackendStatus(refreshed ? "connected" : "offline");
-=======
           let refreshError: unknown = null;
           try {
             await refreshWorkspaceFromServer(apiToken);
@@ -1598,7 +1577,6 @@ export default function App() {
               ? "reachable"
               : backendReachabilityAfterError(refreshError),
           );
->>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
           setSyncError(
             getTaskAssignmentConflictMessage(
               conflict,
@@ -1610,10 +1588,7 @@ export default function App() {
         }
 
         setBackendStatus("offline");
-<<<<<<< HEAD
-=======
         setBackendReachability(backendReachabilityAfterError(error));
->>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
         setSyncError(getClientErrorMessage(error));
         return false;
       } finally {
@@ -4038,11 +4013,7 @@ export default function App() {
       task: currentTask,
     });
 
-<<<<<<< HEAD
-    if (!assignmentState.canStartWork || task.status === "complete") {
-=======
     if (!assignmentState.canStartWork || currentTask.status === "complete") {
->>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
       return;
     }
 
@@ -4073,16 +4044,10 @@ export default function App() {
       ),
     );
 
-<<<<<<< HEAD
-    const ok = await runTaskAssignmentMutation(() =>
-      claimTaskRequest(apiBaseUrl, task.id, true, apiToken),
-    );
-=======
     const ok = await runMutation(`/api/tasks/${task.id}`, {
       method: "PATCH",
       body: JSON.stringify(buildOwnedTaskStartPayload(currentTask, status)),
     });
->>>>>>> c9a502a394b5117708f77d49c72190f4e08ce663
     if (ok && openWorkLog) {
       openCreateWorkLogEditor(task.id);
     }
