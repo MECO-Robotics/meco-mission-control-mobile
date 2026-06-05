@@ -11,7 +11,10 @@ import {
   localTodayDate,
 } from "../ui/helpers";
 import { getDefaultHelpMentorId } from "../data/helpRequests";
-import { getTaskAssignmentState } from "../data/taskAssignment";
+import {
+  getTaskAssignmentState,
+  getTaskStartActionLabel,
+} from "../data/taskAssignment";
 import { styles } from "../ui/styles";
 import {
   EditorModal,
@@ -76,6 +79,7 @@ export function TaskQueueScreen(props: AppScreenProps) {
     taskById,
     taskOwnerFilter,
     taskPriorityFilter,
+    taskQueueSections,
     taskSearch,
     taskStatusFilter,
     taskSubsystemFilter,
@@ -244,7 +248,29 @@ const renderScreen = () => {
         </View>
       ) : null}
 
-      {filteredTaskQueue.map((task) => {
+      {taskQueueSections.map((section) => (
+        <View key={section.id}>
+          {section.tasks.length > 0 ? (
+            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
+              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
+                {section.title}
+              </Text>
+              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
+                {section.tasks.length} task{section.tasks.length === 1 ? "" : "s"}
+              </Text>
+            </View>
+          ) : section.emptyTitle ? (
+            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
+              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
+                {section.emptyTitle}
+              </Text>
+              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
+                {section.emptyBody}
+              </Text>
+            </View>
+          ) : null}
+
+          {section.tasks.map((task) => {
         const subsystemName = subsystemsById[task.subsystemId]?.name ?? "Unknown";
         const ownerName = task.ownerId
           ? (membersById[task.ownerId]?.name ?? "Unassigned")
@@ -458,7 +484,7 @@ const renderScreen = () => {
                   style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
                 >
                   <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                    Claim
+                    Claim only
                   </Text>
                 </Pressable>
               ) : null}
@@ -470,7 +496,7 @@ const renderScreen = () => {
                   style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
                 >
                   <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                    Start work
+                    {getTaskStartActionLabel(task)}
                   </Text>
                 </Pressable>
               ) : null}
@@ -482,7 +508,7 @@ const renderScreen = () => {
                   style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
                 >
                   <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                    Unclaim
+                    Release
                   </Text>
                 </Pressable>
               ) : null}
@@ -545,7 +571,9 @@ const renderScreen = () => {
             </View>
           </Pressable>
         );
-      })}
+          })}
+        </View>
+      ))}
 
       {filteredTaskQueue.length === 0 ? (
         <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>

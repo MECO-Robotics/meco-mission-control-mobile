@@ -3,6 +3,7 @@ import type { StyleProp, TextStyle, ViewStyle } from "react-native";
 
 import type { AppThemeColors } from "../theme";
 import type { HelpRequestInput } from "../data/helpRequests";
+import type { TaskQueueSection } from "../data/taskQueueOrdering";
 import type { WorkLogDraftSyncStatus } from "../services/workLogDraftSync";
 import type {
   Discipline,
@@ -286,6 +287,7 @@ export interface AppScreenProps {
   taskById: Record<string, Task>;
   taskOwnerFilter: string;
   taskPriorityFilter: string;
+  taskQueueSections: TaskQueueSection[];
   taskSearch: string;
   taskStatusFilter: string;
   taskSubsystemFilter: string;
