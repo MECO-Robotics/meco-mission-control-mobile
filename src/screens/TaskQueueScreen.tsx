@@ -28,9 +28,9 @@ import type { Task } from "../types/domain";
 
 import type { AppScreenProps } from "./types";
 import { NeedHelpModal } from "./help/NeedHelpModal";
-import { TaskQueueFilterSheet } from "./TaskQueueFilterSheet";
-import { TaskReassignModal } from "./TaskReassignModal";
-import { useTaskReassignModal } from "./useTaskReassignModal";
+import { TaskQueueFilterSheet } from "./taskQueue/TaskQueueFilterSheet";
+import { TaskReassignModal } from "./taskQueue/TaskReassignModal";
+import { useTaskReassignModal } from "./taskQueue/useTaskReassignModal";
 
 export function TaskQueueScreen(props: AppScreenProps) {
   const {
