@@ -5,6 +5,7 @@ import { capitalize } from "../ui/helpers";
 import { styles } from "../ui/styles";
 import { SummaryRow, WorkspacePanel } from "../ui/ui";
 
+import type { Member } from "../types/domain";
 import type { AppScreenProps } from "./types";
 
 function getInitials(name: string) {
@@ -27,7 +28,6 @@ export function RosterScreen(props: AppScreenProps) {
     appResponsiveStyles,
     canMentorApprove,
     disciplinesById,
-    members,
     openCreateMemberEditor,
     openEditMemberEditor,
     rosterExternal,
@@ -40,7 +40,7 @@ export function RosterScreen(props: AppScreenProps) {
 
   const renderRosterSection = (
     title: string,
-    memberList: (typeof members)[number][],
+    memberList: Member[],
     addRole: "student" | "mentor" | "external",
   ) => {
     return (

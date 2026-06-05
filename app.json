@@ -22,12 +22,6 @@
       ],
       "expo-localization",
       "expo-notifications",
-      [
-        "expo-image-picker",
-        {
-          "photosPermission": "Allow MECO Mission Control to choose profile photos from your photo library."
-        }
-      ],
       "expo-web-browser"
     ],
     "splash": {

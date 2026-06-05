@@ -133,6 +133,7 @@ export interface Task {
   artifactId?: string | null;
   artifactIds?: string[];
   ownerId: string | null;
+  assigneeIds?: string[];
   mentorId: string | null;
   startDate?: string;
   dueDate: string;
@@ -332,14 +333,14 @@ export interface SessionUser {
   name: string;
   picture: string | null;
   hostedDomain: string;
-  taskSubteamIds?: Array<
+  taskSubteamIds?: (
     | "programming"
     | "mechanical"
     | "electrical"
     | "media-marketing"
     | "business"
     | "scouting"
-  >;
+  )[];
   role?: MemberRole;
 }
 

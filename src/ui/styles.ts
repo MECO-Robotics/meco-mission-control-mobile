@@ -298,6 +298,11 @@ export const styles = StyleSheet.create({
     alignItems: "stretch",
     gap: spacing.sm,
   },
+  panelHeaderCompactInline: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+  },
   panelHeaderCopy: {
     flex: 1,
     minWidth: 0,
@@ -336,6 +341,28 @@ export const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: "800",
     fontSize: 13,
+  },
+  taskQueueHeaderActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: spacing.sm,
+  },
+  taskQueueFilterSheet: {
+    width: "100%",
+    maxHeight: "82%",
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    padding: spacing.md,
+    ...shadows.card,
+  },
+  taskQueueFilterSheetContent: {
+    gap: spacing.sm,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
+  },
+  taskQueueFilterGroup: {
+    gap: spacing.xs,
   },
   filterToolbar: {
     gap: spacing.sm,

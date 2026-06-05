@@ -4,7 +4,6 @@ import { Text, useTranslation } from "../../i18n";
 import type { AppThemeColors } from "../../theme";
 import type { Event, Subsystem, Task } from "../../types/domain";
 import {
-  buildLanes,
   DAY_WIDTH,
   daysBetween,
   getLaneTaskRange,
@@ -29,7 +28,7 @@ type Props = {
   todayKey: string;
 };
 
-function formatProjectLabel(lane: ReturnType<typeof buildLanes>[number], subsystemsById: Record<string, Subsystem>) {
+function formatProjectLabel(lane: PackedLane, subsystemsById: Record<string, Subsystem>) {
   const parentSubsystem = lane.subsystem?.parentSubsystemId
     ? subsystemsById[lane.subsystem.parentSubsystemId]
     : null;

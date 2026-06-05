@@ -21,7 +21,7 @@ import {
 import type { WorkLogSortMode } from "../ui/types";
 import type { Task, WorkLog } from "../types/domain";
 
-import type { AppScreenProps } from "./types";
+import type { AppScreenProps, WorkLogListItem } from "./types";
 import { NeedHelpModal } from "./help/NeedHelpModal";
 
 type WorkLogHelpContext = {
@@ -123,6 +123,22 @@ export function WorkLogsScreen(props: AppScreenProps) {
     return didRequestHelp;
   };
 
+  const getWorkLogSyncLabel = (workLog: WorkLogListItem) => {
+    if (workLog.syncStatus === "failed") {
+      return "SYNC FAILED";
+    }
+
+    if (workLog.syncStatus === "syncing") {
+      return "SYNCING";
+    }
+
+    if (workLog.syncStatus === "pending") {
+      return "PENDING";
+    }
+
+    return "OPEN";
+  };
+
 const renderScreen = () => {
   return (
     <WorkspacePanel
@@ -205,6 +221,8 @@ const renderScreen = () => {
       {filteredWorkLogs.map((workLog) => {
         const task = taskById[workLog.taskId];
         const subsystemName = task ? (subsystemsById[task.subsystemId]?.name ?? "Unknown") : "Unknown";
+        const isLocalDraft = Boolean(workLog.syncStatus);
+        const canEditWorkLog = !isLocalDraft || workLog.syncStatus !== "syncing";
         const people = workLog.participantIds
           .map((participantId) => membersById[participantId]?.name)
           .filter((name): name is string => Boolean(name));
@@ -212,7 +230,11 @@ const renderScreen = () => {
         return (
           <Pressable
             key={workLog.id}
-            onPress={() => openEditWorkLogEditor(workLog)}
+            onPress={() => {
+              if (canEditWorkLog) {
+                openEditWorkLogEditor(workLog);
+              }
+            }}
             style={[styles.queueRowCard, appResponsiveStyles.rowCard]}
           >
             <View style={styles.queueRowHeader}>
@@ -220,14 +242,19 @@ const renderScreen = () => {
                 <Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>{formatDate(workLog.date)}</Text>
                 <Text style={[styles.queueRowSubtitle, appResponsiveStyles.rowSubtitle]}>{workLog.hours.toFixed(1)}h logged</Text>
               </View>
-              <Text style={editTagStyle}>OPEN</Text>
+              <Text style={editTagStyle}>{getWorkLogSyncLabel(workLog)}</Text>
             </View>
 
             <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>Task: {task?.title ?? "Missing task"}</Text>
             <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>Subsystem: {subsystemName}</Text>
             <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>People: {people.join(", ") || "Unassigned"}</Text>
+            {workLog.syncStatus === "failed" ? (
+              <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
+                Sync issue: {workLog.syncError ?? "Retry from Sync."}
+              </Text>
+            ) : null}
             <Text style={[styles.queueRowBody, appResponsiveStyles.rowBody]}>{workLog.notes || "No notes recorded."}</Text>
-            <View style={styles.quickActionRow}>
+            {!isLocalDraft ? <View style={styles.quickActionRow}>
               <Pressable
                 onPress={() => openWorkLogHelpRequest(workLog)}
                 style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
@@ -236,7 +263,7 @@ const renderScreen = () => {
                   Need help
                 </Text>
               </Pressable>
-            </View>
+            </View> : null}
           </Pressable>
         );
       })}

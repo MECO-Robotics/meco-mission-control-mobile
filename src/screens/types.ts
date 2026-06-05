@@ -3,6 +3,8 @@ import type { StyleProp, TextStyle, ViewStyle } from "react-native";
 
 import type { AppThemeColors } from "../theme";
 import type { HelpRequestInput } from "../data/helpRequests";
+import type { TaskQueueSection } from "../data/taskQueueOrdering";
+import type { WorkLogDraftSyncStatus } from "../services/workLogDraftSync";
 import type {
   Discipline,
   Event,
@@ -80,6 +82,12 @@ export type SubsystemCounts = {
   tasks: number;
 };
 
+export type WorkLogListItem = WorkLog & {
+  localDraftId?: string;
+  syncError?: string;
+  syncStatus?: WorkLogDraftSyncStatus;
+};
+
 type StateSetter<T> = Dispatch<SetStateAction<T>>;
 type TextSetter = StateSetter<string>;
 type ResponsiveScreenStyles = {
@@ -112,6 +120,8 @@ export interface AppScreenProps {
   attendancePreview: AttendanceRow[];
   attendanceSummary: SummaryChipData[];
   canMentorApprove: boolean;
+  canReassignTasks: boolean;
+  claimTask: (task: Task) => Promise<void>;
   clearTaskBlockers: (task: Task, resolutionNote: string) => Promise<void>;
   disciplinesById: Record<string, Discipline>;
   editTagStyle: StyleProp<TextStyle>;
@@ -127,7 +137,7 @@ export interface AppScreenProps {
   filteredPurchases: PurchaseItem[];
   filteredSubsystems: Subsystem[];
   filteredTaskQueue: Task[];
-  filteredWorkLogs: WorkLog[];
+  filteredWorkLogs: WorkLogListItem[];
   helpRequests: HelpRequest[];
   homeInventoryNeeds: PurchaseItem[];
   homeActionItems: HomeActionItem[];
@@ -219,6 +229,8 @@ export interface AppScreenProps {
   rosterExternal: Member[];
   rosterMentors: Member[];
   rosterStudents: Member[];
+  reassignTask: (task: Task, ownerId: string | null) => Promise<void>;
+  releaseTask: (task: Task) => Promise<void>;
   selectedMemberId: string | null;
   selectedSubsystem: Subsystem | null;
   setActiveTab: StateSetter<ViewTab>;
@@ -264,6 +276,7 @@ export interface AppScreenProps {
   setWorkLogSortMode: StateSetter<WorkLogSortMode>;
   setWorkLogSubsystemFilter: TextSetter;
   shiftTaskDueDates: (tasksToShift: Task[], dayDelta: number) => Promise<void>;
+  signedInMember: Member | null;
   subsystemCountsById: Record<string, SubsystemCounts>;
   subsystemSearch: string;
   subsystems: Subsystem[];
@@ -274,6 +287,7 @@ export interface AppScreenProps {
   taskById: Record<string, Task>;
   taskOwnerFilter: string;
   taskPriorityFilter: string;
+  taskQueueSections: TaskQueueSection[];
   taskSearch: string;
   taskStatusFilter: string;
   taskSubsystemFilter: string;

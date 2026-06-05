@@ -15,11 +15,13 @@ export function WorkspacePanel({
   subtitle,
   actions,
   children,
+  compactActionsInline = false,
 }: {
   title: string;
   subtitle: string;
   actions?: ReactNode;
   children: ReactNode;
+  compactActionsInline?: boolean;
 }) {
   const { width } = useWindowDimensions();
   const metrics = getResponsiveMetrics(width);
@@ -39,7 +41,15 @@ export function WorkspacePanel({
         },
       ]}
     >
-      <View style={[styles.panelHeader, metrics.isCompact && styles.panelHeaderCompact]}>
+      <View
+        style={[
+          styles.panelHeader,
+          metrics.isCompact &&
+            (compactActionsInline
+              ? styles.panelHeaderCompactInline
+              : styles.panelHeaderCompact),
+        ]}
+      >
         <View style={styles.panelHeaderCopy}>
           <Text
             style={[
@@ -63,7 +73,14 @@ export function WorkspacePanel({
           </Text>
         </View>
         {actions ? (
-          <View style={[styles.panelActions, metrics.isCompact && styles.panelActionsCompact]}>
+          <View
+            style={[
+              styles.panelActions,
+              metrics.isCompact &&
+                !compactActionsInline &&
+                styles.panelActionsCompact,
+            ]}
+          >
             {actions}
           </View>
         ) : null}

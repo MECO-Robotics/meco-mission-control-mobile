@@ -3,6 +3,7 @@
 ## Branch Model
 
 - `main`: production-ready only.
+- `staging` or `staging/*`: audited release-candidate snapshots; immutable except for stabilization fixes.
 - `development`: integration branch for active work.
 - `feature/*`: short-lived feature branches.
 - `fix/*`: short-lived bugfix branches.
@@ -11,12 +12,19 @@
 ## Pull Request Flow
 
 - Merge `feature/*` and `fix/*` into `development` by pull request only.
+- Cut `staging` or `staging/*` from the current `development` head when a frozen release-candidate snapshot needs to remain in an open `main` PR while regular development continues separately.
+- Merge `fix/*` or `hotfix/*` into `staging` or `staging/*` by pull request only for stabilization fixes.
 - Merge `hotfix/*` into `development` or `main` by pull request only.
-- Merge into `main` only from `development` or `hotfix/*` by pull request only.
+- Merge into `main` only from `staging`, `staging/*`, `development`, or `hotfix/*` by pull request only.
 
 ## Protected Branch Requirements
 
 `development` requires:
+
+- `merge-requirements`
+- at least 1 approval
+
+`staging` and `staging/*` require:
 
 - `merge-requirements`
 - at least 1 approval
@@ -26,7 +34,7 @@
 - `merge-requirements`
 - at least 2 approvals
 
-`merge-requirements` is the required aggregate gate for branch model, validation, snapshot, and production-gate checks. Keep conversation resolution, linear history, and admin enforcement enabled on both protected branches.
+`merge-requirements` is the required aggregate gate for branch model, validation, snapshot, and production-gate checks. Keep conversation resolution, linear history, and admin enforcement enabled on protected branches.
 
 ## CI Expectations
 
@@ -76,10 +84,11 @@ org.mecorobotics.missioncontrol
 
 - Validate sanitized production-like snapshots before merge.
 - Enforce stricter cross-repo validation before `main` merges.
+- Treat staging branches as frozen candidate snapshots, not places for new feature work.
 - Publish mobile releases only from `main`, `release-*` tags, or a release manifest.
 - Mobile release target is GitHub Releases/EAS builds.
 - Do not target the production VPS for mobile releases.
-- Do not introduce a permanent live staging environment.
+- Do not introduce a permanent live staging environment; staging is a branch snapshot concept only.
 
 ## App Configuration Notes
 

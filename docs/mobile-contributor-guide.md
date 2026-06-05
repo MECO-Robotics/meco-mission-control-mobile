@@ -91,9 +91,11 @@ If auth config cannot load, the app treats auth as unavailable and can continue
 with a local email session path. If development bypass is available, auth flows
 may use `POST /api/auth/dev-bypass` for contributor testing.
 
-Local fallback data is not durable backend sync. Failed sync and mutation paths
-surface `syncError`, set backend status to offline, and leave the current local
-workspace state in place.
+Most local fallback data is not durable backend sync. Work-log creation is the
+exception: failed offline creates are stored as local AsyncStorage drafts,
+displayed in the work-log list, and retried during later sync. Other failed sync
+and mutation paths surface `syncError`, set backend status to offline, and leave
+the current local workspace state in place.
 
 Current auth is contributor-facing scaffolding, not final role enforcement.
 Contributors should not treat local sessions, mock data, or development bypass

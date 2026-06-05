@@ -26,7 +26,6 @@
     "expo": "~54.0.34",
     "expo-auth-session": "~7.0.11",
     "expo-crypto": "~15.0.9",
-    "expo-image-picker": "~17.0.11",
     "expo-localization": "~17.0.8",
     "expo-notifications": "^0.32.17",
     "expo-screen-orientation": "~9.0.9",
@@ -47,3 +46,4 @@
   },
   "private": true
 }
+

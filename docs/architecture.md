@@ -76,7 +76,7 @@ Swipe responders in `App.tsx` support tab/subtab gestures.
 
 The API helper in `src/data/api.ts` resolves the base URL from `EXPO_PUBLIC_API_BASE_URL`, defaulting to `http://localhost:8080`. `requestJson` adds JSON headers, applies a bearer token when present, parses JSON responses, and throws `ApiRequestError` on non-2xx responses.
 
-Mutations use a shared `runMutation` path in `App.tsx`: submit the request, refresh `/api/bootstrap`, and update sync status. If the backend is unavailable, the app preserves local optimistic state where the feature flow requires it.
+Mutations use a shared `runMutation` path in `App.tsx`: submit the request, refresh `/api/bootstrap`, and update sync status. If the backend is unavailable, the app preserves local optimistic state where the feature flow requires it. Work-log creates additionally use `src/services/workLogDraftSync.ts` to persist offline drafts in AsyncStorage, show draft sync status, and retry later without duplicate matching submissions.
 
 ## Work Timer Services
 
@@ -89,4 +89,3 @@ Mutations use a shared `runMutation` path in `App.tsx`: submit the request, refr
 Most shared styles live in `src/ui/styles.ts`. Landscape timeline styles are split into dedicated modules under `src/ui/landscapeTimeline/`. Responsive sizing comes from `src/ui/responsive.ts`, and theme values come from `src/theme.ts` plus `src/ui/themeContext.tsx`.
 
 Follow the repository `AGENTS.md` limits when adding or modifying implementation files: split files above the refactor thresholds and keep feature responsibilities separated.
-
