@@ -27,11 +27,10 @@ The app is the mobile companion to the hosted platform backend. It can run from 
 ## Runtime Modes
 
 - Connected mode: the app reads auth config and bootstrap data from `EXPO_PUBLIC_API_BASE_URL`, then writes mutations to the API.
-- Development bypass mode: if the backend exposes dev bypass auth, the app can obtain a session without a real Google or email flow.
+- Development bypass mode: if the backend exposes dev bypass auth, contributor testing can obtain a session without a real Google flow. Email sign-in still requires starting and verifying an email-code flow.
 - Local fallback mode: if the backend cannot be reached, the app keeps enough seeded data to render and demonstrate the workspace.
 
 ## Related Repositories
 
 - `meco-mission-control-platform`: hosted API, authentication, database, and production data ownership.
 - `meco-mission-control-web`: browser-first mentor/admin dashboards and operations views.
-

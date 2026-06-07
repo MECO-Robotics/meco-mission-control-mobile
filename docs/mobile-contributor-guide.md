@@ -87,9 +87,11 @@ headers, adds `Content-Type: application/json` when there is a body, and adds an
 
 The app remains usable from last fetched data when the backend is offline.
 
-If auth config cannot load, the app treats auth as unavailable and can continue
-with a local email session path. If development bypass is available, auth flows
-may use `POST /api/auth/dev-bypass` for contributor testing.
+If auth config cannot load, the app treats auth as unavailable and keeps the
+user on the login screen. Email sign-in must start the email-code flow and then
+verify the submitted code before a session is created. If development bypass is
+available, contributor testing may use `POST /api/auth/dev-bypass` through the
+Google/bootstrap testing paths.
 
 Most local fallback data is not durable backend sync. Work-log creation is the
 exception: failed offline creates are stored as local AsyncStorage drafts,
@@ -98,8 +100,8 @@ and mutation paths surface `syncError`, set backend status to offline, and leave
 the current local workspace state in place.
 
 Current auth is contributor-facing scaffolding, not final role enforcement.
-Contributors should not treat local sessions, mock data, or development bypass
-as production authorization behavior.
+Contributors should not treat mock data or development bypass as production
+authorization behavior.
 
 ## Device Testing Checklist
 

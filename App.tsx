@@ -412,6 +412,17 @@ function getClientErrorMessage(
   return parseClientError(error);
 }
 
+function getEmailCodeVerificationErrorMessage(error: unknown) {
+  if (
+    error instanceof ApiRequestError &&
+    (error.status === 400 || error.status === 401 || error.status === 403)
+  ) {
+    return "Invalid code. Check the code and try again.";
+  }
+
+  return getClientErrorMessage(error);
+}
+
 function isValidDateInput(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     return false;
@@ -612,21 +623,6 @@ function hasRequiredEmailDomain(email: string, requiredDomain: string) {
     normalizedDomain === requiredDomain ||
     normalizedDomain.endsWith(`.${requiredDomain}`)
   );
-}
-
-function buildLocalEmailSessionUser(email: string, hostedDomain: string): SessionUser {
-  const [accountName] = email.split("@");
-  const accountId = accountName.trim().toLowerCase();
-  const name = accountId.replace(/[._-]+/g, " ").trim();
-
-  return {
-    accountId: accountId || email,
-    authProvider: "email",
-    email,
-    hostedDomain,
-    name: name || email,
-    picture: null,
-  };
 }
 
 function getWorkLogDraftOwnerKey(user: SessionUser | null) {
@@ -1385,24 +1381,9 @@ export default function App() {
         return;
       }
 
-      if (currentAuthConfig?.devBypassAvailable) {
-        const session = await requestJson<SessionResponse>(
-          apiBaseUrl,
-          "/api/auth/dev-bypass",
-          { method: "POST" },
-        );
-        await finishSignIn(session.token, {
-          ...session.user,
-          authProvider: "email",
-          email,
-        });
-        return;
-      }
-
       if (currentAuthConfig?.enabled === false) {
-        await finishSignIn(null, buildLocalEmailSessionUser(email, requiredEmailDomain));
-        setAuthNotice(
-          "Authentication service is unavailable. Continuing with a local session.",
+        setAuthError(
+          "Authentication service is unavailable. Check the backend auth configuration and try again.",
         );
         return;
       }
@@ -1422,7 +1403,11 @@ export default function App() {
           : `Code sent to ${response.sentTo ?? email}.`,
       );
     } catch (error) {
-      setAuthError(getClientErrorMessage(error));
+      setAuthError(
+        hasRequestedEmailCode
+          ? getEmailCodeVerificationErrorMessage(error)
+          : getClientErrorMessage(error),
+      );
     } finally {
       setIsAuthenticating(false);
     }
