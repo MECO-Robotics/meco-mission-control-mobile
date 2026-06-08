@@ -546,6 +546,10 @@ type EmailCodeStartResponse = {
   expiresInMinutes?: number;
 };
 
+type ThemePreferenceResponse = {
+  themeMode: AppThemeName | null;
+};
+
 function normalizeTaskFromServer(task: ServerTask): Task {
   return {
     ...task,
@@ -760,7 +764,67 @@ export default function App() {
     setAuthError(message);
     setBackendStatus("connected");
     setBackendReachability("reachable");
+    setThemeOverride(null);
   }, []);
+
+  const normalizeThemeModeFromResponse = useCallback(
+    (value: string | null | undefined) => {
+      if (value === "dark" || value === "light") {
+        return value;
+      }
+
+      return null;
+    },
+    [],
+  );
+
+  const applyThemePreferenceFromServer = useCallback(
+    async (token: string | null) => {
+      if (!token) {
+        setThemeOverride(null);
+        return;
+      }
+
+      try {
+        const preferences = await requestJson<ThemePreferenceResponse>(
+          apiBaseUrl,
+          "/api/users/me/preferences",
+          undefined,
+          token,
+        );
+
+        setThemeOverride(normalizeThemeModeFromResponse(preferences.themeMode));
+      } catch {
+        setThemeOverride(null);
+      }
+    },
+    [apiBaseUrl, normalizeThemeModeFromResponse],
+  );
+
+  const updateThemePreference = useCallback(
+    async (nextThemeMode: AppThemeName, nextAuthToken: string | null) => {
+      setThemeOverride(nextThemeMode);
+
+      if (!nextAuthToken) {
+        return;
+      }
+
+      try {
+        await requestJson(
+          apiBaseUrl,
+          "/api/users/me/preferences",
+          {
+            method: "PATCH",
+            body: JSON.stringify({ themeMode: nextThemeMode }),
+          },
+          nextAuthToken,
+        );
+      } catch {
+        // Preference persistence is best-effort; keep local theme preference even if backend sync fails.
+      }
+    },
+    [apiBaseUrl],
+  );
 
   const [activeTab, setActiveTab] = useState<ViewTab>("home");
   const [taskView, setTaskView] = useState<TaskViewTab>("queue");
@@ -1178,6 +1242,7 @@ export default function App() {
 
   const finishSignIn = useCallback(
     async (token: string | null, user: SessionUser) => {
+      setThemeOverride(null);
       setApiToken(token);
       setSessionUser(user);
       setHasAuthenticated(true);
@@ -1185,6 +1250,7 @@ export default function App() {
       setSyncError(null);
 
       try {
+        await applyThemePreferenceFromServer(token);
         const payload = await refreshWorkspaceFromServer(token);
         const draftSyncError = await syncPendingWorkLogDrafts(
           token,
@@ -1202,7 +1268,7 @@ export default function App() {
         setIsSyncing(false);
       }
     },
-    [refreshWorkspaceFromServer, syncPendingWorkLogDrafts],
+    [applyThemePreferenceFromServer, refreshWorkspaceFromServer, syncPendingWorkLogDrafts],
   );
 
   const signInWithGoogle = useCallback(async () => {
@@ -5455,6 +5521,7 @@ export default function App() {
     setApiToken(null);
     setSessionUser(null);
     setHasAuthenticated(false);
+    setThemeOverride(null);
     setAuthCode("");
     setAuthEmail("");
     setAuthError(null);
@@ -7639,7 +7706,9 @@ export default function App() {
           </View>
 
           <Pressable
-            onPress={() => setThemeOverride(themeMode === "dark" ? "light" : "dark")}
+            onPress={() => {
+              void updateThemePreference(themeMode === "dark" ? "light" : "dark", apiToken);
+            }}
             style={[
               styles.settingsRow,
               appResponsiveStyles.settingsRow,
@@ -7647,7 +7716,7 @@ export default function App() {
             ]}
           >
             <View>
-              <Text style={[styles.settingsRowTitle, { color: themeColors.ink }]}>Theme</Text>
+          <Text style={[styles.settingsRowTitle, { color: themeColors.ink }]}>Theme</Text>
             </View>
             <Text style={[styles.settingsRowValue, { color: themeColors.navyInk }]}>
               {themeMode === "dark" ? "Dark" : "Light"}
