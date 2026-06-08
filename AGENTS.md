@@ -333,3 +333,4 @@ Exceeding any hard limit is not allowed.
   - Keep `AGENTS.md` cross-repo notes synchronized with `pr-286` before review.
   - Graphify adapter now provides optional graph neighborhoods for task and PR planning; keep cross-repo `mission-control-skills` updates in sync.
   - Mission Control Static Analysis adapter (`mission-control-skills`, Semgrep foundation) is active in the same PR track; ensure downstream repos align with `ONBOARDING.md` and generated Codex artifacts (findings + summary files).
+  - Mission Control Evaluation adapter (`mission-control-skills`, Promptfoo foundation) is now on the onboarding track for cross-repo agent quality review and context scoring outputs.
