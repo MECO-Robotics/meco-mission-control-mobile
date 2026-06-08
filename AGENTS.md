@@ -326,3 +326,6 @@ Exceeding any hard limit is not allowed.
 
 # Cross-repo validation trigger for web PR #219
 
+# Cross-repo active PR notes
+- Shared context architecture changes live in `mission-control-skills` and are consumed by all repo PRs. Main change: repository-intelligence + repomix task-context bridge (commit: 46bab41).
+- Active checkout for this context: `development` (no PR branch currently checked out in this worktree).
