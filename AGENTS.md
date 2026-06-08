@@ -328,4 +328,8 @@ Exceeding any hard limit is not allowed.
 
 # Cross-repo active PR notes
 - Shared context architecture changes live in `mission-control-skills` and are consumed by all repo PRs. Main change: repository-intelligence + repomix task-context bridge (commit: 46bab41).
-- Active checkout for this context: `development` (no PR branch currently checked out in this worktree).
+- Open cross-repo PR onboarding:
+  - Primary context PR: `pr-286` (`mission-control-skills`).
+  - Keep `AGENTS.md` cross-repo notes synchronized with `pr-286` before review.
+  - Graphify adapter now provides optional graph neighborhoods for task and PR planning; keep cross-repo `mission-control-skills` updates in sync.
+  - Mission Control Static Analysis adapter (`mission-control-skills`, Semgrep foundation) is active in the same PR track; ensure downstream repos align with `ONBOARDING.md` and generated Codex artifacts (findings + summary files).
