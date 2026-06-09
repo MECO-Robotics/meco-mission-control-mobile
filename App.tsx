@@ -312,6 +312,7 @@ const PLANNED_ATTENDANCE_DAY_OPTIONS = [
 ] as const;
 
 const REQUIRED_EMAIL_DOMAIN = "mecorobotics.org";
+const AUTH_REQUEST_TIMEOUT_MS = 15000;
 
 const REQUIRED_TASK_SUBSYSTEMS: Subsystem[] = [
   {
@@ -1208,6 +1209,9 @@ export default function App() {
       const config = await requestJson<PublicAuthConfig>(
         apiBaseUrl,
         "/api/auth/config",
+        undefined,
+        undefined,
+        AUTH_REQUEST_TIMEOUT_MS,
       );
       setAuthConfig(config);
       setAuthErrorState(null);
@@ -1441,6 +1445,8 @@ export default function App() {
             method: "POST",
             body: JSON.stringify({ email, code }),
           },
+          undefined,
+          AUTH_REQUEST_TIMEOUT_MS,
         );
         setAuthCode("");
         await finishSignIn(session.token, session.user);
@@ -1461,6 +1467,8 @@ export default function App() {
           method: "POST",
           body: JSON.stringify({ email }),
         },
+        undefined,
+        AUTH_REQUEST_TIMEOUT_MS,
       );
       setHasRequestedEmailCode(true);
       setAuthNotice(

@@ -131,6 +131,7 @@ export async function requestJson<T>(
   path: string,
   init: RequestInit = {},
   token?: string | null,
+  timeoutMs?: number,
 ): Promise<T> {
   const headers = new Headers(init.headers ?? undefined);
   headers.set("Accept", "application/json");
@@ -143,14 +144,26 @@ export async function requestJson<T>(
     headers.set("Authorization", `Bearer ${token}`);
   }
 
+  const abortController =
+    typeof timeoutMs === "number" && timeoutMs > 0 ? new AbortController() : null;
+  const timeoutHandle =
+    abortController !== null
+      ? setTimeout(() => abortController.abort(), timeoutMs)
+      : null;
+
   let response: Response;
   try {
     response = await fetch(`${baseUrl}${path}`, {
       ...init,
       headers,
+      signal: abortController?.signal ?? init.signal,
     });
   } catch (error) {
     throw new ApiNetworkError(error);
+  } finally {
+    if (timeoutHandle !== null) {
+      clearTimeout(timeoutHandle);
+    }
   }
 
   const rawBody = await response.text();
