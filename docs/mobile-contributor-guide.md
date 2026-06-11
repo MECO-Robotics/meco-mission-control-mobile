@@ -121,8 +121,8 @@ device path that matches the work being changed.
   screen.
 - Verify the app remains usable when the backend is offline and clearly surfaces
   sync failure state.
-- Verify the intended auth path: Google sign-in, email-code sign-in, dev bypass,
-  or local no-auth fallback.
+- Verify the intended auth path: Google sign-in, email-code sign-in, or dev
+  bypass.
 - Navigate the core screens touched by the change: Home, Attendance, Tasks, Work
   Logs, Inventory, QA/Reports, Risks, and related subviews.
 - Exercise relevant editor flows, including create, edit, delete, save error,
