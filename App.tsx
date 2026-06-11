@@ -1245,7 +1245,6 @@ export default function App() {
       setThemeOverride(null);
       setApiToken(token);
       setSessionUser(user);
-      setHasAuthenticated(true);
       setIsSyncing(true);
       setSyncError(null);
 
@@ -1266,6 +1265,7 @@ export default function App() {
         setSyncError(parseClientError(error));
       } finally {
         setIsSyncing(false);
+        setHasAuthenticated(true);
       }
     },
     [applyThemePreferenceFromServer, refreshWorkspaceFromServer, syncPendingWorkLogDrafts],
@@ -7388,6 +7388,7 @@ export default function App() {
                       if (hasRequestedEmailCode) {
                         setAuthCode("");
                         setAuthError(null);
+                        setAuthErrorState(null);
                         setAuthNotice(null);
                         setHasRequestedEmailCode(false);
                         return;

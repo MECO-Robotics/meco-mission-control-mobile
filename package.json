@@ -6,15 +6,15 @@
     "node": ">=20 <24"
   },
   "scripts": {
-    "postinstall": "node scripts/patch-freeport-async.js",
+    "postinstall": "node scripts/patch-freeport-async.js && node scripts/patch-expo-device-hub.js",
     "sim:reset": "node scripts/reset-ios-sim.js",
-    "preios": "node scripts/reset-ios-sim.js",
+    "preios": "DEVELOPER_DIR=${DEVELOPER_DIR:-/Applications/Xcode-beta.app/Contents/Developer} node scripts/reset-ios-sim.js",
     "verify": "npm run verify:core && npm run verify:bootstrap-contract",
     "verify:core": "npm run lint && npm run test && npm run test:role-permissions && npm run typecheck",
     "dev": "bash ./script/build_and_run.sh --android",
     "start": "expo start",
     "android": "bash ./script/build_and_run.sh --android",
-    "ios": "expo start --ios --localhost --port 8081",
+    "ios": "DEVELOPER_DIR=${DEVELOPER_DIR:-/Applications/Xcode-beta.app/Contents/Developer} expo start --localhost --port 8081",
     "lint": "eslint .",
     "test": "jest --runInBand",
     "test:role-permissions": "node --test scripts/role-permissions.test.mjs",
@@ -23,10 +23,10 @@
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
-    "expo": "~54.0.34",
+    "expo": "~54.0.35",
     "expo-auth-session": "~7.0.11",
     "expo-crypto": "~15.0.9",
-    "expo-localization": "~17.0.8",
+    "expo-localization": "~17.0.9",
     "expo-notifications": "^0.32.17",
     "expo-screen-orientation": "~9.0.9",
     "expo-status-bar": "~3.0.9",
@@ -46,4 +46,3 @@
   },
   "private": true
 }
-
