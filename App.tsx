@@ -174,6 +174,12 @@ import {
   updateWorkLogLiveActivity,
 } from "./src/services/workLogLiveActivity";
 import {
+  clearPersistedAuthSession,
+  getOrCreateAuthDeviceNumber,
+  loadPersistedAuthSession,
+  savePersistedAuthSession,
+} from "./src/services/authSessionStorage";
+import {
   cancelWorkLogTimerReminders,
   clearPersistedWorkLogTimerState,
   persistWorkLogTimerState,
@@ -190,6 +196,7 @@ const SUBTAB_SWIPE_COMMIT_DISTANCE = 72;
 const TIMER_TICK_MS = 1000;
 const MS_PER_HOUR = 1000 * 60 * 60;
 const GOOGLE_CLIENT_ID_PLACEHOLDER = "missing-google-client-id";
+const DEVICE_SESSION_RESTORED_NOTICE = "Signed in on this device.";
 
 type AttendanceStatus = "yes" | "maybe" | "no";
 type SeasonOption = {
@@ -706,6 +713,7 @@ export default function App() {
   const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isGoogleSignInPending, setIsGoogleSignInPending] = useState(false);
+  const [isRestoringAuthSession, setIsRestoringAuthSession] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [backendStatus, setBackendStatus] = useState<
     "connecting" | "connected" | "offline"
@@ -760,6 +768,7 @@ export default function App() {
     setAuthError(message);
     setBackendStatus("connected");
     setBackendReachability("reachable");
+    void clearPersistedAuthSession().catch(() => undefined);
   }, []);
 
   const [activeTab, setActiveTab] = useState<ViewTab>("home");
@@ -797,6 +806,7 @@ export default function App() {
   >([]);
   const pendingWorkLogDraftsRef = useRef<PendingWorkLogDraft[]>([]);
   const isSyncingWorkLogDraftsRef = useRef(false);
+  const hasRestoredAuthSessionRef = useRef(false);
   const startTaskRef = useRef<(task: Task, options?: StartTaskOptions) => Promise<void>>(
     async () => undefined,
   );
@@ -1184,6 +1194,15 @@ export default function App() {
       setIsSyncing(true);
       setSyncError(null);
 
+      if (token) {
+        const deviceNumber = await getOrCreateAuthDeviceNumber();
+        await savePersistedAuthSession({ deviceNumber, token, user }).catch(
+          () => undefined,
+        );
+      } else {
+        await clearPersistedAuthSession().catch(() => undefined);
+      }
+
       try {
         const payload = await refreshWorkspaceFromServer(token);
         const draftSyncError = await syncPendingWorkLogDrafts(
@@ -1195,6 +1214,11 @@ export default function App() {
         setBackendReachability("reachable");
         setSyncError(draftSyncError);
       } catch (error) {
+        if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
+          endSessionForAuthFailure(getMobileAuthErrorMessage("expired-session"));
+          return;
+        }
+
         setBackendStatus("offline");
         setBackendReachability(backendReachabilityAfterError(error));
         setSyncError(parseClientError(error));
@@ -1202,8 +1226,46 @@ export default function App() {
         setIsSyncing(false);
       }
     },
-    [refreshWorkspaceFromServer, syncPendingWorkLogDrafts],
+    [endSessionForAuthFailure, refreshWorkspaceFromServer, syncPendingWorkLogDrafts],
   );
+
+  useEffect(() => {
+    if (hasRestoredAuthSessionRef.current) {
+      return;
+    }
+
+    hasRestoredAuthSessionRef.current = true;
+    let isActive = true;
+
+    async function restorePersistedAuthSession() {
+      try {
+        const deviceNumber = await getOrCreateAuthDeviceNumber();
+        const persistedSession = await loadPersistedAuthSession(deviceNumber);
+
+        if (!isActive || !persistedSession) {
+          return;
+        }
+
+        setAuthNotice(DEVICE_SESSION_RESTORED_NOTICE);
+        const restorePromise = finishSignIn(
+          persistedSession.token,
+          persistedSession.user,
+        );
+        setIsRestoringAuthSession(false);
+        await restorePromise;
+      } finally {
+        if (isActive) {
+          setIsRestoringAuthSession(false);
+        }
+      }
+    }
+
+    void restorePersistedAuthSession();
+
+    return () => {
+      isActive = false;
+    };
+  }, [finishSignIn]);
 
   const signInWithGoogle = useCallback(async () => {
     setIsAuthenticating(true);
@@ -1372,12 +1434,13 @@ export default function App() {
 
     try {
       if (hasRequestedEmailCode) {
+        const deviceNumber = await getOrCreateAuthDeviceNumber();
         const session = await requestJson<SessionResponse>(
           apiBaseUrl,
           "/api/auth/email/verify",
           {
             method: "POST",
-            body: JSON.stringify({ email, code }),
+            body: JSON.stringify({ code, deviceId: deviceNumber, email }),
           },
         );
         setAuthCode("");
@@ -5452,6 +5515,7 @@ export default function App() {
   };
 
   const signOut = () => {
+    void clearPersistedAuthSession().catch(() => undefined);
     setApiToken(null);
     setSessionUser(null);
     setHasAuthenticated(false);
@@ -7758,7 +7822,7 @@ export default function App() {
 
   return (
     <LocalizationProvider languageOverride={languageOverride}>
-      {!hasAuthenticated ? (
+      {isRestoringAuthSession ? null : !hasAuthenticated ? (
         renderLoginScreen()
       ) : (
         <AppThemeProvider value={{ colors: themeColors, mode: themeMode }}>
