@@ -34,11 +34,14 @@ export function InventoryMaterialsScreen(props: AppScreenProps) {
     setMaterialsStockFilter,
   } = props;
 
-const renderScreen = () => {
-  const lowStockCount = filteredMaterialRollups.filter((row) => row.stock === "low").length;
-  const suggestedRestockCount = filteredMaterialRollups.filter(
-    (row) => row.suggestedOrderQuantity > 0,
-  ).length;
+  const materialSummary = filteredMaterialRollups.reduce(
+    (summary, row) => ({
+      lowStockCount: summary.lowStockCount + (row.stock === "low" ? 1 : 0),
+      suggestedRestockCount:
+        summary.suggestedRestockCount + (row.suggestedOrderQuantity > 0 ? 1 : 0),
+    }),
+    { lowStockCount: 0, suggestedRestockCount: 0 },
+  );
 
   return (
     <WorkspacePanel
@@ -78,8 +81,8 @@ const renderScreen = () => {
       <SummaryRow
         chips={[
           { label: "Visible materials", value: String(filteredMaterialRollups.length) },
-          { label: "Low stock", value: String(lowStockCount) },
-          { label: "Restock suggested", value: String(suggestedRestockCount) },
+          { label: "Low stock", value: String(materialSummary.lowStockCount) },
+          { label: "Restock suggested", value: String(materialSummary.suggestedRestockCount) },
         ]}
       />
 
@@ -130,6 +133,4 @@ const renderScreen = () => {
       <InteractionNote steps={SUBVIEW_INTERACTION_GUIDANCE.materials} />
     </WorkspacePanel>
   );
-};
-  return renderScreen();
 }

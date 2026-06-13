@@ -42,7 +42,25 @@ export type MobileAuthErrorState =
   | "unknown";
 
 export function isAuthStatus(status: number) {
-  return status === 401 || status === 403;
+  return status === 401;
+}
+
+function hasAuthExpiryPayload(body: unknown) {
+  if (typeof body !== "object" || body === null) {
+    return false;
+  }
+
+  const candidate = body as { code?: unknown; message?: unknown };
+  const code = typeof candidate.code === "string" ? candidate.code.toLowerCase() : "";
+  const message =
+    typeof candidate.message === "string" ? candidate.message.toLowerCase() : "";
+
+  return (
+    code.includes("expired") ||
+    code === "invalid_token" ||
+    message.includes("session expired") ||
+    message.includes("token expired")
+  );
 }
 
 export function classifyMobileAuthError(
@@ -56,7 +74,8 @@ export function classifyMobileAuthError(
   if (
     context === "authenticated" &&
     error instanceof ApiRequestError &&
-    isAuthStatus(error.status)
+    (isAuthStatus(error.status) ||
+      (error.status === 403 && hasAuthExpiryPayload(error.body)))
   ) {
     return "expired-session";
   }
@@ -79,6 +98,13 @@ export function getMobileAuthErrorMessage(state: MobileAuthErrorState) {
     case "unknown":
       return "Request failed unexpectedly.";
   }
+}
+
+export function getBackendConnectionErrorMessage(apiBaseUrl: string) {
+  return [
+    `Backend API is not reachable at ${apiBaseUrl}.`,
+    "Start the platform server on that host/port, or set EXPO_PUBLIC_API_BASE_URL to the backend URL your device can reach.",
+  ].join(" ");
 }
 
 function parseErrorMessage(payload: unknown): string | null {

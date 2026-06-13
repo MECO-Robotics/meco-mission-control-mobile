@@ -166,6 +166,7 @@ case "$MODE" in
     start_android_emulator_if_needed
     stop_expo_go_if_running
     export REACT_NATIVE_PACKAGER_HOSTNAME="${REACT_NATIVE_PACKAGER_HOSTNAME:-10.0.2.2}"
+    export EXPO_PUBLIC_ANDROID_API_BASE_URL="${EXPO_PUBLIC_ANDROID_API_BASE_URL:-http://10.0.2.2:8080}"
     if command -v adb >/dev/null 2>&1; then
       adb reverse tcp:8081 tcp:8081 >/dev/null 2>&1 || true
     fi

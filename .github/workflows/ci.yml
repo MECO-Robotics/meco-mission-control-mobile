@@ -5,10 +5,14 @@ on:
   pull_request:
     branches:
       - development
+      - staging
+      - "staging/**"
       - main
   push:
     branches:
       - development
+      - staging
+      - "staging/**"
       - main
       - "feature/**"
       - "fix/**"
@@ -60,11 +64,19 @@ jobs:
             exit 1
           fi
 
-          if [[ "$BASE_REF" == "main" ]]; then
-            if [[ "$HEAD_REF" == "development" || "$HEAD_REF" =~ ^hotfix/ ]]; then
+          if [[ "$BASE_REF" == "staging" || "$BASE_REF" =~ ^staging/ ]]; then
+            if [[ "$HEAD_REF" == "development" || "$HEAD_REF" =~ ^(fix|hotfix)/ ]]; then
               exit 0
             fi
-            echo "PRs into main must come from development or hotfix/* branches." >&2
+            echo "PRs into staging must come from development, fix/*, or hotfix/* branches." >&2
+            exit 1
+          fi
+
+          if [[ "$BASE_REF" == "main" ]]; then
+            if [[ "$HEAD_REF" == "development" || "$HEAD_REF" == "staging" || "$HEAD_REF" =~ ^staging/ || "$HEAD_REF" =~ ^hotfix/ ]]; then
+              exit 0
+            fi
+            echo "PRs into main must come from staging, staging/*, development, or hotfix/* branches." >&2
             exit 1
           fi
 
@@ -91,7 +103,7 @@ jobs:
         if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]')
         env:
           GH_TOKEN: ${{ secrets.MECO_PLATFORM_CONTRACT_READ_TOKEN }}
-          PLATFORM_BOOTSTRAP_CONTRACT_BRANCH: ${{ github.base_ref || (github.ref_name == 'main' && 'main') || 'development' }}
+          PLATFORM_BOOTSTRAP_CONTRACT_BRANCH: ${{ ((github.head_ref == 'staging' || startsWith(github.head_ref, 'staging/')) && github.head_ref) || (github.head_ref == 'development' && 'development') || github.base_ref || ((github.ref_name == 'staging' || startsWith(github.ref_name, 'staging/')) && github.ref_name) || (github.ref_name == 'main' && 'main') || 'development' }}
           CI: true
         run: npm run verify
 
@@ -163,6 +175,7 @@ jobs:
       - name: Validate development integration health across all repos
         env:
           GH_TOKEN: ${{ secrets.MECO_PLATFORM_CONTRACT_READ_TOKEN }}
+          HEAD_REF: ${{ github.head_ref }}
         run: |
           node <<'NODE'
           const owner = 'MECO-Robotics';
@@ -177,6 +190,11 @@ jobs:
           if (!token) {
             throw new Error('MECO_PLATFORM_CONTRACT_READ_TOKEN is required for cross-repo validation.');
           }
+          const headRef = process.env.HEAD_REF || '';
+          const promotionSourceRef = headRef === 'staging' || headRef.startsWith('staging/')
+            ? headRef
+            : 'development';
+          const promotionSourcePath = encodeURIComponent(promotionSourceRef);
 
           async function gh(path) {
             const response = await fetch(`https://api.github.com${path}`, {
@@ -196,10 +214,10 @@ jobs:
           }
 
           for (const repo of repos) {
-            const branch = await gh(`/repos/${owner}/${repo}/branches/development`);
+            const branch = await gh(`/repos/${owner}/${repo}/branches/${promotionSourcePath}`);
             const sha = branch?.commit?.sha;
             if (!sha) {
-              throw new Error(`Could not resolve development HEAD SHA for ${owner}/${repo}.`);
+              throw new Error(`Could not resolve ${promotionSourceRef} HEAD SHA for ${owner}/${repo}.`);
             }
 
             const checks = await gh(`/repos/${owner}/${repo}/commits/${sha}/check-runs?per_page=100`);
@@ -217,7 +235,7 @@ jobs:
               }
             }
 
-            console.log(`Validated ${owner}/${repo}@${sha}`);
+            console.log(`Validated ${owner}/${repo}@${sha} (${promotionSourceRef})`);
           }
           NODE
 

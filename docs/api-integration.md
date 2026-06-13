@@ -154,14 +154,25 @@ The payload may include:
 - qaFindings
 - testFindings
 - designIterations
+- actions
 
 Milestones can be mapped into event-like records for mobile timeline behavior.
+
+`actions` are platform audit history for create, update, and delete activity. They follow the
+platform audit retention policy: retain for 3 years after the related season ends, then delete or
+anonymize actor/member references and free-text labels/messages. Archive hides records from active
+views but does not shorten retention; delete removes the domain record while leaving a minimal
+tombstone until retention expires. Audit history must avoid sensitive minor data and should only be
+shown to authenticated leads, mentors, admins, or scoped users with a legitimate operational need.
 
 ## Mutation Endpoints Used By The App
 
 The mobile app currently writes to these resource paths:
 
 - `POST /api/tasks`
+- `POST /api/tasks/:id/claim`
+- `POST /api/tasks/:id/release`
+- `POST /api/tasks/:id/reassign`
 - `PATCH /api/tasks/:id`
 - `DELETE /api/tasks/:id`
 - `POST /api/milestones`
@@ -188,3 +199,4 @@ The mobile app currently writes to these resource paths:
 
 After a successful mutation, the app refreshes `/api/bootstrap` so derived lists and summaries are recalculated from server state.
 
+Work-log creation has an offline-safe mobile fallback. If `POST /api/work-logs` fails because the backend is unreachable, the mobile app stores the work-log payload as a local AsyncStorage draft, shows it in the Work Logs screen, and retries it during later workspace sync. Draft retry uses a local fingerprint of task, date, hours, participants, and notes to avoid posting duplicate matching work logs.

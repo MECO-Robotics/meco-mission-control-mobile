@@ -1,100 +1,67 @@
 import { useState } from "react";
-import { Image, Pressable, ScrollView, View } from "react-native";
+import { Pressable, View } from "react-native";
 
 import { Text } from "../i18n";
 import {
-  ARCHIVE_FILTER_OPTIONS,
-  BLOCKER_FILTER_OPTIONS,
-  EVENT_TYPE_OPTIONS,
-  EVENT_TYPE_STYLES,
-  INVENTORY_VIEW_OPTIONS,
-  MANUFACTURING_STATUS_OPTIONS,
-  MANUFACTURING_VIEW_OPTIONS,
-  MATERIAL_CATEGORY_OPTIONS,
-  PART_STATUS_OPTIONS,
-  PURCHASE_APPROVAL_OPTIONS,
-  PURCHASE_STATUS_OPTIONS,
   STATUS_LABELS,
   SUBVIEW_INTERACTION_GUIDANCE,
-  TASK_PRIORITY_OPTIONS,
-  TASK_STATUS_OPTIONS,
-  TASK_SUBTEAM_OPTIONS,
-  TASK_VIEW_OPTIONS,
-  WORKLOG_SORT_OPTIONS,
 } from "../ui/constants";
 import {
-  capitalize,
-  datePortion,
   formatDate,
-  formatDateTime,
   localTodayDate,
-  splitList,
-  timePortion,
-  timelineProgress,
 } from "../ui/helpers";
 import { getDefaultHelpMentorId } from "../data/helpRequests";
+import {
+  getTaskAssignmentState,
+  getTaskStartActionLabel,
+} from "../data/taskAssignment";
 import { styles } from "../ui/styles";
 import {
-  EmptyState,
   EditorModal,
-  FilterToolbar,
   InteractionNote,
   ModalField,
-  OptionChipRow,
-  SearchField,
-  SectionTabs,
   StatusPill,
   SummaryRow,
   WorkspacePanel,
 } from "../ui/ui";
-import type { ArchiveFilterMode, BlockerFilterMode } from "../ui/types";
 import type { Task } from "../types/domain";
 
 import type { AppScreenProps } from "./types";
-import { AttendanceStatusMark } from "./AttendanceStatusMark";
 import { NeedHelpModal } from "./help/NeedHelpModal";
+import { TaskQueueFilterSheet } from "./taskQueue/TaskQueueFilterSheet";
+import { TaskReassignModal } from "./taskQueue/TaskReassignModal";
+import { useTaskReassignModal } from "./taskQueue/useTaskReassignModal";
 
 export function TaskQueueScreen(props: AppScreenProps) {
   const {
     activeTaskSubteam,
     activeTaskSubteamLabel,
     appResponsiveStyles,
+    canReassignTasks,
+    claimTask,
     clearTaskBlockers,
     disciplinesById,
     editTagStyle,
-    eventOptions,
-    events,
     eventsById,
-    filteredMilestones,
     filteredTaskQueue,
     isCompactLayout,
     isLandscapeCardLayout,
-    isLandscapeTimelineLayout,
     mechanismsById,
     members,
     membersById,
-    milestoneSearch,
-    milestoneSortField,
-    milestoneSortOrder,
-    milestoneSummary,
-    milestoneTypeFilter,
-    openCreateEventReportEditor,
-    openCreateMilestoneEditor,
     openCreateQaReportEditor,
     openCreateTaskEditor,
     openCreateWorkLogEditor,
-    openEditMilestoneEditor,
     openDuplicateTaskEditor,
     openEditTaskEditor,
     partInstancesById,
     requestHelp,
     requestTaskQa,
+    reassignTask,
+    releaseTask,
     rosterMentors,
+    rosterStudents,
     setActiveTaskSubteam,
-    setMilestoneSearch,
-    setMilestoneSortField,
-    setMilestoneSortOrder,
-    setMilestoneTypeFilter,
     setTaskArchiveFilter,
     setTaskBlockerFilter,
     setTaskOwnerFilter,
@@ -102,9 +69,8 @@ export function TaskQueueScreen(props: AppScreenProps) {
     setTaskSearch,
     setTaskStatusFilter,
     setTaskSubsystemFilter,
-    setTimelineMilestoneFilter,
-    setTimelineSubsystemFilter,
     shiftTaskDueDates,
+    signedInMember,
     startTask,
     subsystems,
     subsystemsById,
@@ -113,28 +79,30 @@ export function TaskQueueScreen(props: AppScreenProps) {
     taskById,
     taskOwnerFilter,
     taskPriorityFilter,
+    taskQueueSections,
     taskSearch,
     taskStatusFilter,
     taskSubsystemFilter,
     taskLoggedHoursById,
     taskSummary,
-    taskView,
-    tasks,
     themeColors,
-    timelineMilestoneFilter,
-    timelineSubsystemFilter,
-    timelineTasks,
   } = props;
   const [blockerResolutionTask, setBlockerResolutionTask] = useState<Task | null>(null);
   const [blockerResolutionNote, setBlockerResolutionNote] = useState("");
   const [blockerResolutionError, setBlockerResolutionError] = useState<string | null>(null);
   const [helpRequestTask, setHelpRequestTask] = useState<Task | null>(null);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [isShiftDueDatesOpen, setIsShiftDueDatesOpen] = useState(false);
   const [shiftDayDelta, setShiftDayDelta] = useState("7");
   const [shiftDueDateError, setShiftDueDateError] = useState<string | null>(null);
+  const taskReassignModal = useTaskReassignModal({ reassignTask });
   const mentorOptions = rosterMentors.map((mentor) => ({ id: mentor.id, name: mentor.name }));
   const defaultHelpMentorId = getDefaultHelpMentorId(helpRequestTask, rosterMentors);
   const shiftableTasks = filteredTaskQueue.filter((task) => task.status !== "complete");
+  const reassignOwnerOptions = rosterStudents.map((member) => ({
+    id: member.id,
+    name: member.name,
+  }));
 
   const openBlockerResolution = (task: Task) => {
     setBlockerResolutionTask(task);
@@ -226,16 +194,33 @@ export function TaskQueueScreen(props: AppScreenProps) {
 const renderScreen = () => {
   return (
     <WorkspacePanel
+      compactActionsInline
       title={`${activeTaskSubteamLabel} task queue`}
       subtitle="Search and filter queue cards for the selected subteam's work."
       actions={
-        <View style={styles.quickActionRow}>
+        <View style={styles.taskQueueHeaderActions}>
+          <Pressable
+            onPress={() => setIsFiltersOpen(true)}
+            style={[
+              styles.primaryAction,
+              appResponsiveStyles.primaryAction,
+            ]}
+          >
+            <Text
+              style={[
+                styles.primaryActionLabel,
+                appResponsiveStyles.primaryActionLabel,
+              ]}
+            >
+              Filters
+            </Text>
+          </Pressable>
           <Pressable
             onPress={() => setIsShiftDueDatesOpen(true)}
-            style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+            style={[styles.primaryAction, appResponsiveStyles.primaryAction]}
           >
-            <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-              Shift due
+            <Text style={[styles.primaryActionLabel, appResponsiveStyles.primaryActionLabel]}>
+              Shift due dates
             </Text>
           </Pressable>
           <Pressable onPress={openCreateTaskEditor} style={[styles.primaryAction, appResponsiveStyles.primaryAction]}>
@@ -244,62 +229,6 @@ const renderScreen = () => {
         </View>
       }
     >
-      <FilterToolbar>
-        <SearchField
-          onChangeText={setTaskSearch}
-          placeholder="Search tasks"
-          value={taskSearch}
-        />
-
-        <OptionChipRow
-          allLabel="All subsystems"
-          onChange={setTaskSubsystemFilter}
-          options={subsystems.map((subsystem) => ({
-            id: subsystem.id,
-            name: subsystem.name,
-          }))}
-          value={taskSubsystemFilter}
-        />
-
-        <OptionChipRow
-          allLabel="All owners"
-          onChange={setTaskOwnerFilter}
-          options={members.map((member) => ({
-            id: member.id,
-            name: member.name,
-          }))}
-          value={taskOwnerFilter}
-        />
-
-        <OptionChipRow
-          allLabel="All statuses"
-          onChange={setTaskStatusFilter}
-          options={TASK_STATUS_OPTIONS}
-          value={taskStatusFilter}
-        />
-
-        <OptionChipRow
-          allLabel="All priorities"
-          onChange={setTaskPriorityFilter}
-          options={TASK_PRIORITY_OPTIONS}
-          value={taskPriorityFilter}
-        />
-
-        <OptionChipRow
-          allLabel="All flags"
-          onChange={(value) => setTaskBlockerFilter(value as BlockerFilterMode)}
-          options={BLOCKER_FILTER_OPTIONS}
-          value={taskBlockerFilter}
-        />
-
-        <OptionChipRow
-          allLabel="Any archive"
-          onChange={(value) => setTaskArchiveFilter(value as ArchiveFilterMode)}
-          options={ARCHIVE_FILTER_OPTIONS}
-          value={taskArchiveFilter}
-        />
-      </FilterToolbar>
-
       <SummaryRow chips={taskSummary} />
 
       {!isCompactLayout ? (
@@ -319,7 +248,29 @@ const renderScreen = () => {
         </View>
       ) : null}
 
-      {filteredTaskQueue.map((task) => {
+      {taskQueueSections.map((section) => (
+        <View key={section.id}>
+          {section.tasks.length > 0 ? (
+            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
+              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
+                {section.title}
+              </Text>
+              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
+                {section.tasks.length} task{section.tasks.length === 1 ? "" : "s"}
+              </Text>
+            </View>
+          ) : section.emptyTitle ? (
+            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
+              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
+                {section.emptyTitle}
+              </Text>
+              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
+                {section.emptyBody}
+              </Text>
+            </View>
+          ) : null}
+
+          {section.tasks.map((task) => {
         const subsystemName = subsystemsById[task.subsystemId]?.name ?? "Unknown";
         const ownerName = task.ownerId
           ? (membersById[task.ownerId]?.name ?? "Unassigned")
@@ -347,11 +298,14 @@ const renderScreen = () => {
         const isOverdue = task.status !== "complete" && task.dueDate < today;
         const isDueSoon =
           task.status !== "complete" && task.dueDate >= today && task.dueDate <= soonDate;
-        const canStartTask =
-          task.status === "not-started" &&
-          task.blockers.length === 0 &&
-          openDependencies.length === 0 &&
-          Boolean(task.ownerId);
+        const assignmentState = getTaskAssignmentState({
+          canReassignTasks,
+          hasOpenDependencies: openDependencies.length > 0,
+          membersById,
+          signedInMember,
+          task,
+        });
+        const canStartTask = assignmentState.canStartWork;
         const canRequestQa =
           task.status === "in-progress" &&
           task.blockers.length === 0 &&
@@ -393,6 +347,12 @@ const renderScreen = () => {
                     <StatusPill label="Needs purchase" value="requested" />
                   ) : null}
                   {!task.ownerId ? <StatusPill label="Unassigned" value="warning" /> : null}
+                  {assignmentState.isClaimedByCurrentMember ? (
+                    <StatusPill label="Claimed by you" value="in-progress" />
+                  ) : null}
+                  {assignmentState.isClaimedByOtherMember ? (
+                    <StatusPill label={`Claimed by ${assignmentState.ownerName}`} value="waiting" />
+                  ) : null}
                   {openDependencies.length > 0 ? (
                     <StatusPill
                       label={`${openDependencies.length} dependency${openDependencies.length === 1 ? "" : "ies"} open`}
@@ -516,6 +476,18 @@ const renderScreen = () => {
             ) : null}
 
             <View style={styles.quickActionRow}>
+              {assignmentState.canClaim ? (
+                <Pressable
+                  onPress={() => {
+                    void claimTask(task);
+                  }}
+                  style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+                >
+                  <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
+                    Claim only
+                  </Text>
+                </Pressable>
+              ) : null}
               {canStartTask ? (
                 <Pressable
                   onPress={() => {
@@ -524,7 +496,29 @@ const renderScreen = () => {
                   style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
                 >
                   <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                    Start task
+                    {getTaskStartActionLabel(task)}
+                  </Text>
+                </Pressable>
+              ) : null}
+              {assignmentState.canRelease ? (
+                <Pressable
+                  onPress={() => {
+                    void releaseTask(task);
+                  }}
+                  style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+                >
+                  <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
+                    Release
+                  </Text>
+                </Pressable>
+              ) : null}
+              {assignmentState.canReassign ? (
+                <Pressable
+                  onPress={() => taskReassignModal.open(task)}
+                  style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+                >
+                  <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
+                    Reassign
                   </Text>
                 </Pressable>
               ) : null}
@@ -577,7 +571,9 @@ const renderScreen = () => {
             </View>
           </Pressable>
         );
-      })}
+          })}
+        </View>
+      ))}
 
       {filteredTaskQueue.length === 0 ? (
         <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
@@ -617,6 +613,41 @@ const renderScreen = () => {
         onCancel={closeHelpRequest}
         onSubmit={submitTaskHelpRequest}
         visible={Boolean(helpRequestTask)}
+      />
+      <TaskQueueFilterSheet
+        activeTaskSubteam={activeTaskSubteam}
+        appResponsiveStyles={appResponsiveStyles}
+        members={members}
+        onClose={() => setIsFiltersOpen(false)}
+        onReset={resetTaskQueueFilters}
+        setActiveTaskSubteam={setActiveTaskSubteam}
+        setTaskArchiveFilter={setTaskArchiveFilter}
+        setTaskBlockerFilter={setTaskBlockerFilter}
+        setTaskOwnerFilter={setTaskOwnerFilter}
+        setTaskPriorityFilter={setTaskPriorityFilter}
+        setTaskSearch={setTaskSearch}
+        setTaskStatusFilter={setTaskStatusFilter}
+        setTaskSubsystemFilter={setTaskSubsystemFilter}
+        subsystems={subsystems}
+        taskArchiveFilter={taskArchiveFilter}
+        taskBlockerFilter={taskBlockerFilter}
+        taskOwnerFilter={taskOwnerFilter}
+        taskPriorityFilter={taskPriorityFilter}
+        taskSearch={taskSearch}
+        taskStatusFilter={taskStatusFilter}
+        taskSubsystemFilter={taskSubsystemFilter}
+        themeColors={themeColors}
+        visible={isFiltersOpen}
+      />
+      <TaskReassignModal
+        appResponsiveStyles={appResponsiveStyles}
+        membersById={membersById}
+        onCancel={taskReassignModal.close}
+        onSave={taskReassignModal.save}
+        onChangeOwner={taskReassignModal.setOwnerId}
+        ownerId={taskReassignModal.ownerId}
+        ownerOptions={reassignOwnerOptions}
+        task={taskReassignModal.task}
       />
       <EditorModal
         onCancel={closeShiftDueDates}

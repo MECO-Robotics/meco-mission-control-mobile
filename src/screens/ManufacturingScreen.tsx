@@ -1,35 +1,12 @@
-import { Image, Pressable, ScrollView, View } from "react-native";
+import { Pressable, View } from "react-native";
 
 import { Text } from "../i18n";
 import {
   ARCHIVE_FILTER_OPTIONS,
-  BLOCKER_FILTER_OPTIONS,
-  EVENT_TYPE_OPTIONS,
-  EVENT_TYPE_STYLES,
-  INVENTORY_VIEW_OPTIONS,
   MANUFACTURING_STATUS_OPTIONS,
-  MANUFACTURING_VIEW_OPTIONS,
-  MATERIAL_CATEGORY_OPTIONS,
-  PART_STATUS_OPTIONS,
-  PURCHASE_APPROVAL_OPTIONS,
-  PURCHASE_STATUS_OPTIONS,
-  STATUS_LABELS,
   SUBVIEW_INTERACTION_GUIDANCE,
-  TASK_PRIORITY_OPTIONS,
-  TASK_STATUS_OPTIONS,
-  TASK_SUBTEAM_OPTIONS,
-  TASK_VIEW_OPTIONS,
-  WORKLOG_SORT_OPTIONS,
 } from "../ui/constants";
-import {
-  capitalize,
-  datePortion,
-  formatDate,
-  formatDateTime,
-  splitList,
-  timePortion,
-  timelineProgress,
-} from "../ui/helpers";
+import { formatDate } from "../ui/helpers";
 import { styles } from "../ui/styles";
 import {
   EmptyState,
@@ -37,7 +14,6 @@ import {
   InteractionNote,
   OptionChipRow,
   SearchField,
-  SectionTabs,
   StatusPill,
   SummaryRow,
   WorkspacePanel,
@@ -45,7 +21,6 @@ import {
 import type { ArchiveFilterMode } from "../ui/types";
 
 import type { AppScreenProps } from "./types";
-import { AttendanceStatusMark } from "./AttendanceStatusMark";
 
 export function ManufacturingScreen(props: AppScreenProps) {
   const {
@@ -77,7 +52,6 @@ export function ManufacturingScreen(props: AppScreenProps) {
     subsystemsById,
   } = props;
 
-const renderScreen = () => {
   const title =
     manufacturingView === "cnc"
       ? "CNC"
@@ -265,7 +239,4 @@ const renderScreen = () => {
       </WorkspacePanel>
     </>
   );
-};
-
-  return renderScreen();
 }
