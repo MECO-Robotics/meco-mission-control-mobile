@@ -1,3 +1,5 @@
+import { afterEach, describe, expect, it, jest } from "@jest/globals";
+
 import { ApiRequestError } from "../api";
 import {
   buildOwnedTaskStartPayload,
@@ -191,11 +193,15 @@ describe("task assignment requests", () => {
     jest.restoreAllMocks();
   });
 
+  function mockFetchResponse(response: Response) {
+    return jest.spyOn(global, "fetch").mockResolvedValue(response);
+  }
+
   function mockAssignmentResponse() {
-    global.fetch = jest.fn().mockResolvedValue({
+    mockFetchResponse({
       ok: true,
       status: 200,
-      text: jest.fn().mockResolvedValue(JSON.stringify({ item: baseTask })),
+      text: async () => JSON.stringify({ item: baseTask }),
     } as unknown as Response);
   }
 
@@ -250,17 +256,16 @@ describe("task assignment requests", () => {
   });
 
   it("surfaces an already-claimed conflict from the claim endpoint", async () => {
-    global.fetch = jest.fn().mockResolvedValue({
+    mockFetchResponse({
       ok: false,
       status: 409,
-      text: jest.fn().mockResolvedValue(
+      text: async () =>
         JSON.stringify({
           code: "task_already_claimed",
           message: "Task already claimed.",
           ownerId: otherStudent.id,
           taskId: baseTask.id,
         }),
-      ),
     } as unknown as Response);
 
     await expect(

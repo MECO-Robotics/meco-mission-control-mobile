@@ -312,6 +312,7 @@ const PLANNED_ATTENDANCE_DAY_OPTIONS = [
 ] as const;
 
 const REQUIRED_EMAIL_DOMAIN = "mecorobotics.org";
+const AUTH_REQUEST_TIMEOUT_MS = 15000;
 
 const REQUIRED_TASK_SUBSYSTEMS: Subsystem[] = [
   {
@@ -410,6 +411,17 @@ function getClientErrorMessage(
   }
 
   return parseClientError(error);
+}
+
+function getEmailCodeVerificationErrorMessage(error: unknown) {
+  if (
+    error instanceof ApiRequestError &&
+    (error.status === 400 || error.status === 401 || error.status === 403)
+  ) {
+    return "Invalid code. Check the code and try again.";
+  }
+
+  return getClientErrorMessage(error);
 }
 
 function isValidDateInput(value: string) {
@@ -546,6 +558,10 @@ type EmailCodeStartResponse = {
   expiresInMinutes?: number;
 };
 
+type ThemePreferenceResponse = {
+  themeMode: AppThemeName | null;
+};
+
 function normalizeTaskFromServer(task: ServerTask): Task {
   return {
     ...task,
@@ -612,21 +628,6 @@ function hasRequiredEmailDomain(email: string, requiredDomain: string) {
     normalizedDomain === requiredDomain ||
     normalizedDomain.endsWith(`.${requiredDomain}`)
   );
-}
-
-function buildLocalEmailSessionUser(email: string, hostedDomain: string): SessionUser {
-  const [accountName] = email.split("@");
-  const accountId = accountName.trim().toLowerCase();
-  const name = accountId.replace(/[._-]+/g, " ").trim();
-
-  return {
-    accountId: accountId || email,
-    authProvider: "email",
-    email,
-    hostedDomain,
-    name: name || email,
-    picture: null,
-  };
 }
 
 function getWorkLogDraftOwnerKey(user: SessionUser | null) {
@@ -760,7 +761,67 @@ export default function App() {
     setAuthError(message);
     setBackendStatus("connected");
     setBackendReachability("reachable");
+    setThemeOverride(null);
   }, []);
+
+  const normalizeThemeModeFromResponse = useCallback(
+    (value: string | null | undefined) => {
+      if (value === "dark" || value === "light") {
+        return value;
+      }
+
+      return null;
+    },
+    [],
+  );
+
+  const applyThemePreferenceFromServer = useCallback(
+    async (token: string | null) => {
+      if (!token) {
+        setThemeOverride(null);
+        return;
+      }
+
+      try {
+        const preferences = await requestJson<ThemePreferenceResponse>(
+          apiBaseUrl,
+          "/api/users/me/preferences",
+          undefined,
+          token,
+        );
+
+        setThemeOverride(normalizeThemeModeFromResponse(preferences.themeMode));
+      } catch {
+        setThemeOverride(null);
+      }
+    },
+    [apiBaseUrl, normalizeThemeModeFromResponse],
+  );
+
+  const updateThemePreference = useCallback(
+    async (nextThemeMode: AppThemeName, nextAuthToken: string | null) => {
+      setThemeOverride(nextThemeMode);
+
+      if (!nextAuthToken) {
+        return;
+      }
+
+      try {
+        await requestJson(
+          apiBaseUrl,
+          "/api/users/me/preferences",
+          {
+            method: "PATCH",
+            body: JSON.stringify({ themeMode: nextThemeMode }),
+          },
+          nextAuthToken,
+        );
+      } catch {
+        // Preference persistence is best-effort; keep local theme preference even if backend sync fails.
+      }
+    },
+    [apiBaseUrl],
+  );
 
   const [activeTab, setActiveTab] = useState<ViewTab>("home");
   const [taskView, setTaskView] = useState<TaskViewTab>("queue");
@@ -1148,6 +1209,9 @@ export default function App() {
       const config = await requestJson<PublicAuthConfig>(
         apiBaseUrl,
         "/api/auth/config",
+        undefined,
+        undefined,
+        AUTH_REQUEST_TIMEOUT_MS,
       );
       setAuthConfig(config);
       setAuthErrorState(null);
@@ -1178,13 +1242,14 @@ export default function App() {
 
   const finishSignIn = useCallback(
     async (token: string | null, user: SessionUser) => {
+      setThemeOverride(null);
       setApiToken(token);
       setSessionUser(user);
-      setHasAuthenticated(true);
       setIsSyncing(true);
       setSyncError(null);
 
       try {
+        await applyThemePreferenceFromServer(token);
         const payload = await refreshWorkspaceFromServer(token);
         const draftSyncError = await syncPendingWorkLogDrafts(
           token,
@@ -1200,9 +1265,10 @@ export default function App() {
         setSyncError(parseClientError(error));
       } finally {
         setIsSyncing(false);
+        setHasAuthenticated(true);
       }
     },
-    [refreshWorkspaceFromServer, syncPendingWorkLogDrafts],
+    [applyThemePreferenceFromServer, refreshWorkspaceFromServer, syncPendingWorkLogDrafts],
   );
 
   const signInWithGoogle = useCallback(async () => {
@@ -1379,30 +1445,17 @@ export default function App() {
             method: "POST",
             body: JSON.stringify({ email, code }),
           },
+          undefined,
+          AUTH_REQUEST_TIMEOUT_MS,
         );
         setAuthCode("");
         await finishSignIn(session.token, session.user);
         return;
       }
 
-      if (currentAuthConfig?.devBypassAvailable) {
-        const session = await requestJson<SessionResponse>(
-          apiBaseUrl,
-          "/api/auth/dev-bypass",
-          { method: "POST" },
-        );
-        await finishSignIn(session.token, {
-          ...session.user,
-          authProvider: "email",
-          email,
-        });
-        return;
-      }
-
       if (currentAuthConfig?.enabled === false) {
-        await finishSignIn(null, buildLocalEmailSessionUser(email, requiredEmailDomain));
-        setAuthNotice(
-          "Authentication service is unavailable. Continuing with a local session.",
+        setAuthError(
+          "Authentication service is unavailable. Check the backend auth configuration and try again.",
         );
         return;
       }
@@ -1414,6 +1467,8 @@ export default function App() {
           method: "POST",
           body: JSON.stringify({ email }),
         },
+        undefined,
+        AUTH_REQUEST_TIMEOUT_MS,
       );
       setHasRequestedEmailCode(true);
       setAuthNotice(
@@ -1422,7 +1477,11 @@ export default function App() {
           : `Code sent to ${response.sentTo ?? email}.`,
       );
     } catch (error) {
-      setAuthError(getClientErrorMessage(error));
+      setAuthError(
+        hasRequestedEmailCode
+          ? getEmailCodeVerificationErrorMessage(error)
+          : getClientErrorMessage(error),
+      );
     } finally {
       setIsAuthenticating(false);
     }
@@ -5455,6 +5514,7 @@ export default function App() {
     setApiToken(null);
     setSessionUser(null);
     setHasAuthenticated(false);
+    setThemeOverride(null);
     setAuthCode("");
     setAuthEmail("");
     setAuthError(null);
@@ -7328,6 +7388,7 @@ export default function App() {
                       if (hasRequestedEmailCode) {
                         setAuthCode("");
                         setAuthError(null);
+                        setAuthErrorState(null);
                         setAuthNotice(null);
                         setHasRequestedEmailCode(false);
                         return;
@@ -7639,7 +7700,9 @@ export default function App() {
           </View>
 
           <Pressable
-            onPress={() => setThemeOverride(themeMode === "dark" ? "light" : "dark")}
+            onPress={() => {
+              void updateThemePreference(themeMode === "dark" ? "light" : "dark", apiToken);
+            }}
             style={[
               styles.settingsRow,
               appResponsiveStyles.settingsRow,
@@ -7647,7 +7710,7 @@ export default function App() {
             ]}
           >
             <View>
-              <Text style={[styles.settingsRowTitle, { color: themeColors.ink }]}>Theme</Text>
+          <Text style={[styles.settingsRowTitle, { color: themeColors.ink }]}>Theme</Text>
             </View>
             <Text style={[styles.settingsRowValue, { color: themeColors.navyInk }]}>
               {themeMode === "dark" ? "Dark" : "Light"}
