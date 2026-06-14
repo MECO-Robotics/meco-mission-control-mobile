@@ -120,13 +120,19 @@ Body:
 
 ## Development Bypass
 
-When `devBypassAvailable` is true, the app can request a local development session:
+When `devBypassAvailable` is true, the app can request a backend-issued
+development session:
 
 ```text
 POST /api/auth/dev-bypass
 ```
 
 This is used when Google credentials are missing during development or when the app needs a token for bootstrap/mutation testing.
+
+For backend-offline mobile development, `EXPO_PUBLIC_DEV_AUTH_BYPASS=true`
+enables an explicit local dev bypass button in development builds. That path
+signs in as a local admin user and keeps the bundled workspace snapshot instead
+of requesting a backend token.
 
 ## Bootstrap Data
 

@@ -1806,6 +1806,22 @@ export const styles = StyleSheet.create({
   loginGoogleButtonPressed: {
     opacity: 0.78,
   },
+  loginDevButton: {
+    width: "100%",
+    minHeight: 38,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#cbd5e1",
+    backgroundColor: "rgba(15, 23, 42, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 12,
+  },
+  loginDevButtonText: {
+    color: colors.white,
+    fontSize: 12,
+    fontWeight: "800",
+  },
   loginAvatar: {
     width: 22,
     height: 22,

@@ -106,6 +106,10 @@ import {
   requestJson,
   resolveApiBaseUrl,
 } from "./src/data/api";
+import {
+  buildLocalDevSessionUser,
+  isLocalDevAuthBypassEnabled,
+} from "./src/data/devAuthBypass";
 import { buildHelpRequest, type HelpRequestInput } from "./src/data/helpRequests";
 import {
   buildOwnedTaskStartPayload,
@@ -173,6 +177,7 @@ import {
   startWorkLogLiveActivity,
   updateWorkLogLiveActivity,
 } from "./src/services/workLogLiveActivity";
+import { clearPersistedAuthSession } from "./src/services/authSessionStorage";
 import {
   cancelWorkLogTimerReminders,
   clearPersistedWorkLogTimerState,
@@ -716,6 +721,7 @@ export default function App() {
   const [syncError, setSyncError] = useState<string | null>(null);
   const envGoogleClientId =
     process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID?.trim() ?? "";
+  const isLocalDevBypassAvailable = isLocalDevAuthBypassEnabled();
   const googleClientId = authConfig?.googleClientId?.trim() || envGoogleClientId;
   const googleIosClientId =
     process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() || googleClientId;
@@ -725,6 +731,8 @@ export default function App() {
     process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() || googleClientId;
   const requiredEmailDomain = normalizeRequiredEmailDomain(authConfig?.hostedDomain);
   const isAuthConfigUnavailable = authErrorState === "auth-config-unavailable";
+  const isDevBypassAvailable =
+    isLocalDevBypassAvailable || authConfig?.devBypassAvailable === true;
   const activeGoogleClientId =
     Platform.OS === "ios"
       ? googleIosClientId
@@ -1271,6 +1279,55 @@ export default function App() {
     [applyThemePreferenceFromServer, refreshWorkspaceFromServer, syncPendingWorkLogDrafts],
   );
 
+  const finishLocalDevBypass = useCallback(async () => {
+    const user = buildLocalDevSessionUser(authEmail, requiredEmailDomain);
+    setApiToken(null);
+    setSessionUser(user);
+    setHasAuthenticated(true);
+    setBackendStatus("offline");
+    setBackendReachability("unreachable");
+    setSyncError("Dev bypass is using the bundled local workspace snapshot.");
+    setAuthNotice("Dev bypass enabled. Using local workspace data.");
+    await clearPersistedAuthSession().catch(() => undefined);
+  }, [authEmail, requiredEmailDomain]);
+
+  const signInWithDevBypass = useCallback(async () => {
+    setIsAuthenticating(true);
+    setAuthError(null);
+    setAuthErrorState(null);
+    setAuthNotice(null);
+
+    try {
+      if (isLocalDevBypassAvailable) {
+        await finishLocalDevBypass();
+        return;
+      }
+
+      if (!authConfig?.devBypassAvailable) {
+        showAuthError("Dev bypass is not enabled for this build or backend.");
+        return;
+      }
+
+      const session = await requestJson<SessionResponse>(
+        apiBaseUrl,
+        "/api/auth/dev-bypass",
+        { method: "POST" },
+      );
+      await finishSignIn(session.token, session.user);
+    } catch (error) {
+      showAuthError(getClientErrorMessage(error));
+    } finally {
+      setIsAuthenticating(false);
+    }
+  }, [
+    apiBaseUrl,
+    authConfig?.devBypassAvailable,
+    finishLocalDevBypass,
+    finishSignIn,
+    isLocalDevBypassAvailable,
+    showAuthError,
+  ]);
+
   const signInWithGoogle = useCallback(async () => {
     setIsAuthenticating(true);
     setAuthError(null);
@@ -1453,6 +1510,25 @@ export default function App() {
         return;
       }
 
+      if (isLocalDevBypassAvailable) {
+        await finishLocalDevBypass();
+        return;
+      }
+
+      if (currentAuthConfig?.devBypassAvailable) {
+        const session = await requestJson<SessionResponse>(
+          apiBaseUrl,
+          "/api/auth/dev-bypass",
+          { method: "POST" },
+        );
+        await finishSignIn(session.token, {
+          ...session.user,
+          authProvider: "email",
+          email,
+        });
+        return;
+      }
+
       if (currentAuthConfig?.enabled === false) {
         setAuthError(
           "Authentication service is unavailable. Check the backend auth configuration and try again.",
@@ -1491,7 +1567,9 @@ export default function App() {
     authCode,
     authEmail,
     finishSignIn,
+    finishLocalDevBypass,
     hasRequestedEmailCode,
+    isLocalDevBypassAvailable,
     isAuthConfigUnavailable,
     loadPublicAuthConfig,
     requiredEmailDomain,
@@ -7473,6 +7551,27 @@ export default function App() {
               >
                 {authError}
               </Text>
+            ) : null}
+
+            {isDevBypassAvailable ? (
+              <Pressable
+                accessibilityRole="button"
+                disabled={isAuthenticating}
+                onPress={signInWithDevBypass}
+                style={({ pressed }) => [
+                  styles.loginDevButton,
+                  {
+                    marginTop: scaleLogin(12),
+                    minHeight: scaleLogin(38),
+                    paddingHorizontal: scaleLogin(12),
+                  },
+                  pressed && styles.loginGoogleButtonPressed,
+                ]}
+              >
+                <Text style={[styles.loginDevButtonText, { fontSize: scaleLogin(12) }]}>
+                  {isAuthenticating ? "Signing in" : "Dev bypass"}
+                </Text>
+              </Pressable>
             ) : null}
 
             <Pressable
