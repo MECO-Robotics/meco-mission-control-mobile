@@ -144,7 +144,7 @@ import type {
   WorkLog,
 } from "./src/types/domain";
 
-import { appThemes, colors, type AppThemeName } from "./src/theme";
+import { appThemes, colors, loginColors, type AppThemeName } from "./src/theme";
 import { AttendanceStatusMark } from "./src/screens/AttendanceStatusMark";
 import { AttendanceScreen } from "./src/screens/AttendanceScreen";
 import { HomeScreen } from "./src/screens/HomeScreen";
@@ -7287,7 +7287,7 @@ export default function App() {
         ]}
       >
         <StatusBar
-          backgroundColor={isDarkModeEnabled ? "#10284d" : colors.grey}
+          backgroundColor={isDarkModeEnabled ? loginColors.darkShell : loginColors.lightShell}
           style={isDarkModeEnabled ? "light" : "dark"}
           translucent={false}
         />
@@ -7329,6 +7329,7 @@ export default function App() {
                   style={[
                     styles.loginTitle,
                     {
+                      color: isDarkModeEnabled ? colors.white : colors.blue,
                       fontSize: scaleLogin(28),
                       marginBottom: scaleLogin(16),
                       marginTop: scaleLogin(14),
@@ -7362,7 +7363,7 @@ export default function App() {
                       setHasRequestedEmailCode(false);
                     }}
                     placeholder={`you@${hostedDomain}`}
-                    placeholderTextColor="#f1f5ff"
+                    placeholderTextColor={loginColors.placeholder}
                     returnKeyType="next"
                     style={[
                       styles.loginEmailInput,
@@ -7424,7 +7425,7 @@ export default function App() {
                       onChangeText={setAuthCode}
                       onSubmitEditing={signInWithEmail}
                       placeholder="Code"
-                      placeholderTextColor="#f1f5ff"
+                      placeholderTextColor={loginColors.placeholder}
                       returnKeyType="go"
                       style={[
                         styles.loginEmailInput,
@@ -7466,7 +7467,7 @@ export default function App() {
                 style={[
                   styles.loginErrorText,
                   {
-                    color: isDarkModeEnabled ? "#fecdd3" : colors.black,
+                    color: isDarkModeEnabled ? loginColors.darkError : colors.orangeInk,
                     fontSize: scaleLogin(14),
                   },
                 ]}

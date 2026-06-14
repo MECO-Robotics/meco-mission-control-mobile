@@ -194,6 +194,7 @@ export type EventReportDraft = {
 
 export type EventStyle = {
   label: string;
+  rowBackground: string;
   borderColor: string;
   chipBackground: string;
   chipText: string;
