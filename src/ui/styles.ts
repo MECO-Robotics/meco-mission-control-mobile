@@ -1,39 +1,48 @@
 import { StyleSheet } from "react-native";
 
-import { colors, radii, shadows, spacing } from "../theme";
+import {
+  colors,
+  loginColors,
+  overlayColors,
+  radii,
+  riskSeverityColors,
+  shadows,
+  spacing,
+  statusToneColors,
+} from "../theme";
 export const statusToneStyles = StyleSheet.create({
   success: {
-    backgroundColor: "#dcfce7",
+    backgroundColor: statusToneColors.success.surface,
   },
   info: {
-    backgroundColor: "#e0f2fe",
+    backgroundColor: statusToneColors.info.surface,
   },
   warning: {
-    backgroundColor: "#fef3c7",
+    backgroundColor: statusToneColors.warning.surface,
   },
   danger: {
-    backgroundColor: "#fee2e2",
+    backgroundColor: statusToneColors.danger.surface,
   },
   neutral: {
-    backgroundColor: "#f1f5f9",
+    backgroundColor: statusToneColors.neutral.surface,
   },
 });
 
 export const statusToneLabelStyles = StyleSheet.create({
   success: {
-    color: "#246847",
+    color: statusToneColors.success.ink,
   },
   info: {
-    color: "#075985",
+    color: statusToneColors.info.ink,
   },
   warning: {
-    color: "#92400e",
+    color: statusToneColors.warning.ink,
   },
   danger: {
-    color: "#991b1b",
+    color: statusToneColors.danger.ink,
   },
   neutral: {
-    color: "#475569",
+    color: statusToneColors.neutral.ink,
   },
 });
 
@@ -431,7 +440,7 @@ export const styles = StyleSheet.create({
   },
   dropdownScrim: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.36)",
+    backgroundColor: overlayColors.dropdownScrim,
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.lg,
@@ -787,12 +796,12 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.orangeSurface,
   },
   riskSeverityMedium: {
-    borderColor: "rgba(233, 131, 53, 0.45)",
-    backgroundColor: "rgba(233, 131, 53, 0.12)",
+    borderColor: riskSeverityColors.medium.border,
+    backgroundColor: riskSeverityColors.medium.surface,
   },
   riskSeverityLow: {
-    borderColor: "rgba(22, 71, 142, 0.26)",
-    backgroundColor: "rgba(22, 71, 142, 0.08)",
+    borderColor: riskSeverityColors.low.border,
+    backgroundColor: riskSeverityColors.low.surface,
   },
   riskLandscapeBoard: {
     width: "100%",
@@ -824,26 +833,26 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
   },
   riskPriorityBadgeHigh: {
-    backgroundColor: "#fee2e2",
+    backgroundColor: statusToneColors.danger.surface,
   },
   riskPriorityBadgeMedium: {
-    backgroundColor: "#fef3c7",
+    backgroundColor: statusToneColors.warning.surface,
   },
   riskPriorityBadgeLow: {
-    backgroundColor: "#eef2f7",
+    backgroundColor: statusToneColors.neutral.softSurface,
   },
   riskPriorityBadgeText: {
     fontSize: 13,
     fontWeight: "900",
   },
   riskPriorityBadgeTextHigh: {
-    color: "#991b1b",
+    color: riskSeverityColors.high.ink,
   },
   riskPriorityBadgeTextMedium: {
-    color: "#92400e",
+    color: riskSeverityColors.medium.ink,
   },
   riskPriorityBadgeTextLow: {
-    color: "#475569",
+    color: riskSeverityColors.low.ink,
   },
   riskColumnCount: {
     minWidth: 36,
@@ -1119,7 +1128,7 @@ export const styles = StyleSheet.create({
   },
   modalScrim: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.45)",
+    backgroundColor: overlayColors.modalScrim,
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.lg,
@@ -1213,7 +1222,7 @@ export const styles = StyleSheet.create({
   },
   profilePhotoChooseButton: {
     borderRadius: 4,
-    backgroundColor: "#6b7280",
+    backgroundColor: statusToneColors.neutral.ink,
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
   },
@@ -1356,7 +1365,7 @@ export const styles = StyleSheet.create({
   },
   overlayScrim: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.34)",
+    backgroundColor: overlayColors.drawerScrim,
     justifyContent: "flex-start",
     paddingHorizontal: spacing.md,
     paddingTop: spacing.xxl,
@@ -1371,7 +1380,7 @@ export const styles = StyleSheet.create({
   },
   navDrawerSafeArea: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.34)",
+    backgroundColor: overlayColors.drawerScrim,
   },
   navDrawerScrim: {
     flex: 1,
@@ -1562,10 +1571,10 @@ export const styles = StyleSheet.create({
     flex: 1,
   },
   loginScreenLight: {
-    backgroundColor: colors.grey,
+    backgroundColor: loginColors.lightShell,
   },
   loginScreenDark: {
-    backgroundColor: "#10284d",
+    backgroundColor: loginColors.darkShell,
   },
   loginSafeArea: {
     flex: 1,
@@ -1581,13 +1590,16 @@ export const styles = StyleSheet.create({
     paddingBottom: 28,
   },
   loginCardLight: {
-    backgroundColor: colors.grey,
+    backgroundColor: loginColors.lightCard,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.card,
   },
   loginCardDark: {
-    backgroundColor: "#10284d",
+    backgroundColor: loginColors.darkShell,
   },
   loginBadgeShadow: {
-    shadowColor: "#000000",
+    shadowColor: overlayColors.darkShadow,
     shadowOpacity: 0.28,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 13 },
@@ -1601,7 +1613,7 @@ export const styles = StyleSheet.create({
     width: 250,
     height: 250,
     borderRadius: 36,
-    backgroundColor: "#1e5aae",
+    backgroundColor: loginColors.badgeBlue,
     padding: 12,
     transform: [{ rotate: "30deg" }],
   },
@@ -1699,7 +1711,7 @@ export const styles = StyleSheet.create({
     marginTop: 6,
   },
   loginTitle: {
-    color: colors.white,
+    color: colors.blue,
     fontSize: 28,
     fontWeight: "400",
     letterSpacing: 0,
@@ -1724,14 +1736,14 @@ export const styles = StyleSheet.create({
   },
   loginEmailRowLight: {
     backgroundColor: colors.blue,
-    shadowColor: "#000000",
+    shadowColor: overlayColors.darkShadow,
     shadowOpacity: 0.23,
     shadowRadius: 1,
     shadowOffset: { width: 0, height: 8 },
     elevation: 5,
   },
   loginEmailRowDark: {
-    backgroundColor: "#172746",
+    backgroundColor: loginColors.darkInput,
   },
   loginCodeRow: {
     width: "100%",
@@ -1781,7 +1793,7 @@ export const styles = StyleSheet.create({
   },
   loginNoticeText: {
     alignSelf: "stretch",
-    color: "#dbeafe",
+    color: loginColors.notice,
     fontSize: 14,
     lineHeight: 20,
     marginTop: 10,
@@ -1791,13 +1803,13 @@ export const styles = StyleSheet.create({
     width: "100%",
     minHeight: 42,
     borderRadius: 999,
-    backgroundColor: "#1e293b",
+    backgroundColor: loginColors.googleButton,
     flexDirection: "row",
     alignItems: "center",
     marginTop: 76,
     paddingHorizontal: 8,
     gap: 8,
-    shadowColor: "#000000",
+    shadowColor: overlayColors.darkShadow,
     shadowOpacity: 0.3,
     shadowRadius: 1,
     shadowOffset: { width: 0, height: 3 },
@@ -1810,7 +1822,7 @@ export const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 999,
-    backgroundColor: "#16478e",
+    backgroundColor: colors.blue,
     alignItems: "center",
     justifyContent: "center",
   },

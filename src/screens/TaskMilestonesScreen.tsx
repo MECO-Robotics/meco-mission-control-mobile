@@ -134,7 +134,11 @@ export function TaskMilestonesScreen(props: AppScreenProps) {
           <Pressable
             key={milestone.id}
             onPress={() => openEditMilestoneEditor(milestone)}
-            style={[styles.queueRowCard, appResponsiveStyles.rowCard]}
+            style={[
+              styles.queueRowCard,
+              { backgroundColor: eventStyle.rowBackground, borderColor: eventStyle.borderColor },
+              appResponsiveStyles.rowCard,
+            ]}
           >
             <View style={styles.queueRowHeader}>
               <View style={styles.queueRowPrimaryText}>

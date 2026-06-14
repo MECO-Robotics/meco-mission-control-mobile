@@ -4,6 +4,7 @@ import { Pressable, ScrollView, useWindowDimensions, View } from "react-native";
 import { Text } from "../i18n";
 import { getResponsiveMetrics, scaleFont } from "./responsive";
 import { statusToneLabelStyles, statusToneStyles, styles } from "./styles";
+import { explicitStatusPillTones } from "./statusPillTones";
 import { useAppTheme } from "./themeContext";
 import type { Option, SummaryChipData } from "./types";
 import { getStatusGroup } from "./helpers";
@@ -146,14 +147,20 @@ export function StatusPill({ label, value }: { label: string; value: string }) {
   const group = getStatusGroup(value);
   const { width } = useWindowDimensions();
   const metrics = getResponsiveMetrics(width);
+  const explicitTone = explicitStatusPillTones[value];
 
   return (
-    <View style={[styles.statusPill, statusToneStyles[group]]}>
+    <View
+      style={[
+        styles.statusPill,
+        explicitTone ? { backgroundColor: explicitTone.backgroundColor } : statusToneStyles[group],
+      ]}
+    >
       <Text
         style={[
           styles.statusPillLabel,
           { fontSize: scaleFont(12, metrics) },
-          statusToneLabelStyles[group],
+          explicitTone ? { color: explicitTone.color } : statusToneLabelStyles[group],
         ]}
       >
         {label}

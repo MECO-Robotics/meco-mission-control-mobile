@@ -1,4 +1,5 @@
 import type { EventType, QaResult, TaskStatus } from "../types/domain";
+import { eventTypeColors } from "../theme";
 import type {
   ArchiveFilterMode,
   BlockerFilterMode,
@@ -183,33 +184,38 @@ export const QA_RESULT_OPTIONS: { id: QaResult; name: string }[] = [
 export const EVENT_TYPE_STYLES: Record<EventType, EventStyle> = {
   "drive-practice": {
     label: "Drive practice",
-    borderColor: "rgba(22, 71, 142, 0.32)",
-    chipBackground: "rgba(22, 71, 142, 0.18)",
-    chipText: "#0d2e5c",
+    rowBackground: eventTypeColors.practice.columnSurface,
+    borderColor: eventTypeColors.practice.border,
+    chipBackground: eventTypeColors.practice.surface,
+    chipText: eventTypeColors.practice.ink,
   },
   competition: {
     label: "Competition",
-    borderColor: "rgba(76, 121, 207, 0.35)",
-    chipBackground: "rgba(76, 121, 207, 0.2)",
-    chipText: "#1f3f7a",
+    rowBackground: eventTypeColors.competition.columnSurface,
+    borderColor: eventTypeColors.competition.border,
+    chipBackground: eventTypeColors.competition.surface,
+    chipText: eventTypeColors.competition.ink,
   },
   deadline: {
     label: "Deadline",
-    borderColor: "rgba(234, 28, 45, 0.36)",
-    chipBackground: "rgba(234, 28, 45, 0.18)",
-    chipText: "#8e1120",
+    rowBackground: eventTypeColors.deadline.columnSurface,
+    borderColor: eventTypeColors.deadline.border,
+    chipBackground: eventTypeColors.deadline.surface,
+    chipText: eventTypeColors.deadline.ink,
   },
   "internal-review": {
     label: "Internal review",
-    borderColor: "rgba(36, 104, 71, 0.34)",
-    chipBackground: "rgba(36, 104, 71, 0.18)",
-    chipText: "#1d5338",
+    rowBackground: eventTypeColors.review.columnSurface,
+    borderColor: eventTypeColors.review.border,
+    chipBackground: eventTypeColors.review.surface,
+    chipText: eventTypeColors.review.ink,
   },
   demo: {
     label: "Demo",
-    borderColor: "rgba(84, 98, 123, 0.35)",
-    chipBackground: "rgba(84, 98, 123, 0.22)",
-    chipText: "#36475f",
+    rowBackground: eventTypeColors.demo.columnSurface,
+    borderColor: eventTypeColors.demo.border,
+    chipBackground: eventTypeColors.demo.surface,
+    chipText: eventTypeColors.demo.ink,
   },
 };
 
