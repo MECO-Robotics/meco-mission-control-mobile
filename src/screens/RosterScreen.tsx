@@ -56,18 +56,23 @@ export function RosterScreen(props: AppScreenProps) {
               </Text>
             </View>
           </View>
-          {canMentorApprove ? (
-            <Pressable
-              accessibilityLabel={`Add ${title.toLowerCase()} person`}
-              accessibilityRole="button"
-              onPress={() => openCreateMemberEditor(addRole)}
-              style={styles.rosterAddButton}
-            >
-              <Text style={[styles.rosterAddButtonLabel, { color: themeColors.navyInk }]}>
-                +
-              </Text>
-            </Pressable>
-          ) : null}
+          <Pressable
+            accessibilityLabel={`Add ${title.toLowerCase()} person`}
+            accessibilityRole="button"
+            onPress={() => openCreateMemberEditor(addRole)}
+            style={({ pressed }) => [
+              styles.rosterAddButton,
+              {
+                backgroundColor: themeColors.surface,
+                borderColor: themeColors.border,
+              },
+              pressed && styles.rosterAddButtonPressed,
+            ]}
+          >
+            <Text style={[styles.rosterAddButtonLabel, { color: themeColors.blue }]}>
+              +
+            </Text>
+          </Pressable>
         </View>
 
         {memberList.map((member) => {
@@ -119,10 +124,7 @@ export function RosterScreen(props: AppScreenProps) {
   };
 
   return (
-    <WorkspacePanel
-      title="Directory"
-      subtitle="Manage team members, external access, and roles."
-    >
+    <WorkspacePanel title="Roster" subtitle="Manage team members, external access, and roles.">
       <SummaryRow
         chips={[
           { label: "Students", value: String(rosterStudents.length) },

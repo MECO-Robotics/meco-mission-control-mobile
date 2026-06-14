@@ -1920,8 +1920,8 @@ export default function App() {
       },
       {
         key: "roster",
-        label: "Directory",
-        shortLabel: "DR",
+        label: "Roster",
+        shortLabel: "RO",
         count: members.length,
       },
       {
@@ -4792,10 +4792,6 @@ export default function App() {
   };
 
   const openCreateMemberEditor = (role: MemberRole = "student") => {
-    if (!canMentorApprove) {
-      return;
-    }
-
     setActiveMemberId(null);
     setMemberError(null);
     setMemberDraft(buildMemberDraft({ role }));
@@ -6757,10 +6753,15 @@ export default function App() {
           onCancel={closeMemberEditor}
           onDelete={memberEditorMode === "edit" ? deleteMemberDraft : undefined}
           onSave={saveMemberDraft}
-          saveLabel={memberEditorMode === "edit" ? "Update person" : "Create person"}
+          saveLabel={memberEditorMode === "edit" ? "Update person" : "Add person"}
           title={memberEditorMode === "edit" ? "Edit selected person" : "Add person"}
           visible={Boolean(memberEditorMode)}
         >
+          {memberEditorMode === "create" ? (
+            <Text style={[styles.modalDescription, { color: themeColors.subtleText }]}>
+              Create a new roster entry for this workspace.
+            </Text>
+          ) : null}
           {memberError ? (
             <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
               <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
@@ -6824,17 +6825,6 @@ export default function App() {
             }}
             placeholder="person@mecorobotics.org"
             value={memberDraft.email}
-          />
-          <DropdownField
-            clearLabel="None"
-            label="Discipline"
-            onChange={(value) => {
-              setMemberError(null);
-              setMemberDraft((current) => ({ ...current, disciplineId: value }));
-            }}
-            options={disciplineOptions}
-            placeholder="None"
-            value={memberDraft.disciplineId}
           />
           <DropdownField
             clearLabel="None"

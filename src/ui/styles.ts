@@ -1048,6 +1048,10 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  rosterAddButtonPressed: {
+    backgroundColor: colors.navySurface,
+    transform: [{ translateY: -1 }],
+  },
   rosterAddButtonLabel: {
     color: colors.navyInk,
     fontSize: 22,
@@ -1146,6 +1150,11 @@ export const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 20,
     fontWeight: "800",
+  },
+  modalDescription: {
+    color: colors.subtleText,
+    fontSize: 13,
+    lineHeight: 18,
   },
   modalContent: {
     gap: spacing.sm,
