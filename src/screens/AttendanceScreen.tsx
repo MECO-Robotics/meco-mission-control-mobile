@@ -5,6 +5,7 @@ import { capitalize } from "../ui/helpers";
 import { styles } from "../ui/styles";
 import {
   EmptyState,
+  StatusPill,
   SummaryRow,
   WorkspacePanel,
 } from "../ui/ui";
@@ -12,10 +13,16 @@ import {
 import type { AppScreenProps, AttendanceStatus } from "./types";
 
 const ATTENDANCE_STATUS_OPTIONS: { status: AttendanceStatus; label: string }[] = [
-  { status: "yes", label: "Present" },
+  { status: "yes", label: "Coming" },
   { status: "maybe", label: "Maybe" },
   { status: "no", label: "Out" },
 ];
+
+const ATTENDANCE_STATUS_RANK: Record<AttendanceStatus, number> = {
+  yes: 0,
+  maybe: 1,
+  no: 2,
+};
 
 export function AttendanceScreen(props: AppScreenProps) {
   const {
@@ -30,6 +37,15 @@ export function AttendanceScreen(props: AppScreenProps) {
   } = props;
 
 const renderScreen = () => {
+  const sortedMeetingAttendance = [...meetingAttendance].sort((left, right) => {
+    const statusDelta = ATTENDANCE_STATUS_RANK[left.status] - ATTENDANCE_STATUS_RANK[right.status];
+    if (statusDelta !== 0) {
+      return statusDelta;
+    }
+
+    return left.member.name.localeCompare(right.member.name);
+  });
+
   return (
     <WorkspacePanel
       title="Attendance"
@@ -53,24 +69,30 @@ const renderScreen = () => {
             Synced from the server and sorted alphabetically.
           </Text>
         </View>
-        {meetingAttendance.map(({ member, status }) => (
+        {sortedMeetingAttendance.map(({ member, status }) => (
           <View
             key={member.id}
             style={[styles.attendanceRow, appResponsiveStyles.rowCard]}
           >
-            <View style={[styles.memberAvatar, appResponsiveStyles.memberAvatar]}>
-              <Text style={[styles.memberAvatarLabel, { color: themeColors.navyInk }]}>
-                {member.name.slice(0, 1).toUpperCase()}
-              </Text>
-            </View>
-            <View style={styles.queueRowPrimaryText}>
-              <Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>
-                {member.name}
-              </Text>
-              <Text style={[styles.queueRowSubtitle, appResponsiveStyles.rowSubtitle]}>
-                {capitalize(member.role)}
-                {member.email ? ` - ${member.email}` : ""}
-              </Text>
+            <View style={styles.queueRowHeader}>
+              <View style={[styles.memberAvatar, appResponsiveStyles.memberAvatar]}>
+                <Text style={[styles.memberAvatarLabel, { color: themeColors.navyInk }]}>
+                  {member.name.slice(0, 1).toUpperCase()}
+                </Text>
+              </View>
+              <View style={styles.queueRowPrimaryText}>
+                <Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>
+                  {member.name}
+                </Text>
+                <Text style={[styles.queueRowSubtitle, appResponsiveStyles.rowSubtitle]}>
+                  {capitalize(member.role)}
+                  {member.email ? ` - ${member.email}` : ""}
+                </Text>
+              </View>
+              <StatusPill
+                label={ATTENDANCE_STATUS_OPTIONS.find((option) => option.status === status)?.label ?? "Maybe"}
+                value={status === "yes" ? "complete" : status === "no" ? "critical" : "waiting"}
+              />
             </View>
             <View style={styles.attendanceStatusControls}>
               {ATTENDANCE_STATUS_OPTIONS.map((option) => {
@@ -88,13 +110,27 @@ const renderScreen = () => {
                     }
                     style={[
                       styles.attendanceStatusButton,
-                      isSelected && styles.attendanceStatusButtonActive,
+                      {
+                        backgroundColor: themeColors.canvas,
+                        borderColor: themeColors.border,
+                      },
+                      isSelected && [
+                        styles.attendanceStatusButtonActive,
+                        {
+                          backgroundColor: themeColors.blue,
+                          borderColor: themeColors.blue,
+                        },
+                      ],
                     ]}
                   >
                     <Text
                       style={[
                         styles.attendanceStatusButtonLabel,
-                        isSelected && styles.attendanceStatusButtonLabelActive,
+                        { color: themeColors.subtleText },
+                        isSelected && [
+                          styles.attendanceStatusButtonLabelActive,
+                          { color: themeColors.white },
+                        ],
                       ]}
                     >
                       {option.label}
