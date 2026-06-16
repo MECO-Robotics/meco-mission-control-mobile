@@ -90,4 +90,32 @@ describe("mobile auth API fail-safe handling", () => {
       "Backend API is not reachable at http://localhost:8080. Start the platform server on that host/port, or set EXPO_PUBLIC_API_BASE_URL to the backend URL your device can reach.",
     );
   });
+
+  it("aborts hanging requests when a timeout is provided", async () => {
+    jest.useFakeTimers();
+    try {
+      global.fetch = jest.fn((_, init) => {
+        return new Promise((_resolve, reject) => {
+          const signal = (init as RequestInit | undefined)?.signal;
+          signal?.addEventListener("abort", () => {
+            reject(new Error("aborted"));
+          });
+        });
+      }) as jest.Mock;
+
+      const promise = requestJson(
+        "https://api.example.test",
+        "/api/auth/email/start",
+        undefined,
+        undefined,
+        1,
+      );
+
+      const expectation = expect(promise).rejects.toBeInstanceOf(ApiNetworkError);
+      await jest.advanceTimersByTimeAsync(5);
+      await expectation;
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

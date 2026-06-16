@@ -31,7 +31,6 @@ export function TaskMilestonesScreen(props: AppScreenProps) {
     milestoneSortOrder,
     milestoneSummary,
     milestoneTypeFilter,
-    openCreateEventReportEditor,
     openCreateMilestoneEditor,
     openEditMilestoneEditor,
     setMilestoneSearch,
@@ -134,7 +133,11 @@ export function TaskMilestonesScreen(props: AppScreenProps) {
           <Pressable
             key={milestone.id}
             onPress={() => openEditMilestoneEditor(milestone)}
-            style={[styles.queueRowCard, appResponsiveStyles.rowCard]}
+            style={[
+              styles.queueRowCard,
+              { backgroundColor: eventStyle.rowBackground, borderColor: eventStyle.borderColor },
+              appResponsiveStyles.rowCard,
+            ]}
           >
             <View style={styles.queueRowHeader}>
               <View style={styles.queueRowPrimaryText}>
@@ -166,16 +169,6 @@ export function TaskMilestonesScreen(props: AppScreenProps) {
             <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
               Subsystems {subsystemNames || "All subsystems"} | {milestone.isExternal ? "External" : "Internal"}
             </Text>
-            <View style={styles.quickActionRow}>
-              <Pressable
-                onPress={() => openCreateEventReportEditor(milestone.id)}
-                style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
-              >
-                <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                  Event report
-                </Text>
-              </Pressable>
-            </View>
           </Pressable>
         );
       })}

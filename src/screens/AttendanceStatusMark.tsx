@@ -1,5 +1,6 @@
 import { View } from "react-native";
 
+import { statusToneColors } from "../theme";
 import { Text } from "../i18n";
 import { styles } from "../ui/styles";
 
@@ -10,10 +11,10 @@ type AttendanceStatusMarkProps = {
 export function AttendanceStatusMark({ status }: AttendanceStatusMarkProps) {
   const color =
     status === "yes"
-      ? "#166534"
+      ? statusToneColors.success.mark
       : status === "maybe"
-        ? "#92400e"
-        : "#991b1b";
+        ? statusToneColors.warning.ink
+        : statusToneColors.danger.ink;
   const label = status === "yes" ? "✓" : status === "maybe" ? "?" : "×";
 
   return (
