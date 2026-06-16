@@ -281,8 +281,8 @@ export const SUBVIEW_INTERACTION_GUIDANCE: Record<string, string[]> = {
   ],
   purchases: [
     "Search the purchase list before adding a duplicate request.",
-    "Filter by requester, vendor, status, or mentor approval during buying review.",
-    "Open a card to update cost, vendor, status, or approval details.",
+    "Filter by vendor, status, or mentor approval during buying review.",
+    "Open a card to update cost, vendor, status, or mentor approval details.",
   ],
   subsystems: [
     "Tap a subsystem to show or hide its mechanisms.",
@@ -291,7 +291,7 @@ export const SUBVIEW_INTERACTION_GUIDANCE: Record<string, string[]> = {
   ],
   reports: [
     "Use QA reports to record pass, minor-fix, or iteration-worthy outcomes.",
-    "Use event reports after practices, demos, and reviews to capture what changed.",
+    "Sort QA reports by recency, dependencies, and fix size when planning follow-up.",
     "Iteration-worthy QA reports are surfaced in the risk register.",
   ],
   risks: [

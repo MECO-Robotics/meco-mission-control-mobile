@@ -185,12 +185,6 @@ export type QaReportDraft = {
   evidenceNotes: string;
   followUpTaskTitle: string;
 };
-export type EventReportDraft = {
-  eventId: string;
-  summary: string;
-  findingText: string;
-  followUpTaskTitle: string;
-};
 
 export type EventStyle = {
   label: string;

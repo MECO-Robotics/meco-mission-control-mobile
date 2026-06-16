@@ -2,7 +2,6 @@ import { Modal, Pressable, View } from "react-native";
 import { useState } from "react";
 
 import { Text } from "../i18n";
-import { getDefaultHelpMentorId } from "../data/helpRequests";
 import {
   SUBVIEW_INTERACTION_GUIDANCE,
   WORKLOG_SORT_OPTIONS,
@@ -19,17 +18,8 @@ import {
   WorkspacePanel,
 } from "../ui/ui";
 import type { WorkLogSortMode } from "../ui/types";
-import type { Task, WorkLog } from "../types/domain";
 
 import type { AppScreenProps, WorkLogListItem } from "./types";
-import { NeedHelpModal } from "./help/NeedHelpModal";
-
-type WorkLogHelpContext = {
-  contextTitle: string;
-  task: Task | null;
-  taskId: string | null;
-  workLogId: string | null;
-};
 
 export function WorkLogsScreen(props: AppScreenProps) {
   const {
@@ -41,8 +31,6 @@ export function WorkLogsScreen(props: AppScreenProps) {
     openWorkLogFromTimer,
     openEditWorkLogEditor,
     pauseWorkLogTimer,
-    requestHelp,
-    rosterMentors,
     setWorkLogSearch,
     setWorkLogSortMode,
     setWorkLogSubsystemFilter,
@@ -50,6 +38,7 @@ export function WorkLogsScreen(props: AppScreenProps) {
     subsystems,
     subsystemsById,
     taskById,
+    themeColors,
     workLogSearch,
     workLogSortMode,
     workLogSubsystemFilter,
@@ -59,9 +48,7 @@ export function WorkLogsScreen(props: AppScreenProps) {
     workTimerIsPaused,
   } = props;
   const [isAddMenuVisible, setIsAddMenuVisible] = useState(false);
-  const [helpContext, setHelpContext] = useState<WorkLogHelpContext | null>(null);
-  const mentorOptions = rosterMentors.map((mentor) => ({ id: mentor.id, name: mentor.name }));
-  const defaultHelpMentorId = getDefaultHelpMentorId(helpContext?.task, rosterMentors);
+  const [isFiltersVisible, setIsFiltersVisible] = useState(false);
 
   const openAddWorkLog = () => {
     setIsAddMenuVisible(false);
@@ -71,56 +58,6 @@ export function WorkLogsScreen(props: AppScreenProps) {
   const startTimer = () => {
     setIsAddMenuVisible(false);
     startWorkLogTimer();
-  };
-
-  const openTimerHelpRequest = () => {
-    setHelpContext({
-      contextTitle: "Active work timer",
-      task: null,
-      taskId: null,
-      workLogId: null,
-    });
-  };
-
-  const openWorkLogHelpRequest = (workLog: WorkLog) => {
-    const task = taskById[workLog.taskId] ?? null;
-
-    setHelpContext({
-      contextTitle: task ? `Work log for ${task.title}` : "Work log help request",
-      task,
-      taskId: workLog.taskId,
-      workLogId: workLog.id,
-    });
-  };
-
-  const closeHelpRequest = () => {
-    setHelpContext(null);
-  };
-
-  const submitWorkLogHelpRequest = ({
-    mentorId,
-    reason,
-  }: {
-    mentorId: string;
-    reason: string;
-  }) => {
-    if (!helpContext) {
-      return false;
-    }
-
-    const didRequestHelp = requestHelp({
-      taskId: helpContext.taskId,
-      workLogId: helpContext.workLogId,
-      reason,
-      mentorId,
-      requestedById: null,
-    });
-
-    if (didRequestHelp) {
-      closeHelpRequest();
-    }
-
-    return didRequestHelp;
   };
 
   const getWorkLogSyncLabel = (workLog: WorkLogListItem) => {
@@ -145,9 +82,14 @@ const renderScreen = () => {
       title="Work logs"
       subtitle="Search by task or notes, then verify hours, participants, and linked subsystem impact."
       actions={
-        <Pressable onPress={() => setIsAddMenuVisible(true)} style={[styles.primaryAction, appResponsiveStyles.primaryAction]}>
-          <Text style={[styles.primaryActionLabel, appResponsiveStyles.primaryActionLabel]}>Add</Text>
-        </Pressable>
+        <View style={styles.taskQueueHeaderActions}>
+          <Pressable onPress={() => setIsFiltersVisible(true)} style={[styles.primaryAction, appResponsiveStyles.primaryAction]}>
+            <Text style={[styles.primaryActionLabel, appResponsiveStyles.primaryActionLabel]}>Filters</Text>
+          </Pressable>
+          <Pressable onPress={() => setIsAddMenuVisible(true)} style={[styles.primaryAction, appResponsiveStyles.primaryAction]}>
+            <Text style={[styles.primaryActionLabel, appResponsiveStyles.primaryActionLabel]}>Add</Text>
+          </Pressable>
+        </View>
       }
     >
       {workTimerIsActive ? (
@@ -161,7 +103,6 @@ const renderScreen = () => {
             </View>
             <Text style={editTagStyle}>{workTimerIsPaused ? "PAUSED" : "RUNNING"}</Text>
           </View>
-
           <View style={styles.quickActionRow}>
             {workTimerIsPaused ? (
               <Pressable
@@ -177,45 +118,10 @@ const renderScreen = () => {
                 </Text>
               </Pressable>
             )}
-            <Pressable
-              onPress={openTimerHelpRequest}
-              style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
-            >
-              <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                Need help
-              </Text>
-            </Pressable>
           </View>
         </View>
       ) : null}
 
-      <FilterToolbar>
-        <SearchField
-          onChangeText={setWorkLogSearch}
-          placeholder="Search work logs"
-          value={workLogSearch}
-        />
-
-        <OptionChipRow
-          allLabel="All subsystems"
-          onChange={setWorkLogSubsystemFilter}
-          options={subsystems.map((subsystem) => ({
-            id: subsystem.id,
-            name: subsystem.name,
-          }))}
-          value={workLogSubsystemFilter}
-        />
-
-        <OptionChipRow
-          allLabel="Sort"
-          onChange={(value) => setWorkLogSortMode(value as WorkLogSortMode)}
-          options={WORKLOG_SORT_OPTIONS.map((option) => ({
-            id: option.id,
-            name: option.name,
-          }))}
-          value={workLogSortMode}
-        />
-      </FilterToolbar>
       <SummaryRow chips={workLogSummary} />
 
       {filteredWorkLogs.map((workLog) => {
@@ -254,16 +160,6 @@ const renderScreen = () => {
               </Text>
             ) : null}
             <Text style={[styles.queueRowBody, appResponsiveStyles.rowBody]}>{workLog.notes || "No notes recorded."}</Text>
-            {!isLocalDraft ? <View style={styles.quickActionRow}>
-              <Pressable
-                onPress={() => openWorkLogHelpRequest(workLog)}
-                style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
-              >
-                <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                  Need help
-                </Text>
-              </Pressable>
-            </View> : null}
           </Pressable>
         );
       })}
@@ -272,15 +168,50 @@ const renderScreen = () => {
 
       <InteractionNote steps={SUBVIEW_INTERACTION_GUIDANCE.worklogs} />
 
-      <NeedHelpModal
-        appResponsiveStyles={appResponsiveStyles}
-        contextTitle={helpContext?.contextTitle ?? "Work help request"}
-        defaultMentorId={defaultHelpMentorId}
-        mentorOptions={mentorOptions}
-        onCancel={closeHelpRequest}
-        onSubmit={submitWorkLogHelpRequest}
-        visible={Boolean(helpContext)}
-      />
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setIsFiltersVisible(false)}
+        transparent
+        visible={isFiltersVisible}
+      >
+        <Pressable style={styles.modalScrim} onPress={() => setIsFiltersVisible(false)}>
+          <Pressable
+            style={[
+              styles.workLogAddMenu,
+              { backgroundColor: themeColors.surface, borderColor: themeColors.border },
+            ]}
+          >
+            <Text style={[styles.modalTitle, { color: themeColors.ink }]}>Filters</Text>
+            <FilterToolbar>
+              <SearchField
+                onChangeText={setWorkLogSearch}
+                placeholder="Search work logs"
+                value={workLogSearch}
+              />
+
+              <OptionChipRow
+                allLabel="All subsystems"
+                onChange={setWorkLogSubsystemFilter}
+                options={subsystems.map((subsystem) => ({
+                  id: subsystem.id,
+                  name: subsystem.name,
+                }))}
+                value={workLogSubsystemFilter}
+              />
+
+              <OptionChipRow
+                allLabel="Sort"
+                onChange={(value) => setWorkLogSortMode(value as WorkLogSortMode)}
+                options={WORKLOG_SORT_OPTIONS.map((option) => ({
+                  id: option.id,
+                  name: option.name,
+                }))}
+                value={workLogSortMode}
+              />
+            </FilterToolbar>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <Modal
         animationType="fade"
@@ -289,8 +220,13 @@ const renderScreen = () => {
         visible={isAddMenuVisible}
       >
         <Pressable style={styles.modalScrim} onPress={() => setIsAddMenuVisible(false)}>
-          <Pressable style={styles.workLogAddMenu}>
-            <Text style={styles.modalTitle}>Start work log</Text>
+          <Pressable
+            style={[
+              styles.workLogAddMenu,
+              { backgroundColor: themeColors.surface, borderColor: themeColors.border },
+            ]}
+          >
+            <Text style={[styles.modalTitle, { color: themeColors.ink }]}>Start work log</Text>
             <View style={styles.quickActionRow}>
               <Pressable
                 onPress={openAddWorkLog}

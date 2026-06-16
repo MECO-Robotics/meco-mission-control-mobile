@@ -20,16 +20,15 @@ export function HomeScreen(props: AppScreenProps) {
     attendancePreview,
     homeActionItems,
     homeInventoryNeeds,
-    homeMeetingExport,
     homePriorityTasks,
     homeTaskSummary,
     isSyncing,
     manufacturingItems,
     membersById,
+    openEditTaskEditor,
     openEditManufacturingEditor,
     openEditPurchaseEditor,
     openInventoryPurchases,
-    openTaskQueueFromTask,
     purchaseItems,
     setActiveTab,
     subsystemsById,
@@ -42,7 +41,7 @@ const renderScreen = () => {
     if (item.source === "task") {
       const task = tasks.find((candidate) => candidate.id === item.onPressTargetId);
       if (task) {
-        openTaskQueueFromTask(task);
+        openEditTaskEditor(task);
       }
       return;
     }
@@ -76,14 +75,18 @@ const renderScreen = () => {
       }
     >
       <View style={styles.homeSection}>
-        <View style={styles.homeSectionHeader}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setActiveTab("tasks")}
+          style={styles.homeSectionHeader}
+        >
           <Text style={[styles.subsectionLabel, appResponsiveStyles.subsectionLabel]}>
-            Next actions
+            Tasks
           </Text>
           <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
             The highest-risk work across tasks, manufacturing, and purchases.
           </Text>
-        </View>
+        </Pressable>
         {homeActionItems.map((item) => (
           <Pressable
             accessibilityRole="button"
@@ -171,7 +174,7 @@ const renderScreen = () => {
         return (
           <Pressable
             key={task.id}
-            onPress={() => openTaskQueueFromTask(task)}
+            onPress={() => openEditTaskEditor(task)}
             style={[styles.queueRowCard, appResponsiveStyles.rowCard]}
           >
             <View style={styles.queueRowHeader}>
@@ -201,15 +204,6 @@ const renderScreen = () => {
       {homePriorityTasks.length === 0 ? (
         <EmptyState text="No open tasks need attention right now." />
       ) : null}
-
-      <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-        <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-          Meeting export
-        </Text>
-        <Text selectable style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-          {homeMeetingExport}
-        </Text>
-      </View>
 
       <Pressable
         accessibilityRole="button"
