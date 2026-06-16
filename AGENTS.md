@@ -325,11 +325,12 @@ These must still be reviewed if they exceed:
 Exceeding any hard limit is not allowed.
 
 # Cross-repo validation trigger for web PR #219
+
 # Cross-repo active PR notes
-- Shared context architecture changes live in `mission-control-skills` and are consumed by all repo PRs. Main change: repository-intelligence + repomix task-context bridge (commit: 46bab41).
+- Shared context optimization stack now includes all implemented Mission Control adapters through commit `41f76cf` in `mission-control-skills` (Repomix, Repository-Intelligence, Graphify, Static Analysis, Evaluation, Observability, and Semantic Retrieval).
 - Open cross-repo PR onboarding:
   - Primary context PR: `pr-286` (`mission-control-skills`).
   - Keep `AGENTS.md` cross-repo notes synchronized with `pr-286` before review.
-  - Graphify adapter now provides optional graph neighborhoods for task and PR planning; keep cross-repo `mission-control-skills` updates in sync.
-  - Mission Control Static Analysis adapter (`mission-control-skills`, Semgrep foundation) is active in the same PR track; ensure downstream repos align with `ONBOARDING.md` and generated Codex artifacts (findings + summary files).
-  - Mission Control Evaluation adapter (`mission-control-skills`, Promptfoo foundation) is now on the onboarding track for cross-repo agent quality review and context scoring outputs.
+  - Ensure optional backends remain graceful fallbacks (Graphify, Sourcebot/Qdrant/Repo-Intelligence vector paths, Semgrep, Promptfoo, Langfuse, etc.).
+  - Downstream repos should align with generated context/retrieval artifacts from mission-control-skills when handling task planning, implementation, and review workflows.
+

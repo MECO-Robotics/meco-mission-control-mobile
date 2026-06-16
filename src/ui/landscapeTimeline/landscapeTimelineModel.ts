@@ -1,4 +1,5 @@
 import type { Subsystem, Task } from "../../types/domain";
+import { timelineAccentColors, timelineDisciplineColors } from "../../theme";
 
 export const DAY_WIDTH = 46;
 export const VISIBLE_DAY_COUNT = 31;
@@ -7,8 +8,17 @@ const LANE_MIN_HEIGHT = 52;
 const TASK_BAR_HEIGHT = 26;
 const TASK_BAR_GAP = 7;
 const TASK_BAR_TOP_PADDING = 10;
-const SUBSYSTEM_COLORS = ["#ef4b5c", "#ffae61", "#be5bd7", "#7c5cff", "#5f90ff"];
-const TASK_COLORS = ["#c65386", "#7b55df", "#cc7447", "#6d7d90", "#2d6be8"];
+const SUBSYSTEM_COLORS = timelineAccentColors.subsystems;
+const TASK_COLORS = timelineAccentColors.tasks;
+
+const MOBILE_DISCIPLINE_TIMELINE_COLORS: Record<string, string> = {
+  mechanical: timelineDisciplineColors.manufacturing,
+  electrical: timelineDisciplineColors.electrical,
+  software: timelineDisciplineColors.programming,
+  programming: timelineDisciplineColors.programming,
+  integration: timelineDisciplineColors.testing,
+  "qa-test": timelineDisciplineColors.testing,
+};
 
 function getStableColorIndex(value: string, colorCount: number) {
   let hash = 0;
@@ -136,6 +146,10 @@ function getLaneHeight(trackCount: number) {
   );
 }
 
+function getTaskTimelineColor(task: Task, fallbackIndex: number) {
+  return MOBILE_DISCIPLINE_TIMELINE_COLORS[task.disciplineId] ?? TASK_COLORS[fallbackIndex % TASK_COLORS.length];
+}
+
 export function buildLanes(tasks: Task[], subsystems: Subsystem[], monthStart: Date, dayCount: number) {
   const subsystemsById = Object.fromEntries(
     subsystems.map((subsystem) => [subsystem.id, subsystem]),
@@ -176,7 +190,7 @@ export function buildLanes(tasks: Task[], subsystems: Subsystem[], monthStart: D
       trackEndIndexes[nextTrackIndex] = dateIndexes.lastIndex;
 
       return {
-        color: TASK_COLORS[(taskColorOffset + taskIndex) % TASK_COLORS.length],
+        color: getTaskTimelineColor(task, taskColorOffset + taskIndex),
         task,
         top: TASK_BAR_TOP_PADDING + nextTrackIndex * (TASK_BAR_HEIGHT + TASK_BAR_GAP),
       };
