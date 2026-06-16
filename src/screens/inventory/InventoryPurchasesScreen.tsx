@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { Modal, Pressable, View } from "react-native";
 
-import { Text } from "../i18n";
+import { Text } from "../../i18n";
 import {
   PURCHASE_APPROVAL_OPTIONS,
   PURCHASE_STATUS_OPTIONS,
   SUBVIEW_INTERACTION_GUIDANCE,
-} from "../ui/constants";
-import { styles } from "../ui/styles";
+} from "../../ui/constants";
+import { styles } from "../../ui/styles";
 import {
   EmptyState,
   FilterToolbar,
@@ -16,9 +16,9 @@ import {
   SearchField,
   StatusPill,
   WorkspacePanel,
-} from "../ui/ui";
+} from "../../ui/ui";
 
-import type { AppScreenProps } from "./types";
+import type { AppScreenProps } from "../types";
 
 export function InventoryPurchasesScreen(props: AppScreenProps) {
   const {

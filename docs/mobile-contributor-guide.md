@@ -11,10 +11,10 @@ workspace data, auth and bootstrap flows, derived data, editor state, mutation
 wiring, responsive layout state, and cross-screen services such as the work-log
 timer.
 
-Screen components live in `src/screens/`. They should stay focused on rendering
-and screen-local interactions. Shared screen inputs are typed through
-`AppScreenProps` in `src/screens/types.ts`, and `App.tsx` passes the relevant
-data, setters, and action callbacks into each screen.
+Screen components live in feature folders under `src/screens/`. They should stay
+focused on rendering and screen-local interactions. Shared screen inputs are
+typed through `AppScreenProps` in `src/screens/types.ts`, and `App.tsx` passes
+the relevant data, setters, and action callbacks into each screen.
 
 Shared UI primitives, form widgets, responsive helpers, constants, and styles
 live under `src/ui/`. Domain data contracts live in `src/types/domain.ts`.

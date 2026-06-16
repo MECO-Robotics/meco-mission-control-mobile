@@ -1,18 +1,18 @@
 import { View } from "react-native";
 
-import { Text } from "../i18n";
-import { SUBVIEW_INTERACTION_GUIDANCE } from "../ui/constants";
-import { capitalize } from "../ui/helpers";
-import { styles } from "../ui/styles";
+import { Text } from "../../i18n";
+import { SUBVIEW_INTERACTION_GUIDANCE } from "../../ui/constants";
+import { capitalize } from "../../ui/helpers";
+import { styles } from "../../ui/styles";
 import {
   EmptyState,
   InteractionNote,
   StatusPill,
   SummaryRow,
   WorkspacePanel,
-} from "../ui/ui";
+} from "../../ui/ui";
 
-import type { AppScreenProps } from "./types";
+import type { AppScreenProps } from "../types";
 
 const RISK_PRIORITY_COLUMNS = [
   { label: "High", priority: "high" },

@@ -1,17 +1,17 @@
 import { Pressable, View } from "react-native";
 
-import { Text } from "../i18n";
-import { STATUS_LABELS } from "../ui/constants";
-import { capitalize, formatDate } from "../ui/helpers";
-import { styles } from "../ui/styles";
+import { Text } from "../../i18n";
+import { STATUS_LABELS } from "../../ui/constants";
+import { capitalize, formatDate } from "../../ui/helpers";
+import { styles } from "../../ui/styles";
 import {
   EmptyState,
   StatusPill,
   SummaryRow,
   WorkspacePanel,
-} from "../ui/ui";
+} from "../../ui/ui";
 
-import type { AppScreenProps } from "./types";
+import type { AppScreenProps } from "../types";
 import { AttendanceStatusMark } from "./AttendanceStatusMark";
 
 export function HomeScreen(props: AppScreenProps) {

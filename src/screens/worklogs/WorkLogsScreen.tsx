@@ -1,13 +1,13 @@
 import { Modal, Pressable, View } from "react-native";
 import { useState } from "react";
 
-import { Text } from "../i18n";
+import { Text } from "../../i18n";
 import {
   SUBVIEW_INTERACTION_GUIDANCE,
   WORKLOG_SORT_OPTIONS,
-} from "../ui/constants";
-import { formatDate } from "../ui/helpers";
-import { styles } from "../ui/styles";
+} from "../../ui/constants";
+import { formatDate } from "../../ui/helpers";
+import { styles } from "../../ui/styles";
 import {
   EmptyState,
   FilterToolbar,
@@ -16,10 +16,10 @@ import {
   SearchField,
   SummaryRow,
   WorkspacePanel,
-} from "../ui/ui";
-import type { WorkLogSortMode } from "../ui/types";
+} from "../../ui/ui";
+import type { WorkLogSortMode } from "../../ui/types";
 
-import type { AppScreenProps, WorkLogListItem } from "./types";
+import type { AppScreenProps, WorkLogListItem } from "../types";
 
 export function WorkLogsScreen(props: AppScreenProps) {
   const {
