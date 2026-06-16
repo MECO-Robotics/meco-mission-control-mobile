@@ -65,7 +65,6 @@ import type {
   ArchiveFilterMode,
   BlockerFilterMode,
   EditorMode,
-  EventReportDraft,
   InventoryViewTab,
   ManufacturingDraft,
   ManufacturingViewTab,
@@ -148,7 +147,7 @@ import type {
   WorkLog,
 } from "./src/types/domain";
 
-import { appThemes, colors, type AppThemeName } from "./src/theme";
+import { appThemes, colors, loginColors, type AppThemeName } from "./src/theme";
 import { AttendanceStatusMark } from "./src/screens/AttendanceStatusMark";
 import { AttendanceScreen } from "./src/screens/AttendanceScreen";
 import { HomeScreen } from "./src/screens/HomeScreen";
@@ -179,6 +178,12 @@ import {
 } from "./src/services/workLogLiveActivity";
 import { clearPersistedAuthSession } from "./src/services/authSessionStorage";
 import {
+  clearPersistedAuthSession,
+  getOrCreateAuthDeviceNumber,
+  loadPersistedAuthSession,
+  savePersistedAuthSession,
+} from "./src/services/authSessionStorage";
+import {
   cancelWorkLogTimerReminders,
   clearPersistedWorkLogTimerState,
   persistWorkLogTimerState,
@@ -195,6 +200,7 @@ const SUBTAB_SWIPE_COMMIT_DISTANCE = 72;
 const TIMER_TICK_MS = 1000;
 const MS_PER_HOUR = 1000 * 60 * 60;
 const GOOGLE_CLIENT_ID_PLACEHOLDER = "missing-google-client-id";
+const DEVICE_SESSION_RESTORED_NOTICE = "Signed in on this device.";
 
 type AttendanceStatus = "yes" | "maybe" | "no";
 type SeasonOption = {
@@ -516,6 +522,10 @@ function getQaReviewTaskId(review: QaReview) {
   return review.subjectType === "task" && review.subjectId ? review.subjectId : null;
 }
 
+function getOptionalCreatedAt(item: { id: string; createdAt?: string }) {
+  return item.createdAt ?? item.id;
+}
+
 function buildTaskMutationPayload(task: Task) {
   return {
     title: task.title,
@@ -544,10 +554,6 @@ function shiftDateByDays(value: string, dayDelta: number) {
   const date = new Date(`${value}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() + dayDelta);
   return date.toISOString().slice(0, 10);
-}
-
-function csvCell(value: string | number) {
-  return `"${String(value).replace(/"/g, '""')}"`;
 }
 
 function ensureArray<T>(value: T[] | undefined | null): T[] {
@@ -712,6 +718,7 @@ export default function App() {
   const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isGoogleSignInPending, setIsGoogleSignInPending] = useState(false);
+  const [isRestoringAuthSession, setIsRestoringAuthSession] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [backendStatus, setBackendStatus] = useState<
     "connecting" | "connected" | "offline"
@@ -866,6 +873,7 @@ export default function App() {
   >([]);
   const pendingWorkLogDraftsRef = useRef<PendingWorkLogDraft[]>([]);
   const isSyncingWorkLogDraftsRef = useRef(false);
+  const hasRestoredAuthSessionRef = useRef(false);
   const startTaskRef = useRef<(task: Task, options?: StartTaskOptions) => Promise<void>>(
     async () => undefined,
   );
@@ -884,7 +892,6 @@ export default function App() {
   const [qaReviews, setQaReviews] = useState<QaReview[]>(() => mecoSnapshot.qaReviews);
   const [qaRequests, setQaRequests] = useState<QaRequest[]>([]);
   const [helpRequests, setHelpRequests] = useState<HelpRequest[]>([]);
-  const [eventReports, setEventReports] = useState<EventReportDraft[]>([]);
   const systemThemeMode: AppThemeName = systemColorScheme === "dark" ? "dark" : "light";
   const themeMode = themeOverride ?? systemThemeMode;
   const isDarkModeEnabled = themeMode === "dark";
@@ -936,7 +943,6 @@ export default function App() {
   const [partsStatusFilter, setPartsStatusFilter] = useState("all");
 
   const [purchaseSearch, setPurchaseSearch] = useState("");
-  const [purchaseSubsystemFilter, setPurchaseSubsystemFilter] = useState("all");
   const [purchaseRequesterFilter, setPurchaseRequesterFilter] = useState("all");
   const [purchaseStatusFilter, setPurchaseStatusFilter] = useState("all");
   const [purchaseVendorFilter, setPurchaseVendorFilter] = useState("all");
@@ -1028,14 +1034,6 @@ export default function App() {
     followUpTaskTitle: "",
   });
   const [qaReportError, setQaReportError] = useState<string | null>(null);
-  const [eventReportEditorMode, setEventReportEditorMode] = useState<EditorMode | null>(null);
-  const [eventReportDraft, setEventReportDraft] = useState<EventReportDraft>({
-    eventId: "",
-    summary: "",
-    findingText: "",
-    followUpTaskTitle: "",
-  });
-  const [eventReportError, setEventReportError] = useState<string | null>(null);
 
   const persistPendingWorkLogDrafts = useCallback(
     async (drafts: PendingWorkLogDraft[]) => {
@@ -1256,6 +1254,15 @@ export default function App() {
       setIsSyncing(true);
       setSyncError(null);
 
+      if (token) {
+        const deviceNumber = await getOrCreateAuthDeviceNumber();
+        await savePersistedAuthSession({ deviceNumber, token, user }).catch(
+          () => undefined,
+        );
+      } else {
+        await clearPersistedAuthSession().catch(() => undefined);
+      }
+
       try {
         await applyThemePreferenceFromServer(token);
         const payload = await refreshWorkspaceFromServer(token);
@@ -1268,6 +1275,11 @@ export default function App() {
         setBackendReachability("reachable");
         setSyncError(draftSyncError);
       } catch (error) {
+        if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
+          endSessionForAuthFailure(getMobileAuthErrorMessage("expired-session"));
+          return;
+        }
+
         setBackendStatus("offline");
         setBackendReachability(backendReachabilityAfterError(error));
         setSyncError(parseClientError(error));
@@ -1279,54 +1291,43 @@ export default function App() {
     [applyThemePreferenceFromServer, refreshWorkspaceFromServer, syncPendingWorkLogDrafts],
   );
 
-  const finishLocalDevBypass = useCallback(async () => {
-    const user = buildLocalDevSessionUser(authEmail, requiredEmailDomain);
-    setApiToken(null);
-    setSessionUser(user);
-    setHasAuthenticated(true);
-    setBackendStatus("offline");
-    setBackendReachability("unreachable");
-    setSyncError("Dev bypass is using the bundled local workspace snapshot.");
-    setAuthNotice("Dev bypass enabled. Using local workspace data.");
-    await clearPersistedAuthSession().catch(() => undefined);
-  }, [authEmail, requiredEmailDomain]);
-
-  const signInWithDevBypass = useCallback(async () => {
-    setIsAuthenticating(true);
-    setAuthError(null);
-    setAuthErrorState(null);
-    setAuthNotice(null);
-
-    try {
-      if (isLocalDevBypassAvailable) {
-        await finishLocalDevBypass();
-        return;
-      }
-
-      if (!authConfig?.devBypassAvailable) {
-        showAuthError("Dev bypass is not enabled for this build or backend.");
-        return;
-      }
-
-      const session = await requestJson<SessionResponse>(
-        apiBaseUrl,
-        "/api/auth/dev-bypass",
-        { method: "POST" },
-      );
-      await finishSignIn(session.token, session.user);
-    } catch (error) {
-      showAuthError(getClientErrorMessage(error));
-    } finally {
-      setIsAuthenticating(false);
+  useEffect(() => {
+    if (hasRestoredAuthSessionRef.current) {
+      return;
     }
-  }, [
-    apiBaseUrl,
-    authConfig?.devBypassAvailable,
-    finishLocalDevBypass,
-    finishSignIn,
-    isLocalDevBypassAvailable,
-    showAuthError,
-  ]);
+
+    hasRestoredAuthSessionRef.current = true;
+    let isActive = true;
+
+    async function restorePersistedAuthSession() {
+      try {
+        const deviceNumber = await getOrCreateAuthDeviceNumber();
+        const persistedSession = await loadPersistedAuthSession(deviceNumber);
+
+        if (!isActive || !persistedSession) {
+          return;
+        }
+
+        setAuthNotice(DEVICE_SESSION_RESTORED_NOTICE);
+        const restorePromise = finishSignIn(
+          persistedSession.token,
+          persistedSession.user,
+        );
+        setIsRestoringAuthSession(false);
+        await restorePromise;
+      } finally {
+        if (isActive) {
+          setIsRestoringAuthSession(false);
+        }
+      }
+    }
+
+    void restorePersistedAuthSession();
+
+    return () => {
+      isActive = false;
+    };
+  }, [finishSignIn]);
 
   const signInWithGoogle = useCallback(async () => {
     setIsAuthenticating(true);
@@ -1495,12 +1496,13 @@ export default function App() {
 
     try {
       if (hasRequestedEmailCode) {
+        const deviceNumber = await getOrCreateAuthDeviceNumber();
         const session = await requestJson<SessionResponse>(
           apiBaseUrl,
           "/api/auth/email/verify",
           {
             method: "POST",
-            body: JSON.stringify({ email, code }),
+            body: JSON.stringify({ code, deviceId: deviceNumber, email }),
           },
           undefined,
           AUTH_REQUEST_TIMEOUT_MS,
@@ -1994,7 +1996,7 @@ export default function App() {
         key: "reports",
         label: "QA",
         shortLabel: "QA",
-        count: helpRequests.length + qaRequests.length + qaReviews.length + eventReports.length,
+        count: helpRequests.length + qaRequests.length + qaReviews.length,
       },
       {
         key: "roster",
@@ -2019,7 +2021,6 @@ export default function App() {
     helpRequests.length,
     qaRequests.length,
     qaReviews,
-    eventReports,
   ]);
 
   const navigationSections = useMemo(
@@ -2691,12 +2692,16 @@ export default function App() {
   const filteredPurchases = useMemo(() => {
     const search = purchaseSearch.trim().toLowerCase();
 
+    const statusRank: Record<string, number> = {
+      requested: 0,
+      approved: 1,
+      purchased: 2,
+      shipped: 3,
+      delivered: 4,
+    };
+
     return purchaseItems.filter((item) => {
       if (activePersonFilter !== "all" && item.requestedById !== activePersonFilter) {
-        return false;
-      }
-
-      if (purchaseSubsystemFilter !== "all" && item.subsystemId !== purchaseSubsystemFilter) {
         return false;
       }
 
@@ -2741,6 +2746,18 @@ export default function App() {
       return `${item.title} ${item.vendor} ${requesterName} ${subsystemName}`
         .toLowerCase()
         .includes(search);
+    }).sort((left, right) => {
+      const createdDelta = getOptionalCreatedAt(right).localeCompare(getOptionalCreatedAt(left));
+      if (createdDelta !== 0) {
+        return createdDelta;
+      }
+
+      const statusDelta = statusRank[left.status] - statusRank[right.status];
+      if (statusDelta !== 0) {
+        return statusDelta;
+      }
+
+      return left.title.localeCompare(right.title);
     });
   }, [
     activePersonFilter,
@@ -2751,7 +2768,6 @@ export default function App() {
     purchaseRequesterFilter,
     purchaseSearch,
     purchaseStatusFilter,
-    purchaseSubsystemFilter,
     purchaseVendorFilter,
     subsystemsById,
   ]);
@@ -2925,10 +2941,9 @@ export default function App() {
       { label: "Help requests", value: String(helpRequests.length) },
       { label: "QA requests", value: String(qaRequests.length) },
       { label: "QA reports", value: String(qaReviews.length) },
-      { label: "Event reports", value: String(eventReports.length) },
       { label: "Iterations", value: String(iterationCount) },
     ] satisfies SummaryChipData[];
-  }, [eventReports.length, helpRequests.length, qaRequests.length, qaReviews]);
+  }, [helpRequests.length, qaRequests.length, qaReviews]);
 
   const riskSummary = useMemo(() => {
     const highCount = riskRows.filter((risk) => risk.priority === "high").length;
@@ -3105,44 +3120,6 @@ export default function App() {
       { label: "Waiting QA", value: String(waitingQa.length) },
     ] satisfies SummaryChipData[];
   }, [tasks]);
-  const homeMeetingExport = useMemo(() => {
-    const rows = [
-      ["Type", "Title", "Owner/Requester", "Subsystem", "Status", "Due/Detail"],
-      ...homePriorityTasks.map((task) => [
-        "Task",
-        task.title,
-        task.ownerId ? (membersById[task.ownerId]?.name ?? "Unassigned") : "Unassigned",
-        subsystemsById[task.subsystemId]?.name ?? "Unknown",
-        STATUS_LABELS[task.status],
-        task.dueDate,
-      ]),
-      ...homeInventoryNeeds.map((purchase) => [
-        "Purchase",
-        purchase.title,
-        purchase.requestedById
-          ? (membersById[purchase.requestedById]?.name ?? "Unassigned")
-          : "Unassigned",
-        subsystemsById[purchase.subsystemId]?.name ?? "Unknown",
-        purchase.status,
-        `Qty ${purchase.quantity} - ${purchase.vendor}`,
-      ]),
-      ...manufacturingItems
-        .filter((item) => item.status !== "complete")
-        .slice(0, 8)
-        .map((item) => [
-          "Manufacturing",
-          item.title,
-          item.requestedById
-            ? (membersById[item.requestedById]?.name ?? "Unassigned")
-            : "Unassigned",
-          subsystemsById[item.subsystemId]?.name ?? "Unknown",
-          item.status,
-          `${item.dueDate} - ${item.material} x${item.quantity}`,
-        ]),
-    ];
-
-    return rows.map((row) => row.map(csvCell).join(",")).join("\n");
-  }, [homeInventoryNeeds, homePriorityTasks, manufacturingItems, membersById, subsystemsById]);
   const meetingAttendance = useMemo(
     () =>
       [...members]
@@ -3159,7 +3136,7 @@ export default function App() {
     const outCount = meetingAttendance.filter(({ status }) => status === "no").length;
 
     return [
-      { label: "Present", value: String(presentCount) },
+      { label: "Coming", value: String(presentCount) },
       { label: "Maybe", value: String(maybeCount) },
       { label: "Out", value: String(outCount) },
       { label: "Total", value: String(meetingAttendance.length) },
@@ -5436,91 +5413,6 @@ export default function App() {
     closeQaReportEditor();
   };
 
-  const openCreateEventReportEditor = (eventId = events[0]?.id ?? "") => {
-    setEventReportDraft({
-      eventId,
-      summary: "",
-      findingText: "",
-      followUpTaskTitle: "",
-    });
-    setEventReportError(null);
-    setEventReportEditorMode("create");
-  };
-
-  const closeEventReportEditor = () => {
-    setEventReportEditorMode(null);
-    setEventReportError(null);
-  };
-
-  const saveEventReportDraft = async () => {
-    const event = eventsById[eventReportDraft.eventId];
-
-    const missingFields = [
-      !event ? "event" : null,
-      !eventReportDraft.summary.trim() ? "summary" : null,
-    ].filter((field): field is string => Boolean(field));
-
-    if (missingFields.length > 0) {
-      setEventReportError(`Add ${missingFields.join(", ")} before saving this event report.`);
-      return;
-    }
-
-    setEventReportError(null);
-    const nextEventReport: EventReportDraft = {
-      eventId: event.id,
-      summary: eventReportDraft.summary.trim(),
-      findingText: eventReportDraft.findingText.trim(),
-      followUpTaskTitle: eventReportDraft.followUpTaskTitle.trim(),
-    };
-
-    const followUpTitle = eventReportDraft.followUpTaskTitle.trim();
-    if (followUpTitle) {
-      const subsystemId = event.relatedSubsystemIds[0] ?? subsystems[0]?.id ?? "";
-      const ownerId = signedInMember?.id ?? members[0]?.id ?? "";
-      const mentorId =
-        members.find((member) => member.role === "mentor" || member.role === "admin")?.id ??
-        ownerId;
-
-      if (subsystemId && ownerId && mentorId) {
-        const followUpTask = {
-          title: followUpTitle,
-          summary: eventReportDraft.findingText.trim() || `Follow up from ${event.title}.`,
-          subsystemId,
-          disciplineId: disciplines[0]?.id || "mechanical",
-          mechanismId: null,
-          partInstanceId: null,
-          targetEventId: event.id,
-          ownerId,
-          mentorId,
-          dueDate: isoToday(),
-          priority: "medium",
-          status: "not-started",
-          dependencyIds: [],
-          checklistItems: [],
-          blockers: [],
-          linkedManufacturingIds: [],
-          linkedPurchaseIds: [],
-          estimatedHours: 0,
-          actualHours: 0,
-        } satisfies Omit<Task, "id" | "isBlocked">;
-        const localFollowUpTask: Task = {
-          ...followUpTask,
-          id: `task-local-event-${Date.now()}`,
-          isBlocked: false,
-        };
-
-        setTasks((current) => [localFollowUpTask, ...current]);
-        await runMutation("/api/tasks", {
-          method: "POST",
-          body: JSON.stringify(followUpTask),
-        });
-      }
-    }
-
-    setEventReports((current) => [nextEventReport, ...current]);
-    closeEventReportEditor();
-  };
-
   const resetWorkspaceData = () => {
     setActivePersonFilter("all");
     setIsPersonMenuVisible(false);
@@ -5535,7 +5427,6 @@ export default function App() {
     closeSubsystemEditor();
     closePartDefinitionEditor();
     closeQaReportEditor();
-    closeEventReportEditor();
     clearWorkLogTimer();
     void syncFromBackend();
   };
@@ -5554,7 +5445,6 @@ export default function App() {
     setPartInstances([]);
     setQaReviews([]);
     setHelpRequests([]);
-    setEventReports([]);
     clearWorkLogTimer();
     setActiveTab("home");
     setActivePersonFilter("all");
@@ -5585,6 +5475,7 @@ export default function App() {
   };
 
   const signOut = () => {
+    void clearPersistedAuthSession().catch(() => undefined);
     setApiToken(null);
     setSessionUser(null);
     setHasAuthenticated(false);
@@ -5614,7 +5505,6 @@ export default function App() {
     closeSubsystemEditor();
     closePartDefinitionEditor();
     closeQaReportEditor();
-    closeEventReportEditor();
     clearWorkLogTimer();
   };
 
@@ -5631,7 +5521,6 @@ export default function App() {
     disciplinesById,
     editTagStyle,
     eventOptions,
-    eventReports,
     events,
     eventsById,
     filteredManufacturing,
@@ -5646,7 +5535,6 @@ export default function App() {
     helpRequests,
     homeActionItems,
     homeInventoryNeeds,
-    homeMeetingExport,
     homePriorityTasks,
     homeTaskSummary,
     inventoryView,
@@ -5679,7 +5567,6 @@ export default function App() {
     milestoneTypeFilter,
     openCreateDeadlineEditor,
     createQaRequest,
-    openCreateEventReportEditor,
     openCreateManufacturingEditor,
     openCreateMemberEditor,
     openCreateMilestoneEditor,
@@ -5716,7 +5603,6 @@ export default function App() {
     purchaseRequesterFilter,
     purchaseSearch,
     purchaseStatusFilter,
-    purchaseSubsystemFilter,
     purchaseVendorFilter,
     purchaseVendorOptions,
     qaRequests,
@@ -5758,7 +5644,6 @@ export default function App() {
     setPurchaseRequesterFilter,
     setPurchaseSearch,
     setPurchaseStatusFilter,
-    setPurchaseSubsystemFilter,
     setPurchaseVendorFilter,
     setSelectedMemberId,
     setSelectedSubsystemId,
@@ -7168,64 +7053,6 @@ export default function App() {
           </AdvancedOptions>
         </EditorModal>
 
-        <EditorModal
-          onCancel={closeEventReportEditor}
-          onSave={saveEventReportDraft}
-          saveLabel="Save event report"
-          title="Event report"
-          visible={Boolean(eventReportEditorMode)}
-        >
-          {eventReportError ? (
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                Missing event report details
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {eventReportError}
-              </Text>
-            </View>
-          ) : null}
-          <DropdownField
-            clearLabel="No event"
-            label="Milestone / event"
-            onChange={(value) => {
-              setEventReportDraft((current) => ({ ...current, eventId: value }));
-              setEventReportError(null);
-            }}
-            options={eventOptions}
-            placeholder="Select event"
-            value={eventReportDraft.eventId}
-          />
-          <ModalField
-            label="Summary"
-            multiline
-            onChangeText={(value) => {
-              setEventReportDraft((current) => ({ ...current, summary: value }));
-              setEventReportError(null);
-            }}
-            placeholder="What happened at the event"
-            value={eventReportDraft.summary}
-          />
-          <AdvancedOptions>
-            <ModalField
-              label="Finding"
-              multiline
-              onChangeText={(value) =>
-                setEventReportDraft((current) => ({ ...current, findingText: value }))
-              }
-              placeholder="Issue, observation, or test result"
-              value={eventReportDraft.findingText}
-            />
-            <ModalField
-              label="Follow-up task title"
-              onChangeText={(value) =>
-                setEventReportDraft((current) => ({ ...current, followUpTaskTitle: value }))
-              }
-              placeholder="Create a task anchored to this milestone"
-              value={eventReportDraft.followUpTaskTitle}
-            />
-          </AdvancedOptions>
-        </EditorModal>
       </>
     );
   };
@@ -7365,7 +7192,7 @@ export default function App() {
         ]}
       >
         <StatusBar
-          backgroundColor={isDarkModeEnabled ? "#10284d" : colors.grey}
+          backgroundColor={isDarkModeEnabled ? loginColors.darkShell : loginColors.lightShell}
           style={isDarkModeEnabled ? "light" : "dark"}
           translucent={false}
         />
@@ -7407,6 +7234,7 @@ export default function App() {
                   style={[
                     styles.loginTitle,
                     {
+                      color: isDarkModeEnabled ? colors.white : colors.blue,
                       fontSize: scaleLogin(28),
                       marginBottom: scaleLogin(16),
                       marginTop: scaleLogin(14),
@@ -7440,7 +7268,7 @@ export default function App() {
                       setHasRequestedEmailCode(false);
                     }}
                     placeholder={`you@${hostedDomain}`}
-                    placeholderTextColor="#f1f5ff"
+                    placeholderTextColor={loginColors.placeholder}
                     returnKeyType="next"
                     style={[
                       styles.loginEmailInput,
@@ -7502,7 +7330,7 @@ export default function App() {
                       onChangeText={setAuthCode}
                       onSubmitEditing={signInWithEmail}
                       placeholder="Code"
-                      placeholderTextColor="#f1f5ff"
+                      placeholderTextColor={loginColors.placeholder}
                       returnKeyType="go"
                       style={[
                         styles.loginEmailInput,
@@ -7544,7 +7372,7 @@ export default function App() {
                 style={[
                   styles.loginErrorText,
                   {
-                    color: isDarkModeEnabled ? "#fecdd3" : colors.black,
+                    color: isDarkModeEnabled ? loginColors.darkError : colors.orangeInk,
                     fontSize: scaleLogin(14),
                   },
                 ]}
@@ -7910,7 +7738,7 @@ export default function App() {
 
   return (
     <LocalizationProvider languageOverride={languageOverride}>
-      {!hasAuthenticated ? (
+      {isRestoringAuthSession ? null : !hasAuthenticated ? (
         renderLoginScreen()
       ) : (
         <AppThemeProvider value={{ colors: themeColors, mode: themeMode }}>

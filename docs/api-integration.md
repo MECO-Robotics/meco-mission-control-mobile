@@ -115,8 +115,13 @@ POST /api/auth/email/verify
 Body:
 
 ```json
-{ "email": "person@mecorobotics.org", "code": "123456" }
+{ "email": "person@mecorobotics.org", "code": "123456", "deviceId": "123456789012" }
 ```
+
+The mobile app generates one local numeric device ID per app install and stores
+it with the persisted auth session. On launch, the app restores the saved
+session only when the current device ID matches the saved session's device ID;
+otherwise it clears the session and requires sign-in again.
 
 ## Development Bypass
 

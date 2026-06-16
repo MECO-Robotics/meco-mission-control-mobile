@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
 
 import { Text } from "../i18n";
@@ -20,6 +20,12 @@ import {
 import type { AppScreenProps } from "./types";
 import { QaDetailFields, type QaDetailRow } from "./reports/QaDetailFields";
 
+const QA_FIX_SIZE_RANK: Record<string, number> = {
+  "iteration-worthy": 0,
+  "minor-fix": 1,
+  pass: 2,
+};
+
 const formatQaStatus = (value: string) =>
   value
     .split("-")
@@ -30,8 +36,6 @@ export function ReportsScreen(props: AppScreenProps) {
   const {
     appResponsiveStyles,
     createQaRequest,
-    eventReports,
-    eventsById,
     helpRequests,
     membersById,
     openCreateQaReportEditor,
@@ -65,6 +69,33 @@ export function ReportsScreen(props: AppScreenProps) {
     (qaRequestDraft.subject.trim() || qaRequestDraft.taskId) && qaRequestDraft.mentorId,
   );
   const selectedQaReview = qaReviews.find((review) => review.id === selectedQaReviewId);
+  const sortedQaReviews = useMemo(
+    () =>
+      [...qaReviews].sort((left, right) => {
+        const createdDelta =
+          ((right as typeof right & { createdAt?: string }).createdAt ?? right.id)
+            .localeCompare((left as typeof left & { createdAt?: string }).createdAt ?? left.id);
+        if (createdDelta !== 0) {
+          return createdDelta;
+        }
+
+        const leftTask = left.taskId ? taskById[left.taskId] : null;
+        const rightTask = right.taskId ? taskById[right.taskId] : null;
+        const dependencyDelta =
+          (rightTask?.dependencyIds.length ?? 0) - (leftTask?.dependencyIds.length ?? 0);
+        if (dependencyDelta !== 0) {
+          return dependencyDelta;
+        }
+
+        const fixSizeDelta = QA_FIX_SIZE_RANK[left.result] - QA_FIX_SIZE_RANK[right.result];
+        if (fixSizeDelta !== 0) {
+          return fixSizeDelta;
+        }
+
+        return left.subjectTitle.localeCompare(right.subjectTitle);
+      }),
+    [qaReviews, taskById],
+  );
   const selectedQaReviewPeople = selectedQaReview
     ? selectedQaReview.participantIds
         .map((participantId) => membersById[participantId]?.name)
@@ -113,8 +144,8 @@ export function ReportsScreen(props: AppScreenProps) {
 const renderScreen = () => {
   return (
     <WorkspacePanel
-      title="QA and event reports"
-      subtitle="Capture task QA outcomes, event findings, and iteration-worthy follow-up in one place."
+      title="QA reports"
+      subtitle="Capture task QA outcomes and iteration-worthy follow-up in one place."
       actions={
         <Pressable onPress={() => setIsQaRequestOpen(true)} style={[styles.primaryAction, appResponsiveStyles.primaryAction]}>
           <Text style={[styles.primaryActionLabel, appResponsiveStyles.primaryActionLabel]}>Request QA</Text>
@@ -291,7 +322,7 @@ const renderScreen = () => {
 
       <Text style={[styles.subsectionLabel, appResponsiveStyles.subsectionLabel]}>QA reports</Text>
       <View style={styles.reportGrid}>
-        {qaReviews.map((review) => {
+        {sortedQaReviews.map((review) => {
           const people = review.participantIds
             .map((participantId) => membersById[participantId]?.name)
             .filter((name): name is string => Boolean(name))
@@ -333,31 +364,6 @@ const renderScreen = () => {
           );
         })}
       </View>
-
-      <Text style={[styles.subsectionLabel, appResponsiveStyles.subsectionLabel]}>Event reports</Text>
-      {eventReports.map((report, index) => {
-        const event = eventsById[report.eventId];
-
-        return (
-          <View key={`${report.eventId}-${index}`} style={[styles.queueRowCard, appResponsiveStyles.rowCard]}>
-            <View style={styles.queueRowHeader}>
-              <View style={styles.queueRowPrimaryText}>
-                <Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>{event?.title ?? "Event report"}</Text>
-                <Text style={[styles.queueRowSubtitle, appResponsiveStyles.rowSubtitle]}>
-                  Follow-up {report.followUpTaskTitle || "none"}
-                </Text>
-              </View>
-              <StatusPill label="Report" value="info" />
-            </View>
-            <Text style={[styles.queueRowBody, appResponsiveStyles.rowBody]}>{report.summary}</Text>
-            {report.findingText ? (
-              <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>Finding {report.findingText}</Text>
-            ) : null}
-          </View>
-        );
-      })}
-
-      {eventReports.length === 0 ? <EmptyState text="No event reports have been added yet." /> : null}
       <InteractionNote steps={SUBVIEW_INTERACTION_GUIDANCE.reports} />
     </WorkspacePanel>
   );

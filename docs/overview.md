@@ -21,7 +21,7 @@ The app is the mobile companion to the hosted platform backend. It can run from 
 - Log work manually or use the work timer, then convert elapsed time into a work-log entry.
 - Manage manufacturing jobs by process: CNC, 3D print, or fabrication.
 - Manage materials, part definitions, part instances, and purchases.
-- Capture QA and event reports, including iteration-worthy follow-up tasks.
+- Capture QA reports, including iteration-worthy follow-up tasks.
 - Use risk management to combine active blockers, subsystem risks, and QA findings into one view.
 
 ## Runtime Modes
