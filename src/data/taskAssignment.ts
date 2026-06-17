@@ -56,6 +56,8 @@ export function getTaskAssignmentConflict(error: unknown): TaskAssignmentConflic
     return null;
   }
 
+  // The platform returns structured 409s when two users claim the same task;
+  // preserve owner/task ids so the UI can refresh and show who won the claim.
   return {
     code: TASK_ALREADY_CLAIMED_CODE,
     message:
@@ -134,6 +136,8 @@ export function getTaskStartActionLabel(task: Pick<Task, "ownerId">) {
 }
 
 export function buildOwnedTaskStartPayload(task: Task, status: TaskStatus) {
+  // Starting owned work currently reuses the general task update shape expected
+  // by the platform, including the milestone-era field name.
   return {
     title: task.title,
     summary: task.summary,

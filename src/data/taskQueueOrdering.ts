@@ -79,6 +79,8 @@ export function buildTaskQueueSections({
       return true;
     }
 
+    // Students should still see ready work from other subteams so they can pick
+    // up unblocked tasks when their primary queue is empty.
     return (
       getTaskSubteam(task, primarySubteam) === primarySubteam ||
       isAvailableTask(task, taskById)

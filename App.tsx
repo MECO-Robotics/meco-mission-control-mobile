@@ -561,6 +561,8 @@ export default function App() {
     const tasks = ensureArray(payload.tasks).map((task) => normalizeTaskFromServer(task));
     const payloadWorkLogs = ensureArray(payload.workLogs);
 
+    // Keep refs and state in lockstep for async callbacks that need the latest
+    // workspace snapshot without retriggering every callback when data changes.
     setMembers(ensureArray(payload.members));
     setSubsystems(normalizeTaskSubsystems(ensureArray(payload.subsystems)));
     setDisciplines(ensureArray(payload.disciplines));
@@ -606,6 +608,8 @@ export default function App() {
       isSyncingWorkLogDraftsRef.current = true;
 
       try {
+        // Drop local drafts that already exist on the server before attempting
+        // uploads; this covers both successful prior syncs and manual refreshes.
         let drafts = reconcilePendingWorkLogDrafts(
           pendingWorkLogDraftsRef.current,
           serverWorkLogs,
@@ -641,6 +645,8 @@ export default function App() {
               (task) => task.id === draft.payload.taskId,
             );
             if (loggedTask) {
+              // Reuse the normal start-task flow so synced work logs advance task
+              // status the same way an online log would.
               await startTaskRef.current(loggedTask, { openWorkLog: false });
             }
           } catch (error) {
@@ -703,6 +709,8 @@ export default function App() {
         drafts,
         workLogsRef.current,
       );
+      // Reconcile on boot in case a previous run uploaded drafts but exited
+      // before local storage was pruned.
       pendingWorkLogDraftsRef.current = reconciledDrafts;
       setPendingWorkLogDrafts(reconciledDrafts);
 
@@ -866,6 +874,8 @@ export default function App() {
           return;
         }
 
+        // Let the app shell appear immediately while the restored token refreshes
+        // workspace data and validates that the backend still accepts it.
         setAuthNotice(DEVICE_SESSION_RESTORED_NOTICE);
         const restorePromise = finishSignIn(
           persistedSession.token,
@@ -1193,6 +1203,8 @@ export default function App() {
 
       try {
         await requestJson(apiBaseUrl, path, init, apiToken);
+        // Mutations refresh the full bootstrap snapshot so cross-feature derived
+        // data stays consistent after backend-side cascades.
         const payload = await refreshWorkspaceFromServer(apiToken);
         const draftSyncError = await syncPendingWorkLogDrafts(
           apiToken,
@@ -1252,6 +1264,8 @@ export default function App() {
 
         const conflict = getTaskAssignmentConflict(error);
         if (conflict) {
+          // Assignment conflicts are expected in shared task queues; refresh
+          // before messaging so the UI reflects the current owner.
           let refreshed = false;
           let refreshError: unknown = null;
           try {
@@ -2938,6 +2952,8 @@ export default function App() {
             return false;
           }
 
+          // Require a clearly horizontal gesture so scrolling lists do not
+          // accidentally move between subtabs.
           const horizontalDistance = Math.abs(gesture.dx);
           return (
             horizontalDistance > SUBTAB_SWIPE_ACTIVATION_DISTANCE &&
@@ -2975,6 +2991,8 @@ export default function App() {
     () =>
       PanResponder.create({
         onMoveShouldSetPanResponder: (_event, gesture) => {
+          // Navigation swipes are intentionally looser than subtab swipes because
+          // they start from the page edge and should feel easy to discover.
           const horizontalDistance = Math.abs(gesture.dx);
           return (
             horizontalDistance > SWIPE_ACTIVATION_DISTANCE &&
