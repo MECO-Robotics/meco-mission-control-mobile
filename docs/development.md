@@ -57,12 +57,15 @@ Backend:
 
 ```text
 EXPO_PUBLIC_API_BASE_URL=http://localhost:8080
-EXPO_PUBLIC_API_TOKEN=<optional-development-token>
 EXPO_PUBLIC_DEV_AUTH_BYPASS=true
 ```
 
 `EXPO_PUBLIC_DEV_AUTH_BYPASS=true` exposes a development-only local sign-in
 bypass for backend-offline simulator work.
+
+Do not place bearer tokens or service credentials in `EXPO_PUBLIC_` variables;
+they are embedded in the Expo bundle. Use normal sign-in or the backend-issued
+development bypass endpoint when a local session token is needed.
 
 Google auth:
 
