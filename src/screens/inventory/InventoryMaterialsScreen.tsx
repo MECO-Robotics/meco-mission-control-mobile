@@ -1,12 +1,12 @@
 import { Pressable, View } from "react-native";
 
-import { Text } from "../i18n";
+import { Text } from "../../i18n";
 import {
   MATERIAL_CATEGORY_OPTIONS,
   SUBVIEW_INTERACTION_GUIDANCE,
-} from "../ui/constants";
-import { capitalize } from "../ui/helpers";
-import { styles } from "../ui/styles";
+} from "../../ui/constants";
+import { capitalize } from "../../ui/helpers";
+import { styles } from "../../ui/styles";
 import {
   EmptyState,
   FilterToolbar,
@@ -16,9 +16,9 @@ import {
   StatusPill,
   SummaryRow,
   WorkspacePanel,
-} from "../ui/ui";
+} from "../../ui/ui";
 
-import type { AppScreenProps } from "./types";
+import type { AppScreenProps } from "../types";
 
 export function InventoryMaterialsScreen(props: AppScreenProps) {
   const {

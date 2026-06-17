@@ -248,6 +248,7 @@ Mobile implementation sources:
 
 - `src/theme.ts`: canonical mobile tokens derived from the web theme.
 - `src/ui/styles.ts`: shared React Native styles using those tokens.
+- `src/app/components/loginScreenStyles.ts`: login-screen-specific styles using mobile tokens.
 - `src/ui/constants.ts`: event styles mapped from web milestone colors.
 - `src/ui/landscapeTimeline/landscapeTimelineModel.ts`: workspace and discipline accent colors.
 - `src/ui/landscapeTimeline/landscapeTimelinePalette.ts`: planner colors mapped from the central theme.

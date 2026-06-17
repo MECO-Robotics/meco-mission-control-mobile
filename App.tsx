@@ -5,13 +5,10 @@ import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
-  Image,
-  Modal,
   PanResponder,
   Pressable,
   SafeAreaView,
   ScrollView,
-  TextInput,
   Platform,
   useColorScheme,
   useWindowDimensions,
@@ -46,7 +43,6 @@ import {
   buildSubsystemDraft,
   buildTaskDraft,
   buildWorkLogDraft,
-  capitalize,
   compareDateTimes,
   datePortion,
   derivePartLifecycleStatus,
@@ -97,7 +93,6 @@ import { AppThemeProvider } from "./src/ui/themeContext";
 import { LocalizationProvider, Text, type LanguageCode } from "./src/i18n";
 import {
   ApiNetworkError,
-  ApiRequestError,
   classifyMobileAuthError,
   getBackendConnectionErrorMessage,
   getMobileAuthErrorMessage,
@@ -125,13 +120,11 @@ import {
   getTaskSubteamForDisciplineId,
 } from "./src/data/taskQueueOrdering";
 import { mecoSnapshot } from "./src/data/mockData";
-import { tasks as seededTasks } from "./src/data/tasks";
 import type {
-  MemberRole,
-  ManufacturingItem,
-  BootstrapMilestone,
   Event,
   EventType,
+  MemberRole,
+  ManufacturingItem,
   HelpRequest,
   PlatformBootstrapPayload,
   PublicAuthConfig,
@@ -146,19 +139,76 @@ import type {
   TaskStatus,
   WorkLog,
 } from "./src/types/domain";
+import {
+  ATTENDANCE_STATUS_BY_MEMBER_ID,
+  AUTH_REQUEST_TIMEOUT_MS,
+  GOOGLE_CLIENT_ID_PLACEHOLDER,
+  INITIAL_SEASONS,
+  PLANNED_ATTENDANCE_DAY_OPTIONS,
+  RISK_PRIORITY_RANK,
+  SUBTAB_SWIPE_ACTIVATION_DISTANCE,
+  SUBTAB_SWIPE_COMMIT_DISTANCE,
+  SWIPE_ACTIVATION_DISTANCE,
+  SWIPE_COMMIT_DISTANCE,
+  TIMER_TICK_MS,
+  applyMilestoneSubsystemLinks,
+  backendReachabilityAfterError,
+  buildSubsystemOptions,
+  buildTaskById,
+  buildTaskMutationPayload,
+  ensureArray,
+  formatHoursFromTimer,
+  formatTimerElapsed,
+  getAutoTaskStatus,
+  getClientErrorMessage,
+  getEmailCodeVerificationErrorMessage,
+  getOptionalCreatedAt,
+  getPhotoFileName,
+  getQaReviewTaskId,
+  getWorkLogDraftOwnerKey,
+  getWorkLogTimerElapsedMs,
+  hasRequiredEmailDomain,
+  isTaskReadyForQaPass,
+  isValidDateInput,
+  isValidTimeInput,
+  isWorkLogDraftOwnedBy,
+  mapEventTypeToMilestoneType,
+  mapMilestonesToEvents,
+  mapPendingWorkLogDraftToWorkLog,
+  mapTaskPayloadToServer,
+  mapTaskPriorityToRiskPriority,
+  normalizeRequiredEmailDomain,
+  normalizeTaskFromServer,
+  normalizeTaskSubsystems,
+  parseClientError,
+  shiftDateByDays,
+  shouldQueueWorkLogDraftAfterError,
+  taskDependsOnTarget,
+  withSeededSubteamTasks,
+  type AttendanceStatus,
+  type BackendReachability,
+  type MilestoneMutationResponse,
+  type SeasonOption,
+  type StartTaskOptions,
+  type WorkLogMutationResponse,
+  type WorkLogTimerState,
+} from "./src/app/appModel";
+import { AttendanceModal, ProjectOverlay } from "./src/app/components/AppOverlays";
+import { LoginScreen } from "./src/app/components/LoginScreen";
+import { NavigationMenu } from "./src/app/components/NavigationMenu";
+import { PersonMenu } from "./src/app/components/PersonMenu";
 
-import { appThemes, colors, loginColors, type AppThemeName } from "./src/theme";
-import { AttendanceStatusMark } from "./src/screens/AttendanceStatusMark";
-import { AttendanceScreen } from "./src/screens/AttendanceScreen";
-import { HomeScreen } from "./src/screens/HomeScreen";
-import { InventoryScreen } from "./src/screens/InventoryScreen";
-import { ManufacturingScreen } from "./src/screens/ManufacturingScreen";
-import { ReportsScreen } from "./src/screens/ReportsScreen";
-import { RisksScreen } from "./src/screens/RisksScreen";
-import { RosterScreen } from "./src/screens/RosterScreen";
-import { SubsystemsScreen } from "./src/screens/SubsystemsScreen";
-import { TasksScreen } from "./src/screens/TasksScreen";
-import { WorkLogsScreen } from "./src/screens/WorkLogsScreen";
+import { appThemes, type AppThemeName } from "./src/theme";
+import { AttendanceScreen } from "./src/screens/dashboard/AttendanceScreen";
+import { HomeScreen } from "./src/screens/dashboard/HomeScreen";
+import { InventoryScreen } from "./src/screens/inventory/InventoryScreen";
+import { ManufacturingScreen } from "./src/screens/manufacturing/ManufacturingScreen";
+import { ReportsScreen } from "./src/screens/reports/ReportsScreen";
+import { RisksScreen } from "./src/screens/robot/RisksScreen";
+import { RosterScreen } from "./src/screens/roster/RosterScreen";
+import { SubsystemsScreen } from "./src/screens/robot/SubsystemsScreen";
+import { TasksScreen } from "./src/screens/tasks/TasksScreen";
+import { WorkLogsScreen } from "./src/screens/worklogs/WorkLogsScreen";
 import type { SubsystemCounts, WorkLogListItem } from "./src/screens/types";
 import {
   buildWorkLogDraftFingerprint,
@@ -192,372 +242,7 @@ import {
 
 WebBrowser.maybeCompleteAuthSession();
 
-const SWIPE_ACTIVATION_DISTANCE = 18;
-const SWIPE_COMMIT_DISTANCE = 52;
-const SUBTAB_SWIPE_ACTIVATION_DISTANCE = 24;
-const SUBTAB_SWIPE_COMMIT_DISTANCE = 72;
-const TIMER_TICK_MS = 1000;
-const MS_PER_HOUR = 1000 * 60 * 60;
-const GOOGLE_CLIENT_ID_PLACEHOLDER = "missing-google-client-id";
 const DEVICE_SESSION_RESTORED_NOTICE = "Signed in on this device.";
-
-type AttendanceStatus = "yes" | "maybe" | "no";
-type SeasonOption = {
-  id: string;
-  label: string;
-};
-type WorkLogTimerState = {
-  id: string;
-  elapsedMs: number;
-  isPaused: boolean;
-  reminderNotificationIds: string[];
-  startedAt: number | null;
-};
-type StartTaskOptions = {
-  openWorkLog?: boolean;
-};
-type BackendReachability = "unknown" | "reachable" | "unreachable";
-
-type WorkLogMutationResponse = {
-  item?: WorkLog;
-};
-
-function shouldQueueWorkLogDraftAfterError(error: unknown) {
-  return (
-    error instanceof ApiNetworkError ||
-    (error instanceof ApiRequestError && error.status >= 500)
-  );
-}
-
-function backendReachabilityAfterError(error: unknown): BackendReachability {
-  return error instanceof ApiNetworkError ? "unreachable" : "reachable";
-}
-
-function mapPendingWorkLogDraftToWorkLog(
-  draft: PendingWorkLogDraft,
-): WorkLogListItem {
-  return {
-    id: draft.id,
-    localDraftId: draft.id,
-    syncError: draft.error,
-    syncStatus: draft.status,
-    ...draft.payload,
-  };
-}
-
-function formatTimerElapsed(elapsedMs: number) {
-  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  const paddedMinutes = String(minutes).padStart(2, "0");
-  const paddedSeconds = String(seconds).padStart(2, "0");
-
-  return hours > 0
-    ? `${hours}:${paddedMinutes}:${paddedSeconds}`
-    : `${minutes}:${paddedSeconds}`;
-}
-
-function formatHoursFromTimer(elapsedMs: number) {
-  const roundedHours = Math.round((elapsedMs / MS_PER_HOUR) * 100) / 100;
-
-  return Number.isInteger(roundedHours)
-    ? String(roundedHours)
-    : String(roundedHours).replace(/0$/, "");
-}
-
-function getWorkLogTimerElapsedMs(
-  timer: WorkLogTimerState | null,
-  now = Date.now(),
-) {
-  if (!timer) {
-    return 0;
-  }
-
-  return (
-    timer.elapsedMs +
-    (timer.startedAt && !timer.isPaused
-      ? Math.max(0, now - timer.startedAt)
-      : 0)
-  );
-}
-type RiskPriority = "high" | "medium" | "low";
-
-const RISK_PRIORITY_RANK: Record<RiskPriority, number> = {
-  high: 0,
-  medium: 1,
-  low: 2,
-};
-
-const ATTENDANCE_STATUS_BY_MEMBER_ID: Record<string, AttendanceStatus> = {
-  ava: "yes",
-  ethan: "maybe",
-  jordan: "yes",
-  lucas: "no",
-  maya: "yes",
-  priya: "maybe",
-  riley: "yes",
-  noah: "yes",
-  zoe: "maybe",
-  diego: "yes",
-  emma: "yes",
-  samira: "yes",
-  caleb: "maybe",
-  nina: "yes",
-};
-
-const INITIAL_SEASONS: SeasonOption[] = [
-  { id: "2026-offseason", label: "2026 FRC Offseason" },
-  { id: "2027-preseason", label: "2027 FRC Preseason" },
-];
-
-const PLANNED_ATTENDANCE_DAY_OPTIONS = [
-  { id: "monday", label: "Mon" },
-  { id: "tuesday", label: "Tue" },
-  { id: "wednesday", label: "Wed" },
-  { id: "thursday", label: "Thu" },
-  { id: "friday", label: "Fri" },
-  { id: "saturday", label: "Sat" },
-  { id: "sunday", label: "Sun" },
-] as const;
-
-const REQUIRED_EMAIL_DOMAIN = "mecorobotics.org";
-const AUTH_REQUEST_TIMEOUT_MS = 15000;
-
-const REQUIRED_TASK_SUBSYSTEMS: Subsystem[] = [
-  {
-    id: "climber",
-    name: "Climber",
-    description: "Endgame lift, latch, and climb release mechanisms.",
-    isCore: false,
-    parentSubsystemId: null,
-    responsibleEngineerId: "priya",
-    mentorIds: ["jordan"],
-    risks: ["Hook alignment", "Winch load margin"],
-  },
-  {
-    id: "controls",
-    name: "Controls",
-    description: "Robot software, safety, and autonomous logic.",
-    isCore: false,
-    parentSubsystemId: "drive",
-    responsibleEngineerId: "ethan",
-    mentorIds: ["riley"],
-    risks: ["Auto safety interlocks"],
-  },
-  {
-    id: "drive",
-    name: "Drivetrain",
-    description: "Core drivetrain, chassis interfaces, and shared base electronics.",
-    isCore: true,
-    parentSubsystemId: null,
-    responsibleEngineerId: "ava",
-    mentorIds: ["jordan"],
-    risks: ["Sensor drift", "Cable clearance"],
-  },
-  {
-    id: "manipulator",
-    name: "Manipulator",
-    description: "Intake, handling, and game-piece interaction hardware.",
-    isCore: false,
-    parentSubsystemId: "drive",
-    responsibleEngineerId: "lucas",
-    mentorIds: ["riley"],
-    risks: ["Chain wear", "Assembly tolerance"],
-  },
-  {
-    id: "vision",
-    name: "Vision",
-    description: "Camera targeting, pose estimation, and visual feedback.",
-    isCore: false,
-    parentSubsystemId: "drive",
-    responsibleEngineerId: "ethan",
-    mentorIds: ["riley"],
-    risks: ["Camera calibration", "Lighting variability"],
-  },
-];
-function buildSubsystemOptions(subsystems: Subsystem[]) {
-  return subsystems.map((subsystem) => ({
-    id: subsystem.id,
-    name: subsystem.name,
-  }));
-}
-
-function normalizeTaskSubsystems(currentSubsystems: Subsystem[]) {
-  return currentSubsystems.length > 0 ? currentSubsystems : REQUIRED_TASK_SUBSYSTEMS;
-}
-
-function withSeededSubteamTasks(currentTasks: Task[]) {
-  const currentTaskIds = new Set(currentTasks.map((task) => task.id));
-  const missingSeededTasks = seededTasks.filter((task) => !currentTaskIds.has(task.id));
-
-  return [...currentTasks, ...missingSeededTasks];
-}
-
-function parseClientError(error: unknown) {
-  const authErrorState = classifyMobileAuthError(error);
-  if (authErrorState !== "unknown") {
-    return getMobileAuthErrorMessage(authErrorState);
-  }
-
-  if (error instanceof ApiRequestError) {
-    return error.message;
-  }
-
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return error.message;
-  }
-
-  return "Request failed unexpectedly.";
-}
-
-function getClientErrorMessage(
-  error: unknown,
-  context: "auth-config" | "authenticated" | "general" = "general",
-) {
-  const authErrorState = classifyMobileAuthError(error, context);
-  if (authErrorState !== "unknown") {
-    return getMobileAuthErrorMessage(authErrorState);
-  }
-
-  return parseClientError(error);
-}
-
-function getEmailCodeVerificationErrorMessage(error: unknown) {
-  if (
-    error instanceof ApiRequestError &&
-    (error.status === 400 || error.status === 401 || error.status === 403)
-  ) {
-    return "Invalid code. Check the code and try again.";
-  }
-
-  return getClientErrorMessage(error);
-}
-
-function isValidDateInput(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return false;
-  }
-
-  const date = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
-}
-
-function isValidTimeInput(value: string) {
-  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
-}
-
-function taskDependsOnTarget(
-  taskId: string,
-  targetTaskId: string,
-  taskById: Record<string, Task>,
-  visitedTaskIds = new Set<string>(),
-): boolean {
-  if (taskId === targetTaskId) {
-    return true;
-  }
-
-  if (visitedTaskIds.has(taskId)) {
-    return false;
-  }
-
-  visitedTaskIds.add(taskId);
-
-  const task = taskById[taskId];
-  if (!task) {
-    return false;
-  }
-
-  return task.dependencyIds.some((dependencyId) =>
-    taskDependsOnTarget(dependencyId, targetTaskId, taskById, visitedTaskIds),
-  );
-}
-
-function getAutoTaskStatus(
-  task: Pick<Task, "blockers" | "dependencyIds" | "ownerId" | "status">,
-  taskById: Record<string, Task>,
-): TaskStatus {
-  if (task.status !== "not-started") {
-    return task.status;
-  }
-
-  const hasOpenDependency = task.dependencyIds
-    .map((dependencyId) => taskById[dependencyId])
-    .some((dependency) => dependency && dependency.status !== "complete");
-
-  if (task.ownerId && task.blockers.length === 0 && !hasOpenDependency) {
-    return "in-progress";
-  }
-
-  return task.status;
-}
-
-function buildTaskById(tasks: Task[]) {
-  return Object.fromEntries(tasks.map((task) => [task.id, task])) as Record<string, Task>;
-}
-
-function hasOpenTaskDependency(
-  task: Pick<Task, "dependencyIds">,
-  taskById: Record<string, Task>,
-) {
-  return task.dependencyIds
-    .map((dependencyId) => taskById[dependencyId])
-    .some((dependency) => dependency && dependency.status !== "complete");
-}
-
-function isTaskReadyForQaPass(task: Task, taskById: Record<string, Task>) {
-  return (
-    task.status === "waiting-for-qa" &&
-    task.blockers.length === 0 &&
-    !hasOpenTaskDependency(task, taskById)
-  );
-}
-
-function getQaReviewTaskId(review: QaReview) {
-  if (review.taskId) {
-    return review.taskId;
-  }
-
-  return review.subjectType === "task" && review.subjectId ? review.subjectId : null;
-}
-
-function getOptionalCreatedAt(item: { id: string; createdAt?: string }) {
-  return item.createdAt ?? item.id;
-}
-
-function buildTaskMutationPayload(task: Task) {
-  return {
-    title: task.title,
-    summary: task.summary,
-    subsystemId: task.subsystemId,
-    disciplineId: task.disciplineId,
-    mechanismId: task.mechanismId,
-    partInstanceId: task.partInstanceId,
-    targetEventId: task.targetEventId,
-    ownerId: task.ownerId,
-    mentorId: task.mentorId,
-    dueDate: task.dueDate,
-    priority: task.priority,
-    status: task.status,
-    dependencyIds: task.dependencyIds,
-    checklistItems: task.checklistItems ?? [],
-    blockers: task.blockers,
-    linkedManufacturingIds: task.linkedManufacturingIds,
-    linkedPurchaseIds: task.linkedPurchaseIds,
-    estimatedHours: task.estimatedHours,
-    actualHours: task.actualHours,
-  };
-}
-
-function shiftDateByDays(value: string, dayDelta: number) {
-  const date = new Date(`${value}T00:00:00.000Z`);
-  date.setUTCDate(date.getUTCDate() + dayDelta);
-  return date.toISOString().slice(0, 10);
-}
-
-function ensureArray<T>(value: T[] | undefined | null): T[] {
-  return Array.isArray(value) ? value : [];
-}
 
 type ServerTask = Task & {
   targetMilestoneId?: string | null;
@@ -571,129 +256,6 @@ type EmailCodeStartResponse = {
 type ThemePreferenceResponse = {
   themeMode: AppThemeName | null;
 };
-
-function normalizeTaskFromServer(task: ServerTask): Task {
-  return {
-    ...task,
-    targetEventId: task.targetEventId ?? task.targetMilestoneId ?? null,
-  };
-}
-
-function mapTaskPayloadToServer<T extends { targetEventId?: string | null }>(
-  payload: T,
-) {
-  const { targetEventId, ...serverPayload } = payload;
-
-  return {
-    ...serverPayload,
-    targetMilestoneId: targetEventId ?? null,
-  };
-}
-
-function mapTaskPriorityToRiskPriority(priority: TaskPriority): RiskPriority {
-  if (priority === "critical" || priority === "high") {
-    return "high";
-  }
-
-  return priority === "low" ? "low" : "medium";
-}
-
-function mapMilestoneTypeToEventType(type: string | undefined): EventType {
-  switch (type) {
-    case "practice":
-      return "drive-practice";
-    case "competition":
-    case "deadline":
-    case "internal-review":
-    case "demo":
-      return type;
-    default:
-      return "deadline";
-  }
-}
-
-function mapEventTypeToMilestoneType(type: EventType) {
-  return type === "drive-practice" ? "practice" : type;
-}
-
-function getPhotoFileName(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return "No image selected";
-  }
-
-  const withoutQuery = trimmed.split(/[?#]/)[0] ?? trimmed;
-  const fileName = withoutQuery.split("/").filter(Boolean).pop();
-  return fileName || "Selected image";
-}
-
-function normalizeRequiredEmailDomain(domain: string | null | undefined) {
-  return domain?.trim().toLowerCase().replace(/^@/, "") || REQUIRED_EMAIL_DOMAIN;
-}
-
-function hasRequiredEmailDomain(email: string, requiredDomain: string) {
-  const [, domain = ""] = email.split("@");
-  const normalizedDomain = domain.toLowerCase();
-  return (
-    normalizedDomain === requiredDomain ||
-    normalizedDomain.endsWith(`.${requiredDomain}`)
-  );
-}
-
-function getWorkLogDraftOwnerKey(user: SessionUser | null) {
-  return (
-    user?.email.trim().toLowerCase() ||
-    user?.accountId.trim().toLowerCase() ||
-    user?.name.trim().toLowerCase() ||
-    null
-  );
-}
-
-function isWorkLogDraftOwnedBy(
-  draft: PendingWorkLogDraft,
-  ownerKey: string | null,
-) {
-  return (draft.ownerKey ?? null) === ownerKey;
-}
-
-function mapMilestonesToEvents(payload: PlatformBootstrapPayload): Event[] {
-  const subsystems = ensureArray(payload.subsystems);
-
-  return ensureArray(payload.milestones).map((milestone) => ({
-    id: milestone.id,
-    title: milestone.title,
-    type: mapMilestoneTypeToEventType(milestone.type),
-    startDateTime: milestone.startDateTime,
-    endDateTime: milestone.endDateTime,
-    isExternal: milestone.isExternal,
-    description: milestone.description,
-    relatedSubsystemIds:
-      milestone.relatedSubsystemIds ??
-      subsystems
-        .filter((subsystem) => ensureArray(milestone.projectIds).includes(subsystem.projectId ?? ""))
-        .map((subsystem) => subsystem.id),
-  }));
-}
-
-type MilestoneMutationResponse = {
-  item?: BootstrapMilestone;
-};
-
-function applyMilestoneSubsystemLinks(
-  currentEvents: Event[],
-  milestone: BootstrapMilestone | undefined,
-  fallbackMilestoneId: string | null,
-  relatedSubsystemIds: string[],
-) {
-  const milestoneId = milestone?.id ?? fallbackMilestoneId;
-  if (!milestoneId) {
-    return currentEvents;
-  }
-
-  return currentEvents.map((event) =>
-    event.id === milestoneId ? { ...event, relatedSubsystemIds } : event,
-  );
-}
 
 export default function App() {
   const { height, width } = useWindowDimensions();
@@ -7098,689 +6660,30 @@ export default function App() {
     );
   };
 
-  const renderNavigationMenu = () => (
-    <Modal
-      animationType="fade"
-      onRequestClose={closeNavigationMenu}
-      supportedOrientations={["portrait", "landscape-left", "landscape-right"]}
-      transparent
-      visible={isNavMenuVisible}
-    >
-      <Pressable
-        onPress={closeNavigationMenu}
-        style={[styles.navDrawerSafeArea, styles.navDrawerScrim]}
-      >
-        <SafeAreaView style={{ flex: 1 }}>
-          <Pressable
-            accessibilityRole="menu"
-            onPress={() => undefined}
-            style={[styles.navDrawer, appResponsiveStyles.navDrawer]}
-            {...navigationCloseSwipeResponder.panHandlers}
-          >
-            <View style={styles.navDrawerHeader}>
-              <View style={styles.navDrawerHeaderText}>
-                <Text style={[styles.navDrawerTitle, { color: themeColors.ink }]}>
-                  Workspace
-                </Text>
-                <Text style={[styles.navDrawerSubtitle, { color: themeColors.subtleText }]}>
-                  {activeTabLabel}
-                </Text>
-              </View>
-              <Pressable
-                accessibilityLabel="Close navigation"
-                accessibilityRole="button"
-                onPress={closeNavigationMenu}
-                style={[styles.navDrawerCloseButton, appResponsiveStyles.iconButton]}
-              >
-                <Text style={[styles.navDrawerCloseLabel, { color: themeColors.navyInk }]}>
-                  X
-                </Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.navDrawerList}>
-              {navigationSections.map((section) => (
-                <View key={section.title} style={styles.navDrawerSection}>
-                  <Text style={[styles.navDrawerSectionLabel, { color: themeColors.subtleText }]}>
-                    {section.title}
-                  </Text>
-                  {section.items.map((item) => {
-                    const isActive = activeTab === item.key;
-
-                    return (
-                      <Pressable
-                        accessibilityRole="menuitem"
-                        accessibilityState={{ selected: isActive }}
-                        key={item.key}
-                        onPress={() => selectNavigationTab(item.key)}
-                        style={[
-                          styles.navDrawerItem,
-                          appResponsiveStyles.navTab,
-                          isActive && [styles.navDrawerItemActive, appResponsiveStyles.navTabActive],
-                        ]}
-                      >
-                        <View
-                          style={[
-                            styles.sidebarIconBubble,
-                            appResponsiveStyles.navBubble,
-                            isActive && styles.sidebarIconBubbleActive,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.sidebarIconLabel,
-                              { color: themeColors.navyInk },
-                              isActive && styles.sidebarIconLabelActive,
-                            ]}
-                          >
-                            {item.shortLabel}
-                          </Text>
-                        </View>
-                        <Text
-                          style={[
-                            styles.navDrawerItemLabel,
-                            { color: themeColors.ink },
-                            isActive && { color: themeColors.navyInk },
-                          ]}
-                        >
-                          {item.label}
-                        </Text>
-                        <View
-                          style={[
-                            styles.sidebarCountPill,
-                            appResponsiveStyles.navCount,
-                            isActive && styles.sidebarCountPillActive,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.sidebarCountLabel,
-                              { color: themeColors.ink },
-                              isActive && styles.sidebarCountLabelActive,
-                            ]}
-                          >
-                            {item.count}
-                          </Text>
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              ))}
-            </View>
-          </Pressable>
-        </SafeAreaView>
-      </Pressable>
-    </Modal>
-  );
-
-  const renderLoginScreen = () => {
-    const hostedDomain = authConfig?.hostedDomain ?? "mecorobotics.org";
-    const isEmailCodeFlowAvailable = authConfig?.emailEnabled !== false;
-    const loginScale = Math.min(
-      1.45,
-      Math.max(0.78, Math.min(width / 390, height / 722)),
-    );
-    const scaleLogin = (value: number) => Math.round(value * loginScale);
-    const loginCardHeight = Math.min(height - 8, scaleLogin(722));
-    const loginCardWidth = Math.min(width - 48, scaleLogin(334));
-
-    return (
-      <View
-        style={[
-          styles.loginScreen,
-          isDarkModeEnabled ? styles.loginScreenDark : styles.loginScreenLight,
-        ]}
-      >
-        <StatusBar
-          backgroundColor={isDarkModeEnabled ? loginColors.darkShell : loginColors.lightShell}
-          style={isDarkModeEnabled ? "light" : "dark"}
-          translucent={false}
-        />
-        <SafeAreaView
-          style={[
-            styles.loginSafeArea,
-            isDarkModeEnabled ? styles.loginScreenDark : styles.loginScreenLight,
-          ]}
-        >
-          <View
-            style={[
-              styles.loginCard,
-              isDarkModeEnabled ? styles.loginCardDark : styles.loginCardLight,
-              {
-                borderRadius: scaleLogin(29),
-                minHeight: loginCardHeight,
-                paddingBottom: scaleLogin(28),
-                paddingHorizontal: scaleLogin(28),
-                paddingTop: scaleLogin(28),
-                width: loginCardWidth,
-              },
-            ]}
-          >
-            <View style={styles.loginBadgeShadow}>
-              <Image
-                accessibilityLabel="Team MECO 8324 logo"
-                resizeMode="contain"
-                source={require("./assets/meco-shield.png")}
-                style={[
-                  styles.loginLogoImage,
-                  { height: scaleLogin(334), width: scaleLogin(304) },
-                ]}
-              />
-            </View>
-
-            {isEmailCodeFlowAvailable ? (
-              <>
-                <Text
-                  style={[
-                    styles.loginTitle,
-                    {
-                      color: isDarkModeEnabled ? colors.white : colors.blue,
-                      fontSize: scaleLogin(28),
-                      marginBottom: scaleLogin(16),
-                      marginTop: scaleLogin(14),
-                    },
-                  ]}
-                >
-                  Sign in with email
-                </Text>
-
-                <View
-                  style={[
-                    styles.loginEmailRow,
-                    isDarkModeEnabled ? styles.loginEmailRowDark : styles.loginEmailRowLight,
-                    {
-                      minHeight: scaleLogin(50),
-                      paddingLeft: scaleLogin(18),
-                      paddingRight: scaleLogin(8),
-                    },
-                  ]}
-                >
-                  <TextInput
-                    autoCapitalize="none"
-                    autoComplete="email"
-                    autoCorrect={false}
-                    editable={!isAuthenticating && !hasRequestedEmailCode}
-                    keyboardType="email-address"
-                    onChangeText={(value) => {
-                      setAuthEmail(value);
-                      setAuthCode("");
-                      setAuthNotice(null);
-                      setHasRequestedEmailCode(false);
-                    }}
-                    placeholder={`you@${hostedDomain}`}
-                    placeholderTextColor={loginColors.placeholder}
-                    returnKeyType="next"
-                    style={[
-                      styles.loginEmailInput,
-                      { fontSize: scaleLogin(13), paddingVertical: scaleLogin(12) },
-                    ]}
-                    textContentType="emailAddress"
-                    value={authEmail}
-                  />
-                  <Pressable
-                    accessibilityRole="button"
-                    disabled={isAuthenticating}
-                    onPress={() => {
-                      if (hasRequestedEmailCode) {
-                        setAuthCode("");
-                        setAuthError(null);
-                        setAuthErrorState(null);
-                        setAuthNotice(null);
-                        setHasRequestedEmailCode(false);
-                        return;
-                      }
-
-                      void signInWithEmail();
-                    }}
-                    style={[
-                      styles.loginSendButton,
-                      styles.loginInlineSendButton,
-                      {
-                        minHeight: scaleLogin(36),
-                        minWidth: scaleLogin(78),
-                        paddingHorizontal: scaleLogin(10),
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.loginSendButtonText, { fontSize: scaleLogin(12) }]}>
-                      {hasRequestedEmailCode ? "Change" : isAuthenticating ? "Sending" : "Send Code"}
-                    </Text>
-                  </Pressable>
-                </View>
-
-                {hasRequestedEmailCode ? (
-                  <View
-                    style={[
-                      styles.loginCodeRow,
-                      isDarkModeEnabled ? styles.loginEmailRowDark : styles.loginEmailRowLight,
-                      {
-                        marginTop: scaleLogin(10),
-                        minHeight: scaleLogin(50),
-                        paddingLeft: scaleLogin(18),
-                        paddingRight: scaleLogin(8),
-                      },
-                    ]}
-                  >
-                    <TextInput
-                      autoCapitalize="none"
-                      autoComplete="one-time-code"
-                      autoCorrect={false}
-                      editable={!isAuthenticating}
-                      keyboardType="default"
-                      onChangeText={setAuthCode}
-                      onSubmitEditing={signInWithEmail}
-                      placeholder="Code"
-                      placeholderTextColor={loginColors.placeholder}
-                      returnKeyType="go"
-                      style={[
-                        styles.loginEmailInput,
-                        { fontSize: scaleLogin(13), paddingVertical: scaleLogin(12) },
-                      ]}
-                      textContentType="oneTimeCode"
-                      value={authCode}
-                    />
-                    <Pressable
-                      accessibilityRole="button"
-                      disabled={isAuthenticating}
-                      onPress={signInWithEmail}
-                      style={[
-                        styles.loginSendButton,
-                        styles.loginInlineSendButton,
-                        {
-                          minHeight: scaleLogin(36),
-                          minWidth: scaleLogin(78),
-                          paddingHorizontal: scaleLogin(10),
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.loginSendButtonText, { fontSize: scaleLogin(12) }]}>
-                        {isAuthenticating ? "Checking" : "Verify"}
-                      </Text>
-                    </Pressable>
-                  </View>
-                ) : null}
-              </>
-            ) : null}
-
-            {authNotice ? (
-              <Text style={[styles.loginNoticeText, { fontSize: scaleLogin(14) }]}>
-                {authNotice}
-              </Text>
-            ) : null}
-            {authError ? (
-              <Text
-                style={[
-                  styles.loginErrorText,
-                  {
-                    color: isDarkModeEnabled ? loginColors.darkError : colors.orangeInk,
-                    fontSize: scaleLogin(14),
-                  },
-                ]}
-              >
-                {authError}
-              </Text>
-            ) : null}
-
-            {isDevBypassAvailable ? (
-              <Pressable
-                accessibilityRole="button"
-                disabled={isAuthenticating}
-                onPress={signInWithDevBypass}
-                style={({ pressed }) => [
-                  styles.loginDevButton,
-                  {
-                    marginTop: scaleLogin(12),
-                    minHeight: scaleLogin(38),
-                    paddingHorizontal: scaleLogin(12),
-                  },
-                  pressed && styles.loginGoogleButtonPressed,
-                ]}
-              >
-                <Text style={[styles.loginDevButtonText, { fontSize: scaleLogin(12) }]}>
-                  {isAuthenticating ? "Signing in" : "Dev bypass"}
-                </Text>
-              </Pressable>
-            ) : null}
-
-            <Pressable
-              accessibilityRole="button"
-              disabled={isAuthenticating || isAuthConfigUnavailable}
-              onPress={signInWithGoogle}
-              style={({ pressed }) => [
-                styles.loginGoogleButton,
-                {
-                  gap: scaleLogin(8),
-                  marginTop: "auto",
-                  minHeight: scaleLogin(42),
-                  paddingHorizontal: scaleLogin(8),
-                },
-                pressed && styles.loginGoogleButtonPressed,
-              ]}
-            >
-              <View
-                style={[
-                  styles.loginAvatar,
-                  { height: scaleLogin(22), width: scaleLogin(22) },
-                ]}
-              >
-                <Text style={[styles.loginAvatarText, { fontSize: scaleLogin(12) }]}>A</Text>
-              </View>
-              <Text style={[styles.loginGoogleText, { fontSize: scaleLogin(13) }]}>
-                {isAuthConfigUnavailable
-                  ? "Auth unavailable"
-                  : isAuthenticating
-                    ? "Signing in"
-                    : "Sign in with Google"}
-              </Text>
-              <View
-                style={[
-                  styles.loginGoogleMark,
-                  { height: scaleLogin(38), width: scaleLogin(38) },
-                ]}
-              >
-                <Image
-                  accessibilityLabel="Google logo"
-                  resizeMode="contain"
-                  source={require("./assets/google-g.png")}
-                  style={[
-                    styles.loginGoogleMarkImage,
-                    { height: scaleLogin(26), width: scaleLogin(26) },
-                  ]}
-                />
-              </View>
-            </Pressable>
-          </View>
-        </SafeAreaView>
-      </View>
-    );
-  };
-
-  const renderProjectOverlay = () => (
-    <Modal
-      animationType="fade"
-      onRequestClose={() => setIsProjectOverlayVisible(false)}
-      supportedOrientations={["portrait", "landscape-left", "landscape-right"]}
-      transparent
-      visible={isProjectOverlayVisible}
-    >
-      <Pressable
-        onPress={() => setIsProjectOverlayVisible(false)}
-        style={styles.overlayScrim}
-      >
-        <Pressable onPress={() => undefined} style={[styles.overlayCard, appResponsiveStyles.overlayCard]}>
-          <View style={styles.overlayHeader}>
-            <View style={[styles.projectMark, { backgroundColor: themeColors.navySurface }]}>
-              <Text style={[styles.projectMarkLabel, { color: themeColors.navyInk }]}>RB</Text>
-            </View>
-            <View style={styles.overlayHeaderCopy}>
-              <Text style={[styles.overlayTitle, { color: themeColors.ink }]}>MECO Mission Control</Text>
-              <Text style={[styles.overlaySubtitle, { color: themeColors.subtleText }]}>Robot project selector</Text>
-            </View>
-          </View>
-
-          <Text style={[styles.overlayBody, { color: themeColors.ink }]}>
-            Tap this project chip from the top bar to inspect or edit the active robot
-            workspace without leaving the current view.
-          </Text>
-
-          <View style={styles.overlayActionRow}>
-            <Pressable
-              accessibilityRole="button"
-              hitSlop={8}
-              onPress={() => {
-                setActiveTab("subsystems");
-                setIsProjectOverlayVisible(false);
-              }}
-              style={styles.overlayActionButton}
-            >
-              <Text style={styles.overlayActionLabel}>Edit robot</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              hitSlop={8}
-              onPress={() => {
-                setActiveTab("subsystems");
-                setIsProjectOverlayVisible(false);
-              }}
-              style={[
-                styles.overlaySecondaryButton,
-                { backgroundColor: themeColors.canvas, borderColor: themeColors.border },
-              ]}
-            >
-              <Text style={[styles.overlaySecondaryLabel, { color: themeColors.navyInk }]}>Switch project</Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-
-  const renderAttendanceModal = () => (
-    <Modal
-      animationType="fade"
-      onRequestClose={() => setIsAttendanceModalVisible(false)}
-      supportedOrientations={["portrait", "landscape-left", "landscape-right"]}
-      transparent
-      visible={isAttendanceModalVisible}
-    >
-      <View style={[styles.modalScrim, isCompactLayout && styles.modalScrimCompact]}>
-        <View
-          style={[
-            styles.modalCard,
-            { backgroundColor: themeColors.surface, borderColor: themeColors.border },
-            isCompactLayout && styles.modalCardCompact,
-          ]}
-        >
-          <Text style={[styles.modalTitle, { color: themeColors.ink }]}>
-            Meeting attendance
-          </Text>
-          <Text style={[styles.queueRowSubtitle, appResponsiveStyles.rowSubtitle]}>
-            Everyone for this meeting, sorted alphabetically.
-          </Text>
-
-          <ScrollView
-            contentContainerStyle={styles.modalContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {meetingAttendance.map(({ member, status }) => (
-              <View
-                key={member.id}
-                style={[styles.attendanceRow, appResponsiveStyles.rowCard]}
-              >
-                <View style={styles.queueRowPrimaryText}>
-                  <Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>
-                    {member.name}
-                  </Text>
-                  <Text style={[styles.queueRowSubtitle, appResponsiveStyles.rowSubtitle]}>
-                    {capitalize(member.role)}
-                  </Text>
-                </View>
-                <AttendanceStatusMark status={status} />
-              </View>
-            ))}
-          </ScrollView>
-
-          <View style={[styles.modalActions, isCompactLayout && styles.modalActionsCompact]}>
-            <Pressable
-              onPress={() => setIsAttendanceModalVisible(false)}
-              style={[
-                styles.modalSaveButton,
-                isCompactLayout && styles.modalActionButtonCompact,
-              ]}
-            >
-              <Text style={styles.modalSaveButtonLabel}>Close</Text>
-            </Pressable>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-
-  const renderPersonMenu = () => (
-    <Modal
-      animationType="fade"
-      onRequestClose={() => {
-        setIsPersonMenuVisible(false);
-        setIsSeasonMenuVisible(false);
-      }}
-      supportedOrientations={["portrait", "landscape-left", "landscape-right"]}
-      transparent
-      visible={isPersonMenuVisible}
-    >
-      <Pressable
-        onPress={() => {
-          setIsPersonMenuVisible(false);
-          setIsSeasonMenuVisible(false);
-        }}
-        style={styles.overlayScrim}
-      >
-        <Pressable onPress={() => undefined} style={[styles.overlayCard, appResponsiveStyles.overlayCard]}>
-          <View style={styles.overlayHeader}>
-            <View style={[styles.personMark, { backgroundColor: themeColors.navySurface }]}>
-              <Text style={[styles.personMarkLabel, { color: themeColors.navyInk }]}>
-                {signedInEmailInitial}
-              </Text>
-            </View>
-            <View style={styles.overlayHeaderCopy}>
-              <Text style={[styles.overlayTitle, { color: themeColors.ink }]}>Personal settings</Text>
-              <Text style={[styles.overlaySubtitle, { color: themeColors.subtleText }]}>{syncStatusLabel}</Text>
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              onPress={signOut}
-              style={styles.overlayHeaderAction}
-            >
-              <Text style={[styles.overlayHeaderActionLabel, { color: themeColors.ink }]}>
-                Sign out
-              </Text>
-            </Pressable>
-          </View>
-
-          <Pressable
-            onPress={() => {
-              void updateThemePreference(themeMode === "dark" ? "light" : "dark", apiToken);
-            }}
-            style={[
-              styles.settingsRow,
-              appResponsiveStyles.settingsRow,
-              isDarkModeEnabled && [styles.settingsRowActive, appResponsiveStyles.settingsRowActive],
-            ]}
-          >
-            <View>
-          <Text style={[styles.settingsRowTitle, { color: themeColors.ink }]}>Theme</Text>
-            </View>
-            <Text style={[styles.settingsRowValue, { color: themeColors.navyInk }]}>
-              {themeMode === "dark" ? "Dark" : "Light"}
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => setIsSeasonMenuVisible((current) => !current)}
-            style={[
-              styles.settingsRow,
-              appResponsiveStyles.settingsRow,
-              isSeasonMenuVisible && [styles.settingsRowActive, appResponsiveStyles.settingsRowActive],
-            ]}
-          >
-            <View>
-              <Text style={[styles.settingsRowTitle, { color: themeColors.ink }]}>Season</Text>
-            </View>
-            {isSeasonMenuVisible ? (
-              <Pressable
-                accessibilityLabel="Add new season"
-                accessibilityRole="button"
-                onPress={(event) => {
-                  event.stopPropagation();
-                  createSeason();
-                }}
-                style={[styles.settingsIconButton, appResponsiveStyles.settingsIconButton]}
-              >
-                <Text style={[styles.settingsIconButtonLabel, { color: themeColors.navyInk }]}>
-                  +
-                </Text>
-              </Pressable>
-            ) : (
-              <Text style={[styles.settingsRowValue, { color: themeColors.navyInk }]}>
-                {seasonModeLabel}
-              </Text>
-            )}
-          </Pressable>
-
-          {isSeasonMenuVisible ? (
-            <View style={[styles.settingsSubmenu, appResponsiveStyles.settingsSubmenu]}>
-              {seasons.map((option) => {
-                const isSelected = activeSeasonId === option.id;
-
-                return (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: isSelected }}
-                    key={option.id}
-                    onPress={() => {
-                      setActiveSeasonId(option.id);
-                      setIsSeasonMenuVisible(false);
-                    }}
-                    style={[
-                      styles.settingsSubmenuRow,
-                      isSelected && [
-                        styles.settingsSubmenuRowActive,
-                        appResponsiveStyles.settingsSubmenuRowActive,
-                      ],
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.settingsSubmenuLabel,
-                        { color: themeColors.ink },
-                        isSelected && { color: themeColors.navyInk },
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                    <Pressable
-                      accessibilityLabel={`Delete ${option.label}`}
-                      accessibilityRole="button"
-                      onPress={(event) => {
-                        event.stopPropagation();
-                        deleteSeason(option.id);
-                      }}
-                      style={[styles.settingsIconButton, appResponsiveStyles.settingsIconButton]}
-                    >
-                      <Text
-                        style={[
-                          styles.settingsIconButtonLabel,
-                          { color: themeColors.navyInk },
-                        ]}
-                      >
-                        -
-                      </Text>
-                    </Pressable>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : null}
-
-          <Pressable
-            onPress={resetWorkspaceData}
-            style={[styles.settingsRow, appResponsiveStyles.settingsRow]}
-          >
-            <View>
-              <Text style={[styles.settingsRowTitle, { color: themeColors.ink }]}>Refresh data</Text>
-            </View>
-            <Text style={[styles.settingsRowValue, { color: themeColors.navyInk }]}>Run</Text>
-          </Pressable>
-
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-
   return (
     <LocalizationProvider languageOverride={languageOverride}>
       {isRestoringAuthSession ? null : !hasAuthenticated ? (
-        renderLoginScreen()
+        <LoginScreen
+          authCode={authCode}
+          authConfig={authConfig}
+          authEmail={authEmail}
+          authError={authError}
+          authNotice={authNotice}
+          hasRequestedEmailCode={hasRequestedEmailCode}
+          height={height}
+          isAuthConfigUnavailable={isAuthConfigUnavailable}
+          isAuthenticating={isAuthenticating}
+          isDarkModeEnabled={isDarkModeEnabled}
+          setAuthCode={setAuthCode}
+          setAuthEmail={setAuthEmail}
+          setAuthError={setAuthError}
+          setAuthErrorState={setAuthErrorState}
+          setAuthNotice={setAuthNotice}
+          setHasRequestedEmailCode={setHasRequestedEmailCode}
+          signInWithEmail={signInWithEmail}
+          signInWithGoogle={signInWithGoogle}
+          width={width}
+        />
       ) : (
         <AppThemeProvider value={{ colors: themeColors, mode: themeMode }}>
           <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.canvas }]}>
@@ -7876,11 +6779,76 @@ export default function App() {
         <View {...subtabSwipeResponder.panHandlers}>{renderActiveTab()}</View>
       </ScrollView>
       <View style={styles.navSwipeEdge} {...navigationOpenSwipeResponder.panHandlers} />
-      {renderAttendanceModal()}
+      <AttendanceModal
+        isCompactLayout={isCompactLayout}
+        meetingAttendance={meetingAttendance}
+        onClose={() => setIsAttendanceModalVisible(false)}
+        rowCardStyle={appResponsiveStyles.rowCard}
+        rowSubtitleStyle={appResponsiveStyles.rowSubtitle}
+        rowTitleStyle={appResponsiveStyles.rowTitle}
+        themeColors={themeColors}
+        visible={isAttendanceModalVisible}
+      />
       {renderEditorModals()}
-      {renderNavigationMenu()}
-      {renderProjectOverlay()}
-      {renderPersonMenu()}
+      <NavigationMenu
+        activeTab={activeTab}
+        activeTabLabel={activeTabLabel}
+        closeButtonStyle={appResponsiveStyles.iconButton}
+        drawerStyle={appResponsiveStyles.navDrawer}
+        navBubbleStyle={appResponsiveStyles.navBubble}
+        navCountStyle={appResponsiveStyles.navCount}
+        navTabActiveStyle={appResponsiveStyles.navTabActive}
+        navTabStyle={appResponsiveStyles.navTab}
+        navigationCloseHandlers={navigationCloseSwipeResponder.panHandlers}
+        navigationSections={navigationSections}
+        onClose={closeNavigationMenu}
+        onSelectTab={selectNavigationTab}
+        themeColors={themeColors}
+        visible={isNavMenuVisible}
+      />
+      <ProjectOverlay
+        cardStyle={appResponsiveStyles.overlayCard}
+        onClose={() => setIsProjectOverlayVisible(false)}
+        onOpenSubsystems={() => {
+          setActiveTab("subsystems");
+          setIsProjectOverlayVisible(false);
+        }}
+        themeColors={themeColors}
+        visible={isProjectOverlayVisible}
+      />
+      <PersonMenu
+        activeSeasonId={activeSeasonId}
+        apiToken={apiToken}
+        cardStyle={appResponsiveStyles.overlayCard}
+        createSeason={createSeason}
+        deleteSeason={deleteSeason}
+        iconButtonStyle={appResponsiveStyles.settingsIconButton}
+        isDarkModeEnabled={isDarkModeEnabled}
+        isSeasonMenuVisible={isSeasonMenuVisible}
+        onClose={() => {
+          setIsPersonMenuVisible(false);
+          setIsSeasonMenuVisible(false);
+        }}
+        onResetWorkspaceData={resetWorkspaceData}
+        onSelectSeason={(seasonId) => {
+          setActiveSeasonId(seasonId);
+          setIsSeasonMenuVisible(false);
+        }}
+        onSignOut={signOut}
+        onToggleSeasonMenu={() => setIsSeasonMenuVisible((current) => !current)}
+        onUpdateThemePreference={updateThemePreference}
+        rowActiveStyle={appResponsiveStyles.settingsRowActive}
+        rowStyle={appResponsiveStyles.settingsRow}
+        seasonModeLabel={seasonModeLabel}
+        seasons={seasons}
+        signedInEmailInitial={signedInEmailInitial}
+        submenuRowActiveStyle={appResponsiveStyles.settingsSubmenuRowActive}
+        submenuStyle={appResponsiveStyles.settingsSubmenu}
+        syncStatusLabel={syncStatusLabel}
+        themeColors={themeColors}
+        themeMode={themeMode}
+        visible={isPersonMenuVisible}
+      />
           </SafeAreaView>
         </AppThemeProvider>
       )}

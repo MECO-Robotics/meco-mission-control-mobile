@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 SKILLS_REPO="${SKILLS_REPO:-https://github.com/MECO-Robotics/mission-control-skills.git}"
+SKILLS_REF="${SKILLS_REF:-}"
 SYNC_MISSING_SKILLS="${SYNC_MISSING_SKILLS:-false}"
 TMP_PARENT="${TMP_DIR:-}"
 if [ -n "$TMP_PARENT" ]; then
@@ -40,13 +41,20 @@ require_repo_root
 trap cleanup EXIT
 
 echo "Checking skills against: $SKILLS_REPO"
+if [ -n "$SKILLS_REF" ]; then
+  echo "Using skills ref: $SKILLS_REF"
+fi
 
-if ! git clone --depth 1 "$SKILLS_REPO" "$TMP_DIR"; then
+if ! git clone "$SKILLS_REPO" "$TMP_DIR"; then
   fail "failed to clone shared skills repo: $SKILLS_REPO"
 fi
 
+if [ -n "$SKILLS_REF" ] && ! git -C "$TMP_DIR" checkout --quiet "$SKILLS_REF"; then
+  fail "failed to checkout SKILLS_REF '$SKILLS_REF' from shared skills repo."
+fi
+
 if [ ! -d "$TMP_DIR/skills" ]; then
-  fail "shared repo does not contain a skills/ directory."
+  fail "shared repo ref '${SKILLS_REF:-default branch}' does not contain a skills/ directory."
 fi
 
 if [ ! -d "skills" ]; then

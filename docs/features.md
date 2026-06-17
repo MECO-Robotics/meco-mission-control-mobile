@@ -115,6 +115,8 @@ Risk management combines active task blockers, subsystem risks, dependency delay
 
 Roster groups members by role and supports member creation/editing. Roles are student, lead, mentor, and admin.
 
+Selecting a member opens a pop-out card with basic roster details such as name, email, planned attendance days, and attendance notes. Mentor/admin users see an Edit action from the selected-member details; student users can inspect the details without an edit button.
+
 ## Localization And Themes
 
 The app supports English plus Turkish, Hebrew, French, Chinese, Spanish, Portuguese, Dutch, German, and Arabic translations. RTL text direction is enabled for RTL languages.

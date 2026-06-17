@@ -1,4 +1,4 @@
-import type { AppScreenProps } from "./types";
+import type { AppScreenProps } from "../types";
 import { InventoryMaterialsScreen } from "./InventoryMaterialsScreen";
 import { InventoryPartsScreen } from "./InventoryPartsScreen";
 import { InventoryPurchasesScreen } from "./InventoryPurchasesScreen";

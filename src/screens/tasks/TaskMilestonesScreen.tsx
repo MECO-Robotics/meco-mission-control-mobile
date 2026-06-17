@@ -1,13 +1,13 @@
 import { Pressable, View } from "react-native";
 
-import { Text } from "../i18n";
+import { Text } from "../../i18n";
 import {
   EVENT_TYPE_OPTIONS,
   EVENT_TYPE_STYLES,
   SUBVIEW_INTERACTION_GUIDANCE,
-} from "../ui/constants";
-import { formatDateTime } from "../ui/helpers";
-import { styles } from "../ui/styles";
+} from "../../ui/constants";
+import { formatDateTime } from "../../ui/helpers";
+import { styles } from "../../ui/styles";
 import {
   EmptyState,
   FilterToolbar,
@@ -16,10 +16,10 @@ import {
   SearchField,
   SummaryRow,
   WorkspacePanel,
-} from "../ui/ui";
-import type { MilestoneSortField } from "../ui/types";
+} from "../../ui/ui";
+import type { MilestoneSortField } from "../../ui/types";
 
-import type { AppScreenProps } from "./types";
+import type { AppScreenProps } from "../types";
 
 export function TaskMilestonesScreen(props: AppScreenProps) {
   const {
