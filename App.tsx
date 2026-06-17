@@ -176,7 +176,6 @@ import {
   startWorkLogLiveActivity,
   updateWorkLogLiveActivity,
 } from "./src/services/workLogLiveActivity";
-import { clearPersistedAuthSession } from "./src/services/authSessionStorage";
 import {
   clearPersistedAuthSession,
   getOrCreateAuthDeviceNumber,
@@ -1288,8 +1287,56 @@ export default function App() {
         setHasAuthenticated(true);
       }
     },
-    [applyThemePreferenceFromServer, refreshWorkspaceFromServer, syncPendingWorkLogDrafts],
+    [
+      applyThemePreferenceFromServer,
+      endSessionForAuthFailure,
+      refreshWorkspaceFromServer,
+      syncPendingWorkLogDrafts,
+    ],
   );
+
+  const finishLocalDevBypass = useCallback(async () => {
+    await finishSignIn(
+      null,
+      buildLocalDevSessionUser(authEmail, requiredEmailDomain),
+    );
+  }, [authEmail, finishSignIn, requiredEmailDomain]);
+
+  const signInWithDevBypass = useCallback(async () => {
+    setIsAuthenticating(true);
+    setAuthError(null);
+    setAuthErrorState(null);
+    setAuthNotice(null);
+
+    try {
+      if (isLocalDevBypassAvailable) {
+        await finishLocalDevBypass();
+        return;
+      }
+
+      if (!authConfig?.devBypassAvailable) {
+        setAuthError("Development sign-in is not enabled for this workspace.");
+        return;
+      }
+
+      const session = await requestJson<SessionResponse>(
+        apiBaseUrl,
+        "/api/auth/dev-bypass",
+        { method: "POST" },
+      );
+      await finishSignIn(session.token, session.user);
+    } catch (error) {
+      setAuthError(getClientErrorMessage(error));
+    } finally {
+      setIsAuthenticating(false);
+    }
+  }, [
+    apiBaseUrl,
+    authConfig?.devBypassAvailable,
+    finishLocalDevBypass,
+    finishSignIn,
+    isLocalDevBypassAvailable,
+  ]);
 
   useEffect(() => {
     if (hasRestoredAuthSessionRef.current) {
@@ -1343,7 +1390,7 @@ export default function App() {
       }
 
       if (!activeGoogleClientId) {
-        if (!authConfig?.devBypassAvailable) {
+        if (!isDevBypassAvailable) {
           showAuthError(
             Platform.OS === "ios"
               ? "Google sign-in needs a configured Google client ID, then Expo must be restarted."
@@ -1354,12 +1401,7 @@ export default function App() {
           return;
         }
 
-        const session = await requestJson<SessionResponse>(
-          apiBaseUrl,
-          "/api/auth/dev-bypass",
-          { method: "POST" },
-        );
-        await finishSignIn(session.token, session.user);
+        await signInWithDevBypass();
         return;
       }
 
@@ -1386,13 +1428,12 @@ export default function App() {
       setIsAuthenticating(false);
     }
   }, [
-    apiBaseUrl,
     activeGoogleClientId,
-    authConfig?.devBypassAvailable,
-    finishSignIn,
     googleRequest,
+    isDevBypassAvailable,
     isAuthConfigUnavailable,
     promptGoogleSignIn,
+    signInWithDevBypass,
     showAuthError,
   ]);
 
