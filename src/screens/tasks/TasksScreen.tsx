@@ -1,8 +1,8 @@
-import { TASK_SUBTEAM_OPTIONS } from "../ui/constants";
-import { LandscapeSubsystemTimeline } from "../ui/landscapeTimeline/LandscapeSubsystemTimeline";
-import { SectionTabs } from "../ui/ui";
+import { TASK_SUBTEAM_OPTIONS } from "../../ui/constants";
+import { LandscapeSubsystemTimeline } from "../../ui/landscapeTimeline/LandscapeSubsystemTimeline";
+import { SectionTabs } from "../../ui/ui";
 
-import type { AppScreenProps } from "./types";
+import type { AppScreenProps } from "../types";
 import { TaskMilestonesScreen } from "./TaskMilestonesScreen";
 import { TaskQueueScreen } from "./TaskQueueScreen";
 import { TaskTimelineScreen } from "./TaskTimelineScreen";

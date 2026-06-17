@@ -1,16 +1,16 @@
 import { Pressable, View } from "react-native";
 
-import { Text } from "../i18n";
-import { capitalize } from "../ui/helpers";
-import { styles } from "../ui/styles";
+import { Text } from "../../i18n";
+import { capitalize } from "../../ui/helpers";
+import { styles } from "../../ui/styles";
 import {
   EmptyState,
   StatusPill,
   SummaryRow,
   WorkspacePanel,
-} from "../ui/ui";
+} from "../../ui/ui";
 
-import type { AppScreenProps, AttendanceStatus } from "./types";
+import type { AppScreenProps, AttendanceStatus } from "../types";
 
 const ATTENDANCE_STATUS_OPTIONS: { status: AttendanceStatus; label: string }[] = [
   { status: "yes", label: "Coming" },

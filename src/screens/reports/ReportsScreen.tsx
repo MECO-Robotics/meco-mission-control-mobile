@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
 
-import { Text } from "../i18n";
-import { buildHelpRequestDisplayRows } from "../data/helpRequests";
-import { SUBVIEW_INTERACTION_GUIDANCE } from "../ui/constants";
-import { formatDateTime } from "../ui/helpers";
-import { styles } from "../ui/styles";
+import { Text } from "../../i18n";
+import { buildHelpRequestDisplayRows } from "../../data/helpRequests";
+import { SUBVIEW_INTERACTION_GUIDANCE } from "../../ui/constants";
+import { formatDateTime } from "../../ui/helpers";
+import { styles } from "../../ui/styles";
 import {
   DropdownField,
   EmptyState,
@@ -15,10 +15,10 @@ import {
   StatusPill,
   SummaryRow,
   WorkspacePanel,
-} from "../ui/ui";
+} from "../../ui/ui";
 
-import type { AppScreenProps } from "./types";
-import { QaDetailFields, type QaDetailRow } from "./reports/QaDetailFields";
+import type { AppScreenProps } from "../types";
+import { QaDetailFields, type QaDetailRow } from "./QaDetailFields";
 
 const QA_FIX_SIZE_RANK: Record<string, number> = {
   "iteration-worthy": 0,

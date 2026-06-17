@@ -6,8 +6,8 @@ The app is an Expo/React Native application with TypeScript. `App.tsx` currently
 
 - `App.tsx`: app shell, auth, bootstrap loading, mutation orchestration, navigation, editor modals, derived summaries, and state.
 - `index.ts`: Expo entry point.
-- `src/screens/`: feature screens for home, tasks, work logs, manufacturing, inventory, reports, risks, subsystems, attendance, and roster.
-- `src/screens/reports/`: report-specific field rendering.
+- `src/screens/`: shared screen prop types plus feature folders for dashboard, tasks, work logs, manufacturing, inventory, reports, robot systems/risks, attendance, and roster screens.
+- `src/app/`: app-shell helpers and root-level presentation components extracted from `App.tsx`.
 - `src/ui/`: shared UI components, editor widgets, selection widgets, helpers, responsive metrics, theme context, constants, and styles.
 - `src/ui/landscapeTimeline/`: landscape timeline and calendar-specific model, palette, components, and styles.
 - `src/data/`: API helper, mock snapshot, and seeded task data.
@@ -86,6 +86,6 @@ Mutations use a shared `runMutation` path in `App.tsx`: submit the request, refr
 
 ## Styling
 
-Most shared styles live in `src/ui/styles.ts`. Landscape timeline styles are split into dedicated modules under `src/ui/landscapeTimeline/`. Responsive sizing comes from `src/ui/responsive.ts`, and theme values come from `src/theme.ts` plus `src/ui/themeContext.tsx`.
+Most shared styles live in `src/ui/styles.ts`. Feature-specific styles can live with their component, such as the login screen styles under `src/app/components/`. Landscape timeline styles are split into dedicated modules under `src/ui/landscapeTimeline/`. Responsive sizing comes from `src/ui/responsive.ts`, and theme values come from `src/theme.ts` plus `src/ui/themeContext.tsx`.
 
 Follow the repository `AGENTS.md` limits when adding or modifying implementation files: split files above the refactor thresholds and keep feature responsibilities separated.

@@ -101,4 +101,4 @@ Follow `AGENTS.md` structural rules:
 - Split screens/components/hooks/utilities by responsibility.
 - Keep styles scoped to a component or feature.
 
-For this app's current architecture, prefer adding feature rendering inside `src/screens/`, shared controls inside `src/ui/`, domain types inside `src/types/domain.ts`, API helpers inside `src/data/`, and device services inside `src/services/`.
+For this app's current architecture, prefer adding feature rendering inside the relevant `src/screens/<feature>/` folder, app-shell components inside `src/app/`, shared controls inside `src/ui/`, domain types inside `src/types/domain.ts`, API helpers inside `src/data/`, and device services inside `src/services/`.

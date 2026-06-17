@@ -1,13 +1,13 @@
 import { Pressable, View } from "react-native";
 
-import { Text } from "../i18n";
+import { Text } from "../../i18n";
 import {
   ARCHIVE_FILTER_OPTIONS,
   MANUFACTURING_STATUS_OPTIONS,
   SUBVIEW_INTERACTION_GUIDANCE,
-} from "../ui/constants";
-import { formatDate } from "../ui/helpers";
-import { styles } from "../ui/styles";
+} from "../../ui/constants";
+import { formatDate } from "../../ui/helpers";
+import { styles } from "../../ui/styles";
 import {
   EmptyState,
   FilterToolbar,
@@ -17,10 +17,10 @@ import {
   StatusPill,
   SummaryRow,
   WorkspacePanel,
-} from "../ui/ui";
-import type { ArchiveFilterMode } from "../ui/types";
+} from "../../ui/ui";
+import type { ArchiveFilterMode } from "../../ui/types";
 
-import type { AppScreenProps } from "./types";
+import type { AppScreenProps } from "../types";
 
 export function ManufacturingScreen(props: AppScreenProps) {
   const {

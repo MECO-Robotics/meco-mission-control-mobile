@@ -1,8 +1,8 @@
 import { View } from "react-native";
 
-import { statusToneColors } from "../theme";
-import { Text } from "../i18n";
-import { styles } from "../ui/styles";
+import { statusToneColors } from "../../theme";
+import { Text } from "../../i18n";
+import { styles } from "../../ui/styles";
 
 type AttendanceStatusMarkProps = {
   status: "yes" | "maybe" | "no";

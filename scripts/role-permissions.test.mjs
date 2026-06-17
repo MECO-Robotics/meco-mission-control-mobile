@@ -4,7 +4,7 @@ import { test } from "node:test";
 
 const appSource = readFileSync(new URL("../App.tsx", import.meta.url), "utf8");
 const screenTypesSource = readFileSync(new URL("../src/screens/types.ts", import.meta.url), "utf8");
-const manufacturingSource = readFileSync(new URL("../src/screens/ManufacturingScreen.tsx", import.meta.url), "utf8");
+const manufacturingSource = readFileSync(new URL("../src/screens/manufacturing/ManufacturingScreen.tsx", import.meta.url), "utf8");
 
 test("App derives mentor approval permission from trusted mentor and admin roles", () => {
   const signedInMemberBlock = appSource.match(
