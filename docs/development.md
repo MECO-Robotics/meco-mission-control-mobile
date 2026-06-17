@@ -58,7 +58,11 @@ Backend:
 ```text
 EXPO_PUBLIC_API_BASE_URL=http://localhost:8080
 EXPO_PUBLIC_API_TOKEN=<optional-development-token>
+EXPO_PUBLIC_DEV_AUTH_BYPASS=true
 ```
+
+`EXPO_PUBLIC_DEV_AUTH_BYPASS=true` exposes a development-only local sign-in
+bypass for backend-offline simulator work.
 
 Google auth:
 

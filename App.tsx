@@ -100,6 +100,10 @@ import {
   requestJson,
   resolveApiBaseUrl,
 } from "./src/data/api";
+import {
+  buildLocalDevSessionUser,
+  isLocalDevAuthBypassEnabled,
+} from "./src/data/devAuthBypass";
 import { buildHelpRequest, type HelpRequestInput } from "./src/data/helpRequests";
 import {
   buildOwnedTaskStartPayload,
@@ -285,6 +289,7 @@ export default function App() {
   const [syncError, setSyncError] = useState<string | null>(null);
   const envGoogleClientId =
     process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID?.trim() ?? "";
+  const isLocalDevBypassAvailable = isLocalDevAuthBypassEnabled();
   const googleClientId = authConfig?.googleClientId?.trim() || envGoogleClientId;
   const googleIosClientId =
     process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() || googleClientId;
@@ -294,6 +299,8 @@ export default function App() {
     process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() || googleClientId;
   const requiredEmailDomain = normalizeRequiredEmailDomain(authConfig?.hostedDomain);
   const isAuthConfigUnavailable = authErrorState === "auth-config-unavailable";
+  const isDevBypassAvailable =
+    isLocalDevBypassAvailable || authConfig?.devBypassAvailable === true;
   const activeGoogleClientId =
     Platform.OS === "ios"
       ? googleIosClientId
@@ -850,6 +857,49 @@ export default function App() {
     ],
   );
 
+  const finishLocalDevBypass = useCallback(async () => {
+    await finishSignIn(
+      null,
+      buildLocalDevSessionUser(authEmail, requiredEmailDomain),
+    );
+  }, [authEmail, finishSignIn, requiredEmailDomain]);
+
+  const signInWithDevBypass = useCallback(async () => {
+    setIsAuthenticating(true);
+    setAuthError(null);
+    setAuthErrorState(null);
+    setAuthNotice(null);
+
+    try {
+      if (isLocalDevBypassAvailable) {
+        await finishLocalDevBypass();
+        return;
+      }
+
+      if (!authConfig?.devBypassAvailable) {
+        setAuthError("Development sign-in is not enabled for this workspace.");
+        return;
+      }
+
+      const session = await requestJson<SessionResponse>(
+        apiBaseUrl,
+        "/api/auth/dev-bypass",
+        { method: "POST" },
+      );
+      await finishSignIn(session.token, session.user);
+    } catch (error) {
+      setAuthError(getClientErrorMessage(error));
+    } finally {
+      setIsAuthenticating(false);
+    }
+  }, [
+    apiBaseUrl,
+    authConfig?.devBypassAvailable,
+    finishLocalDevBypass,
+    finishSignIn,
+    isLocalDevBypassAvailable,
+  ]);
+
   useEffect(() => {
     if (hasRestoredAuthSessionRef.current) {
       return;
@@ -902,7 +952,7 @@ export default function App() {
       }
 
       if (!activeGoogleClientId) {
-        if (!authConfig?.devBypassAvailable) {
+        if (!isDevBypassAvailable) {
           showAuthError(
             Platform.OS === "ios"
               ? "Google sign-in needs a configured Google client ID, then Expo must be restarted."
@@ -913,12 +963,7 @@ export default function App() {
           return;
         }
 
-        const session = await requestJson<SessionResponse>(
-          apiBaseUrl,
-          "/api/auth/dev-bypass",
-          { method: "POST" },
-        );
-        await finishSignIn(session.token, session.user);
+        await signInWithDevBypass();
         return;
       }
 
@@ -945,13 +990,12 @@ export default function App() {
       setIsAuthenticating(false);
     }
   }, [
-    apiBaseUrl,
     activeGoogleClientId,
-    authConfig?.devBypassAvailable,
-    finishSignIn,
     googleRequest,
+    isDevBypassAvailable,
     isAuthConfigUnavailable,
     promptGoogleSignIn,
+    signInWithDevBypass,
     showAuthError,
   ]);
 
@@ -1071,6 +1115,25 @@ export default function App() {
         return;
       }
 
+      if (isLocalDevBypassAvailable) {
+        await finishLocalDevBypass();
+        return;
+      }
+
+      if (currentAuthConfig?.devBypassAvailable) {
+        const session = await requestJson<SessionResponse>(
+          apiBaseUrl,
+          "/api/auth/dev-bypass",
+          { method: "POST" },
+        );
+        await finishSignIn(session.token, {
+          ...session.user,
+          authProvider: "email",
+          email,
+        });
+        return;
+      }
+
       if (currentAuthConfig?.enabled === false) {
         setAuthError(
           "Authentication service is unavailable. Check the backend auth configuration and try again.",
@@ -1109,7 +1172,9 @@ export default function App() {
     authCode,
     authEmail,
     finishSignIn,
+    finishLocalDevBypass,
     hasRequestedEmailCode,
+    isLocalDevBypassAvailable,
     isAuthConfigUnavailable,
     loadPublicAuthConfig,
     requiredEmailDomain,
