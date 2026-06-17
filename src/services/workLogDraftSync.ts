@@ -59,6 +59,8 @@ export function normalizeWorkLogDraftPayload(
 export function buildWorkLogDraftFingerprint(payload: WorkLogDraftPayload) {
   const normalized = normalizeWorkLogDraftPayload(payload);
 
+  // Fingerprints let us detect duplicate local drafts and already-uploaded
+  // server work logs without relying on local-only draft ids.
   return [
     normalized.taskId,
     normalized.date,
@@ -124,6 +126,7 @@ function parsePendingWorkLogDrafts(rawValue: string | null) {
     ...draft,
     fingerprint: buildWorkLogDraftFingerprint(draft.payload),
     payload: normalizeWorkLogDraftPayload(draft.payload),
+    // A sync can be interrupted by app shutdown; retry those drafts normally.
     status: draft.status === "syncing" ? "pending" : draft.status,
   }));
 }
@@ -164,6 +167,7 @@ export function enqueuePendingWorkLogDraft(
   );
 
   if (existingDraft) {
+    // Treat repeated save attempts for the same user/content as idempotent.
     return {
       didCreate: false,
       draft: existingDraft,
@@ -249,6 +253,7 @@ export function reconcilePendingWorkLogDrafts(
 
   return drafts.filter((draft) => {
     if ((draft.ownerKey ?? null) !== ownerKey) {
+      // Preserve drafts for other signed-in users on shared devices.
       return true;
     }
 

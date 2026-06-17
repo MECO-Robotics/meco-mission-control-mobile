@@ -38,6 +38,8 @@ function isSessionUser(value: unknown): value is SessionUser {
 }
 
 function generateDeviceNumber() {
+  // A stable local device number lets us bind restored sessions to this install
+  // without storing platform-specific device identifiers.
   const uuidHex = Crypto.randomUUID().replace(/-/g, "");
   const numericValue = parseInt(uuidHex.slice(0, 12), 16);
   return String(numericValue).padStart(15, "0");
@@ -119,12 +121,14 @@ export async function loadPersistedAuthSession(deviceNumber: string) {
   }
 
   if (parsed.deviceNumber === null) {
+    // Upgrade sessions written before device binding was added.
     const upgradedSession = { ...parsed, deviceNumber };
     await savePersistedAuthSession(upgradedSession);
     return upgradedSession;
   }
 
   if (parsed.deviceNumber !== deviceNumber) {
+    // Avoid restoring a copied AsyncStorage session on a different install.
     await writeStoredSessionRaw(null);
     return null;
   }

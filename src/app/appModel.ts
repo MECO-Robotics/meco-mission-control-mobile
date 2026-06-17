@@ -94,6 +94,8 @@ export const PLANNED_ATTENDANCE_DAY_OPTIONS = [
   { id: "sunday", label: "Sun" },
 ] as const;
 
+// Local fallback data keeps task filters usable when bootstrap responses omit
+// subsystem definitions; platform bootstrap data remains the source of truth.
 export const REQUIRED_TASK_SUBSYSTEMS: Subsystem[] = [
   {
     id: "climber",
@@ -163,6 +165,8 @@ export function backendReachabilityAfterError(
 export function mapPendingWorkLogDraftToWorkLog(
   draft: PendingWorkLogDraft,
 ): WorkLogListItem {
+  // Pending offline drafts render beside server work logs so users can see
+  // unsynced entries without waiting for the next successful backend refresh.
   return {
     id: draft.id,
     localDraftId: draft.id,
@@ -221,6 +225,8 @@ export function normalizeTaskSubsystems(currentSubsystems: Subsystem[]) {
 }
 
 export function withSeededSubteamTasks(currentTasks: Task[]) {
+  // Seeded tasks are additive demo/backfill content, never replacements for
+  // tasks already returned by the platform.
   const currentTaskIds = new Set(currentTasks.map((task) => task.id));
   const missingSeededTasks = seededTasks.filter((task) => !currentTaskIds.has(task.id));
 
@@ -397,6 +403,8 @@ type ServerTask = Task & {
 };
 
 export function normalizeTaskFromServer(task: ServerTask): Task {
+  // Mobile speaks in event terms, while older platform payloads still expose
+  // targetMilestoneId. Normalize at the API edge to keep screens consistent.
   return {
     ...task,
     targetEventId: task.targetEventId ?? task.targetMilestoneId ?? null,
@@ -408,6 +416,7 @@ export function mapTaskPayloadToServer<T extends { targetEventId?: string | null
 ) {
   const { targetEventId, ...serverPayload } = payload;
 
+  // The backend contract still expects targetMilestoneId for task mutations.
   return {
     ...serverPayload,
     targetMilestoneId: targetEventId ?? null,
@@ -465,6 +474,8 @@ export function hasRequiredEmailDomain(email: string, requiredDomain: string) {
 }
 
 export function getWorkLogDraftOwnerKey(user: SessionUser | null) {
+  // Drafts are scoped by stable user identity so shared devices do not replay
+  // one member's offline work logs into another member's session.
   return (
     user?.email.trim().toLowerCase() ||
     user?.accountId.trim().toLowerCase() ||
@@ -483,6 +494,8 @@ export function isWorkLogDraftOwnedBy(
 export function mapMilestonesToEvents(payload: PlatformBootstrapPayload): Event[] {
   const subsystems = ensureArray(payload.subsystems);
 
+  // Older bootstrap payloads may only include milestones. Convert them to the
+  // mobile event model until all platform environments ship events directly.
   return ensureArray(payload.milestones).map((milestone) => ({
     id: milestone.id,
     title: milestone.title,
