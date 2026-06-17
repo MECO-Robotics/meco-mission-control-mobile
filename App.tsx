@@ -238,372 +238,7 @@ import {
 
 WebBrowser.maybeCompleteAuthSession();
 
-const SWIPE_ACTIVATION_DISTANCE = 18;
-const SWIPE_COMMIT_DISTANCE = 52;
-const SUBTAB_SWIPE_ACTIVATION_DISTANCE = 24;
-const SUBTAB_SWIPE_COMMIT_DISTANCE = 72;
-const TIMER_TICK_MS = 1000;
-const MS_PER_HOUR = 1000 * 60 * 60;
-const GOOGLE_CLIENT_ID_PLACEHOLDER = "missing-google-client-id";
 const DEVICE_SESSION_RESTORED_NOTICE = "Signed in on this device.";
-
-type AttendanceStatus = "yes" | "maybe" | "no";
-type SeasonOption = {
-  id: string;
-  label: string;
-};
-type WorkLogTimerState = {
-  id: string;
-  elapsedMs: number;
-  isPaused: boolean;
-  reminderNotificationIds: string[];
-  startedAt: number | null;
-};
-type StartTaskOptions = {
-  openWorkLog?: boolean;
-};
-type BackendReachability = "unknown" | "reachable" | "unreachable";
-
-type WorkLogMutationResponse = {
-  item?: WorkLog;
-};
-
-function shouldQueueWorkLogDraftAfterError(error: unknown) {
-  return (
-    error instanceof ApiNetworkError ||
-    (error instanceof ApiRequestError && error.status >= 500)
-  );
-}
-
-function backendReachabilityAfterError(error: unknown): BackendReachability {
-  return error instanceof ApiNetworkError ? "unreachable" : "reachable";
-}
-
-function mapPendingWorkLogDraftToWorkLog(
-  draft: PendingWorkLogDraft,
-): WorkLogListItem {
-  return {
-    id: draft.id,
-    localDraftId: draft.id,
-    syncError: draft.error,
-    syncStatus: draft.status,
-    ...draft.payload,
-  };
-}
-
-function formatTimerElapsed(elapsedMs: number) {
-  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  const paddedMinutes = String(minutes).padStart(2, "0");
-  const paddedSeconds = String(seconds).padStart(2, "0");
-
-  return hours > 0
-    ? `${hours}:${paddedMinutes}:${paddedSeconds}`
-    : `${minutes}:${paddedSeconds}`;
-}
-
-function formatHoursFromTimer(elapsedMs: number) {
-  const roundedHours = Math.round((elapsedMs / MS_PER_HOUR) * 100) / 100;
-
-  return Number.isInteger(roundedHours)
-    ? String(roundedHours)
-    : String(roundedHours).replace(/0$/, "");
-}
-
-function getWorkLogTimerElapsedMs(
-  timer: WorkLogTimerState | null,
-  now = Date.now(),
-) {
-  if (!timer) {
-    return 0;
-  }
-
-  return (
-    timer.elapsedMs +
-    (timer.startedAt && !timer.isPaused
-      ? Math.max(0, now - timer.startedAt)
-      : 0)
-  );
-}
-type RiskPriority = "high" | "medium" | "low";
-
-const RISK_PRIORITY_RANK: Record<RiskPriority, number> = {
-  high: 0,
-  medium: 1,
-  low: 2,
-};
-
-const ATTENDANCE_STATUS_BY_MEMBER_ID: Record<string, AttendanceStatus> = {
-  ava: "yes",
-  ethan: "maybe",
-  jordan: "yes",
-  lucas: "no",
-  maya: "yes",
-  priya: "maybe",
-  riley: "yes",
-  noah: "yes",
-  zoe: "maybe",
-  diego: "yes",
-  emma: "yes",
-  samira: "yes",
-  caleb: "maybe",
-  nina: "yes",
-};
-
-const INITIAL_SEASONS: SeasonOption[] = [
-  { id: "2026-offseason", label: "2026 FRC Offseason" },
-  { id: "2027-preseason", label: "2027 FRC Preseason" },
-];
-
-const PLANNED_ATTENDANCE_DAY_OPTIONS = [
-  { id: "monday", label: "Mon" },
-  { id: "tuesday", label: "Tue" },
-  { id: "wednesday", label: "Wed" },
-  { id: "thursday", label: "Thu" },
-  { id: "friday", label: "Fri" },
-  { id: "saturday", label: "Sat" },
-  { id: "sunday", label: "Sun" },
-] as const;
-
-const REQUIRED_EMAIL_DOMAIN = "mecorobotics.org";
-const AUTH_REQUEST_TIMEOUT_MS = 15000;
-
-const REQUIRED_TASK_SUBSYSTEMS: Subsystem[] = [
-  {
-    id: "climber",
-    name: "Climber",
-    description: "Endgame lift, latch, and climb release mechanisms.",
-    isCore: false,
-    parentSubsystemId: null,
-    responsibleEngineerId: "priya",
-    mentorIds: ["jordan"],
-    risks: ["Hook alignment", "Winch load margin"],
-  },
-  {
-    id: "controls",
-    name: "Controls",
-    description: "Robot software, safety, and autonomous logic.",
-    isCore: false,
-    parentSubsystemId: "drive",
-    responsibleEngineerId: "ethan",
-    mentorIds: ["riley"],
-    risks: ["Auto safety interlocks"],
-  },
-  {
-    id: "drive",
-    name: "Drivetrain",
-    description: "Core drivetrain, chassis interfaces, and shared base electronics.",
-    isCore: true,
-    parentSubsystemId: null,
-    responsibleEngineerId: "ava",
-    mentorIds: ["jordan"],
-    risks: ["Sensor drift", "Cable clearance"],
-  },
-  {
-    id: "manipulator",
-    name: "Manipulator",
-    description: "Intake, handling, and game-piece interaction hardware.",
-    isCore: false,
-    parentSubsystemId: "drive",
-    responsibleEngineerId: "lucas",
-    mentorIds: ["riley"],
-    risks: ["Chain wear", "Assembly tolerance"],
-  },
-  {
-    id: "vision",
-    name: "Vision",
-    description: "Camera targeting, pose estimation, and visual feedback.",
-    isCore: false,
-    parentSubsystemId: "drive",
-    responsibleEngineerId: "ethan",
-    mentorIds: ["riley"],
-    risks: ["Camera calibration", "Lighting variability"],
-  },
-];
-function buildSubsystemOptions(subsystems: Subsystem[]) {
-  return subsystems.map((subsystem) => ({
-    id: subsystem.id,
-    name: subsystem.name,
-  }));
-}
-
-function normalizeTaskSubsystems(currentSubsystems: Subsystem[]) {
-  return currentSubsystems.length > 0 ? currentSubsystems : REQUIRED_TASK_SUBSYSTEMS;
-}
-
-function withSeededSubteamTasks(currentTasks: Task[]) {
-  const currentTaskIds = new Set(currentTasks.map((task) => task.id));
-  const missingSeededTasks = seededTasks.filter((task) => !currentTaskIds.has(task.id));
-
-  return [...currentTasks, ...missingSeededTasks];
-}
-
-function parseClientError(error: unknown) {
-  const authErrorState = classifyMobileAuthError(error);
-  if (authErrorState !== "unknown") {
-    return getMobileAuthErrorMessage(authErrorState);
-  }
-
-  if (error instanceof ApiRequestError) {
-    return error.message;
-  }
-
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return error.message;
-  }
-
-  return "Request failed unexpectedly.";
-}
-
-function getClientErrorMessage(
-  error: unknown,
-  context: "auth-config" | "authenticated" | "general" = "general",
-) {
-  const authErrorState = classifyMobileAuthError(error, context);
-  if (authErrorState !== "unknown") {
-    return getMobileAuthErrorMessage(authErrorState);
-  }
-
-  return parseClientError(error);
-}
-
-function getEmailCodeVerificationErrorMessage(error: unknown) {
-  if (
-    error instanceof ApiRequestError &&
-    (error.status === 400 || error.status === 401 || error.status === 403)
-  ) {
-    return "Invalid code. Check the code and try again.";
-  }
-
-  return getClientErrorMessage(error);
-}
-
-function isValidDateInput(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return false;
-  }
-
-  const date = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
-}
-
-function isValidTimeInput(value: string) {
-  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
-}
-
-function taskDependsOnTarget(
-  taskId: string,
-  targetTaskId: string,
-  taskById: Record<string, Task>,
-  visitedTaskIds = new Set<string>(),
-): boolean {
-  if (taskId === targetTaskId) {
-    return true;
-  }
-
-  if (visitedTaskIds.has(taskId)) {
-    return false;
-  }
-
-  visitedTaskIds.add(taskId);
-
-  const task = taskById[taskId];
-  if (!task) {
-    return false;
-  }
-
-  return task.dependencyIds.some((dependencyId) =>
-    taskDependsOnTarget(dependencyId, targetTaskId, taskById, visitedTaskIds),
-  );
-}
-
-function getAutoTaskStatus(
-  task: Pick<Task, "blockers" | "dependencyIds" | "ownerId" | "status">,
-  taskById: Record<string, Task>,
-): TaskStatus {
-  if (task.status !== "not-started") {
-    return task.status;
-  }
-
-  const hasOpenDependency = task.dependencyIds
-    .map((dependencyId) => taskById[dependencyId])
-    .some((dependency) => dependency && dependency.status !== "complete");
-
-  if (task.ownerId && task.blockers.length === 0 && !hasOpenDependency) {
-    return "in-progress";
-  }
-
-  return task.status;
-}
-
-function buildTaskById(tasks: Task[]) {
-  return Object.fromEntries(tasks.map((task) => [task.id, task])) as Record<string, Task>;
-}
-
-function hasOpenTaskDependency(
-  task: Pick<Task, "dependencyIds">,
-  taskById: Record<string, Task>,
-) {
-  return task.dependencyIds
-    .map((dependencyId) => taskById[dependencyId])
-    .some((dependency) => dependency && dependency.status !== "complete");
-}
-
-function isTaskReadyForQaPass(task: Task, taskById: Record<string, Task>) {
-  return (
-    task.status === "waiting-for-qa" &&
-    task.blockers.length === 0 &&
-    !hasOpenTaskDependency(task, taskById)
-  );
-}
-
-function getQaReviewTaskId(review: QaReview) {
-  if (review.taskId) {
-    return review.taskId;
-  }
-
-  return review.subjectType === "task" && review.subjectId ? review.subjectId : null;
-}
-
-function getOptionalCreatedAt(item: { id: string; createdAt?: string }) {
-  return item.createdAt ?? item.id;
-}
-
-function buildTaskMutationPayload(task: Task) {
-  return {
-    title: task.title,
-    summary: task.summary,
-    subsystemId: task.subsystemId,
-    disciplineId: task.disciplineId,
-    mechanismId: task.mechanismId,
-    partInstanceId: task.partInstanceId,
-    targetEventId: task.targetEventId,
-    ownerId: task.ownerId,
-    mentorId: task.mentorId,
-    dueDate: task.dueDate,
-    priority: task.priority,
-    status: task.status,
-    dependencyIds: task.dependencyIds,
-    checklistItems: task.checklistItems ?? [],
-    blockers: task.blockers,
-    linkedManufacturingIds: task.linkedManufacturingIds,
-    linkedPurchaseIds: task.linkedPurchaseIds,
-    estimatedHours: task.estimatedHours,
-    actualHours: task.actualHours,
-  };
-}
-
-function shiftDateByDays(value: string, dayDelta: number) {
-  const date = new Date(`${value}T00:00:00.000Z`);
-  date.setUTCDate(date.getUTCDate() + dayDelta);
-  return date.toISOString().slice(0, 10);
-}
-
-function ensureArray<T>(value: T[] | undefined | null): T[] {
-  return Array.isArray(value) ? value : [];
-}
 
 type ServerTask = Task & {
   targetMilestoneId?: string | null;
@@ -1207,7 +842,12 @@ export default function App() {
         setHasAuthenticated(true);
       }
     },
-    [applyThemePreferenceFromServer, refreshWorkspaceFromServer, syncPendingWorkLogDrafts],
+    [
+      applyThemePreferenceFromServer,
+      endSessionForAuthFailure,
+      refreshWorkspaceFromServer,
+      syncPendingWorkLogDrafts,
+    ],
   );
 
   useEffect(() => {
@@ -6958,7 +6598,27 @@ export default function App() {
   return (
     <LocalizationProvider languageOverride={languageOverride}>
       {isRestoringAuthSession ? null : !hasAuthenticated ? (
-        renderLoginScreen()
+        <LoginScreen
+          authCode={authCode}
+          authConfig={authConfig}
+          authEmail={authEmail}
+          authError={authError}
+          authNotice={authNotice}
+          hasRequestedEmailCode={hasRequestedEmailCode}
+          height={height}
+          isAuthConfigUnavailable={isAuthConfigUnavailable}
+          isAuthenticating={isAuthenticating}
+          isDarkModeEnabled={isDarkModeEnabled}
+          setAuthCode={setAuthCode}
+          setAuthEmail={setAuthEmail}
+          setAuthError={setAuthError}
+          setAuthErrorState={setAuthErrorState}
+          setAuthNotice={setAuthNotice}
+          setHasRequestedEmailCode={setHasRequestedEmailCode}
+          signInWithEmail={signInWithEmail}
+          signInWithGoogle={signInWithGoogle}
+          width={width}
+        />
       ) : (
         <AppThemeProvider value={{ colors: themeColors, mode: themeMode }}>
           <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.canvas }]}>
