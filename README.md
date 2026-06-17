@@ -67,10 +67,11 @@ on the Windows host.
 - `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`: optional Google web override.
 - `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`: optional iOS override.
 - `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`: optional Android override.
-- `EXPO_PUBLIC_API_TOKEN`: optional static token for dev-only bootstrap paths.
 - `EXPO_PUBLIC_DEV_AUTH_BYPASS=true`: optional development-only local sign-in bypass that uses bundled workspace data when the backend/auth service is unavailable.
 
-Keep OAuth client IDs and any tokens in environment/config files only and never commit raw secrets.
+OAuth client IDs are public identifiers. Do not put bearer tokens, API secrets,
+or third-party secret keys in `EXPO_PUBLIC_` variables because Expo bakes them
+into the mobile bundle.
 
 Refer to `mobile-auth-smoke-tests.md` for the mobile-auth smoke checklist before shipping.
 

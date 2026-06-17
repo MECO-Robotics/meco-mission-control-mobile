@@ -26,7 +26,6 @@ export const SWIPE_COMMIT_DISTANCE = 52;
 export const SUBTAB_SWIPE_ACTIVATION_DISTANCE = 24;
 export const SUBTAB_SWIPE_COMMIT_DISTANCE = 72;
 export const TIMER_TICK_MS = 1000;
-export const GOOGLE_CLIENT_ID_PLACEHOLDER = "missing-google-client-id";
 export const REQUIRED_EMAIL_DOMAIN = "mecorobotics.org";
 export const AUTH_REQUEST_TIMEOUT_MS = 15000;
 

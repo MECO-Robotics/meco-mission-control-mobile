@@ -1,4 +1,3 @@
-import { StatusBar } from "expo-status-bar";
 import * as ScreenOrientation from "expo-screen-orientation";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
@@ -6,32 +5,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   PanResponder,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
   Platform,
   useColorScheme,
   useWindowDimensions,
-  View,
 } from "react-native";
 
 import {
-  EVENT_TYPE_OPTIONS,
   EVENT_TYPE_STYLES,
   INVENTORY_VIEW_OPTIONS,
-  MANUFACTURING_STATUS_OPTIONS,
   MANUFACTURING_VIEW_OPTIONS,
-  ACQUISITION_METHOD_OPTIONS,
-  PART_SOURCE_OPTIONS,
-  PURCHASE_STATUS_OPTIONS,
-  QA_RESULT_OPTIONS,
   STATUS_LABELS,
-  TASK_PRIORITY_OPTIONS,
-  TASK_STATUS_OPTIONS,
   TASK_SUBTEAM_DISCIPLINE_IDS,
   TASK_SUBTEAM_OPTIONS,
   TASK_VIEW_OPTIONS,
-  WORKLOG_TEMPLATE_OPTIONS,
 } from "./src/ui/constants";
 import {
   buildDateTime,
@@ -81,16 +67,8 @@ import type {
   WorkLogDraft,
   WorkLogSortMode,
 } from "./src/ui/types";
-import {
-  AdvancedOptions,
-  EditorModal,
-  DropdownField,
-  ModalField,
-  SearchField,
-  ToggleField,
-} from "./src/ui/ui";
 import { AppThemeProvider } from "./src/ui/themeContext";
-import { LocalizationProvider, Text, type LanguageCode } from "./src/i18n";
+import { LocalizationProvider, type LanguageCode } from "./src/i18n";
 import {
   ApiNetworkError,
   classifyMobileAuthError,
@@ -122,7 +100,6 @@ import {
 import { mecoSnapshot } from "./src/data/mockData";
 import type {
   Event,
-  EventType,
   MemberRole,
   ManufacturingItem,
   HelpRequest,
@@ -142,9 +119,7 @@ import type {
 import {
   ATTENDANCE_STATUS_BY_MEMBER_ID,
   AUTH_REQUEST_TIMEOUT_MS,
-  GOOGLE_CLIENT_ID_PLACEHOLDER,
   INITIAL_SEASONS,
-  PLANNED_ATTENDANCE_DAY_OPTIONS,
   RISK_PRIORITY_RANK,
   SUBTAB_SWIPE_ACTIVATION_DISTANCE,
   SUBTAB_SWIPE_COMMIT_DISTANCE,
@@ -163,7 +138,6 @@ import {
   getClientErrorMessage,
   getEmailCodeVerificationErrorMessage,
   getOptionalCreatedAt,
-  getPhotoFileName,
   getQaReviewTaskId,
   getWorkLogDraftOwnerKey,
   getWorkLogTimerElapsedMs,
@@ -193,22 +167,30 @@ import {
   type WorkLogMutationResponse,
   type WorkLogTimerState,
 } from "./src/app/appModel";
-import { AttendanceModal, ProjectOverlay } from "./src/app/components/AppOverlays";
+import {
+  DEVICE_SESSION_RESTORED_NOTICE,
+  GOOGLE_CLIENT_ID_PLACEHOLDER,
+  getActiveGoogleClientId,
+  normalizeThemeModeFromResponse,
+  resolveGoogleClientIds,
+  type EmailCodeStartResponse,
+  type ThemePreferenceResponse,
+} from "./src/app/authConfigModel";
+import { ActiveTabContent } from "./src/app/components/ActiveTabContent";
 import { LoginScreen } from "./src/app/components/LoginScreen";
-import { NavigationMenu } from "./src/app/components/NavigationMenu";
-import { PersonMenu } from "./src/app/components/PersonMenu";
+import { WorkspaceShell } from "./src/app/components/WorkspaceShell";
+import { DeadlineEditorModal } from "./src/app/editorModals/DeadlineEditorModal";
+import { ManufacturingEditorModal } from "./src/app/editorModals/ManufacturingEditorModal";
+import { MemberEditorModal } from "./src/app/editorModals/MemberEditorModal";
+import { MilestoneEditorModal } from "./src/app/editorModals/MilestoneEditorModal";
+import { PartDefinitionEditorModal } from "./src/app/editorModals/PartDefinitionEditorModal";
+import { PurchaseEditorModal } from "./src/app/editorModals/PurchaseEditorModal";
+import { QaReportEditorModal } from "./src/app/editorModals/QaReportEditorModal";
+import { SubsystemEditorModal } from "./src/app/editorModals/SubsystemEditorModal";
+import { TaskEditorModal } from "./src/app/editorModals/TaskEditorModal";
+import { WorkLogEditorModal } from "./src/app/editorModals/WorkLogEditorModal";
 
 import { appThemes, type AppThemeName } from "./src/theme";
-import { AttendanceScreen } from "./src/screens/dashboard/AttendanceScreen";
-import { HomeScreen } from "./src/screens/dashboard/HomeScreen";
-import { InventoryScreen } from "./src/screens/inventory/InventoryScreen";
-import { ManufacturingScreen } from "./src/screens/manufacturing/ManufacturingScreen";
-import { ReportsScreen } from "./src/screens/reports/ReportsScreen";
-import { RisksScreen } from "./src/screens/robot/RisksScreen";
-import { RosterScreen } from "./src/screens/roster/RosterScreen";
-import { SubsystemsScreen } from "./src/screens/robot/SubsystemsScreen";
-import { TasksScreen } from "./src/screens/tasks/TasksScreen";
-import { WorkLogsScreen } from "./src/screens/worklogs/WorkLogsScreen";
 import type { SubsystemCounts, WorkLogListItem } from "./src/screens/types";
 import {
   buildWorkLogDraftFingerprint,
@@ -242,21 +224,6 @@ import {
 
 WebBrowser.maybeCompleteAuthSession();
 
-const DEVICE_SESSION_RESTORED_NOTICE = "Signed in on this device.";
-
-type ServerTask = Task & {
-  targetMilestoneId?: string | null;
-};
-
-type EmailCodeStartResponse = {
-  sentTo?: string;
-  expiresInMinutes?: number;
-};
-
-type ThemePreferenceResponse = {
-  themeMode: AppThemeName | null;
-};
-
 export default function App() {
   const { height, width } = useWindowDimensions();
   const systemColorScheme = useColorScheme();
@@ -287,26 +254,21 @@ export default function App() {
   const [backendReachability, setBackendReachability] =
     useState<BackendReachability>("unknown");
   const [syncError, setSyncError] = useState<string | null>(null);
-  const envGoogleClientId =
-    process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID?.trim() ?? "";
   const isLocalDevBypassAvailable = isLocalDevAuthBypassEnabled();
-  const googleClientId = authConfig?.googleClientId?.trim() || envGoogleClientId;
-  const googleIosClientId =
-    process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() || googleClientId;
-  const googleAndroidClientId =
-    process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?.trim() || googleClientId;
-  const googleWebClientId =
-    process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() || googleClientId;
+  const {
+    googleClientId,
+    googleIosClientId,
+    googleAndroidClientId,
+    googleWebClientId,
+  } = useMemo(() => resolveGoogleClientIds(authConfig), [authConfig]);
   const requiredEmailDomain = normalizeRequiredEmailDomain(authConfig?.hostedDomain);
   const isAuthConfigUnavailable = authErrorState === "auth-config-unavailable";
   const isDevBypassAvailable =
     isLocalDevBypassAvailable || authConfig?.devBypassAvailable === true;
-  const activeGoogleClientId =
-    Platform.OS === "ios"
-      ? googleIosClientId
-      : Platform.OS === "android"
-        ? googleAndroidClientId
-        : googleWebClientId;
+  const activeGoogleClientId = getActiveGoogleClientId(
+    { googleClientId, googleIosClientId, googleAndroidClientId, googleWebClientId },
+    Platform.OS,
+  );
 
   const [googleRequest, googleResponse, promptGoogleSignIn] =
     Google.useIdTokenAuthRequest({
@@ -340,17 +302,6 @@ export default function App() {
     setThemeOverride(null);
   }, []);
 
-  const normalizeThemeModeFromResponse = useCallback(
-    (value: string | null | undefined) => {
-      if (value === "dark" || value === "light") {
-        return value;
-      }
-
-      return null;
-    },
-    [],
-  );
-
   const applyThemePreferenceFromServer = useCallback(
     async (token: string | null) => {
       if (!token) {
@@ -371,7 +322,7 @@ export default function App() {
         setThemeOverride(null);
       }
     },
-    [apiBaseUrl, normalizeThemeModeFromResponse],
+    [apiBaseUrl],
   );
 
   const updateThemePreference = useCallback(
@@ -607,9 +558,7 @@ export default function App() {
 
   const applyBootstrapPayload = useCallback((payload: PlatformBootstrapPayload) => {
     const events = ensureArray(payload.events);
-    const tasks = ensureArray(payload.tasks).map((task) =>
-      normalizeTaskFromServer(task as ServerTask),
-    );
+    const tasks = ensureArray(payload.tasks).map((task) => normalizeTaskFromServer(task));
     const payloadWorkLogs = ensureArray(payload.workLogs);
 
     // Keep refs and state in lockstep for async callbacks that need the latest
@@ -1202,11 +1151,10 @@ export default function App() {
         "/api/auth/config",
       );
 
-      let token = process.env.EXPO_PUBLIC_API_TOKEN?.trim() ?? "";
-      token = token.length > 0 ? token : "";
+      let token = "";
       let syncSessionUser = sessionUser;
 
-      if (!token && authConfig.devBypassAvailable) {
+      if (authConfig.devBypassAvailable) {
         const session = await requestJson<SessionResponse>(
           apiBaseUrl,
           "/api/auth/dev-bypass",
@@ -5318,31 +5266,6 @@ export default function App() {
     workTimerIsPaused: Boolean(workLogTimer?.isPaused),
     pauseWorkLogTimer,
   };
-  const renderActiveTab = () => {
-    switch (activeTab) {
-      case "home":
-        return <HomeScreen {...screenProps} />;
-      case "attendance":
-        return <AttendanceScreen {...screenProps} />;
-      case "tasks":
-        return <TasksScreen {...screenProps} />;
-      case "worklogs":
-        return <WorkLogsScreen {...screenProps} />;
-      case "manufacturing":
-        return <ManufacturingScreen {...screenProps} />;
-      case "inventory":
-        return <InventoryScreen {...screenProps} />;
-      case "subsystems":
-        return <SubsystemsScreen {...screenProps} />;
-      case "reports":
-        return <ReportsScreen {...screenProps} />;
-      case "risks":
-        return <RisksScreen {...screenProps} />;
-      default:
-        return <RosterScreen {...screenProps} />;
-    }
-  };
-
   const renderEditorModals = () => {
     const taskOptions = tasks.map((task) => ({ id: task.id, name: task.title }));
     const memberOptions = members.map((member) => ({ id: member.id, name: member.name }));
@@ -5368,1311 +5291,171 @@ export default function App() {
 
     return (
       <>
-        <EditorModal
+        <TaskEditorModal
+          addTaskDependency={addTaskDependency}
+          appResponsiveStyles={appResponsiveStyles}
+          availableTaskDependencyOptions={availableTaskDependencyOptions}
+          deleteTaskDraft={deleteTaskDraft}
+          disciplineOptions={disciplineOptions}
+          disciplinesById={disciplinesById}
+          downstreamTaskDependencies={downstreamTaskDependencies}
+          eventOptions={eventOptions}
+          eventsById={eventsById}
+          isLandscapeCardLayout={isLandscapeCardLayout}
+          mechanismAndTaskPartOptions={mechanismAndTaskPartOptions}
+          mechanismOptions={mechanismOptions}
+          mechanisms={mechanisms}
+          mechanismsById={mechanismsById}
+          memberOptions={memberOptions}
           onCancel={closeTaskEditor}
-          onDelete={taskEditorMode === "edit" ? deleteTaskDraft : undefined}
           onSave={saveTaskDraft}
-          saveLabel={taskEditorMode === "edit" ? "Update task" : "Create task"}
-          title={taskEditorMode === "edit" ? "Edit task" : "Create task"}
-          visible={Boolean(taskEditorMode)}
-        >
-          {taskEditorError ? (
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                Missing task details
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {taskEditorError}
-              </Text>
-            </View>
-          ) : null}
-          {taskDependencyReadinessMessage ? (
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                Waiting on dependencies
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {taskDependencyReadinessMessage}
-              </Text>
-            </View>
-          ) : null}
-          <View style={isLandscapeCardLayout ? styles.taskEditorLandscapeGrid : styles.taskEditorStack}>
-            <View style={[styles.taskEditorStack, isLandscapeCardLayout && styles.taskEditorLandscapeColumn]}>
-              <ModalField
-                label="Title"
-                onChangeText={(value) => setTaskDraft((current) => ({ ...current, title: value }))}
-                placeholder="Task title"
-                value={taskDraft.title}
-              />
-              <ModalField
-                label="Summary"
-                multiline
-                onChangeText={(value) => setTaskDraft((current) => ({ ...current, summary: value }))}
-                placeholder="Task summary"
-                value={taskDraft.summary}
-              />
-              <ModalField
-                label="Start date (YYYY-MM-DD)"
-                onChangeText={(value) => setTaskDraft((current) => ({ ...current, startDate: value }))}
-                placeholder={isoToday()}
-                value={taskDraft.startDate}
-              />
-              <ModalField
-                label="End date required (YYYY-MM-DD)"
-                onChangeText={(value) => setTaskDraft((current) => ({ ...current, dueDate: value }))}
-                placeholder="2026-04-24"
-                value={taskDraft.dueDate}
-              />
-              <DropdownField
-                clearLabel="No subsystem"
-                label="Subsystem"
-                onChange={(value) =>
-                  setTaskDraft((current) => {
-                    const subsystemId = value;
-                    const nextMechanisms = mechanisms.filter(
-                      (mechanism) => mechanism.subsystemId === subsystemId,
-                    );
-                    const mechanismId = nextMechanisms[0]?.id ?? null;
-                    const partInstanceId = mechanismId
-                      ? partInstances.find((partInstance) => partInstance.mechanismId === mechanismId)
-                          ?.id ?? null
-                      : null;
+          partInstances={partInstances}
+          partInstancesById={partInstancesById}
+          removeTaskDependency={removeTaskDependency}
+          selectedTaskDependencies={selectedTaskDependencies}
+          setTaskDependencySearch={setTaskDependencySearch}
+          setTaskDraft={setTaskDraft}
+          subsystemsById={subsystemsById}
+          taskDependencyReadinessMessage={taskDependencyReadinessMessage}
+          taskDependencySearch={taskDependencySearch}
+          taskDraft={taskDraft}
+          taskEditorError={taskEditorError}
+          taskEditorMode={taskEditorMode}
+          taskSubsystemOptions={taskSubsystemOptions}
+          themeColors={themeColors}
+        />
 
-                    return {
-                      ...current,
-                      subsystemId,
-                      mechanismId,
-                      partInstanceId,
-                    };
-                  })
-                }
-                options={taskSubsystemOptions}
-                placeholder="Select subsystem"
-                value={taskDraft.subsystemId}
-              />
-              <DropdownField
-                clearLabel="No discipline"
-                label="Discipline"
-                onChange={(value) =>
-                  setTaskDraft((current) => ({ ...current, disciplineId: value }))
-                }
-                options={disciplineOptions}
-                placeholder="Select discipline"
-                value={taskDraft.disciplineId}
-              />
-            </View>
-
-            <View style={[styles.taskEditorStack, isLandscapeCardLayout && styles.taskEditorLandscapeColumn]}>
-              <DropdownField
-                clearLabel="No mechanism"
-                label="Mechanism"
-                onChange={(value) =>
-                  setTaskDraft((current) => {
-                    const mechanismId = value || null;
-                    const partInstanceId = mechanismId
-                      ? partInstances.find((partInstance) => partInstance.mechanismId === mechanismId)
-                          ?.id ?? null
-                      : null;
-
-                    return {
-                      ...current,
-                      mechanismId,
-                      partInstanceId,
-                    };
-                  })
-                }
-                options={mechanismOptions}
-                placeholder="Select mechanism"
-                value={taskDraft.mechanismId || ""}
-              />
-              <DropdownField
-                clearLabel="No part instance"
-                label="Part instance"
-                onChange={(value) =>
-                  setTaskDraft((current) => ({
-                    ...current,
-                    partInstanceId: value || null,
-                  }))
-                }
-                options={mechanismAndTaskPartOptions}
-                placeholder="Select part instance"
-                value={taskDraft.partInstanceId || ""}
-              />
-              <DropdownField
-                clearLabel="No target event"
-                label="Target event"
-                onChange={(value) =>
-                  setTaskDraft((current) => ({
-                    ...current,
-                    targetEventId: value || null,
-                  }))
-                }
-                options={eventOptions}
-                placeholder="Select target event"
-                value={taskDraft.targetEventId || ""}
-              />
-              <DropdownField
-                clearLabel="No owner"
-                label="Owner"
-                onChange={(value) =>
-                  setTaskDraft((current) => ({ ...current, ownerId: value }))
-                }
-                options={memberOptions}
-                placeholder="Select owner"
-                value={taskDraft.ownerId}
-              />
-              <DropdownField
-                clearLabel="No mentor"
-                label="Mentor"
-                onChange={(value) =>
-                  setTaskDraft((current) => ({ ...current, mentorId: value }))
-                }
-                options={memberOptions}
-                placeholder="Select mentor"
-                value={taskDraft.mentorId}
-              />
-              <DropdownField
-                label="Status"
-                onChange={(value) =>
-                  setTaskDraft((current) => ({
-                    ...current,
-                    status: value as TaskStatus,
-                  }))
-                }
-                options={TASK_STATUS_OPTIONS}
-                value={taskDraft.status}
-              />
-              <DropdownField
-                label="Priority"
-                onChange={(value) =>
-                  setTaskDraft((current) => ({
-                    ...current,
-                    priority: value as TaskPriority,
-                  }))
-                }
-                options={TASK_PRIORITY_OPTIONS}
-                value={taskDraft.priority}
-              />
-              <AdvancedOptions>
-                <View style={styles.modalField}>
-                  <Text style={[styles.modalFieldLabel, { color: themeColors.subtleText }]}>Traceability</Text>
-                  <Text style={[styles.modalFieldInput, { backgroundColor: themeColors.canvas, borderColor: themeColors.border, color: themeColors.ink }]}>
-                    {`${subsystemsById[taskDraft.subsystemId]?.name ?? "No subsystem"} / `}
-                    {`${disciplinesById[taskDraft.disciplineId]?.name ?? "No discipline"} / `}
-                    {`${taskDraft.mechanismId ? mechanismsById[taskDraft.mechanismId]?.name : "No mechanism"} / `}
-                    {`${taskDraft.partInstanceId ? partInstancesById[taskDraft.partInstanceId]?.name : "No part instance"} / `}
-                    {`${taskDraft.targetEventId ? eventsById[taskDraft.targetEventId]?.title : "No event"}`}
-                  </Text>
-                </View>
-                <ModalField
-                  label="Estimated hours"
-                  keyboardType="decimal-pad"
-                  onChangeText={(value) =>
-                    setTaskDraft((current) => ({ ...current, estimatedHours: value }))
-                  }
-                  placeholder="4"
-                  value={taskDraft.estimatedHours}
-                />
-                <ModalField
-                  label="Checklist / substeps (comma separated)"
-                  multiline
-                  onChangeText={(value) =>
-                    setTaskDraft((current) => ({ ...current, checklistItemsText: value }))
-                  }
-                  placeholder="Cut bracket, Deburr, Test fit, Add photo evidence"
-                  value={taskDraft.checklistItemsText}
-                />
-                <View style={styles.modalField}>
-                  <Text style={[styles.modalFieldLabel, { color: themeColors.subtleText }]}>Dependencies</Text>
-                  <View
-                    style={[
-                      styles.modalFieldInput,
-                      { backgroundColor: themeColors.canvas, borderColor: themeColors.border },
-                    ]}
-                  >
-                    {selectedTaskDependencies.length > 0 ? (
-                      <View style={styles.quickActionRow}>
-                        {selectedTaskDependencies.map((dependency) => (
-                          <Pressable
-                            key={dependency.id}
-                            onPress={() => removeTaskDependency(dependency.id)}
-                            style={[
-                              styles.quickActionButton,
-                              {
-                                alignItems: "flex-start",
-                                backgroundColor: themeColors.navySurface,
-                                borderColor: themeColors.navySurface,
-                                gap: 2,
-                                maxWidth: "100%",
-                              },
-                            ]}
-                          >
-                            <Text
-                              numberOfLines={2}
-                              style={[styles.quickActionButtonLabel, { color: themeColors.navyInk }]}
-                            >
-                              {dependency.title}
-                            </Text>
-                            <Text
-                              numberOfLines={2}
-                              style={{ color: themeColors.subtleText, fontSize: 11, fontWeight: "700" }}
-                            >
-                              {`${STATUS_LABELS[dependency.status]} | due ${formatDate(dependency.dueDate)} | ${subsystemsById[dependency.subsystemId]?.name ?? "No subsystem"} | remove`}
-                            </Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    ) : (
-                      <Text style={{ color: themeColors.subtleText }}>No dependencies selected</Text>
-                    )}
-                  </View>
-                  {downstreamTaskDependencies.length > 0 ? (
-                    <View
-                      style={[
-                        styles.modalFieldInput,
-                        { backgroundColor: themeColors.surface, borderColor: themeColors.border },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.quickActionButtonLabel,
-                          { color: themeColors.ink, marginBottom: 6 },
-                        ]}
-                      >
-                        Waiting on this task
-                      </Text>
-                      <View style={styles.quickActionRow}>
-                        {downstreamTaskDependencies.map((dependentTask) => (
-                          <View
-                            key={dependentTask.id}
-                            style={[
-                              styles.quickActionButton,
-                              {
-                                alignItems: "flex-start",
-                                backgroundColor: themeColors.canvas,
-                                borderColor: themeColors.border,
-                                gap: 2,
-                                maxWidth: "100%",
-                              },
-                            ]}
-                          >
-                            <Text
-                              numberOfLines={2}
-                              style={[styles.quickActionButtonLabel, { color: themeColors.ink }]}
-                            >
-                              {dependentTask.title}
-                            </Text>
-                            <Text
-                              numberOfLines={2}
-                              style={{
-                                color: themeColors.subtleText,
-                                fontSize: 11,
-                                fontWeight: "700",
-                              }}
-                            >
-                              {`${STATUS_LABELS[dependentTask.status]} | due ${formatDate(dependentTask.dueDate)} | ${subsystemsById[dependentTask.subsystemId]?.name ?? "No subsystem"}`}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-                  ) : null}
-                  <SearchField
-                    onChangeText={setTaskDependencySearch}
-                    placeholder="Search dependency tasks"
-                    value={taskDependencySearch}
-                  />
-                  {availableTaskDependencyOptions.length > 0 ? (
-                    <View style={styles.quickActionRow}>
-                      {availableTaskDependencyOptions.map((dependency) => (
-                        <Pressable
-                          key={dependency.id}
-                          onPress={() => addTaskDependency(dependency.id)}
-                          style={[
-                            styles.quickActionButton,
-                            {
-                              alignItems: "flex-start",
-                              backgroundColor: themeColors.surface,
-                              borderColor: themeColors.border,
-                              gap: 2,
-                              maxWidth: "100%",
-                            },
-                          ]}
-                        >
-                          <Text
-                            numberOfLines={2}
-                            style={[styles.quickActionButtonLabel, { color: themeColors.ink }]}
-                          >
-                            {dependency.title}
-                          </Text>
-                          <Text
-                            numberOfLines={2}
-                            style={{ color: themeColors.subtleText, fontSize: 11, fontWeight: "700" }}
-                          >
-                            {`${STATUS_LABELS[dependency.status]} | due ${formatDate(dependency.dueDate)} | ${subsystemsById[dependency.subsystemId]?.name ?? "No subsystem"}`}
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  ) : null}
-                </View>
-                <ModalField
-                  label="Blockers (comma separated)"
-                  onChangeText={(value) =>
-                    setTaskDraft((current) => ({ ...current, blockersText: value }))
-                  }
-                  placeholder="Waiting on batch, cable routing"
-                  value={taskDraft.blockersText}
-                />
-              </AdvancedOptions>
-            </View>
-          </View>
-        </EditorModal>
-
-        <EditorModal
+        <DeadlineEditorModal
+          deadlineDate={deadlineDate}
+          deadlineError={deadlineError}
+          deadlineTitle={deadlineTitle}
           onCancel={closeDeadlineEditor}
           onSave={saveDeadlineDraft}
-          saveLabel="Create deadline"
-          title="Create deadline"
+          setDeadlineDate={setDeadlineDate}
+          setDeadlineTitle={setDeadlineTitle}
+          themeColors={themeColors}
           visible={deadlineEditorVisible}
-        >
-          <ModalField
-            label="Title"
-            onChangeText={setDeadlineTitle}
-            placeholder="Deadline title"
-            value={deadlineTitle}
-          />
-          <ModalField
-            label="Day (YYYY-MM-DD)"
-            onChangeText={setDeadlineDate}
-            placeholder={localTodayDate()}
-            value={deadlineDate}
-          />
-          {deadlineError ? (
-            <Text style={{ color: themeColors.orangeInk }}>{deadlineError}</Text>
-          ) : null}
-        </EditorModal>
+        />
 
-        <EditorModal
+        <MilestoneEditorModal
+          appResponsiveStyles={appResponsiveStyles}
+          deleteMilestoneDraft={deleteMilestoneDraft}
+          milestoneDraft={milestoneDraft}
+          milestoneEditorMode={milestoneEditorMode}
+          milestoneEndDate={milestoneEndDate}
+          milestoneEndTime={milestoneEndTime}
+          milestoneError={milestoneError}
+          milestoneStartDate={milestoneStartDate}
+          milestoneStartTime={milestoneStartTime}
           onCancel={closeMilestoneEditor}
-          onDelete={milestoneEditorMode === "edit" ? deleteMilestoneDraft : undefined}
           onSave={saveMilestoneDraft}
-          saveLabel={milestoneEditorMode === "edit" ? "Update milestone" : "Create milestone"}
-          title={milestoneEditorMode === "edit" ? "Edit milestone" : "Create milestone"}
-          visible={Boolean(milestoneEditorMode)}
-        >
-          {milestoneError ? (
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                Missing milestone details
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {milestoneError}
-              </Text>
-            </View>
-          ) : null}
-          <ModalField
-            label="Title"
-            onChangeText={(value) => {
-              setMilestoneError(null);
-              setMilestoneDraft((current) => ({ ...current, title: value }));
-            }}
-            placeholder="Milestone title"
-            value={milestoneDraft.title}
-          />
-          <DropdownField
-            label="Type"
-            onChange={(value) => {
-              setMilestoneError(null);
-              setMilestoneDraft((current) => ({
-                ...current,
-                type: value as EventType,
-              }));
-            }}
-            options={EVENT_TYPE_OPTIONS}
-            value={milestoneDraft.type}
-          />
-          <ModalField
-            label="Start date (YYYY-MM-DD)"
-            onChangeText={(value) => {
-              setMilestoneError(null);
-              setMilestoneStartDate(value);
-            }}
-            placeholder={localTodayDate()}
-            value={milestoneStartDate}
-          />
-          <ModalField
-            label="Start time (HH:mm)"
-            onChangeText={(value) => {
-              setMilestoneError(null);
-              setMilestoneStartTime(value);
-            }}
-            placeholder="18:00"
-            value={milestoneStartTime}
-          />
-          <AdvancedOptions>
-            <ModalField
-              label="End date (optional, YYYY-MM-DD)"
-              onChangeText={(value) => {
-                setMilestoneError(null);
-                setMilestoneEndDate(value);
-              }}
-              placeholder="2026-04-30"
-              value={milestoneEndDate}
-            />
-            <ModalField
-              label="End time (optional, HH:mm)"
-              onChangeText={(value) => {
-                setMilestoneError(null);
-                setMilestoneEndTime(value);
-              }}
-              placeholder="20:00"
-              value={milestoneEndTime}
-            />
-            <ModalField
-              label="Description"
-              multiline
-              onChangeText={(value) => {
-                setMilestoneError(null);
-                setMilestoneDraft((current) => ({ ...current, description: value }));
-              }}
-              placeholder="Milestone details"
-              value={milestoneDraft.description}
-            />
-            <ModalField
-              label="Related subsystem IDs (comma separated)"
-              onChangeText={(value) => {
-                setMilestoneError(null);
-                setMilestoneDraft((current) => ({
-                  ...current,
-                  relatedSubsystemIdsText: value,
-                }));
-              }}
-              placeholder="drive, controls"
-              value={milestoneDraft.relatedSubsystemIdsText}
-            />
-            <ToggleField
-              label="External milestone"
-              onToggle={(value) => {
-                setMilestoneError(null);
-                setMilestoneDraft((current) => ({ ...current, isExternal: value }));
-              }}
-              value={milestoneDraft.isExternal}
-            />
-          </AdvancedOptions>
-        </EditorModal>
+          setMilestoneDraft={setMilestoneDraft}
+          setMilestoneEndDate={setMilestoneEndDate}
+          setMilestoneEndTime={setMilestoneEndTime}
+          setMilestoneError={setMilestoneError}
+          setMilestoneStartDate={setMilestoneStartDate}
+          setMilestoneStartTime={setMilestoneStartTime}
+        />
 
-        <EditorModal
+        <WorkLogEditorModal
+          appResponsiveStyles={appResponsiveStyles}
+          deleteWorkLogDraft={deleteWorkLogDraft}
           onCancel={closeWorkLogEditor}
-          onDelete={workLogEditorMode === "edit" ? deleteWorkLogDraft : undefined}
           onSave={saveWorkLogDraft}
-          saveLabel={workLogEditorMode === "edit" ? "Update work log" : "Create work log"}
-          title={workLogEditorMode === "edit" ? "Edit work log" : "Create work log"}
-          visible={Boolean(workLogEditorMode)}
-        >
-          {workLogError ? (
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                Missing work log details
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {workLogError}
-              </Text>
-            </View>
-          ) : null}
-          <DropdownField
-            clearLabel="No task"
-            label="Task"
-            onChange={(value) => {
-              setWorkLogError(null);
-              setWorkLogDraft((current) => ({ ...current, taskId: value }));
-            }}
-            options={taskOptions}
-            placeholder="Select task"
-            value={workLogDraft.taskId}
-          />
-          <ModalField
-            label="Date (YYYY-MM-DD)"
-            onChangeText={(value) => {
-              setWorkLogError(null);
-              setWorkLogDraft((current) => ({ ...current, date: value }));
-            }}
-            placeholder="2026-04-24"
-            value={workLogDraft.date}
-          />
-          <ModalField
-            label="Hours"
-            keyboardType="decimal-pad"
-            onChangeText={(value) => {
-              setWorkLogError(null);
-              setWorkLogDraft((current) => ({ ...current, hours: value }));
-            }}
-            placeholder="2.5"
-            value={workLogDraft.hours}
-          />
-          <ModalField
-            label="Participants (member IDs, comma separated)"
-            onChangeText={(value) => {
-              setWorkLogError(null);
-              setWorkLogDraft((current) => ({ ...current, participantIdsText: value }));
-            }}
-            placeholder="ava,jordan"
-            value={workLogDraft.participantIdsText}
-          />
-          <View style={styles.quickActionRow}>
-            {WORKLOG_TEMPLATE_OPTIONS.map((template) => (
-              <Pressable
-                key={template.id}
-                onPress={() => {
-                  setWorkLogError(null);
-                  setWorkLogDraft((current) => ({
-                    ...current,
-                    notes: current.notes.trim()
-                      ? `${current.notes.trim()}\n\n${template.notes}`
-                      : template.notes,
-                  }));
-                }}
-                style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
-              >
-                <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                  {template.name}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-          <ModalField
-            label="Notes"
-            multiline
-            onChangeText={(value) => {
-              setWorkLogError(null);
-              setWorkLogDraft((current) => ({ ...current, notes: value }));
-            }}
-            placeholder="What was completed"
-            value={workLogDraft.notes}
-          />
-        </EditorModal>
+          setWorkLogDraft={setWorkLogDraft}
+          setWorkLogError={setWorkLogError}
+          taskOptions={taskOptions}
+          workLogDraft={workLogDraft}
+          workLogEditorMode={workLogEditorMode}
+          workLogError={workLogError}
+        />
 
-        <EditorModal
+        <ManufacturingEditorModal
+          appResponsiveStyles={appResponsiveStyles}
+          deleteManufacturingDraft={deleteManufacturingDraft}
+          manufacturingDraft={manufacturingDraft}
+          manufacturingEditorMode={manufacturingEditorMode}
+          manufacturingError={manufacturingError}
+          memberOptions={memberOptions}
           onCancel={closeManufacturingEditor}
-          onDelete={manufacturingEditorMode === "edit" ? deleteManufacturingDraft : undefined}
           onSave={saveManufacturingDraft}
-          saveLabel={manufacturingEditorMode === "edit" ? "Update item" : "Create item"}
-          title={manufacturingEditorMode === "edit" ? "Edit manufacturing item" : "Create manufacturing item"}
-          visible={Boolean(manufacturingEditorMode)}
-        >
-          {manufacturingError ? (
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                Missing manufacturing details
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {manufacturingError}
-              </Text>
-            </View>
-          ) : null}
-          <ModalField
-            label="Title"
-            onChangeText={(value) => {
-              setManufacturingError(null);
-              setManufacturingDraft((current) => ({ ...current, title: value }));
-            }}
-            placeholder="Part title"
-            value={manufacturingDraft.title}
-          />
-          <DropdownField
-            clearLabel="No subsystem"
-            label="Subsystem"
-            onChange={(value) => {
-              setManufacturingError(null);
-              setManufacturingDraft((current) => ({
-                ...current,
-                subsystemId: value,
-              }));
-            }}
-            options={subsystemOptions}
-            placeholder="Select subsystem"
-            value={manufacturingDraft.subsystemId}
-          />
-          {manufacturingEditorMode === "create" ? (
-            <View style={styles.modalField}>
-              <Text style={[styles.modalFieldLabel, { color: themeColors.subtleText }]}>
-                Requester
-              </Text>
-              <Text
-                style={[
-                  styles.modalFieldInput,
-                  {
-                    backgroundColor: themeColors.canvas,
-                    borderColor: themeColors.border,
-                    color: themeColors.ink,
-                  },
-                ]}
-              >
-                {membersById[manufacturingDraft.requestedById]?.name ??
-                  signedInMember?.name ??
-                  "Signed-in person"}
-              </Text>
-            </View>
-          ) : (
-            <>
-              <DropdownField
-                clearLabel="No requester"
-                label="Requester"
-                onChange={(value) => {
-                  setManufacturingError(null);
-                  setManufacturingDraft((current) => ({
-                    ...current,
-                    requestedById: value,
-                  }));
-                }}
-                options={memberOptions}
-                placeholder="Select requester"
-                value={manufacturingDraft.requestedById}
-              />
-              <DropdownField
-                label="Process"
-                onChange={(value) => {
-                  setManufacturingError(null);
-                  setManufacturingDraft((current) => ({
-                    ...current,
-                    process: value as ManufacturingItem["process"],
-                  }));
-                }}
-                options={MANUFACTURING_VIEW_OPTIONS.map((option) => ({
-                  id: option.value === "prints" ? "3d-print" : option.value,
-                  name: option.label,
-                }))}
-                value={manufacturingDraft.process}
-              />
-              <DropdownField
-                label="Status"
-                onChange={(value) => {
-                  setManufacturingError(null);
-                  setManufacturingDraft((current) => ({
-                    ...current,
-                    status: value as ManufacturingItem["status"],
-                  }));
-                }}
-                options={MANUFACTURING_STATUS_OPTIONS}
-                value={manufacturingDraft.status}
-              />
-            </>
-          )}
-          <ModalField
-            label="Material"
-            onChangeText={(value) => {
-              setManufacturingError(null);
-              setManufacturingDraft((current) => ({ ...current, material: value }));
-            }}
-            placeholder="Material"
-            value={manufacturingDraft.material}
-          />
-          <ModalField
-            label="Quantity"
-            keyboardType="numeric"
-            onChangeText={(value) => {
-              setManufacturingError(null);
-              setManufacturingDraft((current) => ({ ...current, quantity: value }));
-            }}
-            placeholder="1"
-            value={manufacturingDraft.quantity}
-          />
-          <ModalField
-            label="Due date (YYYY-MM-DD)"
-            onChangeText={(value) => {
-              setManufacturingError(null);
-              setManufacturingDraft((current) => ({ ...current, dueDate: value }));
-            }}
-            placeholder="2026-04-24"
-            value={manufacturingDraft.dueDate}
-          />
-          <AdvancedOptions>
-            <ModalField
-              label="Batch label"
-              onChangeText={(value) => {
-                setManufacturingError(null);
-                setManufacturingDraft((current) => ({ ...current, batchLabel: value }));
-              }}
-              placeholder="B-17"
-              value={manufacturingDraft.batchLabel}
-            />
-            <ModalField
-              label="QA review count"
-              keyboardType="numeric"
-              onChangeText={(value) => {
-                setManufacturingError(null);
-                setManufacturingDraft((current) => ({ ...current, qaReviewCount: value }));
-              }}
-              placeholder="0"
-              value={manufacturingDraft.qaReviewCount}
-            />
-            {manufacturingEditorMode === "edit" ? (
-              <ToggleField
-                label="Mentor reviewed"
-                onToggle={(value) => {
-                  setManufacturingError(null);
-                  setManufacturingDraft((current) => ({ ...current, mentorReviewed: value }));
-                }}
-                value={manufacturingDraft.mentorReviewed}
-              />
-            ) : null}
-          </AdvancedOptions>
-        </EditorModal>
+          requesterName={
+            membersById[manufacturingDraft.requestedById]?.name ??
+            signedInMember?.name ??
+            "Signed-in person"
+          }
+          setManufacturingDraft={setManufacturingDraft}
+          setManufacturingError={setManufacturingError}
+          subsystemOptions={subsystemOptions}
+          themeColors={themeColors}
+        />
 
-        <EditorModal
+        <PurchaseEditorModal
+          appResponsiveStyles={appResponsiveStyles}
+          deletePurchaseDraft={deletePurchaseDraft}
+          memberOptions={memberOptions}
           onCancel={closePurchaseEditor}
-          onDelete={purchaseEditorMode === "edit" ? deletePurchaseDraft : undefined}
           onSave={savePurchaseDraft}
-          saveLabel={purchaseEditorMode === "edit" ? "Update purchase" : "Create purchase"}
-          title={purchaseEditorMode === "edit" ? "Edit purchase" : "Create purchase"}
-          visible={Boolean(purchaseEditorMode)}
-        >
-          {purchaseError ? (
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                Missing purchase details
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {purchaseError}
-              </Text>
-            </View>
-          ) : null}
-          <ModalField
-            label="Title"
-            onChangeText={(value) => {
-              setPurchaseError(null);
-              setPurchaseDraft((current) => ({ ...current, title: value }));
-            }}
-            placeholder="Item title"
-            value={purchaseDraft.title}
-          />
-          <DropdownField
-            clearLabel="No subsystem"
-            label="Subsystem"
-            onChange={(value) => {
-              setPurchaseError(null);
-              setPurchaseDraft((current) => ({
-                ...current,
-                subsystemId: value,
-              }));
-            }}
-            options={subsystemOptions}
-            placeholder="Select subsystem"
-            value={purchaseDraft.subsystemId}
-          />
-          <DropdownField
-            clearLabel="No requester"
-            label="Requester"
-            onChange={(value) => {
-              setPurchaseError(null);
-              setPurchaseDraft((current) => ({
-                ...current,
-                requestedById: value,
-              }));
-            }}
-            options={memberOptions}
-            placeholder="Select requester"
-            value={purchaseDraft.requestedById}
-          />
-          <DropdownField
-            label="Status"
-            onChange={(value) => {
-              setPurchaseError(null);
-              setPurchaseDraft((current) => ({
-                ...current,
-                status: value as PurchaseItem["status"],
-              }));
-            }}
-            options={PURCHASE_STATUS_OPTIONS}
-            value={purchaseDraft.status}
-          />
-          <ModalField
-            label="Vendor"
-            onChangeText={(value) => {
-              setPurchaseError(null);
-              setPurchaseDraft((current) => ({ ...current, vendor: value }));
-            }}
-            placeholder="Vendor"
-            value={purchaseDraft.vendor}
-          />
-          <ModalField
-            label="Quantity"
-            keyboardType="numeric"
-            onChangeText={(value) => {
-              setPurchaseError(null);
-              setPurchaseDraft((current) => ({ ...current, quantity: value }));
-            }}
-            placeholder="1"
-            value={purchaseDraft.quantity}
-          />
-          <ModalField
-            label="Estimated cost"
-            keyboardType="decimal-pad"
-            onChangeText={(value) => {
-              setPurchaseError(null);
-              setPurchaseDraft((current) => ({ ...current, estimatedCost: value }));
-            }}
-            placeholder="82"
-            value={purchaseDraft.estimatedCost}
-          />
-          <AdvancedOptions>
-            <ModalField
-              label="Acquisition website"
-              onChangeText={(value) => {
-                setPurchaseError(null);
-                setPurchaseDraft((current) => ({ ...current, linkLabel: value }));
-              }}
-              placeholder="vendor.com/item"
-              value={purchaseDraft.linkLabel}
-            />
-            <ModalField
-              label="Final cost (optional)"
-              keyboardType="decimal-pad"
-              onChangeText={(value) => {
-                setPurchaseError(null);
-                setPurchaseDraft((current) => ({ ...current, finalCost: value }));
-              }}
-              placeholder="61"
-              value={purchaseDraft.finalCost}
-            />
-            <ToggleField
-              label="Mentor approved"
-              onToggle={(value) => {
-                setPurchaseError(null);
-                setPurchaseDraft((current) => ({ ...current, approvedByMentor: value }));
-              }}
-              value={purchaseDraft.approvedByMentor}
-            />
-          </AdvancedOptions>
-        </EditorModal>
+          purchaseDraft={purchaseDraft}
+          purchaseEditorMode={purchaseEditorMode}
+          purchaseError={purchaseError}
+          setPurchaseDraft={setPurchaseDraft}
+          setPurchaseError={setPurchaseError}
+          subsystemOptions={subsystemOptions}
+        />
 
-        <EditorModal
+        <PartDefinitionEditorModal
+          appResponsiveStyles={appResponsiveStyles}
+          deletePartDefinitionDraft={deletePartDefinitionDraft}
           onCancel={closePartDefinitionEditor}
-          onDelete={
-            partDefinitionEditorMode === "edit" ? deletePartDefinitionDraft : undefined
-          }
           onSave={savePartDefinitionDraft}
-          saveLabel={
-            partDefinitionEditorMode === "edit"
-              ? "Update part definition"
-              : "Create part definition"
-          }
-          title={
-            partDefinitionEditorMode === "edit"
-              ? "Edit part definition"
-              : "Create part definition"
-          }
-          visible={Boolean(partDefinitionEditorMode)}
-        >
-          {partDefinitionError ? (
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                Missing part details
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {partDefinitionError}
-              </Text>
-            </View>
-          ) : null}
-          <ModalField
-            label="Name"
-            onChangeText={(value) => {
-              setPartDefinitionError(null);
-              setPartDefinitionDraft((current) => ({ ...current, name: value }));
-            }}
-            placeholder="Part name"
-            value={partDefinitionDraft.name}
-          />
-          <ModalField
-            label="Part number"
-            onChangeText={(value) => {
-              setPartDefinitionError(null);
-              setPartDefinitionDraft((current) => ({ ...current, partNumber: value }));
-            }}
-            placeholder="DRV-101"
-            value={partDefinitionDraft.partNumber}
-          />
-          <ModalField
-            label="Revision"
-            onChangeText={(value) => {
-              setPartDefinitionError(null);
-              setPartDefinitionDraft((current) => ({ ...current, revision: value }));
-            }}
-            placeholder="A"
-            value={partDefinitionDraft.revision}
-          />
-          <DropdownField
-            label="Source"
-            onChange={(value) => {
-              setPartDefinitionError(null);
-              setPartDefinitionDraft((current) => ({
-                ...current,
-                source: value,
-                acquisitionMethod:
-                  value === "FRC Supplier" || value === "COTS"
-                    ? "purchase"
-                    : current.acquisitionMethod,
-              }));
-            }}
-            options={PART_SOURCE_OPTIONS}
-            value={partDefinitionDraft.source || "Onshape"}
-          />
-          {partDefinitionEditorMode === "create" ? (
-            <DropdownField
-              label="Acquisition method"
-              onChange={(value) => {
-                setPartDefinitionError(null);
-                setPartDefinitionDraft((current) => ({
-                  ...current,
-                  acquisitionMethod: value as AcquisitionMethod,
-                }));
-              }}
-              options={ACQUISITION_METHOD_OPTIONS}
-              value={partDefinitionDraft.acquisitionMethod}
-            />
-          ) : null}
-        </EditorModal>
+          partDefinitionDraft={partDefinitionDraft}
+          partDefinitionEditorMode={partDefinitionEditorMode}
+          partDefinitionError={partDefinitionError}
+          setPartDefinitionDraft={setPartDefinitionDraft}
+          setPartDefinitionError={setPartDefinitionError}
+        />
 
-        <EditorModal
+        <MemberEditorModal
+          appResponsiveStyles={appResponsiveStyles}
+          deleteMemberDraft={deleteMemberDraft}
+          disciplineOptions={disciplineOptions}
+          memberDraft={memberDraft}
+          memberEditorMode={memberEditorMode}
+          memberError={memberError}
           onCancel={closeMemberEditor}
-          onDelete={memberEditorMode === "edit" ? deleteMemberDraft : undefined}
           onSave={saveMemberDraft}
-          saveLabel={memberEditorMode === "edit" ? "Update person" : "Add person"}
-          title={memberEditorMode === "edit" ? "Edit selected person" : "Add person"}
-          visible={Boolean(memberEditorMode)}
-        >
-          {memberEditorMode === "create" ? (
-            <Text style={[styles.modalDescription, { color: themeColors.subtleText }]}>
-              Create a new roster entry for this workspace.
-            </Text>
-          ) : null}
-          {memberError ? (
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                Missing roster details
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {memberError}
-              </Text>
-            </View>
-          ) : null}
-          <View style={styles.profilePhotoField}>
-            <Text style={[styles.modalFieldLabel, { color: themeColors.ink }]}>
-              Profile photo
-            </Text>
-            <View style={[styles.profilePhotoPicker, { borderColor: themeColors.border }]}>
-              <Pressable
-                accessibilityRole="button"
-                onPress={showProfilePhotoUrlOnlyMessage}
-                style={styles.profilePhotoChooseButton}
-              >
-                <Text style={styles.profilePhotoChooseButtonLabel}>Use URL</Text>
-              </Pressable>
-              <Text style={[styles.profilePhotoFileName, { color: themeColors.ink }]}>
-                {getPhotoFileName(memberDraft.photoUrl)}
-              </Text>
-            </View>
-            <ModalField
-              label="Profile photo URL"
-              onChangeText={(value) => {
-                setMemberError(null);
-                setMemberDraft((current) => ({ ...current, photoUrl: value }));
-              }}
-              placeholder="https://example.com/photo.jpg"
-              value={memberDraft.photoUrl}
-            />
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setMemberDraft((current) => ({ ...current, photoUrl: "" }))}
-              style={styles.profilePhotoClearButton}
-            >
-              <Text style={[styles.profilePhotoClearButtonLabel, { color: themeColors.ink }]}>
-                Clear file
-              </Text>
-            </Pressable>
-          </View>
-          <ModalField
-            label="Name"
-            onChangeText={(value) => {
-              setMemberError(null);
-              setMemberDraft((current) => ({ ...current, name: value }));
-            }}
-            placeholder="Person name"
-            value={memberDraft.name}
-          />
-          <ModalField
-            keyboardType="email-address"
-            label="Email"
-            onChangeText={(value) => {
-              setMemberError(null);
-              setMemberDraft((current) => ({ ...current, email: value }));
-            }}
-            placeholder="person@mecorobotics.org"
-            value={memberDraft.email}
-          />
-          <DropdownField
-            clearLabel="None"
-            label="Discipline"
-            onChange={(value) => {
-              setMemberError(null);
-              setMemberDraft((current) => ({ ...current, disciplineId: value }));
-            }}
-            options={disciplineOptions}
-            placeholder="None"
-            value={memberDraft.disciplineId}
-          />
-          <DropdownField
-            label="Role"
-            onChange={(value) => {
-              const role = value as MemberRole;
-              setMemberError(null);
-              setMemberDraft((current) => ({
-                ...current,
-                role,
-                elevated: role === "lead" || role === "admin",
-              }));
-            }}
-            options={[
-              { id: "student", name: "Student" },
-              { id: "lead", name: "Student + subteam lead" },
-              { id: "mentor", name: "Mentor" },
-              { id: "admin", name: "Admin" },
-              { id: "external", name: "External access" },
-            ]}
-            value={memberDraft.role}
-          />
-          <ModalField
-            keyboardType="numeric"
-            label="Planned weekly attendance"
-            onChangeText={(value) => {
-              setMemberError(null);
-              setMemberDraft((current) => ({
-                ...current,
-                plannedWeeklyAttendanceHours: value,
-              }));
-            }}
-            placeholder="0"
-            value={memberDraft.plannedWeeklyAttendanceHours}
-          />
-          <View style={styles.plannedDaysField}>
-            <Text style={[styles.modalFieldLabel, { color: themeColors.ink }]}>
-              Planned days
-            </Text>
-            <View style={styles.plannedDaysRow}>
-              {PLANNED_ATTENDANCE_DAY_OPTIONS.map((day) => {
-                const isSelected = memberDraft.plannedAttendanceDays.includes(day.id);
+          setMemberDraft={setMemberDraft}
+          setMemberError={setMemberError}
+          showProfilePhotoUrlOnlyMessage={showProfilePhotoUrlOnlyMessage}
+          themeColors={themeColors}
+        />
 
-                return (
-                  <Pressable
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: isSelected }}
-                    key={day.id}
-                    onPress={() => {
-                      setMemberError(null);
-                      setMemberDraft((current) => ({
-                        ...current,
-                        plannedAttendanceDays: current.plannedAttendanceDays.includes(day.id)
-                          ? current.plannedAttendanceDays.filter((value) => value !== day.id)
-                          : [...current.plannedAttendanceDays, day.id],
-                      }));
-                    }}
-                    style={styles.plannedDayOption}
-                  >
-                    <View
-                      style={[
-                        styles.plannedDayCheckbox,
-                        {
-                          backgroundColor: isSelected ? themeColors.navySurface : themeColors.canvas,
-                          borderColor: isSelected ? themeColors.blue : themeColors.border,
-                        },
-                      ]}
-                    />
-                    <Text style={[styles.plannedDayLabel, { color: themeColors.ink }]}>
-                      {day.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-          <ModalField
-            label="Attendance notes"
-            multiline
-            onChangeText={(value) => {
-              setMemberError(null);
-              setMemberDraft((current) => ({
-                ...current,
-                plannedAttendanceNotes: value,
-              }));
-            }}
-            placeholder=""
-            value={memberDraft.plannedAttendanceNotes}
-          />
-        </EditorModal>
-
-        <EditorModal
+        <SubsystemEditorModal
+          appResponsiveStyles={appResponsiveStyles}
+          deleteSubsystemDraft={deleteSubsystemDraft}
+          memberOptions={memberOptions}
           onCancel={closeSubsystemEditor}
-          onDelete={subsystemEditorMode === "edit" ? deleteSubsystemDraft : undefined}
           onSave={saveSubsystemDraft}
-          saveLabel={subsystemEditorMode === "edit" ? "Update subsystem" : "Create subsystem"}
-          title={subsystemEditorMode === "edit" ? "Edit subsystem" : "Create subsystem"}
-          visible={Boolean(subsystemEditorMode)}
-        >
-          {subsystemError ? (
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                Missing subsystem details
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {subsystemError}
-              </Text>
-            </View>
-          ) : null}
-          <ModalField
-            label="Name"
-            onChangeText={(value) => {
-              setSubsystemError(null);
-              setSubsystemDraft((current) => ({ ...current, name: value }));
-            }}
-            placeholder="Subsystem name"
-            value={subsystemDraft.name}
-          />
-          <ModalField
-            label="Description"
-            multiline
-            onChangeText={(value) => {
-              setSubsystemError(null);
-              setSubsystemDraft((current) => ({ ...current, description: value }));
-            }}
-            placeholder="Subsystem description"
-            value={subsystemDraft.description}
-          />
-          <DropdownField
-            clearLabel="No responsible engineer"
-            label="Responsible engineer"
-            onChange={(value) => {
-              setSubsystemError(null);
-              setSubsystemDraft((current) => ({
-                ...current,
-                responsibleEngineerId: value,
-              }));
-            }}
-            options={memberOptions}
-            placeholder="Select responsible engineer"
-            value={subsystemDraft.responsibleEngineerId}
-          />
-          <AdvancedOptions>
-            <ModalField
-              label="Mentor IDs (comma separated)"
-              onChangeText={(value) => {
-                setSubsystemError(null);
-                setSubsystemDraft((current) => ({ ...current, mentorIdsText: value }));
-              }}
-              placeholder="jordan,riley"
-              value={subsystemDraft.mentorIdsText}
-            />
-            <ModalField
-              label="Risks (comma separated)"
-              onChangeText={(value) => {
-                setSubsystemError(null);
-                setSubsystemDraft((current) => ({ ...current, risksText: value }));
-              }}
-              placeholder="Risk one, risk two"
-              value={subsystemDraft.risksText}
-            />
-          </AdvancedOptions>
-        </EditorModal>
+          setSubsystemDraft={setSubsystemDraft}
+          setSubsystemError={setSubsystemError}
+          subsystemDraft={subsystemDraft}
+          subsystemEditorMode={subsystemEditorMode}
+          subsystemError={subsystemError}
+        />
 
-        <EditorModal
+        <QaReportEditorModal
+          appResponsiveStyles={appResponsiveStyles}
           onCancel={closeQaReportEditor}
           onSave={saveQaReportDraft}
-          saveLabel="Save QA report"
-          title="QA report"
-          visible={Boolean(qaReportEditorMode)}
-        >
-          {qaReportError ? (
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                Missing QA details
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {qaReportError}
-              </Text>
-            </View>
-          ) : null}
-          <DropdownField
-            clearLabel="No task"
-            label="Task"
-            onChange={(value) => {
-              setQaReportDraft((current) => ({ ...current, taskId: value }));
-              setActiveQaRequestId(null);
-              setQaReportError(null);
-            }}
-            options={taskOptions}
-            placeholder="Select task"
-            value={qaReportDraft.taskId}
-          />
-          <DropdownField
-            label="Result"
-            onChange={(value) => {
-              setQaReportError(null);
-              setQaReportDraft((current) => ({
-                ...current,
-                result: value as QaReportDraft["result"],
-              }));
-            }}
-            options={QA_RESULT_OPTIONS}
-            value={qaReportDraft.result}
-          />
-          <ModalField
-            label="Participants (member IDs, comma separated)"
-            onChangeText={(value) => {
-              setQaReportDraft((current) => ({ ...current, participantIdsText: value }));
-              setQaReportError(null);
-            }}
-            placeholder="ava,jordan"
-            value={qaReportDraft.participantIdsText}
-          />
-          <ModalField
-            label="Notes"
-            multiline
-            onChangeText={(value) => {
-              setQaReportDraft((current) => ({ ...current, notes: value }));
-              setQaReportError(null);
-            }}
-            placeholder="Inspection result, evidence, and follow-up"
-            value={qaReportDraft.notes}
-          />
-          <ModalField
-            label="Evidence / references"
-            multiline
-            onChangeText={(value) => {
-              setQaReportDraft((current) => ({ ...current, evidenceNotes: value }));
-              setQaReportError(null);
-            }}
-            placeholder="Photo links, notebook page, test run ID, video, or file reference"
-            value={qaReportDraft.evidenceNotes}
-          />
-          <AdvancedOptions>
-            <ModalField
-              label="Follow-up task title"
-              onChangeText={(value) => {
-                setQaReportError(null);
-                setQaReportDraft((current) => ({ ...current, followUpTaskTitle: value }));
-              }}
-              placeholder="Leave blank to create one automatically"
-              value={qaReportDraft.followUpTaskTitle}
-            />
-            <ToggleField
-              label="Mentor approved"
-              onToggle={(value) => {
-                setQaReportError(null);
-                setQaReportDraft((current) => ({ ...current, mentorApproved: value }));
-              }}
-              value={qaReportDraft.mentorApproved}
-            />
-          </AdvancedOptions>
-        </EditorModal>
+          qaReportDraft={qaReportDraft}
+          qaReportEditorMode={qaReportEditorMode}
+          qaReportError={qaReportError}
+          setActiveQaRequestId={setActiveQaRequestId}
+          setQaReportDraft={setQaReportDraft}
+          setQaReportError={setQaReportError}
+          taskOptions={taskOptions}
+        />
 
       </>
     );
@@ -6704,170 +5487,66 @@ export default function App() {
         />
       ) : (
         <AppThemeProvider value={{ colors: themeColors, mode: themeMode }}>
-          <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.canvas }]}>
-      <StatusBar style={isDarkModeEnabled ? "light" : "dark"} />
-
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        style={[styles.screen, { backgroundColor: themeColors.canvas }]}
-        contentContainerStyle={styles.screenContent}
-      >
-        <View style={[styles.topbar, appResponsiveStyles.topbar]}>
-          <View style={styles.topbarLeft}>
-            <Pressable
-              accessibilityLabel="Open navigation"
-              accessibilityRole="button"
-              onPress={openNavigationMenu}
-              style={[styles.iconButton, appResponsiveStyles.iconButton]}
-            >
-              <View style={styles.menuIcon}>
-                <View style={[styles.menuIconBar, { backgroundColor: themeColors.navyInk }]} />
-                <View style={[styles.menuIconBar, { backgroundColor: themeColors.navyInk }]} />
-                <View style={[styles.menuIconBar, { backgroundColor: themeColors.navyInk }]} />
-              </View>
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setIsProjectOverlayVisible(true)}
-              style={styles.brandWrap}
-            >
-              <Text style={[styles.brandEyebrow, appResponsiveStyles.brandEyebrow]}>
-                MECO Mission Control
-              </Text>
-              {!isCompactLayout ? (
-                <Text
-                  numberOfLines={1}
-                  style={[styles.brandTitle, appResponsiveStyles.brandTitle]}
-                >
-                  {activeTabLabel}
-                </Text>
-              ) : null}
-              {hasSubtabPages ? (
-                <View style={styles.topbarSubtabDots}>
-                  {activeSubtabOptions.map((option, index) => {
-                    const isActive = index === activeSubtabIndex;
-
-                    return (
-                      <View
-                        key={option.value}
-                        style={[
-                          styles.topbarSubtabDot,
-                          {
-                            backgroundColor: isActive ? themeColors.blue : themeColors.border,
-                            opacity: isActive ? 1 : 0.75,
-                          },
-                        ]}
-                      />
-                    );
-                  })}
-                </View>
-              ) : null}
-            </Pressable>
-          </View>
-
-          <View style={[styles.topbarRight, isCompactLayout && styles.topbarRightCompact]}>
-            <Pressable
-              accessibilityLabel={`Open account menu for ${signedInEmailInitial}`}
-              accessibilityRole="button"
-              onPress={() => {
-                setIsSeasonMenuVisible(false);
-                setIsPersonMenuVisible(true);
-              }}
-              style={[
-                styles.personButton,
-                appResponsiveStyles.iconButton,
-                { backgroundColor: themeColors.navySurface, borderColor: themeColors.blue },
-              ]}
-            >
-              <Text style={[styles.personButtonLabel, { color: themeColors.navyInk }]}>
-                {signedInEmailInitial}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-
-        {syncError ? (
-          <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-            <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>Backend sync issue</Text>
-            <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>{syncError}</Text>
-          </View>
-        ) : null}
-
-        <View {...subtabSwipeResponder.panHandlers}>{renderActiveTab()}</View>
-      </ScrollView>
-      <View style={styles.navSwipeEdge} {...navigationOpenSwipeResponder.panHandlers} />
-      <AttendanceModal
-        isCompactLayout={isCompactLayout}
-        meetingAttendance={meetingAttendance}
-        onClose={() => setIsAttendanceModalVisible(false)}
-        rowCardStyle={appResponsiveStyles.rowCard}
-        rowSubtitleStyle={appResponsiveStyles.rowSubtitle}
-        rowTitleStyle={appResponsiveStyles.rowTitle}
-        themeColors={themeColors}
-        visible={isAttendanceModalVisible}
-      />
-      {renderEditorModals()}
-      <NavigationMenu
-        activeTab={activeTab}
-        activeTabLabel={activeTabLabel}
-        closeButtonStyle={appResponsiveStyles.iconButton}
-        drawerStyle={appResponsiveStyles.navDrawer}
-        navBubbleStyle={appResponsiveStyles.navBubble}
-        navCountStyle={appResponsiveStyles.navCount}
-        navTabActiveStyle={appResponsiveStyles.navTabActive}
-        navTabStyle={appResponsiveStyles.navTab}
-        navigationCloseHandlers={navigationCloseSwipeResponder.panHandlers}
-        navigationSections={navigationSections}
-        onClose={closeNavigationMenu}
-        onSelectTab={selectNavigationTab}
-        themeColors={themeColors}
-        visible={isNavMenuVisible}
-      />
-      <ProjectOverlay
-        cardStyle={appResponsiveStyles.overlayCard}
-        onClose={() => setIsProjectOverlayVisible(false)}
-        onOpenSubsystems={() => {
-          setActiveTab("subsystems");
-          setIsProjectOverlayVisible(false);
-        }}
-        themeColors={themeColors}
-        visible={isProjectOverlayVisible}
-      />
-      <PersonMenu
-        activeSeasonId={activeSeasonId}
-        apiToken={apiToken}
-        cardStyle={appResponsiveStyles.overlayCard}
-        createSeason={createSeason}
-        deleteSeason={deleteSeason}
-        iconButtonStyle={appResponsiveStyles.settingsIconButton}
-        isDarkModeEnabled={isDarkModeEnabled}
-        isSeasonMenuVisible={isSeasonMenuVisible}
-        onClose={() => {
-          setIsPersonMenuVisible(false);
-          setIsSeasonMenuVisible(false);
-        }}
-        onResetWorkspaceData={resetWorkspaceData}
-        onSelectSeason={(seasonId) => {
-          setActiveSeasonId(seasonId);
-          setIsSeasonMenuVisible(false);
-        }}
-        onSignOut={signOut}
-        onToggleSeasonMenu={() => setIsSeasonMenuVisible((current) => !current)}
-        onUpdateThemePreference={updateThemePreference}
-        rowActiveStyle={appResponsiveStyles.settingsRowActive}
-        rowStyle={appResponsiveStyles.settingsRow}
-        seasonModeLabel={seasonModeLabel}
-        seasons={seasons}
-        signedInEmailInitial={signedInEmailInitial}
-        submenuRowActiveStyle={appResponsiveStyles.settingsSubmenuRowActive}
-        submenuStyle={appResponsiveStyles.settingsSubmenu}
-        syncStatusLabel={syncStatusLabel}
-        themeColors={themeColors}
-        themeMode={themeMode}
-        visible={isPersonMenuVisible}
-      />
-          </SafeAreaView>
+          <WorkspaceShell
+            activeSeasonId={activeSeasonId}
+            activeSubtabIndex={activeSubtabIndex}
+            activeSubtabOptions={activeSubtabOptions}
+            activeTab={activeTab}
+            activeTabContent={<ActiveTabContent activeTab={activeTab} screenProps={screenProps} />}
+            activeTabLabel={activeTabLabel}
+            apiToken={apiToken}
+            createSeason={createSeason}
+            deleteSeason={deleteSeason}
+            editorModals={renderEditorModals()}
+            hasSubtabPages={hasSubtabPages}
+            isAttendanceModalVisible={isAttendanceModalVisible}
+            isCompactLayout={isCompactLayout}
+            isDarkModeEnabled={isDarkModeEnabled}
+            isNavMenuVisible={isNavMenuVisible}
+            isPersonMenuVisible={isPersonMenuVisible}
+            isProjectOverlayVisible={isProjectOverlayVisible}
+            isSeasonMenuVisible={isSeasonMenuVisible}
+            meetingAttendance={meetingAttendance}
+            navigationCloseHandlers={navigationCloseSwipeResponder.panHandlers}
+            navigationOpenHandlers={navigationOpenSwipeResponder.panHandlers}
+            navigationSections={navigationSections}
+            onCloseAttendance={() => setIsAttendanceModalVisible(false)}
+            onCloseNavigation={closeNavigationMenu}
+            onClosePersonMenu={() => {
+              setIsPersonMenuVisible(false);
+              setIsSeasonMenuVisible(false);
+            }}
+            onCloseProjectOverlay={() => setIsProjectOverlayVisible(false)}
+            onOpenNavigation={openNavigationMenu}
+            onOpenPersonMenu={() => {
+              setIsSeasonMenuVisible(false);
+              setIsPersonMenuVisible(true);
+            }}
+            onOpenProjectOverlay={() => setIsProjectOverlayVisible(true)}
+            onOpenSubsystems={() => {
+              setActiveTab("subsystems");
+              setIsProjectOverlayVisible(false);
+            }}
+            onResetWorkspaceData={resetWorkspaceData}
+            onSelectSeason={(seasonId) => {
+              setActiveSeasonId(seasonId);
+              setIsSeasonMenuVisible(false);
+            }}
+            onSelectTab={selectNavigationTab}
+            onSignOut={signOut}
+            onToggleSeasonMenu={() => setIsSeasonMenuVisible((current) => !current)}
+            onUpdateThemePreference={updateThemePreference}
+            personInitial={signedInEmailInitial}
+            responsiveStyles={appResponsiveStyles}
+            seasonModeLabel={seasonModeLabel}
+            seasons={seasons}
+            signedInEmailInitial={signedInEmailInitial}
+            subtabSwipeHandlers={subtabSwipeResponder.panHandlers}
+            syncError={syncError}
+            syncStatusLabel={syncStatusLabel}
+            themeColors={themeColors}
+            themeMode={themeMode}
+          />
         </AppThemeProvider>
       )}
     </LocalizationProvider>

@@ -82,6 +82,9 @@ refreshes from `/api/bootstrap`.
 Requests go through `requestJson` in `src/data/api.ts`. It sends JSON accept
 headers, adds `Content-Type: application/json` when there is a body, and adds an
 `Authorization: Bearer <token>` header when an API token is available.
+Persisted auth sessions are stored with `expo-secure-store`; the per-install
+device number remains in AsyncStorage and saved sessions are restored only when
+the stored device number matches the current install.
 
 ## Offline And No-Auth Assumptions
 
@@ -99,8 +102,7 @@ displayed in the work-log list, and retried during later sync. Other failed sync
 and mutation paths surface `syncError`, set backend status to offline, and leave
 the current local workspace state in place.
 
-Current auth is contributor-facing scaffolding, not final role enforcement.
-Contributors should not treat mock data or development bypass as production
+Mock data and development bypass are contributor conveniences, not production
 authorization behavior.
 
 ## Device Testing Checklist

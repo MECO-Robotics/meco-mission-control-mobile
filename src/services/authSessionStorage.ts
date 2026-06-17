@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Crypto from "expo-crypto";
+import * as SecureStore from "expo-secure-store";
 
 import type { SessionUser } from "../types/domain";
 
@@ -10,7 +11,10 @@ type PersistedAuthSession = {
 };
 
 const DEVICE_NUMBER_STORAGE_KEY = "meco-mobile-device-number:v1";
-const SESSION_STORAGE_KEY = "meco-mobile-auth-session:v1";
+const LEGACY_SESSION_STORAGE_KEY = "meco-mobile-auth-session:v1";
+const SESSION_SECURE_STORAGE_KEY = "meco-mobile-auth-session:v2";
+
+type StoredSessionSource = "secure" | "legacy";
 
 function isDeviceNumber(value: unknown): value is string {
   return typeof value === "string" && /^\d{12,15}$/.test(value);
@@ -94,21 +98,40 @@ function parsePersistedSession(rawValue: string | null): PersistedAuthSession | 
   };
 }
 
-async function readStoredSessionRaw(): Promise<string | null> {
-  return AsyncStorage.getItem(SESSION_STORAGE_KEY);
+async function readStoredSessionRaw(): Promise<{
+  rawValue: string | null;
+  source: StoredSessionSource | null;
+}> {
+  try {
+    const secureValue = await SecureStore.getItemAsync(SESSION_SECURE_STORAGE_KEY);
+    if (secureValue !== null) {
+      return { rawValue: secureValue, source: "secure" };
+    }
+  } catch {
+    await AsyncStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
+    return { rawValue: null, source: null };
+  }
+
+  const legacyValue = await AsyncStorage.getItem(LEGACY_SESSION_STORAGE_KEY);
+  return {
+    rawValue: legacyValue,
+    source: legacyValue === null ? null : "legacy",
+  };
 }
 
 async function writeStoredSessionRaw(rawValue: string | null) {
+  await AsyncStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
+
   if (rawValue === null) {
-    await AsyncStorage.removeItem(SESSION_STORAGE_KEY);
+    await SecureStore.deleteItemAsync(SESSION_SECURE_STORAGE_KEY);
     return;
   }
 
-  await AsyncStorage.setItem(SESSION_STORAGE_KEY, rawValue);
+  await SecureStore.setItemAsync(SESSION_SECURE_STORAGE_KEY, rawValue);
 }
 
 export async function loadPersistedAuthSession(deviceNumber: string) {
-  const rawValue = await readStoredSessionRaw();
+  const { rawValue, source } = await readStoredSessionRaw();
   const parsed = parsePersistedSession(rawValue);
 
   if (!parsed && rawValue !== null) {
@@ -131,6 +154,10 @@ export async function loadPersistedAuthSession(deviceNumber: string) {
     // Avoid restoring a copied AsyncStorage session on a different install.
     await writeStoredSessionRaw(null);
     return null;
+  }
+
+  if (source === "legacy") {
+    await savePersistedAuthSession(parsed);
   }
 
   return parsed;
