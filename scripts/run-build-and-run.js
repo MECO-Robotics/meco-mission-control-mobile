@@ -5,11 +5,13 @@ const path = require("node:path");
 const BASH_FALLBACKS = [
   "C:\\Program Files\\Git\\bin\\bash.exe",
   "C:\\Program Files\\Git\\usr\\bin\\bash.exe",
+  "/usr/bin/bash",
+  "/bin/bash",
 ];
 
 function getPathBashCandidates() {
-  const command = process.platform === "win32" ? "where.exe" : "command";
-  const args = process.platform === "win32" ? ["bash"] : ["-v", "bash"];
+  const command = process.platform === "win32" ? "where.exe" : "sh";
+  const args = process.platform === "win32" ? ["bash"] : ["-lc", "command -v bash"];
   const result = spawnSync(command, args, {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "ignore"],
