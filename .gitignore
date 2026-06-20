@@ -46,3 +46,9 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Codex/GitHub-review scratch artifacts
+.codex/*
+!.codex/environments/
+!.codex/environments/environment.toml
+.codex_*.json
