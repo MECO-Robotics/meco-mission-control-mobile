@@ -194,6 +194,8 @@ export async function restorePersistedWorkLogTimerReminder(): Promise<PersistedW
   const timerReminders = scheduledNotifications.filter(isWorkLogTimerReminder);
 
   if (storedTimer) {
+    // AsyncStorage is authoritative, but scheduled notification ids can change
+    // after app restarts, so rebuild the id list from Expo Notifications.
     return {
       ...storedTimer,
       reminderNotificationIds: timerReminders
@@ -216,6 +218,8 @@ export async function restorePersistedWorkLogTimerReminder(): Promise<PersistedW
     return null;
   }
 
+  // If AsyncStorage was cleared while reminders remained scheduled, rebuild the
+  // active timer from notification metadata so the user can still stop it.
   const reminderNotificationIds = timerReminders
     .filter((notification) => notification.content.data?.timerId === timerId)
     .map((notification) => notification.identifier);

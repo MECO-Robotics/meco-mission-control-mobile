@@ -217,6 +217,7 @@ export interface PurchaseItem {
   finalCost?: number;
   approvedByMentor: boolean;
   status: PurchaseStatus;
+  createdAt?: string;
 }
 
 export interface QaReview {

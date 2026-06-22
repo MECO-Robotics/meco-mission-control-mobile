@@ -3,6 +3,8 @@ import { Platform } from "react-native";
 export const DEFAULT_API_BASE_URL = "http://localhost:8080";
 
 function resolveConfiguredApiBaseUrl() {
+  // Device-specific overrides let simulators and physical devices point at
+  // different reachable hosts without changing application code.
   const platformConfigured =
     Platform.OS === "ios"
       ? process.env.EXPO_PUBLIC_IOS_API_BASE_URL?.trim()
@@ -68,6 +70,8 @@ export function classifyMobileAuthError(
   context: "auth-config" | "authenticated" | "general" = "general",
 ): MobileAuthErrorState {
   if (context === "auth-config") {
+    // Auth config failures are surfaced separately because users may not have a
+    // session yet, so generic expired-session handling would be misleading.
     return "auth-config-unavailable";
   }
 
@@ -131,6 +135,7 @@ export async function requestJson<T>(
   path: string,
   init: RequestInit = {},
   token?: string | null,
+  timeoutMs?: number,
 ): Promise<T> {
   const headers = new Headers(init.headers ?? undefined);
   headers.set("Accept", "application/json");
@@ -143,14 +148,26 @@ export async function requestJson<T>(
     headers.set("Authorization", `Bearer ${token}`);
   }
 
+  const abortController =
+    typeof timeoutMs === "number" && timeoutMs > 0 ? new AbortController() : null;
+  const timeoutHandle =
+    abortController !== null
+      ? setTimeout(() => abortController.abort(), timeoutMs)
+      : null;
+
   let response: Response;
   try {
     response = await fetch(`${baseUrl}${path}`, {
       ...init,
       headers,
+      signal: abortController?.signal ?? init.signal,
     });
   } catch (error) {
     throw new ApiNetworkError(error);
+  } finally {
+    if (timeoutHandle !== null) {
+      clearTimeout(timeoutHandle);
+    }
   }
 
   const rawBody = await response.text();
