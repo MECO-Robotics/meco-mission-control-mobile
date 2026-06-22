@@ -2,6 +2,7 @@ const { execFileSync, spawnSync } = require("child_process");
 
 const METRO_PORT = "8081";
 const DEFAULT_SIMULATOR_NAME = "iPhone 17";
+const DEFAULT_SIMULATOR_APP_NAMES = ["Device Hub", "Simulator"];
 const SIMULATOR_SETTLE_MS = 5000;
 const SIMULATOR_STATE_CHECK_MS = 1000;
 const SIMULATOR_STATE_CHECKS = 30;
@@ -78,6 +79,23 @@ function getRuntimeVersion(runtime) {
   return Number(parts[1]) * 1000 + Number(parts[2]);
 }
 
+function openSimulatorApp(udid) {
+  const appNames = process.env.SIMULATOR_APP_NAME
+    ? [process.env.SIMULATOR_APP_NAME]
+    : DEFAULT_SIMULATOR_APP_NAMES;
+
+  for (const appName of appNames) {
+    const result = run("open", ["-a", appName, "--args", "-CurrentDeviceUDID", udid], {
+      quiet: true,
+    });
+
+    if (result.status === 0) {
+      sleep(SIMULATOR_SETTLE_MS);
+      return;
+    }
+  }
+}
+
 function getTargetSimulator() {
   const simulator = getSimulator();
 
@@ -95,10 +113,7 @@ function bootSimulator() {
   const simulator = getTargetSimulator();
 
   if (simulator.state === "Booted") {
-    run("open", ["-a", "Simulator", "--args", "-CurrentDeviceUDID", simulator.udid], {
-      quiet: true,
-    });
-    sleep(SIMULATOR_SETTLE_MS);
+    openSimulatorApp(simulator.udid);
     return;
   }
 
@@ -116,10 +131,7 @@ function bootSimulator() {
   });
 
   waitForSimulatorState(simulator.udid, "Booted");
-  run("open", ["-a", "Simulator", "--args", "-CurrentDeviceUDID", simulator.udid], {
-    quiet: true,
-  });
-  sleep(SIMULATOR_SETTLE_MS);
+  openSimulatorApp(simulator.udid);
 }
 
 killMetroPort();

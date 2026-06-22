@@ -48,7 +48,7 @@ export const landscapeTimelineHeaderStyles = StyleSheet.create({
     minHeight: 38,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#d9e0ea",
+    borderColor: planner.controlBorder,
     backgroundColor: colors.white,
     paddingHorizontal: spacing.md,
     alignItems: "center",
@@ -56,20 +56,20 @@ export const landscapeTimelineHeaderStyles = StyleSheet.create({
   },
   controlButtonActive: {
     borderColor: planner.today,
-    backgroundColor: "#d7e3f6",
+    backgroundColor: planner.controlActiveSurface,
   },
   controlLabel: {
-    color: "#6f7d91",
+    color: planner.controlMuted,
     fontSize: 15,
     fontWeight: "800",
   },
   controlLabelActive: {
-    color: "#173b6d",
+    color: planner.controlActiveInk,
   },
   addButton: {
     minHeight: 42,
     borderRadius: 999,
-    backgroundColor: "#1f5aa6",
+    backgroundColor: planner.addButton,
     paddingHorizontal: spacing.lg,
     alignItems: "center",
     justifyContent: "center",
