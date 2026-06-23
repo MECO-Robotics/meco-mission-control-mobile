@@ -8,8 +8,17 @@ const freeportPath = path.join(
   "freeport-async",
   "index.js",
 );
+const freeportPackagePath = path.join(
+  __dirname,
+  "..",
+  "node_modules",
+  "freeport-async",
+  "package.json",
+);
 
 const logPrefix = "[patch-freeport-async]";
+const packageName = "freeport-async";
+const expectedVersion = "2.0.0";
 const maxPortConstant = "const MAX_PORT = 65535;";
 const rangeStartTarget = "const DEFAULT_PORT_RANGE_START = 11000;";
 const awaitablesTarget = "    var awaitables = [];";
@@ -20,15 +29,39 @@ const rangeGuard = [
   "    }",
 ].join("\n");
 
+function readInstalledVersion(packagePath) {
+  if (!fs.existsSync(packagePath)) {
+    return null;
+  }
+
+  return JSON.parse(fs.readFileSync(packagePath, "utf8")).version;
+}
+
+const installedVersion = readInstalledVersion(freeportPackagePath);
+
+if (installedVersion === null) {
+  console.log(`${logPrefix} skipped: ${packageName} is not installed.`);
+  process.exit(0);
+}
+
+if (installedVersion !== expectedVersion) {
+  console.warn(
+    `${logPrefix} skipped: unsupported ${packageName}@${installedVersion}; expected ${expectedVersion}. Review patch targets after dependency upgrades.`,
+  );
+  process.exit(0);
+}
+
 if (!fs.existsSync(freeportPath)) {
-  console.log(`${logPrefix} skipped: freeport-async is not installed.`);
+  console.warn(
+    `${logPrefix} skipped: ${packageName}@${installedVersion} target file is missing.`,
+  );
   process.exit(0);
 }
 
 const original = fs.readFileSync(freeportPath, "utf8");
 
 if (original.includes(maxPortConstant) && original.includes(rangeGuard)) {
-  console.log(`${logPrefix} already applied.`);
+  console.log(`${logPrefix} already applied: ${packageName}@${installedVersion}.`);
   process.exit(0);
 }
 
@@ -38,7 +71,7 @@ const missingTargets = [rangeStartTarget, awaitablesTarget].filter(
 
 if (missingTargets.length > 0) {
   console.warn(
-    `${logPrefix} skipped: expected freeport-async source changed (${missingTargets.join(", ")}).`,
+    `${logPrefix} skipped: target strings missing in ${packageName}@${installedVersion} (${missingTargets.join(", ")}).`,
   );
   process.exit(0);
 }
@@ -48,4 +81,4 @@ const patched = original
   .replace(awaitablesTarget, `${rangeGuard}\n${awaitablesTarget}`);
 
 fs.writeFileSync(freeportPath, patched);
-console.log(`${logPrefix} applied.`);
+console.log(`${logPrefix} applied: ${packageName}@${installedVersion}.`);
