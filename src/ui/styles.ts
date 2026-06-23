@@ -1,39 +1,47 @@
 import { StyleSheet } from "react-native";
 
-import { colors, radii, shadows, spacing } from "../theme";
+import {
+  colors,
+  overlayColors,
+  radii,
+  riskSeverityColors,
+  shadows,
+  spacing,
+  statusToneColors,
+} from "../theme";
 export const statusToneStyles = StyleSheet.create({
   success: {
-    backgroundColor: "#dcfce7",
+    backgroundColor: statusToneColors.success.surface,
   },
   info: {
-    backgroundColor: "#e0f2fe",
+    backgroundColor: statusToneColors.info.surface,
   },
   warning: {
-    backgroundColor: "#fef3c7",
+    backgroundColor: statusToneColors.warning.surface,
   },
   danger: {
-    backgroundColor: "#fee2e2",
+    backgroundColor: statusToneColors.danger.surface,
   },
   neutral: {
-    backgroundColor: "#f1f5f9",
+    backgroundColor: statusToneColors.neutral.surface,
   },
 });
 
 export const statusToneLabelStyles = StyleSheet.create({
   success: {
-    color: "#246847",
+    color: statusToneColors.success.ink,
   },
   info: {
-    color: "#075985",
+    color: statusToneColors.info.ink,
   },
   warning: {
-    color: "#92400e",
+    color: statusToneColors.warning.ink,
   },
   danger: {
-    color: "#991b1b",
+    color: statusToneColors.danger.ink,
   },
   neutral: {
-    color: "#475569",
+    color: statusToneColors.neutral.ink,
   },
 });
 
@@ -431,7 +439,7 @@ export const styles = StyleSheet.create({
   },
   dropdownScrim: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.36)",
+    backgroundColor: overlayColors.dropdownScrim,
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.lg,
@@ -787,12 +795,12 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.orangeSurface,
   },
   riskSeverityMedium: {
-    borderColor: "rgba(233, 131, 53, 0.45)",
-    backgroundColor: "rgba(233, 131, 53, 0.12)",
+    borderColor: riskSeverityColors.medium.border,
+    backgroundColor: riskSeverityColors.medium.surface,
   },
   riskSeverityLow: {
-    borderColor: "rgba(22, 71, 142, 0.26)",
-    backgroundColor: "rgba(22, 71, 142, 0.08)",
+    borderColor: riskSeverityColors.low.border,
+    backgroundColor: riskSeverityColors.low.surface,
   },
   riskLandscapeBoard: {
     width: "100%",
@@ -824,26 +832,26 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
   },
   riskPriorityBadgeHigh: {
-    backgroundColor: "#fee2e2",
+    backgroundColor: statusToneColors.danger.surface,
   },
   riskPriorityBadgeMedium: {
-    backgroundColor: "#fef3c7",
+    backgroundColor: statusToneColors.warning.surface,
   },
   riskPriorityBadgeLow: {
-    backgroundColor: "#eef2f7",
+    backgroundColor: statusToneColors.neutral.softSurface,
   },
   riskPriorityBadgeText: {
     fontSize: 13,
     fontWeight: "900",
   },
   riskPriorityBadgeTextHigh: {
-    color: "#991b1b",
+    color: riskSeverityColors.high.ink,
   },
   riskPriorityBadgeTextMedium: {
-    color: "#92400e",
+    color: riskSeverityColors.medium.ink,
   },
   riskPriorityBadgeTextLow: {
-    color: "#475569",
+    color: riskSeverityColors.low.ink,
   },
   riskColumnCount: {
     minWidth: 36,
@@ -1048,6 +1056,10 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  rosterAddButtonPressed: {
+    backgroundColor: colors.navySurface,
+    transform: [{ translateY: -1 }],
+  },
   rosterAddButtonLabel: {
     color: colors.navyInk,
     fontSize: 22,
@@ -1115,7 +1127,7 @@ export const styles = StyleSheet.create({
   },
   modalScrim: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.45)",
+    backgroundColor: overlayColors.modalScrim,
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.lg,
@@ -1146,6 +1158,11 @@ export const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 20,
     fontWeight: "800",
+  },
+  modalDescription: {
+    color: colors.subtleText,
+    fontSize: 13,
+    lineHeight: 18,
   },
   modalContent: {
     gap: spacing.sm,
@@ -1204,7 +1221,7 @@ export const styles = StyleSheet.create({
   },
   profilePhotoChooseButton: {
     borderRadius: 4,
-    backgroundColor: "#6b7280",
+    backgroundColor: statusToneColors.neutral.ink,
     paddingHorizontal: spacing.sm,
     paddingVertical: 6,
   },
@@ -1347,7 +1364,7 @@ export const styles = StyleSheet.create({
   },
   overlayScrim: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.34)",
+    backgroundColor: overlayColors.drawerScrim,
     justifyContent: "flex-start",
     paddingHorizontal: spacing.md,
     paddingTop: spacing.xxl,
@@ -1362,7 +1379,7 @@ export const styles = StyleSheet.create({
   },
   navDrawerSafeArea: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.34)",
+    backgroundColor: overlayColors.drawerScrim,
   },
   navDrawerScrim: {
     flex: 1,
@@ -1548,285 +1565,6 @@ export const styles = StyleSheet.create({
   overlaySecondaryLabel: {
     color: colors.navyInk,
     fontWeight: "800",
-  },
-  loginScreen: {
-    flex: 1,
-  },
-  loginScreenLight: {
-    backgroundColor: colors.grey,
-  },
-  loginScreenDark: {
-    backgroundColor: "#10284d",
-  },
-  loginSafeArea: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  loginCard: {
-    minHeight: 722,
-    borderRadius: 29,
-    alignItems: "center",
-    paddingHorizontal: 28,
-    paddingTop: 28,
-    paddingBottom: 28,
-  },
-  loginCardLight: {
-    backgroundColor: colors.grey,
-  },
-  loginCardDark: {
-    backgroundColor: "#10284d",
-  },
-  loginBadgeShadow: {
-    shadowColor: "#000000",
-    shadowOpacity: 0.28,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 13 },
-    elevation: 8,
-  },
-  loginLogoImage: {
-    width: 304,
-    height: 334,
-  },
-  loginBadge: {
-    width: 250,
-    height: 250,
-    borderRadius: 36,
-    backgroundColor: "#1e5aae",
-    padding: 12,
-    transform: [{ rotate: "30deg" }],
-  },
-  loginBadgeInner: {
-    flex: 1,
-    borderRadius: 28,
-    borderWidth: 4,
-    borderColor: colors.red,
-    backgroundColor: colors.white,
-    alignItems: "center",
-    justifyContent: "center",
-    transform: [{ rotate: "-30deg" }],
-  },
-  loginRocket: {
-    height: 88,
-    width: 40,
-    alignItems: "center",
-    justifyContent: "flex-start",
-    marginBottom: -6,
-  },
-  loginRocketBody: {
-    width: 14,
-    height: 58,
-    borderTopLeftRadius: 999,
-    borderTopRightRadius: 999,
-    backgroundColor: colors.red,
-  },
-  loginRocketFinLeft: {
-    position: "absolute",
-    top: 40,
-    left: 6,
-    width: 12,
-    height: 34,
-    borderTopLeftRadius: 12,
-    backgroundColor: colors.red,
-    transform: [{ rotate: "18deg" }],
-  },
-  loginRocketFinRight: {
-    position: "absolute",
-    top: 40,
-    right: 6,
-    width: 12,
-    height: 34,
-    borderTopRightRadius: 12,
-    backgroundColor: colors.red,
-    transform: [{ rotate: "-18deg" }],
-  },
-  loginRocketFlame: {
-    position: "absolute",
-    top: 62,
-    width: 34,
-    height: 52,
-    borderLeftWidth: 17,
-    borderRightWidth: 17,
-    borderBottomWidth: 52,
-    borderLeftColor: "transparent",
-    borderRightColor: "transparent",
-    borderBottomColor: colors.grey,
-  },
-  loginArc: {
-    width: 210,
-    height: 52,
-    borderTopWidth: 4,
-    borderTopColor: colors.red,
-    borderRadius: 110,
-    marginTop: -6,
-  },
-  loginTeamText: {
-    color: colors.red,
-    fontSize: 18,
-    fontWeight: "800",
-    letterSpacing: 10,
-    marginRight: -10,
-    marginTop: -34,
-  },
-  loginMecoText: {
-    color: colors.blue,
-    fontSize: 50,
-    fontWeight: "900",
-    letterSpacing: 0,
-    lineHeight: 58,
-  },
-  loginDivider: {
-    width: 94,
-    height: 3,
-    backgroundColor: colors.red,
-    marginTop: 2,
-  },
-  loginNumberText: {
-    color: colors.red,
-    fontSize: 18,
-    fontWeight: "800",
-    letterSpacing: 8,
-    marginRight: -8,
-    marginTop: 6,
-  },
-  loginTitle: {
-    color: colors.white,
-    fontSize: 28,
-    fontWeight: "400",
-    letterSpacing: 0,
-    marginTop: 14,
-    marginBottom: 16,
-    textShadowColor: "rgba(0, 0, 0, 0.7)",
-    textShadowOffset: { width: 1, height: 2 },
-    textShadowRadius: 1,
-  },
-  loginFieldStack: {
-    width: "100%",
-    gap: 10,
-  },
-  loginEmailRow: {
-    width: "100%",
-    minHeight: 50,
-    borderRadius: 999,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingLeft: 18,
-    paddingRight: 8,
-  },
-  loginEmailRowLight: {
-    backgroundColor: colors.blue,
-    shadowColor: "#000000",
-    shadowOpacity: 0.23,
-    shadowRadius: 1,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 5,
-  },
-  loginEmailRowDark: {
-    backgroundColor: "#172746",
-  },
-  loginCodeRow: {
-    width: "100%",
-    minHeight: 50,
-    borderRadius: 999,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingLeft: 18,
-    paddingRight: 8,
-  },
-  loginEmailInput: {
-    flex: 1,
-    minWidth: 0,
-    color: colors.white,
-    fontSize: 13,
-    paddingVertical: 12,
-  },
-  loginSendButton: {
-    width: "100%",
-    minHeight: 44,
-    borderRadius: 999,
-    backgroundColor: colors.red,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 2,
-    paddingHorizontal: 16,
-  },
-  loginInlineSendButton: {
-    width: "auto",
-    flexShrink: 0,
-    marginLeft: 8,
-    marginTop: 0,
-  },
-  loginSendButtonText: {
-    color: colors.white,
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  loginErrorText: {
-    alignSelf: "stretch",
-    color: colors.black,
-    fontSize: 14,
-    fontWeight: "700",
-    lineHeight: 20,
-    marginTop: 10,
-    textAlign: "center",
-  },
-  loginNoticeText: {
-    alignSelf: "stretch",
-    color: "#dbeafe",
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 10,
-    textAlign: "center",
-  },
-  loginGoogleButton: {
-    width: "100%",
-    minHeight: 42,
-    borderRadius: 999,
-    backgroundColor: "#1e293b",
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 76,
-    paddingHorizontal: 8,
-    gap: 8,
-    shadowColor: "#000000",
-    shadowOpacity: 0.3,
-    shadowRadius: 1,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
-  },
-  loginGoogleButtonPressed: {
-    opacity: 0.78,
-  },
-  loginAvatar: {
-    width: 22,
-    height: 22,
-    borderRadius: 999,
-    backgroundColor: "#16478e",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  loginAvatarText: {
-    color: colors.white,
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  loginGoogleText: {
-    flex: 1,
-    color: colors.white,
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  loginGoogleMark: {
-    width: 38,
-    height: 38,
-    borderRadius: 999,
-    backgroundColor: colors.white,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  loginGoogleMarkImage: {
-    width: 26,
-    height: 26,
   },
   settingsRow: {
     borderRadius: radii.md,

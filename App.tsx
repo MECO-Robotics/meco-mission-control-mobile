@@ -1,40 +1,23 @@
-import { StatusBar } from "expo-status-bar";
 import * as ScreenOrientation from "expo-screen-orientation";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
-  Image,
-  Modal,
   PanResponder,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  TextInput,
   Platform,
   useColorScheme,
   useWindowDimensions,
-  View,
 } from "react-native";
 
 import {
-  EVENT_TYPE_OPTIONS,
   EVENT_TYPE_STYLES,
   INVENTORY_VIEW_OPTIONS,
-  MANUFACTURING_STATUS_OPTIONS,
   MANUFACTURING_VIEW_OPTIONS,
-  ACQUISITION_METHOD_OPTIONS,
-  PART_SOURCE_OPTIONS,
-  PURCHASE_STATUS_OPTIONS,
-  QA_RESULT_OPTIONS,
   STATUS_LABELS,
-  TASK_PRIORITY_OPTIONS,
-  TASK_STATUS_OPTIONS,
   TASK_SUBTEAM_DISCIPLINE_IDS,
   TASK_SUBTEAM_OPTIONS,
   TASK_VIEW_OPTIONS,
-  WORKLOG_TEMPLATE_OPTIONS,
 } from "./src/ui/constants";
 import {
   buildDateTime,
@@ -46,7 +29,6 @@ import {
   buildSubsystemDraft,
   buildTaskDraft,
   buildWorkLogDraft,
-  capitalize,
   compareDateTimes,
   datePortion,
   derivePartLifecycleStatus,
@@ -65,7 +47,6 @@ import type {
   ArchiveFilterMode,
   BlockerFilterMode,
   EditorMode,
-  EventReportDraft,
   InventoryViewTab,
   ManufacturingDraft,
   ManufacturingViewTab,
@@ -86,19 +67,10 @@ import type {
   WorkLogDraft,
   WorkLogSortMode,
 } from "./src/ui/types";
-import {
-  AdvancedOptions,
-  EditorModal,
-  DropdownField,
-  ModalField,
-  SearchField,
-  ToggleField,
-} from "./src/ui/ui";
 import { AppThemeProvider } from "./src/ui/themeContext";
-import { LocalizationProvider, Text, type LanguageCode } from "./src/i18n";
+import { LocalizationProvider, type LanguageCode } from "./src/i18n";
 import {
   ApiNetworkError,
-  ApiRequestError,
   classifyMobileAuthError,
   getBackendConnectionErrorMessage,
   getMobileAuthErrorMessage,
@@ -106,6 +78,10 @@ import {
   requestJson,
   resolveApiBaseUrl,
 } from "./src/data/api";
+import {
+  buildLocalDevSessionUser,
+  isLocalDevAuthBypassEnabled,
+} from "./src/data/devAuthBypass";
 import { buildHelpRequest, type HelpRequestInput } from "./src/data/helpRequests";
 import {
   buildOwnedTaskStartPayload,
@@ -122,13 +98,10 @@ import {
   getTaskSubteamForDisciplineId,
 } from "./src/data/taskQueueOrdering";
 import { mecoSnapshot } from "./src/data/mockData";
-import { tasks as seededTasks } from "./src/data/tasks";
 import type {
+  Event,
   MemberRole,
   ManufacturingItem,
-  BootstrapMilestone,
-  Event,
-  EventType,
   HelpRequest,
   PlatformBootstrapPayload,
   PublicAuthConfig,
@@ -143,19 +116,81 @@ import type {
   TaskStatus,
   WorkLog,
 } from "./src/types/domain";
+import {
+  ATTENDANCE_STATUS_BY_MEMBER_ID,
+  AUTH_REQUEST_TIMEOUT_MS,
+  INITIAL_SEASONS,
+  RISK_PRIORITY_RANK,
+  SUBTAB_SWIPE_ACTIVATION_DISTANCE,
+  SUBTAB_SWIPE_COMMIT_DISTANCE,
+  SWIPE_ACTIVATION_DISTANCE,
+  SWIPE_COMMIT_DISTANCE,
+  TIMER_TICK_MS,
+  applyMilestoneSubsystemLinks,
+  backendReachabilityAfterError,
+  buildSubsystemOptions,
+  buildTaskById,
+  buildTaskMutationPayload,
+  ensureArray,
+  formatHoursFromTimer,
+  formatTimerElapsed,
+  getAutoTaskStatus,
+  getClientErrorMessage,
+  getEmailCodeVerificationErrorMessage,
+  getOptionalCreatedAt,
+  getQaReviewTaskId,
+  getWorkLogDraftOwnerKey,
+  getWorkLogTimerElapsedMs,
+  hasRequiredEmailDomain,
+  isTaskReadyForQaPass,
+  isValidDateInput,
+  isValidTimeInput,
+  isWorkLogDraftOwnedBy,
+  mapEventTypeToMilestoneType,
+  mapMilestonesToEvents,
+  mapPendingWorkLogDraftToWorkLog,
+  mapTaskPayloadToServer,
+  mapTaskPriorityToRiskPriority,
+  normalizeRequiredEmailDomain,
+  normalizeTaskFromServer,
+  normalizeTaskSubsystems,
+  parseClientError,
+  shiftDateByDays,
+  shouldQueueWorkLogDraftAfterError,
+  taskDependsOnTarget,
+  withSeededSubteamTasks,
+  type AttendanceStatus,
+  type BackendReachability,
+  type MilestoneMutationResponse,
+  type SeasonOption,
+  type StartTaskOptions,
+  type WorkLogMutationResponse,
+  type WorkLogTimerState,
+} from "./src/app/appModel";
+import {
+  DEVICE_SESSION_RESTORED_NOTICE,
+  GOOGLE_CLIENT_ID_PLACEHOLDER,
+  getActiveGoogleClientId,
+  normalizeThemeModeFromResponse,
+  resolveGoogleClientIds,
+  type EmailCodeStartResponse,
+  type ThemePreferenceResponse,
+} from "./src/app/authConfigModel";
+import { ActiveTabContent } from "./src/app/components/ActiveTabContent";
+import { LoginScreen } from "./src/app/components/LoginScreen";
+import { WorkspaceShell } from "./src/app/components/WorkspaceShell";
+import { DeadlineEditorModal } from "./src/app/editorModals/DeadlineEditorModal";
+import { ManufacturingEditorModal } from "./src/app/editorModals/ManufacturingEditorModal";
+import { MemberEditorModal } from "./src/app/editorModals/MemberEditorModal";
+import { MilestoneEditorModal } from "./src/app/editorModals/MilestoneEditorModal";
+import { PartDefinitionEditorModal } from "./src/app/editorModals/PartDefinitionEditorModal";
+import { PurchaseEditorModal } from "./src/app/editorModals/PurchaseEditorModal";
+import { QaReportEditorModal } from "./src/app/editorModals/QaReportEditorModal";
+import { SubsystemEditorModal } from "./src/app/editorModals/SubsystemEditorModal";
+import { TaskEditorModal } from "./src/app/editorModals/TaskEditorModal";
+import { WorkLogEditorModal } from "./src/app/editorModals/WorkLogEditorModal";
 
-import { appThemes, colors, type AppThemeName } from "./src/theme";
-import { AttendanceStatusMark } from "./src/screens/AttendanceStatusMark";
-import { AttendanceScreen } from "./src/screens/AttendanceScreen";
-import { HomeScreen } from "./src/screens/HomeScreen";
-import { InventoryScreen } from "./src/screens/InventoryScreen";
-import { ManufacturingScreen } from "./src/screens/ManufacturingScreen";
-import { ReportsScreen } from "./src/screens/ReportsScreen";
-import { RisksScreen } from "./src/screens/RisksScreen";
-import { RosterScreen } from "./src/screens/RosterScreen";
-import { SubsystemsScreen } from "./src/screens/SubsystemsScreen";
-import { TasksScreen } from "./src/screens/TasksScreen";
-import { WorkLogsScreen } from "./src/screens/WorkLogsScreen";
+import { appThemes, type AppThemeName } from "./src/theme";
 import type { SubsystemCounts, WorkLogListItem } from "./src/screens/types";
 import {
   buildWorkLogDraftFingerprint,
@@ -174,6 +209,12 @@ import {
   updateWorkLogLiveActivity,
 } from "./src/services/workLogLiveActivity";
 import {
+  clearPersistedAuthSession,
+  getOrCreateAuthDeviceNumber,
+  loadPersistedAuthSession,
+  savePersistedAuthSession,
+} from "./src/services/authSessionStorage";
+import {
   cancelWorkLogTimerReminders,
   clearPersistedWorkLogTimerState,
   persistWorkLogTimerState,
@@ -182,507 +223,6 @@ import {
 } from "./src/services/workLogTimerNotifications";
 
 WebBrowser.maybeCompleteAuthSession();
-
-const SWIPE_ACTIVATION_DISTANCE = 18;
-const SWIPE_COMMIT_DISTANCE = 52;
-const SUBTAB_SWIPE_ACTIVATION_DISTANCE = 24;
-const SUBTAB_SWIPE_COMMIT_DISTANCE = 72;
-const TIMER_TICK_MS = 1000;
-const MS_PER_HOUR = 1000 * 60 * 60;
-const GOOGLE_CLIENT_ID_PLACEHOLDER = "missing-google-client-id";
-
-type AttendanceStatus = "yes" | "maybe" | "no";
-type SeasonOption = {
-  id: string;
-  label: string;
-};
-type WorkLogTimerState = {
-  id: string;
-  elapsedMs: number;
-  isPaused: boolean;
-  reminderNotificationIds: string[];
-  startedAt: number | null;
-};
-type StartTaskOptions = {
-  openWorkLog?: boolean;
-};
-type BackendReachability = "unknown" | "reachable" | "unreachable";
-
-type WorkLogMutationResponse = {
-  item?: WorkLog;
-};
-
-function shouldQueueWorkLogDraftAfterError(error: unknown) {
-  return (
-    error instanceof ApiNetworkError ||
-    (error instanceof ApiRequestError && error.status >= 500)
-  );
-}
-
-function backendReachabilityAfterError(error: unknown): BackendReachability {
-  return error instanceof ApiNetworkError ? "unreachable" : "reachable";
-}
-
-function mapPendingWorkLogDraftToWorkLog(
-  draft: PendingWorkLogDraft,
-): WorkLogListItem {
-  return {
-    id: draft.id,
-    localDraftId: draft.id,
-    syncError: draft.error,
-    syncStatus: draft.status,
-    ...draft.payload,
-  };
-}
-
-function formatTimerElapsed(elapsedMs: number) {
-  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  const paddedMinutes = String(minutes).padStart(2, "0");
-  const paddedSeconds = String(seconds).padStart(2, "0");
-
-  return hours > 0
-    ? `${hours}:${paddedMinutes}:${paddedSeconds}`
-    : `${minutes}:${paddedSeconds}`;
-}
-
-function formatHoursFromTimer(elapsedMs: number) {
-  const roundedHours = Math.round((elapsedMs / MS_PER_HOUR) * 100) / 100;
-
-  return Number.isInteger(roundedHours)
-    ? String(roundedHours)
-    : String(roundedHours).replace(/0$/, "");
-}
-
-function getWorkLogTimerElapsedMs(
-  timer: WorkLogTimerState | null,
-  now = Date.now(),
-) {
-  if (!timer) {
-    return 0;
-  }
-
-  return (
-    timer.elapsedMs +
-    (timer.startedAt && !timer.isPaused
-      ? Math.max(0, now - timer.startedAt)
-      : 0)
-  );
-}
-type RiskPriority = "high" | "medium" | "low";
-
-const RISK_PRIORITY_RANK: Record<RiskPriority, number> = {
-  high: 0,
-  medium: 1,
-  low: 2,
-};
-
-const ATTENDANCE_STATUS_BY_MEMBER_ID: Record<string, AttendanceStatus> = {
-  ava: "yes",
-  ethan: "maybe",
-  jordan: "yes",
-  lucas: "no",
-  maya: "yes",
-  priya: "maybe",
-  riley: "yes",
-  noah: "yes",
-  zoe: "maybe",
-  diego: "yes",
-  emma: "yes",
-  samira: "yes",
-  caleb: "maybe",
-  nina: "yes",
-};
-
-const INITIAL_SEASONS: SeasonOption[] = [
-  { id: "2026-offseason", label: "2026 FRC Offseason" },
-  { id: "2027-preseason", label: "2027 FRC Preseason" },
-];
-
-const PLANNED_ATTENDANCE_DAY_OPTIONS = [
-  { id: "monday", label: "Mon" },
-  { id: "tuesday", label: "Tue" },
-  { id: "wednesday", label: "Wed" },
-  { id: "thursday", label: "Thu" },
-  { id: "friday", label: "Fri" },
-  { id: "saturday", label: "Sat" },
-  { id: "sunday", label: "Sun" },
-] as const;
-
-const REQUIRED_EMAIL_DOMAIN = "mecorobotics.org";
-
-const REQUIRED_TASK_SUBSYSTEMS: Subsystem[] = [
-  {
-    id: "climber",
-    name: "Climber",
-    description: "Endgame lift, latch, and climb release mechanisms.",
-    isCore: false,
-    parentSubsystemId: null,
-    responsibleEngineerId: "priya",
-    mentorIds: ["jordan"],
-    risks: ["Hook alignment", "Winch load margin"],
-  },
-  {
-    id: "controls",
-    name: "Controls",
-    description: "Robot software, safety, and autonomous logic.",
-    isCore: false,
-    parentSubsystemId: "drive",
-    responsibleEngineerId: "ethan",
-    mentorIds: ["riley"],
-    risks: ["Auto safety interlocks"],
-  },
-  {
-    id: "drive",
-    name: "Drivetrain",
-    description: "Core drivetrain, chassis interfaces, and shared base electronics.",
-    isCore: true,
-    parentSubsystemId: null,
-    responsibleEngineerId: "ava",
-    mentorIds: ["jordan"],
-    risks: ["Sensor drift", "Cable clearance"],
-  },
-  {
-    id: "manipulator",
-    name: "Manipulator",
-    description: "Intake, handling, and game-piece interaction hardware.",
-    isCore: false,
-    parentSubsystemId: "drive",
-    responsibleEngineerId: "lucas",
-    mentorIds: ["riley"],
-    risks: ["Chain wear", "Assembly tolerance"],
-  },
-  {
-    id: "vision",
-    name: "Vision",
-    description: "Camera targeting, pose estimation, and visual feedback.",
-    isCore: false,
-    parentSubsystemId: "drive",
-    responsibleEngineerId: "ethan",
-    mentorIds: ["riley"],
-    risks: ["Camera calibration", "Lighting variability"],
-  },
-];
-function buildSubsystemOptions(subsystems: Subsystem[]) {
-  return subsystems.map((subsystem) => ({
-    id: subsystem.id,
-    name: subsystem.name,
-  }));
-}
-
-function normalizeTaskSubsystems(currentSubsystems: Subsystem[]) {
-  return currentSubsystems.length > 0 ? currentSubsystems : REQUIRED_TASK_SUBSYSTEMS;
-}
-
-function withSeededSubteamTasks(currentTasks: Task[]) {
-  const currentTaskIds = new Set(currentTasks.map((task) => task.id));
-  const missingSeededTasks = seededTasks.filter((task) => !currentTaskIds.has(task.id));
-
-  return [...currentTasks, ...missingSeededTasks];
-}
-
-function parseClientError(error: unknown) {
-  const authErrorState = classifyMobileAuthError(error);
-  if (authErrorState !== "unknown") {
-    return getMobileAuthErrorMessage(authErrorState);
-  }
-
-  if (error instanceof ApiRequestError) {
-    return error.message;
-  }
-
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return error.message;
-  }
-
-  return "Request failed unexpectedly.";
-}
-
-function getClientErrorMessage(
-  error: unknown,
-  context: "auth-config" | "authenticated" | "general" = "general",
-) {
-  const authErrorState = classifyMobileAuthError(error, context);
-  if (authErrorState !== "unknown") {
-    return getMobileAuthErrorMessage(authErrorState);
-  }
-
-  return parseClientError(error);
-}
-
-function isValidDateInput(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return false;
-  }
-
-  const date = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
-}
-
-function isValidTimeInput(value: string) {
-  return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
-}
-
-function taskDependsOnTarget(
-  taskId: string,
-  targetTaskId: string,
-  taskById: Record<string, Task>,
-  visitedTaskIds = new Set<string>(),
-): boolean {
-  if (taskId === targetTaskId) {
-    return true;
-  }
-
-  if (visitedTaskIds.has(taskId)) {
-    return false;
-  }
-
-  visitedTaskIds.add(taskId);
-
-  const task = taskById[taskId];
-  if (!task) {
-    return false;
-  }
-
-  return task.dependencyIds.some((dependencyId) =>
-    taskDependsOnTarget(dependencyId, targetTaskId, taskById, visitedTaskIds),
-  );
-}
-
-function getAutoTaskStatus(
-  task: Pick<Task, "blockers" | "dependencyIds" | "ownerId" | "status">,
-  taskById: Record<string, Task>,
-): TaskStatus {
-  if (task.status !== "not-started") {
-    return task.status;
-  }
-
-  const hasOpenDependency = task.dependencyIds
-    .map((dependencyId) => taskById[dependencyId])
-    .some((dependency) => dependency && dependency.status !== "complete");
-
-  if (task.ownerId && task.blockers.length === 0 && !hasOpenDependency) {
-    return "in-progress";
-  }
-
-  return task.status;
-}
-
-function buildTaskById(tasks: Task[]) {
-  return Object.fromEntries(tasks.map((task) => [task.id, task])) as Record<string, Task>;
-}
-
-function hasOpenTaskDependency(
-  task: Pick<Task, "dependencyIds">,
-  taskById: Record<string, Task>,
-) {
-  return task.dependencyIds
-    .map((dependencyId) => taskById[dependencyId])
-    .some((dependency) => dependency && dependency.status !== "complete");
-}
-
-function isTaskReadyForQaPass(task: Task, taskById: Record<string, Task>) {
-  return (
-    task.status === "waiting-for-qa" &&
-    task.blockers.length === 0 &&
-    !hasOpenTaskDependency(task, taskById)
-  );
-}
-
-function getQaReviewTaskId(review: QaReview) {
-  if (review.taskId) {
-    return review.taskId;
-  }
-
-  return review.subjectType === "task" && review.subjectId ? review.subjectId : null;
-}
-
-function buildTaskMutationPayload(task: Task) {
-  return {
-    title: task.title,
-    summary: task.summary,
-    subsystemId: task.subsystemId,
-    disciplineId: task.disciplineId,
-    mechanismId: task.mechanismId,
-    partInstanceId: task.partInstanceId,
-    targetEventId: task.targetEventId,
-    ownerId: task.ownerId,
-    mentorId: task.mentorId,
-    dueDate: task.dueDate,
-    priority: task.priority,
-    status: task.status,
-    dependencyIds: task.dependencyIds,
-    checklistItems: task.checklistItems ?? [],
-    blockers: task.blockers,
-    linkedManufacturingIds: task.linkedManufacturingIds,
-    linkedPurchaseIds: task.linkedPurchaseIds,
-    estimatedHours: task.estimatedHours,
-    actualHours: task.actualHours,
-  };
-}
-
-function shiftDateByDays(value: string, dayDelta: number) {
-  const date = new Date(`${value}T00:00:00.000Z`);
-  date.setUTCDate(date.getUTCDate() + dayDelta);
-  return date.toISOString().slice(0, 10);
-}
-
-function csvCell(value: string | number) {
-  return `"${String(value).replace(/"/g, '""')}"`;
-}
-
-function ensureArray<T>(value: T[] | undefined | null): T[] {
-  return Array.isArray(value) ? value : [];
-}
-
-type ServerTask = Task & {
-  targetMilestoneId?: string | null;
-};
-
-type EmailCodeStartResponse = {
-  sentTo?: string;
-  expiresInMinutes?: number;
-};
-
-function normalizeTaskFromServer(task: ServerTask): Task {
-  return {
-    ...task,
-    targetEventId: task.targetEventId ?? task.targetMilestoneId ?? null,
-  };
-}
-
-function mapTaskPayloadToServer<T extends { targetEventId?: string | null }>(
-  payload: T,
-) {
-  const { targetEventId, ...serverPayload } = payload;
-
-  return {
-    ...serverPayload,
-    targetMilestoneId: targetEventId ?? null,
-  };
-}
-
-function mapTaskPriorityToRiskPriority(priority: TaskPriority): RiskPriority {
-  if (priority === "critical" || priority === "high") {
-    return "high";
-  }
-
-  return priority === "low" ? "low" : "medium";
-}
-
-function mapMilestoneTypeToEventType(type: string | undefined): EventType {
-  switch (type) {
-    case "practice":
-      return "drive-practice";
-    case "competition":
-    case "deadline":
-    case "internal-review":
-    case "demo":
-      return type;
-    default:
-      return "deadline";
-  }
-}
-
-function mapEventTypeToMilestoneType(type: EventType) {
-  return type === "drive-practice" ? "practice" : type;
-}
-
-function getPhotoFileName(value: string) {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return "No image selected";
-  }
-
-  const withoutQuery = trimmed.split(/[?#]/)[0] ?? trimmed;
-  const fileName = withoutQuery.split("/").filter(Boolean).pop();
-  return fileName || "Selected image";
-}
-
-function normalizeRequiredEmailDomain(domain: string | null | undefined) {
-  return domain?.trim().toLowerCase().replace(/^@/, "") || REQUIRED_EMAIL_DOMAIN;
-}
-
-function hasRequiredEmailDomain(email: string, requiredDomain: string) {
-  const [, domain = ""] = email.split("@");
-  const normalizedDomain = domain.toLowerCase();
-  return (
-    normalizedDomain === requiredDomain ||
-    normalizedDomain.endsWith(`.${requiredDomain}`)
-  );
-}
-
-function buildLocalEmailSessionUser(email: string, hostedDomain: string): SessionUser {
-  const [accountName] = email.split("@");
-  const accountId = accountName.trim().toLowerCase();
-  const name = accountId.replace(/[._-]+/g, " ").trim();
-
-  return {
-    accountId: accountId || email,
-    authProvider: "email",
-    email,
-    hostedDomain,
-    name: name || email,
-    picture: null,
-  };
-}
-
-function getWorkLogDraftOwnerKey(user: SessionUser | null) {
-  return (
-    user?.email.trim().toLowerCase() ||
-    user?.accountId.trim().toLowerCase() ||
-    user?.name.trim().toLowerCase() ||
-    null
-  );
-}
-
-function isWorkLogDraftOwnedBy(
-  draft: PendingWorkLogDraft,
-  ownerKey: string | null,
-) {
-  return (draft.ownerKey ?? null) === ownerKey;
-}
-
-function mapMilestonesToEvents(payload: PlatformBootstrapPayload): Event[] {
-  const subsystems = ensureArray(payload.subsystems);
-
-  return ensureArray(payload.milestones).map((milestone) => ({
-    id: milestone.id,
-    title: milestone.title,
-    type: mapMilestoneTypeToEventType(milestone.type),
-    startDateTime: milestone.startDateTime,
-    endDateTime: milestone.endDateTime,
-    isExternal: milestone.isExternal,
-    description: milestone.description,
-    relatedSubsystemIds:
-      milestone.relatedSubsystemIds ??
-      subsystems
-        .filter((subsystem) => ensureArray(milestone.projectIds).includes(subsystem.projectId ?? ""))
-        .map((subsystem) => subsystem.id),
-  }));
-}
-
-type MilestoneMutationResponse = {
-  item?: BootstrapMilestone;
-};
-
-function applyMilestoneSubsystemLinks(
-  currentEvents: Event[],
-  milestone: BootstrapMilestone | undefined,
-  fallbackMilestoneId: string | null,
-  relatedSubsystemIds: string[],
-) {
-  const milestoneId = milestone?.id ?? fallbackMilestoneId;
-  if (!milestoneId) {
-    return currentEvents;
-  }
-
-  return currentEvents.map((event) =>
-    event.id === milestoneId ? { ...event, relatedSubsystemIds } : event,
-  );
-}
 
 export default function App() {
   const { height, width } = useWindowDimensions();
@@ -706,6 +246,7 @@ export default function App() {
   const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isGoogleSignInPending, setIsGoogleSignInPending] = useState(false);
+  const [isRestoringAuthSession, setIsRestoringAuthSession] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [backendStatus, setBackendStatus] = useState<
     "connecting" | "connected" | "offline"
@@ -713,23 +254,21 @@ export default function App() {
   const [backendReachability, setBackendReachability] =
     useState<BackendReachability>("unknown");
   const [syncError, setSyncError] = useState<string | null>(null);
-  const envGoogleClientId =
-    process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID?.trim() ?? "";
-  const googleClientId = authConfig?.googleClientId?.trim() || envGoogleClientId;
-  const googleIosClientId =
-    process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() || googleClientId;
-  const googleAndroidClientId =
-    process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?.trim() || googleClientId;
-  const googleWebClientId =
-    process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() || googleClientId;
+  const isLocalDevBypassAvailable = isLocalDevAuthBypassEnabled();
+  const {
+    googleClientId,
+    googleIosClientId,
+    googleAndroidClientId,
+    googleWebClientId,
+  } = useMemo(() => resolveGoogleClientIds(authConfig), [authConfig]);
   const requiredEmailDomain = normalizeRequiredEmailDomain(authConfig?.hostedDomain);
   const isAuthConfigUnavailable = authErrorState === "auth-config-unavailable";
-  const activeGoogleClientId =
-    Platform.OS === "ios"
-      ? googleIosClientId
-      : Platform.OS === "android"
-        ? googleAndroidClientId
-        : googleWebClientId;
+  const isDevBypassAvailable =
+    isLocalDevBypassAvailable || authConfig?.devBypassAvailable === true;
+  const activeGoogleClientId = getActiveGoogleClientId(
+    { googleClientId, googleIosClientId, googleAndroidClientId, googleWebClientId },
+    Platform.OS,
+  );
 
   const [googleRequest, googleResponse, promptGoogleSignIn] =
     Google.useIdTokenAuthRequest({
@@ -760,7 +299,56 @@ export default function App() {
     setAuthError(message);
     setBackendStatus("connected");
     setBackendReachability("reachable");
+    setThemeOverride(null);
   }, []);
+
+  const applyThemePreferenceFromServer = useCallback(
+    async (token: string | null) => {
+      if (!token) {
+        setThemeOverride(null);
+        return;
+      }
+
+      try {
+        const preferences = await requestJson<ThemePreferenceResponse>(
+          apiBaseUrl,
+          "/api/users/me/preferences",
+          undefined,
+          token,
+        );
+
+        setThemeOverride(normalizeThemeModeFromResponse(preferences.themeMode));
+      } catch {
+        setThemeOverride(null);
+      }
+    },
+    [apiBaseUrl],
+  );
+
+  const updateThemePreference = useCallback(
+    async (nextThemeMode: AppThemeName, nextAuthToken: string | null) => {
+      setThemeOverride(nextThemeMode);
+
+      if (!nextAuthToken) {
+        return;
+      }
+
+      try {
+        await requestJson(
+          apiBaseUrl,
+          "/api/users/me/preferences",
+          {
+            method: "PATCH",
+            body: JSON.stringify({ themeMode: nextThemeMode }),
+          },
+          nextAuthToken,
+        );
+      } catch {
+        // Preference persistence is best-effort; keep local theme preference even if backend sync fails.
+      }
+    },
+    [apiBaseUrl],
+  );
 
   const [activeTab, setActiveTab] = useState<ViewTab>("home");
   const [taskView, setTaskView] = useState<TaskViewTab>("queue");
@@ -797,6 +385,7 @@ export default function App() {
   >([]);
   const pendingWorkLogDraftsRef = useRef<PendingWorkLogDraft[]>([]);
   const isSyncingWorkLogDraftsRef = useRef(false);
+  const hasRestoredAuthSessionRef = useRef(false);
   const startTaskRef = useRef<(task: Task, options?: StartTaskOptions) => Promise<void>>(
     async () => undefined,
   );
@@ -815,7 +404,6 @@ export default function App() {
   const [qaReviews, setQaReviews] = useState<QaReview[]>(() => mecoSnapshot.qaReviews);
   const [qaRequests, setQaRequests] = useState<QaRequest[]>([]);
   const [helpRequests, setHelpRequests] = useState<HelpRequest[]>([]);
-  const [eventReports, setEventReports] = useState<EventReportDraft[]>([]);
   const systemThemeMode: AppThemeName = systemColorScheme === "dark" ? "dark" : "light";
   const themeMode = themeOverride ?? systemThemeMode;
   const isDarkModeEnabled = themeMode === "dark";
@@ -867,7 +455,6 @@ export default function App() {
   const [partsStatusFilter, setPartsStatusFilter] = useState("all");
 
   const [purchaseSearch, setPurchaseSearch] = useState("");
-  const [purchaseSubsystemFilter, setPurchaseSubsystemFilter] = useState("all");
   const [purchaseRequesterFilter, setPurchaseRequesterFilter] = useState("all");
   const [purchaseStatusFilter, setPurchaseStatusFilter] = useState("all");
   const [purchaseVendorFilter, setPurchaseVendorFilter] = useState("all");
@@ -959,14 +546,6 @@ export default function App() {
     followUpTaskTitle: "",
   });
   const [qaReportError, setQaReportError] = useState<string | null>(null);
-  const [eventReportEditorMode, setEventReportEditorMode] = useState<EditorMode | null>(null);
-  const [eventReportDraft, setEventReportDraft] = useState<EventReportDraft>({
-    eventId: "",
-    summary: "",
-    findingText: "",
-    followUpTaskTitle: "",
-  });
-  const [eventReportError, setEventReportError] = useState<string | null>(null);
 
   const persistPendingWorkLogDrafts = useCallback(
     async (drafts: PendingWorkLogDraft[]) => {
@@ -979,11 +558,11 @@ export default function App() {
 
   const applyBootstrapPayload = useCallback((payload: PlatformBootstrapPayload) => {
     const events = ensureArray(payload.events);
-    const tasks = ensureArray(payload.tasks).map((task) =>
-      normalizeTaskFromServer(task as ServerTask),
-    );
+    const tasks = ensureArray(payload.tasks).map((task) => normalizeTaskFromServer(task));
     const payloadWorkLogs = ensureArray(payload.workLogs);
 
+    // Keep refs and state in lockstep for async callbacks that need the latest
+    // workspace snapshot without retriggering every callback when data changes.
     setMembers(ensureArray(payload.members));
     setSubsystems(normalizeTaskSubsystems(ensureArray(payload.subsystems)));
     setDisciplines(ensureArray(payload.disciplines));
@@ -1029,6 +608,8 @@ export default function App() {
       isSyncingWorkLogDraftsRef.current = true;
 
       try {
+        // Drop local drafts that already exist on the server before attempting
+        // uploads; this covers both successful prior syncs and manual refreshes.
         let drafts = reconcilePendingWorkLogDrafts(
           pendingWorkLogDraftsRef.current,
           serverWorkLogs,
@@ -1064,6 +645,8 @@ export default function App() {
               (task) => task.id === draft.payload.taskId,
             );
             if (loggedTask) {
+              // Reuse the normal start-task flow so synced work logs advance task
+              // status the same way an online log would.
               await startTaskRef.current(loggedTask, { openWorkLog: false });
             }
           } catch (error) {
@@ -1126,6 +709,8 @@ export default function App() {
         drafts,
         workLogsRef.current,
       );
+      // Reconcile on boot in case a previous run uploaded drafts but exited
+      // before local storage was pruned.
       pendingWorkLogDraftsRef.current = reconciledDrafts;
       setPendingWorkLogDrafts(reconciledDrafts);
 
@@ -1148,6 +733,9 @@ export default function App() {
       const config = await requestJson<PublicAuthConfig>(
         apiBaseUrl,
         "/api/auth/config",
+        undefined,
+        undefined,
+        AUTH_REQUEST_TIMEOUT_MS,
       );
       setAuthConfig(config);
       setAuthErrorState(null);
@@ -1178,13 +766,23 @@ export default function App() {
 
   const finishSignIn = useCallback(
     async (token: string | null, user: SessionUser) => {
+      setThemeOverride(null);
       setApiToken(token);
       setSessionUser(user);
-      setHasAuthenticated(true);
       setIsSyncing(true);
       setSyncError(null);
 
+      if (token) {
+        const deviceNumber = await getOrCreateAuthDeviceNumber();
+        await savePersistedAuthSession({ deviceNumber, token, user }).catch(
+          () => undefined,
+        );
+      } else {
+        await clearPersistedAuthSession().catch(() => undefined);
+      }
+
       try {
+        await applyThemePreferenceFromServer(token);
         const payload = await refreshWorkspaceFromServer(token);
         const draftSyncError = await syncPendingWorkLogDrafts(
           token,
@@ -1195,15 +793,109 @@ export default function App() {
         setBackendReachability("reachable");
         setSyncError(draftSyncError);
       } catch (error) {
+        if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
+          endSessionForAuthFailure(getMobileAuthErrorMessage("expired-session"));
+          return;
+        }
+
         setBackendStatus("offline");
         setBackendReachability(backendReachabilityAfterError(error));
         setSyncError(parseClientError(error));
       } finally {
         setIsSyncing(false);
+        setHasAuthenticated(true);
       }
     },
-    [refreshWorkspaceFromServer, syncPendingWorkLogDrafts],
+    [
+      applyThemePreferenceFromServer,
+      endSessionForAuthFailure,
+      refreshWorkspaceFromServer,
+      syncPendingWorkLogDrafts,
+    ],
   );
+
+  const finishLocalDevBypass = useCallback(async () => {
+    await finishSignIn(
+      null,
+      buildLocalDevSessionUser(authEmail, requiredEmailDomain),
+    );
+  }, [authEmail, finishSignIn, requiredEmailDomain]);
+
+  const signInWithDevBypass = useCallback(async () => {
+    setIsAuthenticating(true);
+    setAuthError(null);
+    setAuthErrorState(null);
+    setAuthNotice(null);
+
+    try {
+      if (isLocalDevBypassAvailable) {
+        await finishLocalDevBypass();
+        return;
+      }
+
+      if (!authConfig?.devBypassAvailable) {
+        setAuthError("Development sign-in is not enabled for this workspace.");
+        return;
+      }
+
+      const session = await requestJson<SessionResponse>(
+        apiBaseUrl,
+        "/api/auth/dev-bypass",
+        { method: "POST" },
+      );
+      await finishSignIn(session.token, session.user);
+    } catch (error) {
+      setAuthError(getClientErrorMessage(error));
+    } finally {
+      setIsAuthenticating(false);
+    }
+  }, [
+    apiBaseUrl,
+    authConfig?.devBypassAvailable,
+    finishLocalDevBypass,
+    finishSignIn,
+    isLocalDevBypassAvailable,
+  ]);
+
+  useEffect(() => {
+    if (hasRestoredAuthSessionRef.current) {
+      return;
+    }
+
+    hasRestoredAuthSessionRef.current = true;
+    let isActive = true;
+
+    async function restorePersistedAuthSession() {
+      try {
+        const deviceNumber = await getOrCreateAuthDeviceNumber();
+        const persistedSession = await loadPersistedAuthSession(deviceNumber);
+
+        if (!isActive || !persistedSession) {
+          return;
+        }
+
+        // Let the app shell appear immediately while the restored token refreshes
+        // workspace data and validates that the backend still accepts it.
+        setAuthNotice(DEVICE_SESSION_RESTORED_NOTICE);
+        const restorePromise = finishSignIn(
+          persistedSession.token,
+          persistedSession.user,
+        );
+        setIsRestoringAuthSession(false);
+        await restorePromise;
+      } finally {
+        if (isActive) {
+          setIsRestoringAuthSession(false);
+        }
+      }
+    }
+
+    void restorePersistedAuthSession();
+
+    return () => {
+      isActive = false;
+    };
+  }, [finishSignIn]);
 
   const signInWithGoogle = useCallback(async () => {
     setIsAuthenticating(true);
@@ -1219,7 +911,7 @@ export default function App() {
       }
 
       if (!activeGoogleClientId) {
-        if (!authConfig?.devBypassAvailable) {
+        if (!isDevBypassAvailable) {
           showAuthError(
             Platform.OS === "ios"
               ? "Google sign-in needs a configured Google client ID, then Expo must be restarted."
@@ -1230,12 +922,7 @@ export default function App() {
           return;
         }
 
-        const session = await requestJson<SessionResponse>(
-          apiBaseUrl,
-          "/api/auth/dev-bypass",
-          { method: "POST" },
-        );
-        await finishSignIn(session.token, session.user);
+        await signInWithDevBypass();
         return;
       }
 
@@ -1262,13 +949,12 @@ export default function App() {
       setIsAuthenticating(false);
     }
   }, [
-    apiBaseUrl,
     activeGoogleClientId,
-    authConfig?.devBypassAvailable,
-    finishSignIn,
     googleRequest,
+    isDevBypassAvailable,
     isAuthConfigUnavailable,
     promptGoogleSignIn,
+    signInWithDevBypass,
     showAuthError,
   ]);
 
@@ -1372,16 +1058,24 @@ export default function App() {
 
     try {
       if (hasRequestedEmailCode) {
+        const deviceNumber = await getOrCreateAuthDeviceNumber();
         const session = await requestJson<SessionResponse>(
           apiBaseUrl,
           "/api/auth/email/verify",
           {
             method: "POST",
-            body: JSON.stringify({ email, code }),
+            body: JSON.stringify({ code, deviceId: deviceNumber, email }),
           },
+          undefined,
+          AUTH_REQUEST_TIMEOUT_MS,
         );
         setAuthCode("");
         await finishSignIn(session.token, session.user);
+        return;
+      }
+
+      if (isLocalDevBypassAvailable) {
+        await finishLocalDevBypass();
         return;
       }
 
@@ -1400,9 +1094,8 @@ export default function App() {
       }
 
       if (currentAuthConfig?.enabled === false) {
-        await finishSignIn(null, buildLocalEmailSessionUser(email, requiredEmailDomain));
-        setAuthNotice(
-          "Authentication service is unavailable. Continuing with a local session.",
+        setAuthError(
+          "Authentication service is unavailable. Check the backend auth configuration and try again.",
         );
         return;
       }
@@ -1414,6 +1107,8 @@ export default function App() {
           method: "POST",
           body: JSON.stringify({ email }),
         },
+        undefined,
+        AUTH_REQUEST_TIMEOUT_MS,
       );
       setHasRequestedEmailCode(true);
       setAuthNotice(
@@ -1422,7 +1117,11 @@ export default function App() {
           : `Code sent to ${response.sentTo ?? email}.`,
       );
     } catch (error) {
-      setAuthError(getClientErrorMessage(error));
+      setAuthError(
+        hasRequestedEmailCode
+          ? getEmailCodeVerificationErrorMessage(error)
+          : getClientErrorMessage(error),
+      );
     } finally {
       setIsAuthenticating(false);
     }
@@ -1432,7 +1131,9 @@ export default function App() {
     authCode,
     authEmail,
     finishSignIn,
+    finishLocalDevBypass,
     hasRequestedEmailCode,
+    isLocalDevBypassAvailable,
     isAuthConfigUnavailable,
     loadPublicAuthConfig,
     requiredEmailDomain,
@@ -1450,11 +1151,10 @@ export default function App() {
         "/api/auth/config",
       );
 
-      let token = process.env.EXPO_PUBLIC_API_TOKEN?.trim() ?? "";
-      token = token.length > 0 ? token : "";
+      let token = "";
       let syncSessionUser = sessionUser;
 
-      if (!token && authConfig.devBypassAvailable) {
+      if (authConfig.devBypassAvailable) {
         const session = await requestJson<SessionResponse>(
           apiBaseUrl,
           "/api/auth/dev-bypass",
@@ -1503,6 +1203,8 @@ export default function App() {
 
       try {
         await requestJson(apiBaseUrl, path, init, apiToken);
+        // Mutations refresh the full bootstrap snapshot so cross-feature derived
+        // data stays consistent after backend-side cascades.
         const payload = await refreshWorkspaceFromServer(apiToken);
         const draftSyncError = await syncPendingWorkLogDrafts(
           apiToken,
@@ -1562,6 +1264,8 @@ export default function App() {
 
         const conflict = getTaskAssignmentConflict(error);
         if (conflict) {
+          // Assignment conflicts are expected in shared task queues; refresh
+          // before messaging so the UI reflects the current owner.
           let refreshed = false;
           let refreshError: unknown = null;
           try {
@@ -1857,12 +1561,12 @@ export default function App() {
         key: "reports",
         label: "QA",
         shortLabel: "QA",
-        count: helpRequests.length + qaRequests.length + qaReviews.length + eventReports.length,
+        count: helpRequests.length + qaRequests.length + qaReviews.length,
       },
       {
         key: "roster",
-        label: "Directory",
-        shortLabel: "DR",
+        label: "Roster",
+        shortLabel: "RO",
         count: members.length,
       },
       {
@@ -1882,7 +1586,6 @@ export default function App() {
     helpRequests.length,
     qaRequests.length,
     qaReviews,
-    eventReports,
   ]);
 
   const navigationSections = useMemo(
@@ -2554,12 +2257,16 @@ export default function App() {
   const filteredPurchases = useMemo(() => {
     const search = purchaseSearch.trim().toLowerCase();
 
+    const statusRank: Record<string, number> = {
+      requested: 0,
+      approved: 1,
+      purchased: 2,
+      shipped: 3,
+      delivered: 4,
+    };
+
     return purchaseItems.filter((item) => {
       if (activePersonFilter !== "all" && item.requestedById !== activePersonFilter) {
-        return false;
-      }
-
-      if (purchaseSubsystemFilter !== "all" && item.subsystemId !== purchaseSubsystemFilter) {
         return false;
       }
 
@@ -2604,6 +2311,18 @@ export default function App() {
       return `${item.title} ${item.vendor} ${requesterName} ${subsystemName}`
         .toLowerCase()
         .includes(search);
+    }).sort((left, right) => {
+      const createdDelta = getOptionalCreatedAt(right).localeCompare(getOptionalCreatedAt(left));
+      if (createdDelta !== 0) {
+        return createdDelta;
+      }
+
+      const statusDelta = statusRank[left.status] - statusRank[right.status];
+      if (statusDelta !== 0) {
+        return statusDelta;
+      }
+
+      return left.title.localeCompare(right.title);
     });
   }, [
     activePersonFilter,
@@ -2614,7 +2333,6 @@ export default function App() {
     purchaseRequesterFilter,
     purchaseSearch,
     purchaseStatusFilter,
-    purchaseSubsystemFilter,
     purchaseVendorFilter,
     subsystemsById,
   ]);
@@ -2788,10 +2506,9 @@ export default function App() {
       { label: "Help requests", value: String(helpRequests.length) },
       { label: "QA requests", value: String(qaRequests.length) },
       { label: "QA reports", value: String(qaReviews.length) },
-      { label: "Event reports", value: String(eventReports.length) },
       { label: "Iterations", value: String(iterationCount) },
     ] satisfies SummaryChipData[];
-  }, [eventReports.length, helpRequests.length, qaRequests.length, qaReviews]);
+  }, [helpRequests.length, qaRequests.length, qaReviews]);
 
   const riskSummary = useMemo(() => {
     const highCount = riskRows.filter((risk) => risk.priority === "high").length;
@@ -2968,44 +2685,6 @@ export default function App() {
       { label: "Waiting QA", value: String(waitingQa.length) },
     ] satisfies SummaryChipData[];
   }, [tasks]);
-  const homeMeetingExport = useMemo(() => {
-    const rows = [
-      ["Type", "Title", "Owner/Requester", "Subsystem", "Status", "Due/Detail"],
-      ...homePriorityTasks.map((task) => [
-        "Task",
-        task.title,
-        task.ownerId ? (membersById[task.ownerId]?.name ?? "Unassigned") : "Unassigned",
-        subsystemsById[task.subsystemId]?.name ?? "Unknown",
-        STATUS_LABELS[task.status],
-        task.dueDate,
-      ]),
-      ...homeInventoryNeeds.map((purchase) => [
-        "Purchase",
-        purchase.title,
-        purchase.requestedById
-          ? (membersById[purchase.requestedById]?.name ?? "Unassigned")
-          : "Unassigned",
-        subsystemsById[purchase.subsystemId]?.name ?? "Unknown",
-        purchase.status,
-        `Qty ${purchase.quantity} - ${purchase.vendor}`,
-      ]),
-      ...manufacturingItems
-        .filter((item) => item.status !== "complete")
-        .slice(0, 8)
-        .map((item) => [
-          "Manufacturing",
-          item.title,
-          item.requestedById
-            ? (membersById[item.requestedById]?.name ?? "Unassigned")
-            : "Unassigned",
-          subsystemsById[item.subsystemId]?.name ?? "Unknown",
-          item.status,
-          `${item.dueDate} - ${item.material} x${item.quantity}`,
-        ]),
-    ];
-
-    return rows.map((row) => row.map(csvCell).join(",")).join("\n");
-  }, [homeInventoryNeeds, homePriorityTasks, manufacturingItems, membersById, subsystemsById]);
   const meetingAttendance = useMemo(
     () =>
       [...members]
@@ -3022,7 +2701,7 @@ export default function App() {
     const outCount = meetingAttendance.filter(({ status }) => status === "no").length;
 
     return [
-      { label: "Present", value: String(presentCount) },
+      { label: "Coming", value: String(presentCount) },
       { label: "Maybe", value: String(maybeCount) },
       { label: "Out", value: String(outCount) },
       { label: "Total", value: String(meetingAttendance.length) },
@@ -3273,6 +2952,8 @@ export default function App() {
             return false;
           }
 
+          // Require a clearly horizontal gesture so scrolling lists do not
+          // accidentally move between subtabs.
           const horizontalDistance = Math.abs(gesture.dx);
           return (
             horizontalDistance > SUBTAB_SWIPE_ACTIVATION_DISTANCE &&
@@ -3310,6 +2991,8 @@ export default function App() {
     () =>
       PanResponder.create({
         onMoveShouldSetPanResponder: (_event, gesture) => {
+          // Navigation swipes are intentionally looser than subtab swipes because
+          // they start from the page edge and should feel easy to discover.
           const horizontalDistance = Math.abs(gesture.dx);
           return (
             horizontalDistance > SWIPE_ACTIVATION_DISTANCE &&
@@ -4733,10 +4416,6 @@ export default function App() {
   };
 
   const openCreateMemberEditor = (role: MemberRole = "student") => {
-    if (!canMentorApprove) {
-      return;
-    }
-
     setActiveMemberId(null);
     setMemberError(null);
     setMemberDraft(buildMemberDraft({ role }));
@@ -5303,91 +4982,6 @@ export default function App() {
     closeQaReportEditor();
   };
 
-  const openCreateEventReportEditor = (eventId = events[0]?.id ?? "") => {
-    setEventReportDraft({
-      eventId,
-      summary: "",
-      findingText: "",
-      followUpTaskTitle: "",
-    });
-    setEventReportError(null);
-    setEventReportEditorMode("create");
-  };
-
-  const closeEventReportEditor = () => {
-    setEventReportEditorMode(null);
-    setEventReportError(null);
-  };
-
-  const saveEventReportDraft = async () => {
-    const event = eventsById[eventReportDraft.eventId];
-
-    const missingFields = [
-      !event ? "event" : null,
-      !eventReportDraft.summary.trim() ? "summary" : null,
-    ].filter((field): field is string => Boolean(field));
-
-    if (missingFields.length > 0) {
-      setEventReportError(`Add ${missingFields.join(", ")} before saving this event report.`);
-      return;
-    }
-
-    setEventReportError(null);
-    const nextEventReport: EventReportDraft = {
-      eventId: event.id,
-      summary: eventReportDraft.summary.trim(),
-      findingText: eventReportDraft.findingText.trim(),
-      followUpTaskTitle: eventReportDraft.followUpTaskTitle.trim(),
-    };
-
-    const followUpTitle = eventReportDraft.followUpTaskTitle.trim();
-    if (followUpTitle) {
-      const subsystemId = event.relatedSubsystemIds[0] ?? subsystems[0]?.id ?? "";
-      const ownerId = signedInMember?.id ?? members[0]?.id ?? "";
-      const mentorId =
-        members.find((member) => member.role === "mentor" || member.role === "admin")?.id ??
-        ownerId;
-
-      if (subsystemId && ownerId && mentorId) {
-        const followUpTask = {
-          title: followUpTitle,
-          summary: eventReportDraft.findingText.trim() || `Follow up from ${event.title}.`,
-          subsystemId,
-          disciplineId: disciplines[0]?.id || "mechanical",
-          mechanismId: null,
-          partInstanceId: null,
-          targetEventId: event.id,
-          ownerId,
-          mentorId,
-          dueDate: isoToday(),
-          priority: "medium",
-          status: "not-started",
-          dependencyIds: [],
-          checklistItems: [],
-          blockers: [],
-          linkedManufacturingIds: [],
-          linkedPurchaseIds: [],
-          estimatedHours: 0,
-          actualHours: 0,
-        } satisfies Omit<Task, "id" | "isBlocked">;
-        const localFollowUpTask: Task = {
-          ...followUpTask,
-          id: `task-local-event-${Date.now()}`,
-          isBlocked: false,
-        };
-
-        setTasks((current) => [localFollowUpTask, ...current]);
-        await runMutation("/api/tasks", {
-          method: "POST",
-          body: JSON.stringify(followUpTask),
-        });
-      }
-    }
-
-    setEventReports((current) => [nextEventReport, ...current]);
-    closeEventReportEditor();
-  };
-
   const resetWorkspaceData = () => {
     setActivePersonFilter("all");
     setIsPersonMenuVisible(false);
@@ -5402,7 +4996,6 @@ export default function App() {
     closeSubsystemEditor();
     closePartDefinitionEditor();
     closeQaReportEditor();
-    closeEventReportEditor();
     clearWorkLogTimer();
     void syncFromBackend();
   };
@@ -5421,7 +5014,6 @@ export default function App() {
     setPartInstances([]);
     setQaReviews([]);
     setHelpRequests([]);
-    setEventReports([]);
     clearWorkLogTimer();
     setActiveTab("home");
     setActivePersonFilter("all");
@@ -5452,9 +5044,11 @@ export default function App() {
   };
 
   const signOut = () => {
+    void clearPersistedAuthSession().catch(() => undefined);
     setApiToken(null);
     setSessionUser(null);
     setHasAuthenticated(false);
+    setThemeOverride(null);
     setAuthCode("");
     setAuthEmail("");
     setAuthError(null);
@@ -5480,7 +5074,6 @@ export default function App() {
     closeSubsystemEditor();
     closePartDefinitionEditor();
     closeQaReportEditor();
-    closeEventReportEditor();
     clearWorkLogTimer();
   };
 
@@ -5497,7 +5090,6 @@ export default function App() {
     disciplinesById,
     editTagStyle,
     eventOptions,
-    eventReports,
     events,
     eventsById,
     filteredManufacturing,
@@ -5512,7 +5104,6 @@ export default function App() {
     helpRequests,
     homeActionItems,
     homeInventoryNeeds,
-    homeMeetingExport,
     homePriorityTasks,
     homeTaskSummary,
     inventoryView,
@@ -5545,7 +5136,6 @@ export default function App() {
     milestoneTypeFilter,
     openCreateDeadlineEditor,
     createQaRequest,
-    openCreateEventReportEditor,
     openCreateManufacturingEditor,
     openCreateMemberEditor,
     openCreateMilestoneEditor,
@@ -5582,7 +5172,6 @@ export default function App() {
     purchaseRequesterFilter,
     purchaseSearch,
     purchaseStatusFilter,
-    purchaseSubsystemFilter,
     purchaseVendorFilter,
     purchaseVendorOptions,
     qaRequests,
@@ -5624,7 +5213,6 @@ export default function App() {
     setPurchaseRequesterFilter,
     setPurchaseSearch,
     setPurchaseStatusFilter,
-    setPurchaseSubsystemFilter,
     setPurchaseVendorFilter,
     setSelectedMemberId,
     setSelectedSubsystemId,
@@ -5678,31 +5266,6 @@ export default function App() {
     workTimerIsPaused: Boolean(workLogTimer?.isPaused),
     pauseWorkLogTimer,
   };
-  const renderActiveTab = () => {
-    switch (activeTab) {
-      case "home":
-        return <HomeScreen {...screenProps} />;
-      case "attendance":
-        return <AttendanceScreen {...screenProps} />;
-      case "tasks":
-        return <TasksScreen {...screenProps} />;
-      case "worklogs":
-        return <WorkLogsScreen {...screenProps} />;
-      case "manufacturing":
-        return <ManufacturingScreen {...screenProps} />;
-      case "inventory":
-        return <InventoryScreen {...screenProps} />;
-      case "subsystems":
-        return <SubsystemsScreen {...screenProps} />;
-      case "reports":
-        return <ReportsScreen {...screenProps} />;
-      case "risks":
-        return <RisksScreen {...screenProps} />;
-      default:
-        return <RosterScreen {...screenProps} />;
-    }
-  };
-
   const renderEditorModals = () => {
     const taskOptions = tasks.map((task) => ({ id: task.id, name: task.title }));
     const memberOptions = members.map((member) => ({ id: member.id, name: member.name }));
@@ -5728,2139 +5291,262 @@ export default function App() {
 
     return (
       <>
-        <EditorModal
+        <TaskEditorModal
+          addTaskDependency={addTaskDependency}
+          appResponsiveStyles={appResponsiveStyles}
+          availableTaskDependencyOptions={availableTaskDependencyOptions}
+          deleteTaskDraft={deleteTaskDraft}
+          disciplineOptions={disciplineOptions}
+          disciplinesById={disciplinesById}
+          downstreamTaskDependencies={downstreamTaskDependencies}
+          eventOptions={eventOptions}
+          eventsById={eventsById}
+          isLandscapeCardLayout={isLandscapeCardLayout}
+          mechanismAndTaskPartOptions={mechanismAndTaskPartOptions}
+          mechanismOptions={mechanismOptions}
+          mechanisms={mechanisms}
+          mechanismsById={mechanismsById}
+          memberOptions={memberOptions}
           onCancel={closeTaskEditor}
-          onDelete={taskEditorMode === "edit" ? deleteTaskDraft : undefined}
           onSave={saveTaskDraft}
-          saveLabel={taskEditorMode === "edit" ? "Update task" : "Create task"}
-          title={taskEditorMode === "edit" ? "Edit task" : "Create task"}
-          visible={Boolean(taskEditorMode)}
-        >
-          {taskEditorError ? (
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                Missing task details
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {taskEditorError}
-              </Text>
-            </View>
-          ) : null}
-          {taskDependencyReadinessMessage ? (
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                Waiting on dependencies
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {taskDependencyReadinessMessage}
-              </Text>
-            </View>
-          ) : null}
-          <View style={isLandscapeCardLayout ? styles.taskEditorLandscapeGrid : styles.taskEditorStack}>
-            <View style={[styles.taskEditorStack, isLandscapeCardLayout && styles.taskEditorLandscapeColumn]}>
-              <ModalField
-                label="Title"
-                onChangeText={(value) => setTaskDraft((current) => ({ ...current, title: value }))}
-                placeholder="Task title"
-                value={taskDraft.title}
-              />
-              <ModalField
-                label="Summary"
-                multiline
-                onChangeText={(value) => setTaskDraft((current) => ({ ...current, summary: value }))}
-                placeholder="Task summary"
-                value={taskDraft.summary}
-              />
-              <ModalField
-                label="Start date (YYYY-MM-DD)"
-                onChangeText={(value) => setTaskDraft((current) => ({ ...current, startDate: value }))}
-                placeholder={isoToday()}
-                value={taskDraft.startDate}
-              />
-              <ModalField
-                label="End date required (YYYY-MM-DD)"
-                onChangeText={(value) => setTaskDraft((current) => ({ ...current, dueDate: value }))}
-                placeholder="2026-04-24"
-                value={taskDraft.dueDate}
-              />
-              <DropdownField
-                clearLabel="No subsystem"
-                label="Subsystem"
-                onChange={(value) =>
-                  setTaskDraft((current) => {
-                    const subsystemId = value;
-                    const nextMechanisms = mechanisms.filter(
-                      (mechanism) => mechanism.subsystemId === subsystemId,
-                    );
-                    const mechanismId = nextMechanisms[0]?.id ?? null;
-                    const partInstanceId = mechanismId
-                      ? partInstances.find((partInstance) => partInstance.mechanismId === mechanismId)
-                          ?.id ?? null
-                      : null;
+          partInstances={partInstances}
+          partInstancesById={partInstancesById}
+          removeTaskDependency={removeTaskDependency}
+          selectedTaskDependencies={selectedTaskDependencies}
+          setTaskDependencySearch={setTaskDependencySearch}
+          setTaskDraft={setTaskDraft}
+          subsystemsById={subsystemsById}
+          taskDependencyReadinessMessage={taskDependencyReadinessMessage}
+          taskDependencySearch={taskDependencySearch}
+          taskDraft={taskDraft}
+          taskEditorError={taskEditorError}
+          taskEditorMode={taskEditorMode}
+          taskSubsystemOptions={taskSubsystemOptions}
+          themeColors={themeColors}
+        />
 
-                    return {
-                      ...current,
-                      subsystemId,
-                      mechanismId,
-                      partInstanceId,
-                    };
-                  })
-                }
-                options={taskSubsystemOptions}
-                placeholder="Select subsystem"
-                value={taskDraft.subsystemId}
-              />
-              <DropdownField
-                clearLabel="No discipline"
-                label="Discipline"
-                onChange={(value) =>
-                  setTaskDraft((current) => ({ ...current, disciplineId: value }))
-                }
-                options={disciplineOptions}
-                placeholder="Select discipline"
-                value={taskDraft.disciplineId}
-              />
-            </View>
-
-            <View style={[styles.taskEditorStack, isLandscapeCardLayout && styles.taskEditorLandscapeColumn]}>
-              <DropdownField
-                clearLabel="No mechanism"
-                label="Mechanism"
-                onChange={(value) =>
-                  setTaskDraft((current) => {
-                    const mechanismId = value || null;
-                    const partInstanceId = mechanismId
-                      ? partInstances.find((partInstance) => partInstance.mechanismId === mechanismId)
-                          ?.id ?? null
-                      : null;
-
-                    return {
-                      ...current,
-                      mechanismId,
-                      partInstanceId,
-                    };
-                  })
-                }
-                options={mechanismOptions}
-                placeholder="Select mechanism"
-                value={taskDraft.mechanismId || ""}
-              />
-              <DropdownField
-                clearLabel="No part instance"
-                label="Part instance"
-                onChange={(value) =>
-                  setTaskDraft((current) => ({
-                    ...current,
-                    partInstanceId: value || null,
-                  }))
-                }
-                options={mechanismAndTaskPartOptions}
-                placeholder="Select part instance"
-                value={taskDraft.partInstanceId || ""}
-              />
-              <DropdownField
-                clearLabel="No target event"
-                label="Target event"
-                onChange={(value) =>
-                  setTaskDraft((current) => ({
-                    ...current,
-                    targetEventId: value || null,
-                  }))
-                }
-                options={eventOptions}
-                placeholder="Select target event"
-                value={taskDraft.targetEventId || ""}
-              />
-              <DropdownField
-                clearLabel="No owner"
-                label="Owner"
-                onChange={(value) =>
-                  setTaskDraft((current) => ({ ...current, ownerId: value }))
-                }
-                options={memberOptions}
-                placeholder="Select owner"
-                value={taskDraft.ownerId}
-              />
-              <DropdownField
-                clearLabel="No mentor"
-                label="Mentor"
-                onChange={(value) =>
-                  setTaskDraft((current) => ({ ...current, mentorId: value }))
-                }
-                options={memberOptions}
-                placeholder="Select mentor"
-                value={taskDraft.mentorId}
-              />
-              <DropdownField
-                label="Status"
-                onChange={(value) =>
-                  setTaskDraft((current) => ({
-                    ...current,
-                    status: value as TaskStatus,
-                  }))
-                }
-                options={TASK_STATUS_OPTIONS}
-                value={taskDraft.status}
-              />
-              <DropdownField
-                label="Priority"
-                onChange={(value) =>
-                  setTaskDraft((current) => ({
-                    ...current,
-                    priority: value as TaskPriority,
-                  }))
-                }
-                options={TASK_PRIORITY_OPTIONS}
-                value={taskDraft.priority}
-              />
-              <AdvancedOptions>
-                <View style={styles.modalField}>
-                  <Text style={[styles.modalFieldLabel, { color: themeColors.subtleText }]}>Traceability</Text>
-                  <Text style={[styles.modalFieldInput, { backgroundColor: themeColors.canvas, borderColor: themeColors.border, color: themeColors.ink }]}>
-                    {`${subsystemsById[taskDraft.subsystemId]?.name ?? "No subsystem"} / `}
-                    {`${disciplinesById[taskDraft.disciplineId]?.name ?? "No discipline"} / `}
-                    {`${taskDraft.mechanismId ? mechanismsById[taskDraft.mechanismId]?.name : "No mechanism"} / `}
-                    {`${taskDraft.partInstanceId ? partInstancesById[taskDraft.partInstanceId]?.name : "No part instance"} / `}
-                    {`${taskDraft.targetEventId ? eventsById[taskDraft.targetEventId]?.title : "No event"}`}
-                  </Text>
-                </View>
-                <ModalField
-                  label="Estimated hours"
-                  keyboardType="decimal-pad"
-                  onChangeText={(value) =>
-                    setTaskDraft((current) => ({ ...current, estimatedHours: value }))
-                  }
-                  placeholder="4"
-                  value={taskDraft.estimatedHours}
-                />
-                <ModalField
-                  label="Checklist / substeps (comma separated)"
-                  multiline
-                  onChangeText={(value) =>
-                    setTaskDraft((current) => ({ ...current, checklistItemsText: value }))
-                  }
-                  placeholder="Cut bracket, Deburr, Test fit, Add photo evidence"
-                  value={taskDraft.checklistItemsText}
-                />
-                <View style={styles.modalField}>
-                  <Text style={[styles.modalFieldLabel, { color: themeColors.subtleText }]}>Dependencies</Text>
-                  <View
-                    style={[
-                      styles.modalFieldInput,
-                      { backgroundColor: themeColors.canvas, borderColor: themeColors.border },
-                    ]}
-                  >
-                    {selectedTaskDependencies.length > 0 ? (
-                      <View style={styles.quickActionRow}>
-                        {selectedTaskDependencies.map((dependency) => (
-                          <Pressable
-                            key={dependency.id}
-                            onPress={() => removeTaskDependency(dependency.id)}
-                            style={[
-                              styles.quickActionButton,
-                              {
-                                alignItems: "flex-start",
-                                backgroundColor: themeColors.navySurface,
-                                borderColor: themeColors.navySurface,
-                                gap: 2,
-                                maxWidth: "100%",
-                              },
-                            ]}
-                          >
-                            <Text
-                              numberOfLines={2}
-                              style={[styles.quickActionButtonLabel, { color: themeColors.navyInk }]}
-                            >
-                              {dependency.title}
-                            </Text>
-                            <Text
-                              numberOfLines={2}
-                              style={{ color: themeColors.subtleText, fontSize: 11, fontWeight: "700" }}
-                            >
-                              {`${STATUS_LABELS[dependency.status]} | due ${formatDate(dependency.dueDate)} | ${subsystemsById[dependency.subsystemId]?.name ?? "No subsystem"} | remove`}
-                            </Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    ) : (
-                      <Text style={{ color: themeColors.subtleText }}>No dependencies selected</Text>
-                    )}
-                  </View>
-                  {downstreamTaskDependencies.length > 0 ? (
-                    <View
-                      style={[
-                        styles.modalFieldInput,
-                        { backgroundColor: themeColors.surface, borderColor: themeColors.border },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.quickActionButtonLabel,
-                          { color: themeColors.ink, marginBottom: 6 },
-                        ]}
-                      >
-                        Waiting on this task
-                      </Text>
-                      <View style={styles.quickActionRow}>
-                        {downstreamTaskDependencies.map((dependentTask) => (
-                          <View
-                            key={dependentTask.id}
-                            style={[
-                              styles.quickActionButton,
-                              {
-                                alignItems: "flex-start",
-                                backgroundColor: themeColors.canvas,
-                                borderColor: themeColors.border,
-                                gap: 2,
-                                maxWidth: "100%",
-                              },
-                            ]}
-                          >
-                            <Text
-                              numberOfLines={2}
-                              style={[styles.quickActionButtonLabel, { color: themeColors.ink }]}
-                            >
-                              {dependentTask.title}
-                            </Text>
-                            <Text
-                              numberOfLines={2}
-                              style={{
-                                color: themeColors.subtleText,
-                                fontSize: 11,
-                                fontWeight: "700",
-                              }}
-                            >
-                              {`${STATUS_LABELS[dependentTask.status]} | due ${formatDate(dependentTask.dueDate)} | ${subsystemsById[dependentTask.subsystemId]?.name ?? "No subsystem"}`}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-                  ) : null}
-                  <SearchField
-                    onChangeText={setTaskDependencySearch}
-                    placeholder="Search dependency tasks"
-                    value={taskDependencySearch}
-                  />
-                  {availableTaskDependencyOptions.length > 0 ? (
-                    <View style={styles.quickActionRow}>
-                      {availableTaskDependencyOptions.map((dependency) => (
-                        <Pressable
-                          key={dependency.id}
-                          onPress={() => addTaskDependency(dependency.id)}
-                          style={[
-                            styles.quickActionButton,
-                            {
-                              alignItems: "flex-start",
-                              backgroundColor: themeColors.surface,
-                              borderColor: themeColors.border,
-                              gap: 2,
-                              maxWidth: "100%",
-                            },
-                          ]}
-                        >
-                          <Text
-                            numberOfLines={2}
-                            style={[styles.quickActionButtonLabel, { color: themeColors.ink }]}
-                          >
-                            {dependency.title}
-                          </Text>
-                          <Text
-                            numberOfLines={2}
-                            style={{ color: themeColors.subtleText, fontSize: 11, fontWeight: "700" }}
-                          >
-                            {`${STATUS_LABELS[dependency.status]} | due ${formatDate(dependency.dueDate)} | ${subsystemsById[dependency.subsystemId]?.name ?? "No subsystem"}`}
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  ) : null}
-                </View>
-                <ModalField
-                  label="Blockers (comma separated)"
-                  onChangeText={(value) =>
-                    setTaskDraft((current) => ({ ...current, blockersText: value }))
-                  }
-                  placeholder="Waiting on batch, cable routing"
-                  value={taskDraft.blockersText}
-                />
-              </AdvancedOptions>
-            </View>
-          </View>
-        </EditorModal>
-
-        <EditorModal
+        <DeadlineEditorModal
+          deadlineDate={deadlineDate}
+          deadlineError={deadlineError}
+          deadlineTitle={deadlineTitle}
           onCancel={closeDeadlineEditor}
           onSave={saveDeadlineDraft}
-          saveLabel="Create deadline"
-          title="Create deadline"
+          setDeadlineDate={setDeadlineDate}
+          setDeadlineTitle={setDeadlineTitle}
+          themeColors={themeColors}
           visible={deadlineEditorVisible}
-        >
-          <ModalField
-            label="Title"
-            onChangeText={setDeadlineTitle}
-            placeholder="Deadline title"
-            value={deadlineTitle}
-          />
-          <ModalField
-            label="Day (YYYY-MM-DD)"
-            onChangeText={setDeadlineDate}
-            placeholder={localTodayDate()}
-            value={deadlineDate}
-          />
-          {deadlineError ? (
-            <Text style={{ color: themeColors.orangeInk }}>{deadlineError}</Text>
-          ) : null}
-        </EditorModal>
+        />
 
-        <EditorModal
+        <MilestoneEditorModal
+          appResponsiveStyles={appResponsiveStyles}
+          deleteMilestoneDraft={deleteMilestoneDraft}
+          milestoneDraft={milestoneDraft}
+          milestoneEditorMode={milestoneEditorMode}
+          milestoneEndDate={milestoneEndDate}
+          milestoneEndTime={milestoneEndTime}
+          milestoneError={milestoneError}
+          milestoneStartDate={milestoneStartDate}
+          milestoneStartTime={milestoneStartTime}
           onCancel={closeMilestoneEditor}
-          onDelete={milestoneEditorMode === "edit" ? deleteMilestoneDraft : undefined}
           onSave={saveMilestoneDraft}
-          saveLabel={milestoneEditorMode === "edit" ? "Update milestone" : "Create milestone"}
-          title={milestoneEditorMode === "edit" ? "Edit milestone" : "Create milestone"}
-          visible={Boolean(milestoneEditorMode)}
-        >
-          {milestoneError ? (
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                Missing milestone details
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {milestoneError}
-              </Text>
-            </View>
-          ) : null}
-          <ModalField
-            label="Title"
-            onChangeText={(value) => {
-              setMilestoneError(null);
-              setMilestoneDraft((current) => ({ ...current, title: value }));
-            }}
-            placeholder="Milestone title"
-            value={milestoneDraft.title}
-          />
-          <DropdownField
-            label="Type"
-            onChange={(value) => {
-              setMilestoneError(null);
-              setMilestoneDraft((current) => ({
-                ...current,
-                type: value as EventType,
-              }));
-            }}
-            options={EVENT_TYPE_OPTIONS}
-            value={milestoneDraft.type}
-          />
-          <ModalField
-            label="Start date (YYYY-MM-DD)"
-            onChangeText={(value) => {
-              setMilestoneError(null);
-              setMilestoneStartDate(value);
-            }}
-            placeholder={localTodayDate()}
-            value={milestoneStartDate}
-          />
-          <ModalField
-            label="Start time (HH:mm)"
-            onChangeText={(value) => {
-              setMilestoneError(null);
-              setMilestoneStartTime(value);
-            }}
-            placeholder="18:00"
-            value={milestoneStartTime}
-          />
-          <AdvancedOptions>
-            <ModalField
-              label="End date (optional, YYYY-MM-DD)"
-              onChangeText={(value) => {
-                setMilestoneError(null);
-                setMilestoneEndDate(value);
-              }}
-              placeholder="2026-04-30"
-              value={milestoneEndDate}
-            />
-            <ModalField
-              label="End time (optional, HH:mm)"
-              onChangeText={(value) => {
-                setMilestoneError(null);
-                setMilestoneEndTime(value);
-              }}
-              placeholder="20:00"
-              value={milestoneEndTime}
-            />
-            <ModalField
-              label="Description"
-              multiline
-              onChangeText={(value) => {
-                setMilestoneError(null);
-                setMilestoneDraft((current) => ({ ...current, description: value }));
-              }}
-              placeholder="Milestone details"
-              value={milestoneDraft.description}
-            />
-            <ModalField
-              label="Related subsystem IDs (comma separated)"
-              onChangeText={(value) => {
-                setMilestoneError(null);
-                setMilestoneDraft((current) => ({
-                  ...current,
-                  relatedSubsystemIdsText: value,
-                }));
-              }}
-              placeholder="drive, controls"
-              value={milestoneDraft.relatedSubsystemIdsText}
-            />
-            <ToggleField
-              label="External milestone"
-              onToggle={(value) => {
-                setMilestoneError(null);
-                setMilestoneDraft((current) => ({ ...current, isExternal: value }));
-              }}
-              value={milestoneDraft.isExternal}
-            />
-          </AdvancedOptions>
-        </EditorModal>
+          setMilestoneDraft={setMilestoneDraft}
+          setMilestoneEndDate={setMilestoneEndDate}
+          setMilestoneEndTime={setMilestoneEndTime}
+          setMilestoneError={setMilestoneError}
+          setMilestoneStartDate={setMilestoneStartDate}
+          setMilestoneStartTime={setMilestoneStartTime}
+        />
 
-        <EditorModal
+        <WorkLogEditorModal
+          appResponsiveStyles={appResponsiveStyles}
+          deleteWorkLogDraft={deleteWorkLogDraft}
           onCancel={closeWorkLogEditor}
-          onDelete={workLogEditorMode === "edit" ? deleteWorkLogDraft : undefined}
           onSave={saveWorkLogDraft}
-          saveLabel={workLogEditorMode === "edit" ? "Update work log" : "Create work log"}
-          title={workLogEditorMode === "edit" ? "Edit work log" : "Create work log"}
-          visible={Boolean(workLogEditorMode)}
-        >
-          {workLogError ? (
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                Missing work log details
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {workLogError}
-              </Text>
-            </View>
-          ) : null}
-          <DropdownField
-            clearLabel="No task"
-            label="Task"
-            onChange={(value) => {
-              setWorkLogError(null);
-              setWorkLogDraft((current) => ({ ...current, taskId: value }));
-            }}
-            options={taskOptions}
-            placeholder="Select task"
-            value={workLogDraft.taskId}
-          />
-          <ModalField
-            label="Date (YYYY-MM-DD)"
-            onChangeText={(value) => {
-              setWorkLogError(null);
-              setWorkLogDraft((current) => ({ ...current, date: value }));
-            }}
-            placeholder="2026-04-24"
-            value={workLogDraft.date}
-          />
-          <ModalField
-            label="Hours"
-            keyboardType="decimal-pad"
-            onChangeText={(value) => {
-              setWorkLogError(null);
-              setWorkLogDraft((current) => ({ ...current, hours: value }));
-            }}
-            placeholder="2.5"
-            value={workLogDraft.hours}
-          />
-          <ModalField
-            label="Participants (member IDs, comma separated)"
-            onChangeText={(value) => {
-              setWorkLogError(null);
-              setWorkLogDraft((current) => ({ ...current, participantIdsText: value }));
-            }}
-            placeholder="ava,jordan"
-            value={workLogDraft.participantIdsText}
-          />
-          <View style={styles.quickActionRow}>
-            {WORKLOG_TEMPLATE_OPTIONS.map((template) => (
-              <Pressable
-                key={template.id}
-                onPress={() => {
-                  setWorkLogError(null);
-                  setWorkLogDraft((current) => ({
-                    ...current,
-                    notes: current.notes.trim()
-                      ? `${current.notes.trim()}\n\n${template.notes}`
-                      : template.notes,
-                  }));
-                }}
-                style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
-              >
-                <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                  {template.name}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-          <ModalField
-            label="Notes"
-            multiline
-            onChangeText={(value) => {
-              setWorkLogError(null);
-              setWorkLogDraft((current) => ({ ...current, notes: value }));
-            }}
-            placeholder="What was completed"
-            value={workLogDraft.notes}
-          />
-        </EditorModal>
+          setWorkLogDraft={setWorkLogDraft}
+          setWorkLogError={setWorkLogError}
+          taskOptions={taskOptions}
+          workLogDraft={workLogDraft}
+          workLogEditorMode={workLogEditorMode}
+          workLogError={workLogError}
+        />
 
-        <EditorModal
+        <ManufacturingEditorModal
+          appResponsiveStyles={appResponsiveStyles}
+          deleteManufacturingDraft={deleteManufacturingDraft}
+          manufacturingDraft={manufacturingDraft}
+          manufacturingEditorMode={manufacturingEditorMode}
+          manufacturingError={manufacturingError}
+          memberOptions={memberOptions}
           onCancel={closeManufacturingEditor}
-          onDelete={manufacturingEditorMode === "edit" ? deleteManufacturingDraft : undefined}
           onSave={saveManufacturingDraft}
-          saveLabel={manufacturingEditorMode === "edit" ? "Update item" : "Create item"}
-          title={manufacturingEditorMode === "edit" ? "Edit manufacturing item" : "Create manufacturing item"}
-          visible={Boolean(manufacturingEditorMode)}
-        >
-          {manufacturingError ? (
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                Missing manufacturing details
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {manufacturingError}
-              </Text>
-            </View>
-          ) : null}
-          <ModalField
-            label="Title"
-            onChangeText={(value) => {
-              setManufacturingError(null);
-              setManufacturingDraft((current) => ({ ...current, title: value }));
-            }}
-            placeholder="Part title"
-            value={manufacturingDraft.title}
-          />
-          <DropdownField
-            clearLabel="No subsystem"
-            label="Subsystem"
-            onChange={(value) => {
-              setManufacturingError(null);
-              setManufacturingDraft((current) => ({
-                ...current,
-                subsystemId: value,
-              }));
-            }}
-            options={subsystemOptions}
-            placeholder="Select subsystem"
-            value={manufacturingDraft.subsystemId}
-          />
-          {manufacturingEditorMode === "create" ? (
-            <View style={styles.modalField}>
-              <Text style={[styles.modalFieldLabel, { color: themeColors.subtleText }]}>
-                Requester
-              </Text>
-              <Text
-                style={[
-                  styles.modalFieldInput,
-                  {
-                    backgroundColor: themeColors.canvas,
-                    borderColor: themeColors.border,
-                    color: themeColors.ink,
-                  },
-                ]}
-              >
-                {membersById[manufacturingDraft.requestedById]?.name ??
-                  signedInMember?.name ??
-                  "Signed-in person"}
-              </Text>
-            </View>
-          ) : (
-            <>
-              <DropdownField
-                clearLabel="No requester"
-                label="Requester"
-                onChange={(value) => {
-                  setManufacturingError(null);
-                  setManufacturingDraft((current) => ({
-                    ...current,
-                    requestedById: value,
-                  }));
-                }}
-                options={memberOptions}
-                placeholder="Select requester"
-                value={manufacturingDraft.requestedById}
-              />
-              <DropdownField
-                label="Process"
-                onChange={(value) => {
-                  setManufacturingError(null);
-                  setManufacturingDraft((current) => ({
-                    ...current,
-                    process: value as ManufacturingItem["process"],
-                  }));
-                }}
-                options={MANUFACTURING_VIEW_OPTIONS.map((option) => ({
-                  id: option.value === "prints" ? "3d-print" : option.value,
-                  name: option.label,
-                }))}
-                value={manufacturingDraft.process}
-              />
-              <DropdownField
-                label="Status"
-                onChange={(value) => {
-                  setManufacturingError(null);
-                  setManufacturingDraft((current) => ({
-                    ...current,
-                    status: value as ManufacturingItem["status"],
-                  }));
-                }}
-                options={MANUFACTURING_STATUS_OPTIONS}
-                value={manufacturingDraft.status}
-              />
-            </>
-          )}
-          <ModalField
-            label="Material"
-            onChangeText={(value) => {
-              setManufacturingError(null);
-              setManufacturingDraft((current) => ({ ...current, material: value }));
-            }}
-            placeholder="Material"
-            value={manufacturingDraft.material}
-          />
-          <ModalField
-            label="Quantity"
-            keyboardType="numeric"
-            onChangeText={(value) => {
-              setManufacturingError(null);
-              setManufacturingDraft((current) => ({ ...current, quantity: value }));
-            }}
-            placeholder="1"
-            value={manufacturingDraft.quantity}
-          />
-          <ModalField
-            label="Due date (YYYY-MM-DD)"
-            onChangeText={(value) => {
-              setManufacturingError(null);
-              setManufacturingDraft((current) => ({ ...current, dueDate: value }));
-            }}
-            placeholder="2026-04-24"
-            value={manufacturingDraft.dueDate}
-          />
-          <AdvancedOptions>
-            <ModalField
-              label="Batch label"
-              onChangeText={(value) => {
-                setManufacturingError(null);
-                setManufacturingDraft((current) => ({ ...current, batchLabel: value }));
-              }}
-              placeholder="B-17"
-              value={manufacturingDraft.batchLabel}
-            />
-            <ModalField
-              label="QA review count"
-              keyboardType="numeric"
-              onChangeText={(value) => {
-                setManufacturingError(null);
-                setManufacturingDraft((current) => ({ ...current, qaReviewCount: value }));
-              }}
-              placeholder="0"
-              value={manufacturingDraft.qaReviewCount}
-            />
-            {manufacturingEditorMode === "edit" ? (
-              <ToggleField
-                label="Mentor reviewed"
-                onToggle={(value) => {
-                  setManufacturingError(null);
-                  setManufacturingDraft((current) => ({ ...current, mentorReviewed: value }));
-                }}
-                value={manufacturingDraft.mentorReviewed}
-              />
-            ) : null}
-          </AdvancedOptions>
-        </EditorModal>
+          requesterName={
+            membersById[manufacturingDraft.requestedById]?.name ??
+            signedInMember?.name ??
+            "Signed-in person"
+          }
+          setManufacturingDraft={setManufacturingDraft}
+          setManufacturingError={setManufacturingError}
+          subsystemOptions={subsystemOptions}
+          themeColors={themeColors}
+        />
 
-        <EditorModal
+        <PurchaseEditorModal
+          appResponsiveStyles={appResponsiveStyles}
+          deletePurchaseDraft={deletePurchaseDraft}
+          memberOptions={memberOptions}
           onCancel={closePurchaseEditor}
-          onDelete={purchaseEditorMode === "edit" ? deletePurchaseDraft : undefined}
           onSave={savePurchaseDraft}
-          saveLabel={purchaseEditorMode === "edit" ? "Update purchase" : "Create purchase"}
-          title={purchaseEditorMode === "edit" ? "Edit purchase" : "Create purchase"}
-          visible={Boolean(purchaseEditorMode)}
-        >
-          {purchaseError ? (
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                Missing purchase details
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {purchaseError}
-              </Text>
-            </View>
-          ) : null}
-          <ModalField
-            label="Title"
-            onChangeText={(value) => {
-              setPurchaseError(null);
-              setPurchaseDraft((current) => ({ ...current, title: value }));
-            }}
-            placeholder="Item title"
-            value={purchaseDraft.title}
-          />
-          <DropdownField
-            clearLabel="No subsystem"
-            label="Subsystem"
-            onChange={(value) => {
-              setPurchaseError(null);
-              setPurchaseDraft((current) => ({
-                ...current,
-                subsystemId: value,
-              }));
-            }}
-            options={subsystemOptions}
-            placeholder="Select subsystem"
-            value={purchaseDraft.subsystemId}
-          />
-          <DropdownField
-            clearLabel="No requester"
-            label="Requester"
-            onChange={(value) => {
-              setPurchaseError(null);
-              setPurchaseDraft((current) => ({
-                ...current,
-                requestedById: value,
-              }));
-            }}
-            options={memberOptions}
-            placeholder="Select requester"
-            value={purchaseDraft.requestedById}
-          />
-          <DropdownField
-            label="Status"
-            onChange={(value) => {
-              setPurchaseError(null);
-              setPurchaseDraft((current) => ({
-                ...current,
-                status: value as PurchaseItem["status"],
-              }));
-            }}
-            options={PURCHASE_STATUS_OPTIONS}
-            value={purchaseDraft.status}
-          />
-          <ModalField
-            label="Vendor"
-            onChangeText={(value) => {
-              setPurchaseError(null);
-              setPurchaseDraft((current) => ({ ...current, vendor: value }));
-            }}
-            placeholder="Vendor"
-            value={purchaseDraft.vendor}
-          />
-          <ModalField
-            label="Quantity"
-            keyboardType="numeric"
-            onChangeText={(value) => {
-              setPurchaseError(null);
-              setPurchaseDraft((current) => ({ ...current, quantity: value }));
-            }}
-            placeholder="1"
-            value={purchaseDraft.quantity}
-          />
-          <ModalField
-            label="Estimated cost"
-            keyboardType="decimal-pad"
-            onChangeText={(value) => {
-              setPurchaseError(null);
-              setPurchaseDraft((current) => ({ ...current, estimatedCost: value }));
-            }}
-            placeholder="82"
-            value={purchaseDraft.estimatedCost}
-          />
-          <AdvancedOptions>
-            <ModalField
-              label="Acquisition website"
-              onChangeText={(value) => {
-                setPurchaseError(null);
-                setPurchaseDraft((current) => ({ ...current, linkLabel: value }));
-              }}
-              placeholder="vendor.com/item"
-              value={purchaseDraft.linkLabel}
-            />
-            <ModalField
-              label="Final cost (optional)"
-              keyboardType="decimal-pad"
-              onChangeText={(value) => {
-                setPurchaseError(null);
-                setPurchaseDraft((current) => ({ ...current, finalCost: value }));
-              }}
-              placeholder="61"
-              value={purchaseDraft.finalCost}
-            />
-            <ToggleField
-              label="Mentor approved"
-              onToggle={(value) => {
-                setPurchaseError(null);
-                setPurchaseDraft((current) => ({ ...current, approvedByMentor: value }));
-              }}
-              value={purchaseDraft.approvedByMentor}
-            />
-          </AdvancedOptions>
-        </EditorModal>
+          purchaseDraft={purchaseDraft}
+          purchaseEditorMode={purchaseEditorMode}
+          purchaseError={purchaseError}
+          setPurchaseDraft={setPurchaseDraft}
+          setPurchaseError={setPurchaseError}
+          subsystemOptions={subsystemOptions}
+        />
 
-        <EditorModal
+        <PartDefinitionEditorModal
+          appResponsiveStyles={appResponsiveStyles}
+          deletePartDefinitionDraft={deletePartDefinitionDraft}
           onCancel={closePartDefinitionEditor}
-          onDelete={
-            partDefinitionEditorMode === "edit" ? deletePartDefinitionDraft : undefined
-          }
           onSave={savePartDefinitionDraft}
-          saveLabel={
-            partDefinitionEditorMode === "edit"
-              ? "Update part definition"
-              : "Create part definition"
-          }
-          title={
-            partDefinitionEditorMode === "edit"
-              ? "Edit part definition"
-              : "Create part definition"
-          }
-          visible={Boolean(partDefinitionEditorMode)}
-        >
-          {partDefinitionError ? (
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                Missing part details
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {partDefinitionError}
-              </Text>
-            </View>
-          ) : null}
-          <ModalField
-            label="Name"
-            onChangeText={(value) => {
-              setPartDefinitionError(null);
-              setPartDefinitionDraft((current) => ({ ...current, name: value }));
-            }}
-            placeholder="Part name"
-            value={partDefinitionDraft.name}
-          />
-          <ModalField
-            label="Part number"
-            onChangeText={(value) => {
-              setPartDefinitionError(null);
-              setPartDefinitionDraft((current) => ({ ...current, partNumber: value }));
-            }}
-            placeholder="DRV-101"
-            value={partDefinitionDraft.partNumber}
-          />
-          <ModalField
-            label="Revision"
-            onChangeText={(value) => {
-              setPartDefinitionError(null);
-              setPartDefinitionDraft((current) => ({ ...current, revision: value }));
-            }}
-            placeholder="A"
-            value={partDefinitionDraft.revision}
-          />
-          <DropdownField
-            label="Source"
-            onChange={(value) => {
-              setPartDefinitionError(null);
-              setPartDefinitionDraft((current) => ({
-                ...current,
-                source: value,
-                acquisitionMethod:
-                  value === "FRC Supplier" || value === "COTS"
-                    ? "purchase"
-                    : current.acquisitionMethod,
-              }));
-            }}
-            options={PART_SOURCE_OPTIONS}
-            value={partDefinitionDraft.source || "Onshape"}
-          />
-          {partDefinitionEditorMode === "create" ? (
-            <DropdownField
-              label="Acquisition method"
-              onChange={(value) => {
-                setPartDefinitionError(null);
-                setPartDefinitionDraft((current) => ({
-                  ...current,
-                  acquisitionMethod: value as AcquisitionMethod,
-                }));
-              }}
-              options={ACQUISITION_METHOD_OPTIONS}
-              value={partDefinitionDraft.acquisitionMethod}
-            />
-          ) : null}
-        </EditorModal>
+          partDefinitionDraft={partDefinitionDraft}
+          partDefinitionEditorMode={partDefinitionEditorMode}
+          partDefinitionError={partDefinitionError}
+          setPartDefinitionDraft={setPartDefinitionDraft}
+          setPartDefinitionError={setPartDefinitionError}
+        />
 
-        <EditorModal
+        <MemberEditorModal
+          appResponsiveStyles={appResponsiveStyles}
+          deleteMemberDraft={deleteMemberDraft}
+          disciplineOptions={disciplineOptions}
+          memberDraft={memberDraft}
+          memberEditorMode={memberEditorMode}
+          memberError={memberError}
           onCancel={closeMemberEditor}
-          onDelete={memberEditorMode === "edit" ? deleteMemberDraft : undefined}
           onSave={saveMemberDraft}
-          saveLabel={memberEditorMode === "edit" ? "Update person" : "Create person"}
-          title={memberEditorMode === "edit" ? "Edit selected person" : "Add person"}
-          visible={Boolean(memberEditorMode)}
-        >
-          {memberError ? (
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                Missing roster details
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {memberError}
-              </Text>
-            </View>
-          ) : null}
-          <View style={styles.profilePhotoField}>
-            <Text style={[styles.modalFieldLabel, { color: themeColors.ink }]}>
-              Profile photo
-            </Text>
-            <View style={[styles.profilePhotoPicker, { borderColor: themeColors.border }]}>
-              <Pressable
-                accessibilityRole="button"
-                onPress={showProfilePhotoUrlOnlyMessage}
-                style={styles.profilePhotoChooseButton}
-              >
-                <Text style={styles.profilePhotoChooseButtonLabel}>Use URL</Text>
-              </Pressable>
-              <Text style={[styles.profilePhotoFileName, { color: themeColors.ink }]}>
-                {getPhotoFileName(memberDraft.photoUrl)}
-              </Text>
-            </View>
-            <ModalField
-              label="Profile photo URL"
-              onChangeText={(value) => {
-                setMemberError(null);
-                setMemberDraft((current) => ({ ...current, photoUrl: value }));
-              }}
-              placeholder="https://example.com/photo.jpg"
-              value={memberDraft.photoUrl}
-            />
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setMemberDraft((current) => ({ ...current, photoUrl: "" }))}
-              style={styles.profilePhotoClearButton}
-            >
-              <Text style={[styles.profilePhotoClearButtonLabel, { color: themeColors.ink }]}>
-                Clear file
-              </Text>
-            </Pressable>
-          </View>
-          <ModalField
-            label="Name"
-            onChangeText={(value) => {
-              setMemberError(null);
-              setMemberDraft((current) => ({ ...current, name: value }));
-            }}
-            placeholder="Person name"
-            value={memberDraft.name}
-          />
-          <ModalField
-            keyboardType="email-address"
-            label="Email"
-            onChangeText={(value) => {
-              setMemberError(null);
-              setMemberDraft((current) => ({ ...current, email: value }));
-            }}
-            placeholder="person@mecorobotics.org"
-            value={memberDraft.email}
-          />
-          <DropdownField
-            clearLabel="None"
-            label="Discipline"
-            onChange={(value) => {
-              setMemberError(null);
-              setMemberDraft((current) => ({ ...current, disciplineId: value }));
-            }}
-            options={disciplineOptions}
-            placeholder="None"
-            value={memberDraft.disciplineId}
-          />
-          <DropdownField
-            clearLabel="None"
-            label="Discipline"
-            onChange={(value) => {
-              setMemberError(null);
-              setMemberDraft((current) => ({ ...current, disciplineId: value }));
-            }}
-            options={disciplineOptions}
-            placeholder="None"
-            value={memberDraft.disciplineId}
-          />
-          <DropdownField
-            label="Role"
-            onChange={(value) => {
-              const role = value as MemberRole;
-              setMemberError(null);
-              setMemberDraft((current) => ({
-                ...current,
-                role,
-                elevated: role === "lead" || role === "admin",
-              }));
-            }}
-            options={[
-              { id: "student", name: "Student" },
-              { id: "lead", name: "Student + subteam lead" },
-              { id: "mentor", name: "Mentor" },
-              { id: "admin", name: "Admin" },
-              { id: "external", name: "External access" },
-            ]}
-            value={memberDraft.role}
-          />
-          <ModalField
-            keyboardType="numeric"
-            label="Planned weekly attendance"
-            onChangeText={(value) => {
-              setMemberError(null);
-              setMemberDraft((current) => ({
-                ...current,
-                plannedWeeklyAttendanceHours: value,
-              }));
-            }}
-            placeholder="0"
-            value={memberDraft.plannedWeeklyAttendanceHours}
-          />
-          <View style={styles.plannedDaysField}>
-            <Text style={[styles.modalFieldLabel, { color: themeColors.ink }]}>
-              Planned days
-            </Text>
-            <View style={styles.plannedDaysRow}>
-              {PLANNED_ATTENDANCE_DAY_OPTIONS.map((day) => {
-                const isSelected = memberDraft.plannedAttendanceDays.includes(day.id);
+          setMemberDraft={setMemberDraft}
+          setMemberError={setMemberError}
+          showProfilePhotoUrlOnlyMessage={showProfilePhotoUrlOnlyMessage}
+          themeColors={themeColors}
+        />
 
-                return (
-                  <Pressable
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: isSelected }}
-                    key={day.id}
-                    onPress={() => {
-                      setMemberError(null);
-                      setMemberDraft((current) => ({
-                        ...current,
-                        plannedAttendanceDays: current.plannedAttendanceDays.includes(day.id)
-                          ? current.plannedAttendanceDays.filter((value) => value !== day.id)
-                          : [...current.plannedAttendanceDays, day.id],
-                      }));
-                    }}
-                    style={styles.plannedDayOption}
-                  >
-                    <View
-                      style={[
-                        styles.plannedDayCheckbox,
-                        {
-                          backgroundColor: isSelected ? themeColors.navySurface : themeColors.canvas,
-                          borderColor: isSelected ? themeColors.blue : themeColors.border,
-                        },
-                      ]}
-                    />
-                    <Text style={[styles.plannedDayLabel, { color: themeColors.ink }]}>
-                      {day.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-          <ModalField
-            label="Attendance notes"
-            multiline
-            onChangeText={(value) => {
-              setMemberError(null);
-              setMemberDraft((current) => ({
-                ...current,
-                plannedAttendanceNotes: value,
-              }));
-            }}
-            placeholder=""
-            value={memberDraft.plannedAttendanceNotes}
-          />
-        </EditorModal>
-
-        <EditorModal
+        <SubsystemEditorModal
+          appResponsiveStyles={appResponsiveStyles}
+          deleteSubsystemDraft={deleteSubsystemDraft}
+          memberOptions={memberOptions}
           onCancel={closeSubsystemEditor}
-          onDelete={subsystemEditorMode === "edit" ? deleteSubsystemDraft : undefined}
           onSave={saveSubsystemDraft}
-          saveLabel={subsystemEditorMode === "edit" ? "Update subsystem" : "Create subsystem"}
-          title={subsystemEditorMode === "edit" ? "Edit subsystem" : "Create subsystem"}
-          visible={Boolean(subsystemEditorMode)}
-        >
-          {subsystemError ? (
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                Missing subsystem details
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {subsystemError}
-              </Text>
-            </View>
-          ) : null}
-          <ModalField
-            label="Name"
-            onChangeText={(value) => {
-              setSubsystemError(null);
-              setSubsystemDraft((current) => ({ ...current, name: value }));
-            }}
-            placeholder="Subsystem name"
-            value={subsystemDraft.name}
-          />
-          <ModalField
-            label="Description"
-            multiline
-            onChangeText={(value) => {
-              setSubsystemError(null);
-              setSubsystemDraft((current) => ({ ...current, description: value }));
-            }}
-            placeholder="Subsystem description"
-            value={subsystemDraft.description}
-          />
-          <DropdownField
-            clearLabel="No responsible engineer"
-            label="Responsible engineer"
-            onChange={(value) => {
-              setSubsystemError(null);
-              setSubsystemDraft((current) => ({
-                ...current,
-                responsibleEngineerId: value,
-              }));
-            }}
-            options={memberOptions}
-            placeholder="Select responsible engineer"
-            value={subsystemDraft.responsibleEngineerId}
-          />
-          <AdvancedOptions>
-            <ModalField
-              label="Mentor IDs (comma separated)"
-              onChangeText={(value) => {
-                setSubsystemError(null);
-                setSubsystemDraft((current) => ({ ...current, mentorIdsText: value }));
-              }}
-              placeholder="jordan,riley"
-              value={subsystemDraft.mentorIdsText}
-            />
-            <ModalField
-              label="Risks (comma separated)"
-              onChangeText={(value) => {
-                setSubsystemError(null);
-                setSubsystemDraft((current) => ({ ...current, risksText: value }));
-              }}
-              placeholder="Risk one, risk two"
-              value={subsystemDraft.risksText}
-            />
-          </AdvancedOptions>
-        </EditorModal>
+          setSubsystemDraft={setSubsystemDraft}
+          setSubsystemError={setSubsystemError}
+          subsystemDraft={subsystemDraft}
+          subsystemEditorMode={subsystemEditorMode}
+          subsystemError={subsystemError}
+        />
 
-        <EditorModal
+        <QaReportEditorModal
+          appResponsiveStyles={appResponsiveStyles}
           onCancel={closeQaReportEditor}
           onSave={saveQaReportDraft}
-          saveLabel="Save QA report"
-          title="QA report"
-          visible={Boolean(qaReportEditorMode)}
-        >
-          {qaReportError ? (
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                Missing QA details
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {qaReportError}
-              </Text>
-            </View>
-          ) : null}
-          <DropdownField
-            clearLabel="No task"
-            label="Task"
-            onChange={(value) => {
-              setQaReportDraft((current) => ({ ...current, taskId: value }));
-              setActiveQaRequestId(null);
-              setQaReportError(null);
-            }}
-            options={taskOptions}
-            placeholder="Select task"
-            value={qaReportDraft.taskId}
-          />
-          <DropdownField
-            label="Result"
-            onChange={(value) => {
-              setQaReportError(null);
-              setQaReportDraft((current) => ({
-                ...current,
-                result: value as QaReportDraft["result"],
-              }));
-            }}
-            options={QA_RESULT_OPTIONS}
-            value={qaReportDraft.result}
-          />
-          <ModalField
-            label="Participants (member IDs, comma separated)"
-            onChangeText={(value) => {
-              setQaReportDraft((current) => ({ ...current, participantIdsText: value }));
-              setQaReportError(null);
-            }}
-            placeholder="ava,jordan"
-            value={qaReportDraft.participantIdsText}
-          />
-          <ModalField
-            label="Notes"
-            multiline
-            onChangeText={(value) => {
-              setQaReportDraft((current) => ({ ...current, notes: value }));
-              setQaReportError(null);
-            }}
-            placeholder="Inspection result, evidence, and follow-up"
-            value={qaReportDraft.notes}
-          />
-          <ModalField
-            label="Evidence / references"
-            multiline
-            onChangeText={(value) => {
-              setQaReportDraft((current) => ({ ...current, evidenceNotes: value }));
-              setQaReportError(null);
-            }}
-            placeholder="Photo links, notebook page, test run ID, video, or file reference"
-            value={qaReportDraft.evidenceNotes}
-          />
-          <AdvancedOptions>
-            <ModalField
-              label="Follow-up task title"
-              onChangeText={(value) => {
-                setQaReportError(null);
-                setQaReportDraft((current) => ({ ...current, followUpTaskTitle: value }));
-              }}
-              placeholder="Leave blank to create one automatically"
-              value={qaReportDraft.followUpTaskTitle}
-            />
-            <ToggleField
-              label="Mentor approved"
-              onToggle={(value) => {
-                setQaReportError(null);
-                setQaReportDraft((current) => ({ ...current, mentorApproved: value }));
-              }}
-              value={qaReportDraft.mentorApproved}
-            />
-          </AdvancedOptions>
-        </EditorModal>
+          qaReportDraft={qaReportDraft}
+          qaReportEditorMode={qaReportEditorMode}
+          qaReportError={qaReportError}
+          setActiveQaRequestId={setActiveQaRequestId}
+          setQaReportDraft={setQaReportDraft}
+          setQaReportError={setQaReportError}
+          taskOptions={taskOptions}
+        />
 
-        <EditorModal
-          onCancel={closeEventReportEditor}
-          onSave={saveEventReportDraft}
-          saveLabel="Save event report"
-          title="Event report"
-          visible={Boolean(eventReportEditorMode)}
-        >
-          {eventReportError ? (
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                Missing event report details
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {eventReportError}
-              </Text>
-            </View>
-          ) : null}
-          <DropdownField
-            clearLabel="No event"
-            label="Milestone / event"
-            onChange={(value) => {
-              setEventReportDraft((current) => ({ ...current, eventId: value }));
-              setEventReportError(null);
-            }}
-            options={eventOptions}
-            placeholder="Select event"
-            value={eventReportDraft.eventId}
-          />
-          <ModalField
-            label="Summary"
-            multiline
-            onChangeText={(value) => {
-              setEventReportDraft((current) => ({ ...current, summary: value }));
-              setEventReportError(null);
-            }}
-            placeholder="What happened at the event"
-            value={eventReportDraft.summary}
-          />
-          <AdvancedOptions>
-            <ModalField
-              label="Finding"
-              multiline
-              onChangeText={(value) =>
-                setEventReportDraft((current) => ({ ...current, findingText: value }))
-              }
-              placeholder="Issue, observation, or test result"
-              value={eventReportDraft.findingText}
-            />
-            <ModalField
-              label="Follow-up task title"
-              onChangeText={(value) =>
-                setEventReportDraft((current) => ({ ...current, followUpTaskTitle: value }))
-              }
-              placeholder="Create a task anchored to this milestone"
-              value={eventReportDraft.followUpTaskTitle}
-            />
-          </AdvancedOptions>
-        </EditorModal>
       </>
     );
   };
 
-  const renderNavigationMenu = () => (
-    <Modal
-      animationType="fade"
-      onRequestClose={closeNavigationMenu}
-      supportedOrientations={["portrait", "landscape-left", "landscape-right"]}
-      transparent
-      visible={isNavMenuVisible}
-    >
-      <Pressable
-        onPress={closeNavigationMenu}
-        style={[styles.navDrawerSafeArea, styles.navDrawerScrim]}
-      >
-        <SafeAreaView style={{ flex: 1 }}>
-          <Pressable
-            accessibilityRole="menu"
-            onPress={() => undefined}
-            style={[styles.navDrawer, appResponsiveStyles.navDrawer]}
-            {...navigationCloseSwipeResponder.panHandlers}
-          >
-            <View style={styles.navDrawerHeader}>
-              <View style={styles.navDrawerHeaderText}>
-                <Text style={[styles.navDrawerTitle, { color: themeColors.ink }]}>
-                  Workspace
-                </Text>
-                <Text style={[styles.navDrawerSubtitle, { color: themeColors.subtleText }]}>
-                  {activeTabLabel}
-                </Text>
-              </View>
-              <Pressable
-                accessibilityLabel="Close navigation"
-                accessibilityRole="button"
-                onPress={closeNavigationMenu}
-                style={[styles.navDrawerCloseButton, appResponsiveStyles.iconButton]}
-              >
-                <Text style={[styles.navDrawerCloseLabel, { color: themeColors.navyInk }]}>
-                  X
-                </Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.navDrawerList}>
-              {navigationSections.map((section) => (
-                <View key={section.title} style={styles.navDrawerSection}>
-                  <Text style={[styles.navDrawerSectionLabel, { color: themeColors.subtleText }]}>
-                    {section.title}
-                  </Text>
-                  {section.items.map((item) => {
-                    const isActive = activeTab === item.key;
-
-                    return (
-                      <Pressable
-                        accessibilityRole="menuitem"
-                        accessibilityState={{ selected: isActive }}
-                        key={item.key}
-                        onPress={() => selectNavigationTab(item.key)}
-                        style={[
-                          styles.navDrawerItem,
-                          appResponsiveStyles.navTab,
-                          isActive && [styles.navDrawerItemActive, appResponsiveStyles.navTabActive],
-                        ]}
-                      >
-                        <View
-                          style={[
-                            styles.sidebarIconBubble,
-                            appResponsiveStyles.navBubble,
-                            isActive && styles.sidebarIconBubbleActive,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.sidebarIconLabel,
-                              { color: themeColors.navyInk },
-                              isActive && styles.sidebarIconLabelActive,
-                            ]}
-                          >
-                            {item.shortLabel}
-                          </Text>
-                        </View>
-                        <Text
-                          style={[
-                            styles.navDrawerItemLabel,
-                            { color: themeColors.ink },
-                            isActive && { color: themeColors.navyInk },
-                          ]}
-                        >
-                          {item.label}
-                        </Text>
-                        <View
-                          style={[
-                            styles.sidebarCountPill,
-                            appResponsiveStyles.navCount,
-                            isActive && styles.sidebarCountPillActive,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.sidebarCountLabel,
-                              { color: themeColors.ink },
-                              isActive && styles.sidebarCountLabelActive,
-                            ]}
-                          >
-                            {item.count}
-                          </Text>
-                        </View>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              ))}
-            </View>
-          </Pressable>
-        </SafeAreaView>
-      </Pressable>
-    </Modal>
-  );
-
-  const renderLoginScreen = () => {
-    const hostedDomain = authConfig?.hostedDomain ?? "mecorobotics.org";
-    const isEmailCodeFlowAvailable = authConfig?.emailEnabled !== false;
-    const loginScale = Math.min(
-      1.45,
-      Math.max(0.78, Math.min(width / 390, height / 722)),
-    );
-    const scaleLogin = (value: number) => Math.round(value * loginScale);
-    const loginCardHeight = Math.min(height - 8, scaleLogin(722));
-    const loginCardWidth = Math.min(width - 48, scaleLogin(334));
-
-    return (
-      <View
-        style={[
-          styles.loginScreen,
-          isDarkModeEnabled ? styles.loginScreenDark : styles.loginScreenLight,
-        ]}
-      >
-        <StatusBar
-          backgroundColor={isDarkModeEnabled ? "#10284d" : colors.grey}
-          style={isDarkModeEnabled ? "light" : "dark"}
-          translucent={false}
-        />
-        <SafeAreaView
-          style={[
-            styles.loginSafeArea,
-            isDarkModeEnabled ? styles.loginScreenDark : styles.loginScreenLight,
-          ]}
-        >
-          <View
-            style={[
-              styles.loginCard,
-              isDarkModeEnabled ? styles.loginCardDark : styles.loginCardLight,
-              {
-                borderRadius: scaleLogin(29),
-                minHeight: loginCardHeight,
-                paddingBottom: scaleLogin(28),
-                paddingHorizontal: scaleLogin(28),
-                paddingTop: scaleLogin(28),
-                width: loginCardWidth,
-              },
-            ]}
-          >
-            <View style={styles.loginBadgeShadow}>
-              <Image
-                accessibilityLabel="Team MECO 8324 logo"
-                resizeMode="contain"
-                source={require("./assets/meco-shield.png")}
-                style={[
-                  styles.loginLogoImage,
-                  { height: scaleLogin(334), width: scaleLogin(304) },
-                ]}
-              />
-            </View>
-
-            {isEmailCodeFlowAvailable ? (
-              <>
-                <Text
-                  style={[
-                    styles.loginTitle,
-                    {
-                      fontSize: scaleLogin(28),
-                      marginBottom: scaleLogin(16),
-                      marginTop: scaleLogin(14),
-                    },
-                  ]}
-                >
-                  Sign in with email
-                </Text>
-
-                <View
-                  style={[
-                    styles.loginEmailRow,
-                    isDarkModeEnabled ? styles.loginEmailRowDark : styles.loginEmailRowLight,
-                    {
-                      minHeight: scaleLogin(50),
-                      paddingLeft: scaleLogin(18),
-                      paddingRight: scaleLogin(8),
-                    },
-                  ]}
-                >
-                  <TextInput
-                    autoCapitalize="none"
-                    autoComplete="email"
-                    autoCorrect={false}
-                    editable={!isAuthenticating && !hasRequestedEmailCode}
-                    keyboardType="email-address"
-                    onChangeText={(value) => {
-                      setAuthEmail(value);
-                      setAuthCode("");
-                      setAuthNotice(null);
-                      setHasRequestedEmailCode(false);
-                    }}
-                    placeholder={`you@${hostedDomain}`}
-                    placeholderTextColor="#f1f5ff"
-                    returnKeyType="next"
-                    style={[
-                      styles.loginEmailInput,
-                      { fontSize: scaleLogin(13), paddingVertical: scaleLogin(12) },
-                    ]}
-                    textContentType="emailAddress"
-                    value={authEmail}
-                  />
-                  <Pressable
-                    accessibilityRole="button"
-                    disabled={isAuthenticating}
-                    onPress={() => {
-                      if (hasRequestedEmailCode) {
-                        setAuthCode("");
-                        setAuthError(null);
-                        setAuthNotice(null);
-                        setHasRequestedEmailCode(false);
-                        return;
-                      }
-
-                      void signInWithEmail();
-                    }}
-                    style={[
-                      styles.loginSendButton,
-                      styles.loginInlineSendButton,
-                      {
-                        minHeight: scaleLogin(36),
-                        minWidth: scaleLogin(78),
-                        paddingHorizontal: scaleLogin(10),
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.loginSendButtonText, { fontSize: scaleLogin(12) }]}>
-                      {hasRequestedEmailCode ? "Change" : isAuthenticating ? "Sending" : "Send Code"}
-                    </Text>
-                  </Pressable>
-                </View>
-
-                {hasRequestedEmailCode ? (
-                  <View
-                    style={[
-                      styles.loginCodeRow,
-                      isDarkModeEnabled ? styles.loginEmailRowDark : styles.loginEmailRowLight,
-                      {
-                        marginTop: scaleLogin(10),
-                        minHeight: scaleLogin(50),
-                        paddingLeft: scaleLogin(18),
-                        paddingRight: scaleLogin(8),
-                      },
-                    ]}
-                  >
-                    <TextInput
-                      autoCapitalize="none"
-                      autoComplete="one-time-code"
-                      autoCorrect={false}
-                      editable={!isAuthenticating}
-                      keyboardType="default"
-                      onChangeText={setAuthCode}
-                      onSubmitEditing={signInWithEmail}
-                      placeholder="Code"
-                      placeholderTextColor="#f1f5ff"
-                      returnKeyType="go"
-                      style={[
-                        styles.loginEmailInput,
-                        { fontSize: scaleLogin(13), paddingVertical: scaleLogin(12) },
-                      ]}
-                      textContentType="oneTimeCode"
-                      value={authCode}
-                    />
-                    <Pressable
-                      accessibilityRole="button"
-                      disabled={isAuthenticating}
-                      onPress={signInWithEmail}
-                      style={[
-                        styles.loginSendButton,
-                        styles.loginInlineSendButton,
-                        {
-                          minHeight: scaleLogin(36),
-                          minWidth: scaleLogin(78),
-                          paddingHorizontal: scaleLogin(10),
-                        },
-                      ]}
-                    >
-                      <Text style={[styles.loginSendButtonText, { fontSize: scaleLogin(12) }]}>
-                        {isAuthenticating ? "Checking" : "Verify"}
-                      </Text>
-                    </Pressable>
-                  </View>
-                ) : null}
-              </>
-            ) : null}
-
-            {authNotice ? (
-              <Text style={[styles.loginNoticeText, { fontSize: scaleLogin(14) }]}>
-                {authNotice}
-              </Text>
-            ) : null}
-            {authError ? (
-              <Text
-                style={[
-                  styles.loginErrorText,
-                  {
-                    color: isDarkModeEnabled ? "#fecdd3" : colors.black,
-                    fontSize: scaleLogin(14),
-                  },
-                ]}
-              >
-                {authError}
-              </Text>
-            ) : null}
-
-            <Pressable
-              accessibilityRole="button"
-              disabled={isAuthenticating || isAuthConfigUnavailable}
-              onPress={signInWithGoogle}
-              style={({ pressed }) => [
-                styles.loginGoogleButton,
-                {
-                  gap: scaleLogin(8),
-                  marginTop: "auto",
-                  minHeight: scaleLogin(42),
-                  paddingHorizontal: scaleLogin(8),
-                },
-                pressed && styles.loginGoogleButtonPressed,
-              ]}
-            >
-              <View
-                style={[
-                  styles.loginAvatar,
-                  { height: scaleLogin(22), width: scaleLogin(22) },
-                ]}
-              >
-                <Text style={[styles.loginAvatarText, { fontSize: scaleLogin(12) }]}>A</Text>
-              </View>
-              <Text style={[styles.loginGoogleText, { fontSize: scaleLogin(13) }]}>
-                {isAuthConfigUnavailable
-                  ? "Auth unavailable"
-                  : isAuthenticating
-                    ? "Signing in"
-                    : "Sign in with Google"}
-              </Text>
-              <View
-                style={[
-                  styles.loginGoogleMark,
-                  { height: scaleLogin(38), width: scaleLogin(38) },
-                ]}
-              >
-                <Image
-                  accessibilityLabel="Google logo"
-                  resizeMode="contain"
-                  source={require("./assets/google-g.png")}
-                  style={[
-                    styles.loginGoogleMarkImage,
-                    { height: scaleLogin(26), width: scaleLogin(26) },
-                  ]}
-                />
-              </View>
-            </Pressable>
-          </View>
-        </SafeAreaView>
-      </View>
-    );
-  };
-
-  const renderProjectOverlay = () => (
-    <Modal
-      animationType="fade"
-      onRequestClose={() => setIsProjectOverlayVisible(false)}
-      supportedOrientations={["portrait", "landscape-left", "landscape-right"]}
-      transparent
-      visible={isProjectOverlayVisible}
-    >
-      <Pressable
-        onPress={() => setIsProjectOverlayVisible(false)}
-        style={styles.overlayScrim}
-      >
-        <Pressable onPress={() => undefined} style={[styles.overlayCard, appResponsiveStyles.overlayCard]}>
-          <View style={styles.overlayHeader}>
-            <View style={[styles.projectMark, { backgroundColor: themeColors.navySurface }]}>
-              <Text style={[styles.projectMarkLabel, { color: themeColors.navyInk }]}>RB</Text>
-            </View>
-            <View style={styles.overlayHeaderCopy}>
-              <Text style={[styles.overlayTitle, { color: themeColors.ink }]}>MECO Mission Control</Text>
-              <Text style={[styles.overlaySubtitle, { color: themeColors.subtleText }]}>Robot project selector</Text>
-            </View>
-          </View>
-
-          <Text style={[styles.overlayBody, { color: themeColors.ink }]}>
-            Tap this project chip from the top bar to inspect or edit the active robot
-            workspace without leaving the current view.
-          </Text>
-
-          <View style={styles.overlayActionRow}>
-            <Pressable
-              accessibilityRole="button"
-              hitSlop={8}
-              onPress={() => {
-                setActiveTab("subsystems");
-                setIsProjectOverlayVisible(false);
-              }}
-              style={styles.overlayActionButton}
-            >
-              <Text style={styles.overlayActionLabel}>Edit robot</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              hitSlop={8}
-              onPress={() => {
-                setActiveTab("subsystems");
-                setIsProjectOverlayVisible(false);
-              }}
-              style={[
-                styles.overlaySecondaryButton,
-                { backgroundColor: themeColors.canvas, borderColor: themeColors.border },
-              ]}
-            >
-              <Text style={[styles.overlaySecondaryLabel, { color: themeColors.navyInk }]}>Switch project</Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-
-  const renderAttendanceModal = () => (
-    <Modal
-      animationType="fade"
-      onRequestClose={() => setIsAttendanceModalVisible(false)}
-      supportedOrientations={["portrait", "landscape-left", "landscape-right"]}
-      transparent
-      visible={isAttendanceModalVisible}
-    >
-      <View style={[styles.modalScrim, isCompactLayout && styles.modalScrimCompact]}>
-        <View
-          style={[
-            styles.modalCard,
-            { backgroundColor: themeColors.surface, borderColor: themeColors.border },
-            isCompactLayout && styles.modalCardCompact,
-          ]}
-        >
-          <Text style={[styles.modalTitle, { color: themeColors.ink }]}>
-            Meeting attendance
-          </Text>
-          <Text style={[styles.queueRowSubtitle, appResponsiveStyles.rowSubtitle]}>
-            Everyone for this meeting, sorted alphabetically.
-          </Text>
-
-          <ScrollView
-            contentContainerStyle={styles.modalContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {meetingAttendance.map(({ member, status }) => (
-              <View
-                key={member.id}
-                style={[styles.attendanceRow, appResponsiveStyles.rowCard]}
-              >
-                <View style={styles.queueRowPrimaryText}>
-                  <Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>
-                    {member.name}
-                  </Text>
-                  <Text style={[styles.queueRowSubtitle, appResponsiveStyles.rowSubtitle]}>
-                    {capitalize(member.role)}
-                  </Text>
-                </View>
-                <AttendanceStatusMark status={status} />
-              </View>
-            ))}
-          </ScrollView>
-
-          <View style={[styles.modalActions, isCompactLayout && styles.modalActionsCompact]}>
-            <Pressable
-              onPress={() => setIsAttendanceModalVisible(false)}
-              style={[
-                styles.modalSaveButton,
-                isCompactLayout && styles.modalActionButtonCompact,
-              ]}
-            >
-              <Text style={styles.modalSaveButtonLabel}>Close</Text>
-            </Pressable>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-
-  const renderPersonMenu = () => (
-    <Modal
-      animationType="fade"
-      onRequestClose={() => {
-        setIsPersonMenuVisible(false);
-        setIsSeasonMenuVisible(false);
-      }}
-      supportedOrientations={["portrait", "landscape-left", "landscape-right"]}
-      transparent
-      visible={isPersonMenuVisible}
-    >
-      <Pressable
-        onPress={() => {
-          setIsPersonMenuVisible(false);
-          setIsSeasonMenuVisible(false);
-        }}
-        style={styles.overlayScrim}
-      >
-        <Pressable onPress={() => undefined} style={[styles.overlayCard, appResponsiveStyles.overlayCard]}>
-          <View style={styles.overlayHeader}>
-            <View style={[styles.personMark, { backgroundColor: themeColors.navySurface }]}>
-              <Text style={[styles.personMarkLabel, { color: themeColors.navyInk }]}>
-                {signedInEmailInitial}
-              </Text>
-            </View>
-            <View style={styles.overlayHeaderCopy}>
-              <Text style={[styles.overlayTitle, { color: themeColors.ink }]}>Personal settings</Text>
-              <Text style={[styles.overlaySubtitle, { color: themeColors.subtleText }]}>{syncStatusLabel}</Text>
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              onPress={signOut}
-              style={styles.overlayHeaderAction}
-            >
-              <Text style={[styles.overlayHeaderActionLabel, { color: themeColors.ink }]}>
-                Sign out
-              </Text>
-            </Pressable>
-          </View>
-
-          <Pressable
-            onPress={() => setThemeOverride(themeMode === "dark" ? "light" : "dark")}
-            style={[
-              styles.settingsRow,
-              appResponsiveStyles.settingsRow,
-              isDarkModeEnabled && [styles.settingsRowActive, appResponsiveStyles.settingsRowActive],
-            ]}
-          >
-            <View>
-              <Text style={[styles.settingsRowTitle, { color: themeColors.ink }]}>Theme</Text>
-            </View>
-            <Text style={[styles.settingsRowValue, { color: themeColors.navyInk }]}>
-              {themeMode === "dark" ? "Dark" : "Light"}
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => setIsSeasonMenuVisible((current) => !current)}
-            style={[
-              styles.settingsRow,
-              appResponsiveStyles.settingsRow,
-              isSeasonMenuVisible && [styles.settingsRowActive, appResponsiveStyles.settingsRowActive],
-            ]}
-          >
-            <View>
-              <Text style={[styles.settingsRowTitle, { color: themeColors.ink }]}>Season</Text>
-            </View>
-            {isSeasonMenuVisible ? (
-              <Pressable
-                accessibilityLabel="Add new season"
-                accessibilityRole="button"
-                onPress={(event) => {
-                  event.stopPropagation();
-                  createSeason();
-                }}
-                style={[styles.settingsIconButton, appResponsiveStyles.settingsIconButton]}
-              >
-                <Text style={[styles.settingsIconButtonLabel, { color: themeColors.navyInk }]}>
-                  +
-                </Text>
-              </Pressable>
-            ) : (
-              <Text style={[styles.settingsRowValue, { color: themeColors.navyInk }]}>
-                {seasonModeLabel}
-              </Text>
-            )}
-          </Pressable>
-
-          {isSeasonMenuVisible ? (
-            <View style={[styles.settingsSubmenu, appResponsiveStyles.settingsSubmenu]}>
-              {seasons.map((option) => {
-                const isSelected = activeSeasonId === option.id;
-
-                return (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: isSelected }}
-                    key={option.id}
-                    onPress={() => {
-                      setActiveSeasonId(option.id);
-                      setIsSeasonMenuVisible(false);
-                    }}
-                    style={[
-                      styles.settingsSubmenuRow,
-                      isSelected && [
-                        styles.settingsSubmenuRowActive,
-                        appResponsiveStyles.settingsSubmenuRowActive,
-                      ],
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.settingsSubmenuLabel,
-                        { color: themeColors.ink },
-                        isSelected && { color: themeColors.navyInk },
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                    <Pressable
-                      accessibilityLabel={`Delete ${option.label}`}
-                      accessibilityRole="button"
-                      onPress={(event) => {
-                        event.stopPropagation();
-                        deleteSeason(option.id);
-                      }}
-                      style={[styles.settingsIconButton, appResponsiveStyles.settingsIconButton]}
-                    >
-                      <Text
-                        style={[
-                          styles.settingsIconButtonLabel,
-                          { color: themeColors.navyInk },
-                        ]}
-                      >
-                        -
-                      </Text>
-                    </Pressable>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : null}
-
-          <Pressable
-            onPress={resetWorkspaceData}
-            style={[styles.settingsRow, appResponsiveStyles.settingsRow]}
-          >
-            <View>
-              <Text style={[styles.settingsRowTitle, { color: themeColors.ink }]}>Refresh data</Text>
-            </View>
-            <Text style={[styles.settingsRowValue, { color: themeColors.navyInk }]}>Run</Text>
-          </Pressable>
-
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-
   return (
     <LocalizationProvider languageOverride={languageOverride}>
-      {!hasAuthenticated ? (
-        renderLoginScreen()
+      {isRestoringAuthSession ? null : !hasAuthenticated ? (
+        <LoginScreen
+          authCode={authCode}
+          authConfig={authConfig}
+          authEmail={authEmail}
+          authError={authError}
+          authNotice={authNotice}
+          hasRequestedEmailCode={hasRequestedEmailCode}
+          height={height}
+          isAuthConfigUnavailable={isAuthConfigUnavailable}
+          isAuthenticating={isAuthenticating}
+          isDarkModeEnabled={isDarkModeEnabled}
+          setAuthCode={setAuthCode}
+          setAuthEmail={setAuthEmail}
+          setAuthError={setAuthError}
+          setAuthErrorState={setAuthErrorState}
+          setAuthNotice={setAuthNotice}
+          setHasRequestedEmailCode={setHasRequestedEmailCode}
+          signInWithEmail={signInWithEmail}
+          signInWithGoogle={signInWithGoogle}
+          width={width}
+        />
       ) : (
         <AppThemeProvider value={{ colors: themeColors, mode: themeMode }}>
-          <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.canvas }]}>
-      <StatusBar style={isDarkModeEnabled ? "light" : "dark"} />
-
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        style={[styles.screen, { backgroundColor: themeColors.canvas }]}
-        contentContainerStyle={styles.screenContent}
-      >
-        <View style={[styles.topbar, appResponsiveStyles.topbar]}>
-          <View style={styles.topbarLeft}>
-            <Pressable
-              accessibilityLabel="Open navigation"
-              accessibilityRole="button"
-              onPress={openNavigationMenu}
-              style={[styles.iconButton, appResponsiveStyles.iconButton]}
-            >
-              <View style={styles.menuIcon}>
-                <View style={[styles.menuIconBar, { backgroundColor: themeColors.navyInk }]} />
-                <View style={[styles.menuIconBar, { backgroundColor: themeColors.navyInk }]} />
-                <View style={[styles.menuIconBar, { backgroundColor: themeColors.navyInk }]} />
-              </View>
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setIsProjectOverlayVisible(true)}
-              style={styles.brandWrap}
-            >
-              <Text style={[styles.brandEyebrow, appResponsiveStyles.brandEyebrow]}>
-                MECO Mission Control
-              </Text>
-              {!isCompactLayout ? (
-                <Text
-                  numberOfLines={1}
-                  style={[styles.brandTitle, appResponsiveStyles.brandTitle]}
-                >
-                  {activeTabLabel}
-                </Text>
-              ) : null}
-              {hasSubtabPages ? (
-                <View style={styles.topbarSubtabDots}>
-                  {activeSubtabOptions.map((option, index) => {
-                    const isActive = index === activeSubtabIndex;
-
-                    return (
-                      <View
-                        key={option.value}
-                        style={[
-                          styles.topbarSubtabDot,
-                          {
-                            backgroundColor: isActive ? themeColors.blue : themeColors.border,
-                            opacity: isActive ? 1 : 0.75,
-                          },
-                        ]}
-                      />
-                    );
-                  })}
-                </View>
-              ) : null}
-            </Pressable>
-          </View>
-
-          <View style={[styles.topbarRight, isCompactLayout && styles.topbarRightCompact]}>
-            <Pressable
-              accessibilityLabel={`Open account menu for ${signedInEmailInitial}`}
-              accessibilityRole="button"
-              onPress={() => {
-                setIsSeasonMenuVisible(false);
-                setIsPersonMenuVisible(true);
-              }}
-              style={[
-                styles.personButton,
-                appResponsiveStyles.iconButton,
-                { backgroundColor: themeColors.navySurface, borderColor: themeColors.blue },
-              ]}
-            >
-              <Text style={[styles.personButtonLabel, { color: themeColors.navyInk }]}>
-                {signedInEmailInitial}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-
-        {syncError ? (
-          <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-            <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>Backend sync issue</Text>
-            <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>{syncError}</Text>
-          </View>
-        ) : null}
-
-        <View {...subtabSwipeResponder.panHandlers}>{renderActiveTab()}</View>
-      </ScrollView>
-      <View style={styles.navSwipeEdge} {...navigationOpenSwipeResponder.panHandlers} />
-      {renderAttendanceModal()}
-      {renderEditorModals()}
-      {renderNavigationMenu()}
-      {renderProjectOverlay()}
-      {renderPersonMenu()}
-          </SafeAreaView>
+          <WorkspaceShell
+            activeSeasonId={activeSeasonId}
+            activeSubtabIndex={activeSubtabIndex}
+            activeSubtabOptions={activeSubtabOptions}
+            activeTab={activeTab}
+            activeTabContent={<ActiveTabContent activeTab={activeTab} screenProps={screenProps} />}
+            activeTabLabel={activeTabLabel}
+            apiToken={apiToken}
+            createSeason={createSeason}
+            deleteSeason={deleteSeason}
+            editorModals={renderEditorModals()}
+            hasSubtabPages={hasSubtabPages}
+            isAttendanceModalVisible={isAttendanceModalVisible}
+            isCompactLayout={isCompactLayout}
+            isDarkModeEnabled={isDarkModeEnabled}
+            isNavMenuVisible={isNavMenuVisible}
+            isPersonMenuVisible={isPersonMenuVisible}
+            isProjectOverlayVisible={isProjectOverlayVisible}
+            isSeasonMenuVisible={isSeasonMenuVisible}
+            meetingAttendance={meetingAttendance}
+            navigationCloseHandlers={navigationCloseSwipeResponder.panHandlers}
+            navigationOpenHandlers={navigationOpenSwipeResponder.panHandlers}
+            navigationSections={navigationSections}
+            onCloseAttendance={() => setIsAttendanceModalVisible(false)}
+            onCloseNavigation={closeNavigationMenu}
+            onClosePersonMenu={() => {
+              setIsPersonMenuVisible(false);
+              setIsSeasonMenuVisible(false);
+            }}
+            onCloseProjectOverlay={() => setIsProjectOverlayVisible(false)}
+            onOpenNavigation={openNavigationMenu}
+            onOpenPersonMenu={() => {
+              setIsSeasonMenuVisible(false);
+              setIsPersonMenuVisible(true);
+            }}
+            onOpenProjectOverlay={() => setIsProjectOverlayVisible(true)}
+            onOpenSubsystems={() => {
+              setActiveTab("subsystems");
+              setIsProjectOverlayVisible(false);
+            }}
+            onResetWorkspaceData={resetWorkspaceData}
+            onSelectSeason={(seasonId) => {
+              setActiveSeasonId(seasonId);
+              setIsSeasonMenuVisible(false);
+            }}
+            onSelectTab={selectNavigationTab}
+            onSignOut={signOut}
+            onToggleSeasonMenu={() => setIsSeasonMenuVisible((current) => !current)}
+            onUpdateThemePreference={updateThemePreference}
+            personInitial={signedInEmailInitial}
+            responsiveStyles={appResponsiveStyles}
+            seasonModeLabel={seasonModeLabel}
+            seasons={seasons}
+            signedInEmailInitial={signedInEmailInitial}
+            subtabSwipeHandlers={subtabSwipeResponder.panHandlers}
+            syncError={syncError}
+            syncStatusLabel={syncStatusLabel}
+            themeColors={themeColors}
+            themeMode={themeMode}
+          />
         </AppThemeProvider>
       )}
     </LocalizationProvider>

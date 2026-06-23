@@ -1,10 +1,10 @@
 # Color Theme
 
-This document summarizes the visual language currently used by the app. Exact copied values are limited to hex colors; gradients, alpha washes, shadows, spacing, and layout behavior are described in plain language.
+This document captures the MECO Mission Control visual language from the web repository and records how mobile should mirror it. The web audit refreshed remote refs and compared all `origin/*` branches for the main color-bearing files: `color-theme.md`, `src/app/theme/index.ts`, `src/index.css`, auth/app CSS, workspace CSS, event styles, timeline task colors, workspace colors, CAD styles, task queue board styles, active worklog styles, and brand SVGs.
+
+Core finding: every refreshed web branch shares the same `color-theme.md`, `src/app/theme/index.ts`, workspace color palette, milestone event styles, and timeline discipline color file. Branch-specific differences are mostly CSS organization, feature CSS, typography experiments, and brand SVG variants; those differences are noted below where they add color information.
 
 ## Brand
-
-The app is built around the MECO brand palette:
 
 | Role | Hex |
 | --- | --- |
@@ -14,47 +14,35 @@ The app is built around the MECO brand palette:
 | Black | `#000000` |
 | White | `#ffffff` |
 
-Brand blue is the default action, focus, selection, navigation, count, and identity color. Brand red is reserved for destructive emphasis, urgent accents, deadline/event emphasis, and brand artwork. Grey supports logo artwork, inactive chrome, and subtle neutral UI.
-
-The browser theme color also uses `#16478e`.
+Brand blue is the default action, focus, selection, navigation, count, avatar, timeline-today, and identity color. Brand red is reserved for destructive emphasis, urgent accents, deadline/event emphasis, and brand artwork. Grey supports official artwork and neutral brand surfaces.
 
 ## Global Surface
 
-The global type stack uses a serif reading face first, then common serif fallbacks. Headline and control-heavy UI uses a geometric sans stack, with broad fallback coverage.
+Web uses CSS variables for official colors and app surfaces. Mobile mirrors those values in `src/theme.ts`.
 
-The app background is a light layered field: a white-to-cool-slate page base with soft blue and red radial washes. Auth and shell backgrounds reuse the same brand wash idea, with stronger blue/red atmosphere in dark mode.
+| Role | Light | Dark |
+| --- | --- | --- |
+| Page start | `#ffffff` | `#08111f` |
+| Canvas / page end | `#f5f7fb` | `#0f172a` |
+| Panel surface | `#ffffff` | `#1e293b` |
+| Border | `#e5e7eb` | `#334155` |
+| Alternate row / track | `#f8fafc` / `#f1f5f9` | `#0f172a` |
+| Title text | `#000000` | `#f8fafc` |
+| Copy text | `#64748b` | `#e2e8f0` |
+| Body text | `#11213d` | `#e2e8f0` |
+| Row tint | blue wash at 14% opacity | blue wash at 18% opacity |
 
-Global body text starts at `#11213d`. Links inherit surrounding color.
+The web shell background layers soft brand-blue and brand-red radial washes over a white-to-slate light base or a deep navy dark base. React Native does not use the web CSS gradients directly; mobile should preserve the same color relationships through flat surfaces, washes, and panel hierarchy.
 
-## Theme Modes
+## Typography
 
-Light mode uses:
+The current web `development` branch uses system UI stacks. A set of branches including `codex/controller-slices`, `docs/update-web-specs-20260509`, `feature/metrics-decision-dashboard`, and related shell/CSS branches introduces a display stack with `Nasalization` plus `Inter`, and a mono stack with `JetBrains Mono`. The color system is unchanged in those branches.
 
-| Role | Hex |
-| --- | --- |
-| Panel surface | `#ffffff` |
-| Alternate row surface | `#f8fafc` |
-| Border | `#e5e7eb` |
-| Title text | `#000000` |
-| Copy text | `#64748b` |
-| Page lower wash | `#f5f7fb` |
-
-Dark mode uses:
-
-| Role | Hex |
-| --- | --- |
-| Page base start | `#08111f` |
-| Page base end / row surface | `#0f172a` |
-| Panel surface | `#1e293b` |
-| Border | `#334155` |
-| Title text | `#f8fafc` |
-| Copy text | `#e2e8f0` |
-
-Dark mode keeps brand blue and red intact, but raises their transparent washes so the brand atmosphere remains visible against the dark shell.
+Mobile should keep its native font behavior unless custom fonts are added intentionally, but it should follow the same hierarchy: strong display/heading weight, small uppercase operational labels, compact metadata, and mono styling only for machine-like identifiers.
 
 ## Status Colors
 
-Shared status tokens:
+Shared status tones from web:
 
 | Status | Light Background | Light Text | Dark Background | Dark Text |
 | --- | --- | --- | --- | --- |
@@ -64,7 +52,7 @@ Shared status tokens:
 | Danger | `#fee2e2` | `#991b1b` | `#450a0a` | `#f87171` |
 | Neutral | `#f1f5f9` | `#475569` | `#1e293b` | `#94a3b8` |
 
-Task and workflow status accents:
+Task and workflow accents:
 
 | Meaning | Hex |
 | --- | --- |
@@ -77,19 +65,19 @@ Task and workflow status accents:
 | High priority / purchase in progress | `#a84712` |
 | Alternate in-progress text | `#8a5c00` |
 
-Status pills are usually tinted backgrounds using the same family as the text color. Timeline status icons are circular, use translucent white surfaces, and expose compact variants for dense rows.
+Mobile uses these through `statusToneColors` and related status pill styles.
 
-## Workspace Color Palette
+## Workspace Palette
 
-Workspace-generated colors are normalized to six-character hex values and fall back to this palette:
+Workspace-generated colors are normalized to six-character uppercase hex values and fall back to this web palette:
 
 `#E76F51`, `#F4A261`, `#E9C46A`, `#2A9D8F`, `#4F86C6`, `#7A5CFA`, `#C855BC`, `#D64550`
 
-These colors are used for workstreams, subsystems, timeline grouping, and user-selected workspace accents. The fallback subsystem highlight is `#4F86C6`.
+These colors are used for workstreams, subsystems, timeline grouping, and user-selected workspace accents. The fallback subsystem highlight is `#4F86C6`. Mobile uses this palette for subsystem timeline accents.
 
 ## Timeline Discipline Colors
 
-Timeline task bars use discipline-based accents:
+Web timeline task bars use discipline-based accents:
 
 | Discipline | Hex |
 | --- | --- |
@@ -124,11 +112,20 @@ Timeline task bars use discipline-based accents:
 | Social media | `#dd6f5a` |
 | Fallback | `#7a8799` |
 
-Timeline selection and hover states are derived by mixing the active discipline or subsystem color into transparent highlight fills and strokes.
+Mobile maps its smaller discipline set onto the web palette:
 
-## Milestone Event Colors
+| Mobile discipline | Web color role |
+| --- | --- |
+| Mechanical | Manufacturing |
+| Electrical | Electrical |
+| Software / programming | Programming |
+| Integration / QA test | Testing |
 
-Milestone columns and chips use event-specific tints with stronger readable text:
+Timeline selection and hover states in web use `color-mix` with the active discipline or subsystem accent. Mobile approximates this with translucent blue/brand washes and direct timeline bar colors.
+
+## Milestone Events
+
+Milestone columns and chips use event-specific tints:
 
 | Event | Light Text | Dark Text |
 | --- | --- | --- |
@@ -138,128 +135,123 @@ Milestone columns and chips use event-specific tints with stronger readable text
 | Internal review | `#1d5338` | `#bbf7d0` |
 | Demo | `#36475f` | `#e2e8f0` |
 
-Practice and competition lean blue, deadlines lean red, internal review leans green, and demo stays neutral.
+Light event surfaces:
 
-## Alerts And Destructive UI
+| Event | Column / Background | Border | Chip |
+| --- | --- | --- | --- |
+| Practice | blue wash at 10% | blue wash at 32% | blue wash at 18% |
+| Competition | support-blue wash at 12% | support-blue wash at 35% | support-blue wash at 20% |
+| Deadline | brand-red wash at 11% | brand-red wash at 36% | brand-red wash at 18% |
+| Internal review | green wash at 11% | green wash at 34% | green wash at 18% |
+| Demo | slate wash at 13% | slate wash at 35% | slate wash at 22% |
 
-Destructive actions use red surfaces and red text, with `#b42318` as the main danger text in light surfaces and `#fca5a5` as the dark-mode danger text. Delete/action surfaces also use `#fff1f2` and `#fda29b`.
+Mobile exposes these as `eventTypeColors`.
 
-Task details use red gradients for destructive headers and emphasis, including `#b81d2c`, `#f02c3d`, and `#8f1320`.
+## Alerts, Risk, And Destructive UI
 
-## Secondary Blues
+Destructive actions use red surfaces and red text. Web also uses:
 
-The app uses several blue support colors for focus, dark-mode labels, progress bars, and notification timers:
+| Role | Hex |
+| --- | --- |
+| Main danger text on light | `#b42318` |
+| Main danger text on dark | `#fca5a5` |
+| Delete/action light surface | `#fff1f2` |
+| Delete/action accent | `#fda29b` |
+| Task detail destructive gradient stops | `#b81d2c`, `#f02c3d`, `#8f1320` |
+
+Risk, CAD, and active worklog branch CSS adds these operational accents:
+
+| Use | Color |
+| --- | --- |
+| CAD warning surface | amber wash at 12% |
+| CAD warning border | amber wash at 28% |
+| CAD warning text | `#92400e` |
+| CAD info surface | blue wash at 10% |
+| CAD info border | blue wash at 22% |
+| Active worklog help badge | amber wash at 13% |
+| Active worklog help text | `#854d0e` |
+| Active worklog blocker fallback | `#991b1b` |
+| Task board drag/drop focus | brand-blue wash at 8%, 38%, and 44% stroke/focus mixes |
+
+Mobile risk severity uses brand red for high severity, amber/orange for medium, and brand blue washes for low severity.
+
+## Secondary Blues And Neutrals
+
+Web uses support blues for focus, dark-mode labels, progress/CAD states, and notification timers:
 
 `#93c5fd`, `#bfdbfe`, `#dbeafe`, `#2563eb`, `#0ea5e9`, `#60a5fa`, `#38bdf8`, `#deebff`, `#eef2f8`
 
-These should stay subordinate to brand blue unless the component is a system/progress indicator.
+Common cool neutrals and surfaces:
 
-## Neutrals And Soft Surfaces
+`#21304a`, `#58667d`, `#64748b`, `#94a3b8`, `#cbd5e1`, `#d1d1d1`, `#d6dbe6`, `#e5e7eb`, `#e6e7f3`, `#f1f5f9`, `#f8fafc`, `#f8fbff`, `#eef4fb`
 
-Common neutral and surface colors:
-
-`#21304a`, `#58667d`, `#64748b`, `#cbd5e1`, `#d1d1d1`, `#d6dbe6`, `#e5e7eb`, `#e6e7f3`, `#f1f5f9`, `#f8fafc`, `#f8fbff`, `#eef4fb`
-
-Neutral UI tends to use cool slate rather than warm grey. Panels, cards, table rows, and filter menus are separated mostly by thin borders, low-opacity shadows, and alternate-row fills.
+The palette should stay cool slate rather than warm grey, except where official brand grey is used.
 
 ## Shell And Navigation
 
-The shell has a fixed top bar and a fixed left sidebar. The top bar height is 58px. The expanded sidebar and brand area are 156px wide; the collapsed sidebar is 64px wide.
+Web shell chrome:
 
-The top bar is flat, panel-colored, and separated by a single border. The sidebar uses a vertical gradient between alternate-row and panel surfaces. Active sidebar tabs use a soft brand-blue wash, brand-blue text, and a modest border. Inactive sidebar tabs stay transparent and copy-colored.
+- Top bar height is 58px.
+- Expanded sidebar and brand area are 156px wide.
+- Collapsed sidebar is 64px wide.
+- Top bar is flat, panel-colored, and separated by a single border.
+- Sidebar uses a vertical gradient between alternate-row and panel surfaces.
+- Active sidebar tabs use soft brand-blue wash, brand-blue text, and a modest border.
+- Overlay mode adds a dark scrim and sidebar shadow.
 
-Sidebar collapse and overlay states animate width and shell padding. Overlay mode adds a dark scrim and a rightward sidebar shadow.
+Mobile mirrors the shell through compact top bars, drawer navigation, panel surfaces, blue active states, pill count badges, and slate overlay scrims.
 
-## Controls
+## Controls, Cards, Boards, And Tables
 
-Select controls share a 10px radius, compact vertical padding, right-side chevron indicators made from the current text color, and a blue focus ring. Focus uses a transparent brand-blue ring; hover increases the border tint.
+Web controls use compact density:
 
-Filter controls use rounded pills, compact icon buttons, uppercase count labels, and tone classes:
+- Select controls: 10px radius, compact padding, chevron from current text color, brand-blue focus ring.
+- Filter controls: rounded pills, compact icons, uppercase counts, and tone-specific labels.
+- Cards and board columns: panel surfaces, thin borders, soft shadows, and medium radii.
+- Task queue columns: 16px radius, compact grid spacing, uppercase micro-headings, and blue-tinted count badges.
+- Tables: grid-based layouts with muted uppercase headers and brand-blue sort arrows.
 
-| Tone | Text Hex |
-| --- | --- |
-| Primary | `#16478e` |
-| Success | `#246847` |
-| Warning | `#a84712` |
-| Danger | `#9b1d2a` |
-| Neutral | `#54627b` |
-
-Dark filter controls can switch to `#bfdbfe` for foreground and check marks.
-
-## Cards, Boards, And Tables
-
-Cards and board columns use panel surfaces, thin borders, and soft shadows. Task queue columns have a 16px radius, compact internal grid spacing, and uppercase micro-headings. Counts use pill-shaped blue-tinted badges.
-
-Tables are grid-based rather than native table layouts. Headers use small uppercase labels, muted copy color, and brand-blue sort arrows. Purchase, manufacturing, and print tables each define their own proportional column templates.
-
-Task queue advanced cards use zoom-scaled spacing and type. Dark-mode board labels use cool blues and slates such as `#93c5fd` and `#cbd5e1`. Attention states use `#dc2626`, `#ef4444`, `#b91c1c`, `#ca8a04`, and `#2563eb`.
-
-## Timeline
-
-Timeline bars use discipline color as the primary accent and task status color as the secondary accent. Bars have reveal overlays, masked overflow fades, row hover/selected highlights, and compact status logos.
-
-Timeline controls are pill-shaped and compact. Expand/collapse and period navigation use short ease-out animations. Today markers, row highlights, milestone overlays, and subsystem bands derive color from the same discipline/subsystem accent system.
+Mobile applies the same direction with native panels, pills, chips, modals, queue cards, and timeline controls.
 
 ## Auth Experience
 
-Auth pages center a two-column layout over a large, faint MECO backdrop image. The light auth shell uses a clean blue/red radial atmosphere over `#f8fbff` to `#eef4fb`.
+Web auth uses a large MECO backdrop image with soft brand atmosphere. Light auth uses a clean blue/red radial atmosphere over `#f8fbff` to `#eef4fb`. Dark auth uses a deep blue gradient between `#0b1731` and `#10284d`, brand-colored radial washes, white text, rounded corners near 30px, and stronger shadow.
 
-The dark auth card uses a deep blue gradient between `#0b1731` and `#10284d`, brand-colored radial washes, white text, rounded corners near 30px, and a stronger shadow.
+Mobile auth now follows that intent:
 
-Auth cards use soft borders, glassy white overlays in light mode, translucent dark surfaces in dark mode, and a large MECO logo/backdrop with reduced opacity.
+| Token | Value |
+| --- | --- |
+| Light shell | `#f8fbff` |
+| Light card | `#ffffff` |
+| Light lower wash | `#eef4fb` |
+| Dark shell | `#10284d` |
+| Dark shell start | `#0b1731` |
+| Dark input | `#172746` |
+| Placeholder | `#f1f5ff` |
+| Notice | `#dbeafe` |
+| Dark error | `#fecdd3` |
+| Google button | `#1e293b` |
+| Badge blue | `#1e5aae` |
 
-## Typography
+## Branch Audit Notes
 
-Body text uses a serif-first reading stack. Headings, navigation, filters, buttons, labels, and dense operational controls use a geometric sans-first stack.
+- All refreshed web branches share the same `color-theme.md` and `src/app/theme/index.ts`.
+- Branches with the alternate `src/index.css` add `Nasalization`, `Inter`, and `JetBrains Mono` font declarations but keep the official color values.
+- Several shell/CSS branches contain newer compact logo and tab icon SVGs. The official blue/red/grey/black/white brand palette remains the source for those assets.
+- `feature/task-kanban-focused-view` adds focused task-board drag/drop states with brand-blue mixed outlines and backgrounds.
+- CAD branches add subtle sky-blue/neutral card gradients, amber warnings, and blue info messages.
+- Active worklog branches add amber help badges and danger fallback text.
 
-Text hierarchy favors:
+## Mobile Source Map
 
-- Large compact auth headings with tight line height.
-- Small uppercase labels for metadata, filters, table headers, and sidebar context.
-- Bold weights for tabs, controls, counts, board column headings, and status labels.
-- Normal letter spacing in most text, with deliberate positive tracking only for small uppercase labels.
+Mobile implementation sources:
 
-## Shape, Radius, And Density
+- `src/theme.ts`: canonical mobile tokens derived from the web theme.
+- `src/ui/styles.ts`: shared React Native styles using those tokens.
+- `src/app/components/loginScreenStyles.ts`: login-screen-specific styles using mobile tokens.
+- `src/ui/constants.ts`: event styles mapped from web milestone colors.
+- `src/ui/landscapeTimeline/landscapeTimelineModel.ts`: workspace and discipline accent colors.
+- `src/ui/landscapeTimeline/landscapeTimelinePalette.ts`: planner colors mapped from the central theme.
+- `App.tsx`: auth status bar, login title, placeholder, and error colors.
 
-The app uses compact operational density:
-
-- Top-level cards and auth panels use larger radii.
-- Repeated cards and board columns usually sit around medium radii.
-- Sidebar tabs and workspace tabs are squarer and tighter.
-- Pills, status chips, counts, icon status marks, and badges use fully rounded shapes.
-- Controls are generally compact, with stable widths and heights for icons, counters, boards, and toolbar items.
-
-## Shadows And Depth
-
-Depth is restrained. The app uses:
-
-- Very soft panel shadows for board columns and cards.
-- Stronger shadows for modals, toast notifications, overlays, and dark profile menus.
-- Drop shadows on logos/backdrops where the mark needs to float.
-- Minimal or no shadow on fixed chrome like the top bar.
-
-## Motion
-
-Motion is short and functional. Sidebar width, shell padding, filter focus, hover states, timeline unfolding, timeline period swipes, status captions, and board card affordances use brief easing. The app avoids long decorative motion.
-
-## Responsive Behavior
-
-The app is built around fixed shell chrome with responsive content density. Selects and toolbars collapse toward full width on smaller screens. Tables and task boards preserve internal structure through horizontal scroll or stable min-widths rather than collapsing into unreadable columns. Auth switches from two-column composition to tighter stacked behavior on smaller screens.
-
-## Assets
-
-Brand SVG assets use the official blue, red, grey, black, and white palette. The white logo variant uses white for most lettering and red for select numeric/brand detail. The login backdrop uses the same brand colors at lower opacity as an atmospheric layer.
-
-The tab icon and main logo are the strongest source of visual identity and should remain aligned with `#16478e`, `#ea1c2d`, `#bbbbbb`, `#000000`, and `#ffffff`.
-
-## Source Map
-
-Primary visual sources:
-
-- `src/app/theme/index.ts`: runtime light/dark theme tokens.
-- `src/index.css`: global typography, brand CSS variables, and body background.
-- `src/app/styles/**`: shell, workspace, views, responsive styling.
-- `src/features/workspace/shared/model/workspaceColors.ts`: workspace color palette and normalization.
-- `src/features/workspace/views/timeline/timelineTaskColors.ts`: timeline discipline accents.
-- `src/features/workspace/shared/events/eventStyles.ts`: milestone event styles.
-- `public/*.svg`: MECO logo, tab icon, and login backdrop brand colors.
+Implementation rule: add new reusable color values to `src/theme.ts` first, then consume named tokens from screens/components. Local one-off shadow or text-shadow effects can remain inline when they do not represent a reusable theme role.

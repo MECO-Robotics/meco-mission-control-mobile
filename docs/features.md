@@ -4,17 +4,17 @@ This guide describes the behavior visible in the mobile client. Most screens sha
 
 ## Home
 
-The home screen is the operations snapshot for the next execution window. It highlights priority tasks, blocked or overdue work, waiting QA, manufacturing needs, purchase requests, and meeting/export context.
+The home screen is the operations snapshot for the next execution window. It highlights priority tasks, blocked or overdue work, waiting QA, manufacturing needs, purchase requests, and attendance context.
 
 Typical actions:
 
-- Open a priority task directly in the task queue.
+- Open a priority task card directly from Home, or tap the Tasks section header to jump to the task queue.
 - Jump to inventory purchases when a needed item requires action.
 - Start from visible summary counts before standup or shop time.
 
 ## Attendance
 
-Attendance shows meeting participation status for loaded workspace members. It supports the app's RSVP/sign-in visibility model with status marks for present, maybe, and out.
+Attendance shows meeting participation status for loaded workspace members. It supports the app's RSVP/sign-in visibility model with status marks for coming, maybe, and out.
 
 ## Tasks
 
@@ -32,7 +32,7 @@ Task views:
 
 Task queue filters include subteam, subsystem, owner, status, priority, blocked, no blockers, over estimate, overdue, due soon, dependency wait, ready now, ready for QA, needs fabrication, needs purchase, unassigned, and archive mode.
 
-Task actions include create, edit, duplicate, claim, unclaim, mentor reassign, start work, log work, request QA, resolve blockers, shift due dates, and delete. Start work can claim an unowned task first and open a prefilled work log; if another student claimed first, the queue refreshes and shows the conflict.
+Task actions include create, edit, claim, unclaim, mentor reassign, start work, log work, request QA, resolve blockers, and delete. Start work can claim an unowned task first and open a prefilled work log; if another student claimed first, the queue refreshes and shows the conflict. Tasks with an existing QA report no longer show request QA or log-work actions from the queue.
 
 ## Work Logs
 
@@ -70,7 +70,7 @@ Inventory has three views:
 
 - Materials manager: material demand, inferred on-hand stock, reorder points, open demand, vendor, and suggested order quantity.
 - Part manager: part definitions plus subsystem part instances and lifecycle state.
-- Purchase list: purchase request status, vendor, mentor approval, estimated/final cost, and quantity.
+- Purchase list: purchase request status, vendor, approval state, purchase state, estimated cost, and quantity, with vendor/status/approval filters collected behind the Filters action.
 
 Part lifecycle statuses:
 
@@ -83,10 +83,11 @@ Part lifecycle statuses:
 Purchase statuses:
 
 - Requested
-- Approved
 - Purchased
 - Shipped
 - Delivered
+
+Mentor approval is shown separately as Mentor Approved when a request is approved but not yet purchased.
 
 Creating a part definition can also generate acquisition work through manufacturing, purchase, or stock workflows.
 
@@ -96,7 +97,7 @@ The subsystem manager tracks ownership, mentor coverage, descriptions, hierarchy
 
 ## QA And Reports
 
-Reports combine QA requests, QA reports, event reports, and iteration-worthy outcomes.
+Reports combine help requests, QA requests, QA reports, and iteration-worthy outcomes.
 
 QA results:
 
@@ -104,7 +105,7 @@ QA results:
 - Minor fix
 - Iteration-worthy
 
-Iteration-worthy QA can generate follow-up tasks. Event reports can also capture findings and create follow-up work.
+Iteration-worthy QA can generate follow-up tasks. QA reports are sorted by recency, dependency count, and fix size to keep follow-up work visible.
 
 ## Risks
 
@@ -113,6 +114,8 @@ Risk management combines active task blockers, subsystem risks, dependency delay
 ## Roster
 
 Roster groups members by role and supports member creation/editing. Roles are student, lead, mentor, and admin.
+
+Selecting a member opens a pop-out card with basic roster details such as name, email, planned attendance days, and attendance notes. Mentor/admin users see an Edit action from the selected-member details; student users can inspect the details without an edit button.
 
 ## Localization And Themes
 

@@ -56,6 +56,9 @@ export function LandscapeTimelineBoard({
 }: Props) {
   const { t } = useTranslation();
   const chartWidth = timelineDays.length * DAY_WIDTH;
+  const timelineBlue = "#0f274d";
+  const timelineBlueDark = colors.canvas;
+  const timelineBlueText = colors.white;
   const markerEvents = events
     .map((event) => ({
       event,
@@ -65,7 +68,7 @@ export function LandscapeTimelineBoard({
   const visibleTaskCount = lanes.reduce((count, lane) => count + lane.tasks.length, 0);
 
   return (
-    <View style={[styles.board, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+    <View style={[styles.board, { borderColor: colors.border, backgroundColor: timelineBlueDark }]}>
       {visibleTaskCount === 0 && markerEvents.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={[styles.emptyText, { color: colors.subtleText }]}>
@@ -74,15 +77,15 @@ export function LandscapeTimelineBoard({
         </View>
       ) : (
         <View style={styles.contentRow}>
-          <View style={[sidebarStyles.sidebar, { borderColor: colors.border }]}>
-            <View style={[sidebarStyles.sidebarHeader, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+          <View style={[sidebarStyles.sidebar, { borderColor: colors.border, backgroundColor: timelineBlue }]}>
+            <View style={[sidebarStyles.sidebarHeader, { borderColor: colors.border, backgroundColor: timelineBlue }]}>
               <View style={[sidebarStyles.sidebarHeaderCell, sidebarStyles.projectHeaderCell]}>
-                <Text style={[sidebarStyles.sidebarHeaderText, { color: colors.ink }]}>Project</Text>
-                <Text style={[sidebarStyles.headerEye, { color: colors.subtleText }]}>o</Text>
+                <Text style={[sidebarStyles.sidebarHeaderText, { color: timelineBlueText }]}>Project</Text>
+                <Text style={[sidebarStyles.headerEye, { color: timelineBlueText }]}>o</Text>
               </View>
               <View style={sidebarStyles.sidebarHeaderCell}>
-                <Text style={[sidebarStyles.sidebarHeaderText, { color: colors.ink }]}>Subsystem</Text>
-                <Text style={[sidebarStyles.headerEye, { color: colors.subtleText }]}>o</Text>
+                <Text style={[sidebarStyles.sidebarHeaderText, { color: timelineBlueText }]}>Subsystem</Text>
+                <Text style={[sidebarStyles.headerEye, { color: timelineBlueText }]}>o</Text>
               </View>
             </View>
             {lanes.map((lane) => {
@@ -96,18 +99,18 @@ export function LandscapeTimelineBoard({
                     { borderBottomColor: colors.border, borderLeftColor: lane.color, height: lane.height },
                   ]}
                 >
-                  <View style={[sidebarStyles.projectCell, { borderColor: colors.border, backgroundColor: colors.canvas }]}>
-                    <Text style={[sidebarStyles.disclosure, { color: colors.subtleText }]}>v</Text>
-                    <Text numberOfLines={1} style={[sidebarStyles.projectLabel, { color: colors.ink }]}>
+                  <View style={[sidebarStyles.projectCell, { borderColor: colors.border, backgroundColor: timelineBlue }]}>
+                    <Text style={[sidebarStyles.disclosure, { color: timelineBlueText }]}>v</Text>
+                    <Text numberOfLines={1} style={[sidebarStyles.projectLabel, { color: timelineBlueText }]}>
                       {formatProjectLabel(lane, subsystemsById)}
                     </Text>
                   </View>
-                  <View style={sidebarStyles.subsystemCell}>
+                  <View style={[sidebarStyles.subsystemCell, { backgroundColor: timelineBlue }]}>
                     <View style={[sidebarStyles.subsystemDot, { backgroundColor: lane.color }]} />
-                    <Text numberOfLines={1} style={[sidebarStyles.lanePrimary, { color: colors.ink }]}>
+                    <Text numberOfLines={1} style={[sidebarStyles.lanePrimary, { color: timelineBlueText }]}>
                       {lane.subsystem?.name ?? t("Unknown")}
                     </Text>
-                    <Text style={[sidebarStyles.laneSecondary, { color: colors.subtleText }]}>
+                    <Text style={[sidebarStyles.laneSecondary, { color: timelineBlueText }]}>
                       {completeTasks}/{lane.tasks.length}
                     </Text>
                   </View>
@@ -117,13 +120,13 @@ export function LandscapeTimelineBoard({
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={[chartStyles.chart, { backgroundColor: colors.canvas, width: chartWidth }]}>
-              <View style={[chartStyles.monthLabel, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-                <Text style={[chartStyles.monthText, { color: colors.navyInk }]}>
+            <View style={[chartStyles.chart, { backgroundColor: timelineBlueDark, width: chartWidth }]}>
+              <View style={[chartStyles.monthLabel, { borderColor: colors.border, backgroundColor: timelineBlue }]}>
+                <Text style={[chartStyles.monthText, { color: timelineBlueText }]}>
                   {timelineStart.toLocaleDateString(locale, { month: "long" })}
                 </Text>
               </View>
-              <View style={[chartStyles.dayHeaderRow, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+              <View style={[chartStyles.dayHeaderRow, { borderColor: colors.border, backgroundColor: timelineBlue }]}>
                 {timelineDays.map((day) => {
                   const isWeekend = day.getDay() === 0 || day.getDay() === 6;
                   const isToday = toDateKey(day) === todayKey;
@@ -137,11 +140,11 @@ export function LandscapeTimelineBoard({
                         isWeekend ? { backgroundColor: colors.navySurface } : null,
                       ]}
                     >
-                      {isToday ? <Text style={[chartStyles.todayPill, { color: colors.blue }]}>TODAY</Text> : null}
-                      <Text style={[chartStyles.weekday, { color: colors.subtleText }]}>
+                      {isToday ? <Text style={[chartStyles.todayPill, { color: timelineBlueText }]}>TODAY</Text> : null}
+                      <Text style={[chartStyles.weekday, { color: timelineBlueText }]}>
                         {day.toLocaleDateString(locale, { weekday: "short" }).toLocaleUpperCase(locale)}
                       </Text>
-                      <Text style={[chartStyles.dayNumber, { color: colors.ink }]}>{day.getDate()}</Text>
+                      <Text style={[chartStyles.dayNumber, { color: timelineBlueText }]}>{day.getDate()}</Text>
                     </View>
                   );
                 })}
@@ -157,7 +160,7 @@ export function LandscapeTimelineBoard({
                         key={`${lane.id}-${toDateKey(day)}`}
                         style={[
                           chartStyles.dayCell,
-                          { borderColor: colors.border, backgroundColor: colors.canvas },
+                          { borderColor: colors.border, backgroundColor: timelineBlueDark },
                           isWeekend ? { backgroundColor: colors.navySurface } : null,
                         ]}
                       />

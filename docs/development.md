@@ -5,7 +5,8 @@
 - Node 22 LTS is recommended. `package.json` allows Node `>=20 <24`.
 - npm is used with the committed `package-lock.json`.
 - Expo CLI is used through package scripts.
-- iOS simulator requires macOS/Xcode.
+- iOS simulator requires macOS/Xcode. On newer Xcode/macOS releases, the device
+  UI may be Device Hub instead of Simulator.
 - Android emulator requires Android Studio or a compatible emulator setup.
 
 ## Install
@@ -32,12 +33,15 @@ npm run sim:reset
 Command notes:
 
 - `npm run start`: starts Expo.
-- `npm run ios`: resets the iOS simulator first, then starts Expo for iOS on localhost port 8081.
+- `npm run ios`: resets the iOS simulator first, then starts Expo on localhost port 8081.
 - `npm run android`: runs `script/build_and_run.sh --android`.
 - `npm run dev`: Android-focused alias for the same build/run script.
 - `npm run lint`: runs ESLint.
 - `npm run typecheck`: runs TypeScript with `--noEmit`.
 - `npm run sim:reset`: runs `scripts/reset-ios-sim.js`.
+
+Set `SIMULATOR_APP_NAME` if your local Xcode release uses a different device UI
+app name.
 
 Do not run Expo or npm scripts with `sudo`.
 
@@ -53,8 +57,15 @@ Backend:
 
 ```text
 EXPO_PUBLIC_API_BASE_URL=http://localhost:8080
-EXPO_PUBLIC_API_TOKEN=<optional-development-token>
+EXPO_PUBLIC_DEV_AUTH_BYPASS=true
 ```
+
+`EXPO_PUBLIC_DEV_AUTH_BYPASS=true` exposes a development-only local sign-in
+bypass for backend-offline simulator work.
+
+Do not place bearer tokens or service credentials in `EXPO_PUBLIC_` variables;
+they are embedded in the Expo bundle. Use normal sign-in or the backend-issued
+development bypass endpoint when a local session token is needed.
 
 Google auth:
 
@@ -97,5 +108,4 @@ Follow `AGENTS.md` structural rules:
 - Split screens/components/hooks/utilities by responsibility.
 - Keep styles scoped to a component or feature.
 
-For this app's current architecture, prefer adding feature rendering inside `src/screens/`, shared controls inside `src/ui/`, domain types inside `src/types/domain.ts`, API helpers inside `src/data/`, and device services inside `src/services/`.
-
+For this app's current architecture, prefer adding feature rendering inside the relevant `src/screens/<feature>/` folder, app-shell components inside `src/app/`, shared controls inside `src/ui/`, domain types inside `src/types/domain.ts`, API helpers inside `src/data/`, and device services inside `src/services/`.
