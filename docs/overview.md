@@ -21,17 +21,16 @@ The app is the mobile companion to the hosted platform backend. It can run from 
 - Log work manually or use the work timer, then convert elapsed time into a work-log entry.
 - Manage manufacturing jobs by process: CNC, 3D print, or fabrication.
 - Manage materials, part definitions, part instances, and purchases.
-- Capture QA and event reports, including iteration-worthy follow-up tasks.
+- Capture QA reports, including iteration-worthy follow-up tasks.
 - Use risk management to combine active blockers, subsystem risks, and QA findings into one view.
 
 ## Runtime Modes
 
 - Connected mode: the app reads auth config and bootstrap data from `EXPO_PUBLIC_API_BASE_URL`, then writes mutations to the API.
-- Development bypass mode: if the backend exposes dev bypass auth, the app can obtain a session without a real Google or email flow.
+- Development bypass mode: if the backend exposes dev bypass auth, contributor testing can obtain a session without a real Google flow. Email sign-in still requires starting and verifying an email-code flow.
 - Local fallback mode: if the backend cannot be reached, the app keeps enough seeded data to render and demonstrate the workspace.
 
 ## Related Repositories
 
 - `meco-mission-control-platform`: hosted API, authentication, database, and production data ownership.
 - `meco-mission-control-web`: browser-first mentor/admin dashboards and operations views.
-

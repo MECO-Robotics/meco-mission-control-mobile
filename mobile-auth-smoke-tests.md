@@ -28,6 +28,8 @@
 5. Session persistence and restart safety.
    - After successful sign-in, restart the app.
    - Verify `/api/auth/me` validates token and workspace data loads.
+   - Change or clear the stored local device number, restart the app, and verify
+     it requires sign-in again instead of restoring the old session.
 
 6. Token expiry / unauthorized bootstrap.
    - In platform session store, invalidate/expire the active token.

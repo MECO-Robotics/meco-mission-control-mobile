@@ -115,18 +115,32 @@ POST /api/auth/email/verify
 Body:
 
 ```json
-{ "email": "person@mecorobotics.org", "code": "123456" }
+{ "email": "person@mecorobotics.org", "code": "123456", "deviceId": "123456789012" }
 ```
+
+The mobile app generates one local numeric device ID per app install and stores
+it outside the bearer token. Persisted auth sessions are stored with
+`expo-secure-store`; legacy plaintext `AsyncStorage` sessions are migrated into
+secure storage and removed. On launch, the app restores the saved session only
+when the current device ID matches the saved session's device ID; otherwise it
+clears the session and requires sign-in again.
 
 ## Development Bypass
 
-When `devBypassAvailable` is true, the app can request a local development session:
+When `devBypassAvailable` is true, the app can request a backend-issued
+development session:
 
 ```text
 POST /api/auth/dev-bypass
 ```
 
-This is used when Google credentials are missing during development or when the app needs a token for bootstrap/mutation testing.
+This is used when Google credentials are missing during development or when the
+app needs a backend-issued token for bootstrap/mutation testing.
+
+For backend-offline mobile development, `EXPO_PUBLIC_DEV_AUTH_BYPASS=true`
+enables an explicit local dev bypass button in development builds. That path
+signs in as a local admin user and keeps the bundled workspace snapshot instead
+of requesting a backend token.
 
 ## Bootstrap Data
 

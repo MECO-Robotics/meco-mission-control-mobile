@@ -11,10 +11,10 @@ workspace data, auth and bootstrap flows, derived data, editor state, mutation
 wiring, responsive layout state, and cross-screen services such as the work-log
 timer.
 
-Screen components live in `src/screens/`. They should stay focused on rendering
-and screen-local interactions. Shared screen inputs are typed through
-`AppScreenProps` in `src/screens/types.ts`, and `App.tsx` passes the relevant
-data, setters, and action callbacks into each screen.
+Screen components live in feature folders under `src/screens/`. They should stay
+focused on rendering and screen-local interactions. Shared screen inputs are
+typed through `AppScreenProps` in `src/screens/types.ts`, and `App.tsx` passes
+the relevant data, setters, and action callbacks into each screen.
 
 Shared UI primitives, form widgets, responsive helpers, constants, and styles
 live under `src/ui/`. Domain data contracts live in `src/types/domain.ts`.
@@ -82,14 +82,19 @@ refreshes from `/api/bootstrap`.
 Requests go through `requestJson` in `src/data/api.ts`. It sends JSON accept
 headers, adds `Content-Type: application/json` when there is a body, and adds an
 `Authorization: Bearer <token>` header when an API token is available.
+Persisted auth sessions are stored with `expo-secure-store`; the per-install
+device number remains in AsyncStorage and saved sessions are restored only when
+the stored device number matches the current install.
 
 ## Offline And No-Auth Assumptions
 
 The app remains usable from last fetched data when the backend is offline.
 
-If auth config cannot load, the app treats auth as unavailable and can continue
-with a local email session path. If development bypass is available, auth flows
-may use `POST /api/auth/dev-bypass` for contributor testing.
+If auth config cannot load, the app treats auth as unavailable and keeps the
+user on the login screen. Email sign-in must start the email-code flow and then
+verify the submitted code before a session is created. If development bypass is
+available, contributor testing may use `POST /api/auth/dev-bypass` through the
+Google/bootstrap testing paths.
 
 Most local fallback data is not durable backend sync. Work-log creation is the
 exception: failed offline creates are stored as local AsyncStorage drafts,
@@ -97,9 +102,8 @@ displayed in the work-log list, and retried during later sync. Other failed sync
 and mutation paths surface `syncError`, set backend status to offline, and leave
 the current local workspace state in place.
 
-Current auth is contributor-facing scaffolding, not final role enforcement.
-Contributors should not treat local sessions, mock data, or development bypass
-as production authorization behavior.
+Mock data and development bypass are contributor conveniences, not production
+authorization behavior.
 
 ## Device Testing Checklist
 
@@ -119,8 +123,8 @@ device path that matches the work being changed.
   screen.
 - Verify the app remains usable when the backend is offline and clearly surfaces
   sync failure state.
-- Verify the intended auth path: Google sign-in, email-code sign-in, dev bypass,
-  or local no-auth fallback.
+- Verify the intended auth path: Google sign-in, email-code sign-in, or dev
+  bypass.
 - Navigate the core screens touched by the change: Home, Attendance, Tasks, Work
   Logs, Inventory, QA/Reports, Risks, and related subviews.
 - Exercise relevant editor flows, including create, edit, delete, save error,

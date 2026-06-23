@@ -78,22 +78,6 @@ async function resolvePlatformSourceContract() {
     };
   }
 
-  const siblingPath = path.resolve(
-    process.cwd(),
-    "..",
-    "meco-mission-control-platform",
-    "contracts/platform/bootstrap/v1/contract.json",
-  );
-  try {
-    const contract = await readJson(siblingPath);
-    return {
-      source: `local sibling ${siblingPath}`,
-      contract,
-    };
-  } catch {
-    // Continue to remote source resolution.
-  }
-
   const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
   const remoteContractUrlTemplate =
     process.env.PLATFORM_BOOTSTRAP_CONTRACT_URL ??
@@ -117,6 +101,22 @@ async function resolvePlatformSourceContract() {
     } catch (error) {
       errors.push(error.message ?? String(error));
     }
+  }
+
+  const siblingPath = path.resolve(
+    process.cwd(),
+    "..",
+    "meco-mission-control-platform",
+    "contracts/platform/bootstrap/v1/contract.json",
+  );
+  try {
+    const contract = await readJson(siblingPath);
+    return {
+      source: `local sibling ${siblingPath}`,
+      contract,
+    };
+  } catch (error) {
+    errors.push(error.message ?? String(error));
   }
 
   throw new Error(errors.join("; "));

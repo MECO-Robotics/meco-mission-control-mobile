@@ -24,7 +24,6 @@ import type {
 import type {
   ArchiveFilterMode,
   BlockerFilterMode,
-  EventReportDraft,
   InventoryViewTab,
   ManufacturingViewTab,
   MaterialRollup,
@@ -126,7 +125,6 @@ export interface AppScreenProps {
   disciplinesById: Record<string, Discipline>;
   editTagStyle: StyleProp<TextStyle>;
   eventOptions: Option[];
-  eventReports: EventReportDraft[];
   events: Event[];
   eventsById: Record<string, Event>;
   filteredManufacturing: ManufacturingItem[];
@@ -141,7 +139,6 @@ export interface AppScreenProps {
   helpRequests: HelpRequest[];
   homeInventoryNeeds: PurchaseItem[];
   homeActionItems: HomeActionItem[];
-  homeMeetingExport: string;
   homePriorityTasks: Task[];
   homeTaskSummary: SummaryChipData[];
   inventoryView: InventoryViewTab;
@@ -173,7 +170,6 @@ export interface AppScreenProps {
   milestoneSummary: SummaryChipData[];
   milestoneTypeFilter: string;
   openCreateDeadlineEditor: () => void;
-  openCreateEventReportEditor: (eventId?: string) => void;
   openCreateManufacturingEditor: () => void;
   openCreateMemberEditor: (role?: Member["role"]) => void;
   openCreateMilestoneEditor: () => void;
@@ -216,7 +212,6 @@ export interface AppScreenProps {
   purchaseRequesterFilter: string;
   purchaseSearch: string;
   purchaseStatusFilter: string;
-  purchaseSubsystemFilter: string;
   purchaseVendorFilter: string;
   purchaseVendorOptions: { id: string; name: string }[];
   qaRequests: QaRequest[];
@@ -257,7 +252,6 @@ export interface AppScreenProps {
   setPurchaseRequesterFilter: TextSetter;
   setPurchaseSearch: TextSetter;
   setPurchaseStatusFilter: TextSetter;
-  setPurchaseSubsystemFilter: TextSetter;
   setPurchaseVendorFilter: TextSetter;
   setSelectedMemberId: StateSetter<string | null>;
   setSelectedSubsystemId: StateSetter<string>;
