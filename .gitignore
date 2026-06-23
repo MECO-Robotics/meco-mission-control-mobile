@@ -48,5 +48,8 @@ yarn-error.*
 /android
 
 # Codex/GitHub-review scratch artifacts
-.codex/
+.codex/*
+!.codex/environments/
+.codex/environments/*
+!.codex/environments/environment.toml
 .codex_*.json
