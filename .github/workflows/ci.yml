@@ -181,7 +181,7 @@ jobs:
         run: |
           node <<'NODE'
           const owner = 'MECO-Robotics';
-          const repos = ['meco-mission-control-web', 'meco-mission-control-platform', 'meco-mission-control-mobile'];
+          const repos = ['meco-mission-control-web', 'meco-mission-control-platform'];
           const requiredChecks = {
             'meco-mission-control-web': ['ci-validate', 'snapshot-validate'],
             'meco-mission-control-platform': ['ci-validate', 'snapshot-validate'],
