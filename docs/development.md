@@ -16,7 +16,10 @@ nvm use
 npm install
 ```
 
-The `postinstall` script runs `scripts/patch-freeport-async.js`.
+The `postinstall` script runs `scripts/patch-freeport-async.js` and
+`scripts/patch-expo-device-hub.js`. Each patch logs whether it was applied,
+already applied, or skipped; the iOS Device Hub patch skips automatically on
+non-macOS platforms.
 
 ## Common Commands
 
