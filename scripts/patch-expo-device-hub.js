@@ -161,11 +161,12 @@ const results = [
     [
       [
         'await _osascript().execAsync(`tell application "Simulator" to activate`);',
-        'try {\n            await _osascript().execAsync(`tell application "Device Hub" to activate`);\n        } catch  {}',
+        'try {\n            await _osascript().execAsync(`tell application "Device Hub" to activate`);\n        } catch  {\n            await _osascript().execAsync(`tell application "Simulator" to activate`);\n        }',
       ],
     ],
     (content) =>
       content.includes('tell application "Device Hub" to activate') &&
+      content.includes('tell application "Simulator" to activate') &&
       content.includes("try {\n            await _osascript().execAsync"),
   ),
 ];
