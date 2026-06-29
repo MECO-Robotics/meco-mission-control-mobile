@@ -5,6 +5,7 @@ import {
   getBackendConnectionErrorMessage,
   getMobileAuthErrorMessage,
   requestJson,
+  resolveApiBaseUrl,
 } from "../api";
 
 function mockFetch(response: Partial<Response>) {
@@ -87,8 +88,25 @@ describe("mobile auth API fail-safe handling", () => {
 
   it("builds actionable backend connection guidance", () => {
     expect(getBackendConnectionErrorMessage("http://localhost:8080")).toBe(
-      "Backend API is not reachable at http://localhost:8080. Start the platform server on that host/port, or set EXPO_PUBLIC_API_BASE_URL to the backend URL your device can reach.",
+      "Backend API is not reachable at http://localhost:8080. Start the platform server on that host/port, or set EXPO_PUBLIC_API_BASE_URL or the platform-specific API override to the backend URL your device can reach.",
     );
+  });
+
+  it("prefers Android-specific API base URLs over stale shared values", () => {
+    expect(
+      resolveApiBaseUrl("android", {
+        EXPO_PUBLIC_API_BASE_URL: "http://192.168.1.174:8080",
+        EXPO_PUBLIC_ANDROID_API_BASE_URL: "http://10.0.2.2:8080",
+      }),
+    ).toBe("http://10.0.2.2:8080");
+  });
+
+  it("trims trailing slashes from configured API base URLs", () => {
+    expect(
+      resolveApiBaseUrl("ios", {
+        EXPO_PUBLIC_IOS_API_BASE_URL: "http://localhost:8080/",
+      }),
+    ).toBe("http://localhost:8080");
   });
 
   it("aborts hanging requests when a timeout is provided", async () => {

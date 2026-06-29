@@ -18,10 +18,11 @@ Override:
 EXPO_PUBLIC_API_BASE_URL=https://your-api-host.example
 ```
 
-Android emulators usually need the host-machine route:
+Platform-specific overrides take precedence when set:
 
 ```text
-EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8080
+EXPO_PUBLIC_IOS_API_BASE_URL=http://localhost:8080
+EXPO_PUBLIC_ANDROID_API_BASE_URL=http://10.0.2.2:8080
 ```
 
 ## Request Behavior

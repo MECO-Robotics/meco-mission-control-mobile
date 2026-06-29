@@ -74,7 +74,12 @@ Swipe responders in `App.tsx` support tab/subtab gestures.
 
 ## Backend Synchronization
 
-The API helper in `src/data/api.ts` resolves the base URL from `EXPO_PUBLIC_API_BASE_URL`, defaulting to `http://localhost:8080`. `requestJson` adds JSON headers, applies a bearer token when present, parses JSON responses, and throws `ApiRequestError` on non-2xx responses.
+The API helper in `src/data/api.ts` resolves the base URL from the active
+platform override (`EXPO_PUBLIC_IOS_API_BASE_URL` or
+`EXPO_PUBLIC_ANDROID_API_BASE_URL`), then `EXPO_PUBLIC_API_BASE_URL`, defaulting
+to `http://localhost:8080`. `requestJson` adds JSON headers, applies a bearer
+token when present, parses JSON responses, and throws `ApiRequestError` on
+non-2xx responses.
 
 Mutations use a shared `runMutation` path in `App.tsx`: submit the request, refresh `/api/bootstrap`, and update sync status. If the backend is unavailable, the app preserves local optimistic state where the feature flow requires it. Work-log creates additionally use `src/services/workLogDraftSync.ts` to persist offline drafts in AsyncStorage, show draft sync status, and retry later without duplicate matching submissions.
 
