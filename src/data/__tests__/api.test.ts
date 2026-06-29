@@ -101,6 +101,15 @@ describe("mobile auth API fail-safe handling", () => {
     ).toBe("http://10.0.2.2:8080");
   });
 
+  it("prefers iOS-specific API base URLs over stale shared values", () => {
+    expect(
+      resolveApiBaseUrl("ios", {
+        EXPO_PUBLIC_API_BASE_URL: "http://192.168.1.174:8080",
+        EXPO_PUBLIC_IOS_API_BASE_URL: "http://localhost:8080",
+      }),
+    ).toBe("http://localhost:8080");
+  });
+
   it("trims trailing slashes from configured API base URLs", () => {
     expect(
       resolveApiBaseUrl("ios", {

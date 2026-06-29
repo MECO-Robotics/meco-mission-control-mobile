@@ -219,6 +219,7 @@ switch ($Mode) {
     Invoke-Expo @("start", "--android", "--lan")
   }
   { $_ -in @("--ios", "ios") } {
+    Set-DefaultEnvValue "EXPO_PUBLIC_IOS_API_BASE_URL" "http://localhost:8080"
     Invoke-Expo @("start", "--ios")
   }
   { $_ -in @("--web", "web") } {
