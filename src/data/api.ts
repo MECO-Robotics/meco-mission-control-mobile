@@ -2,17 +2,23 @@ import { Platform } from "react-native";
 
 export const DEFAULT_API_BASE_URL = "http://localhost:8080";
 
-function resolveConfiguredApiBaseUrl() {
+type ApiBaseUrlEnv = {
+  EXPO_PUBLIC_API_BASE_URL?: string;
+  EXPO_PUBLIC_ANDROID_API_BASE_URL?: string;
+  EXPO_PUBLIC_IOS_API_BASE_URL?: string;
+};
+
+function resolveConfiguredApiBaseUrl(platformOS: string, env: ApiBaseUrlEnv) {
   // Device-specific overrides let simulators and physical devices point at
   // different reachable hosts without changing application code.
   const platformConfigured =
-    Platform.OS === "ios"
-      ? process.env.EXPO_PUBLIC_IOS_API_BASE_URL?.trim()
-      : Platform.OS === "android"
-        ? process.env.EXPO_PUBLIC_ANDROID_API_BASE_URL?.trim()
+    platformOS === "ios"
+      ? env.EXPO_PUBLIC_IOS_API_BASE_URL?.trim()
+      : platformOS === "android"
+        ? env.EXPO_PUBLIC_ANDROID_API_BASE_URL?.trim()
         : undefined;
 
-  return platformConfigured || process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+  return platformConfigured || env.EXPO_PUBLIC_API_BASE_URL?.trim();
 }
 
 export class ApiRequestError extends Error {
@@ -107,7 +113,7 @@ export function getMobileAuthErrorMessage(state: MobileAuthErrorState) {
 export function getBackendConnectionErrorMessage(apiBaseUrl: string) {
   return [
     `Backend API is not reachable at ${apiBaseUrl}.`,
-    "Start the platform server on that host/port, or set EXPO_PUBLIC_API_BASE_URL to the backend URL your device can reach.",
+    "Start the platform server on that host/port, or set EXPO_PUBLIC_API_BASE_URL or the platform-specific API override to the backend URL your device can reach.",
   ].join(" ");
 }
 
@@ -124,8 +130,11 @@ function parseErrorMessage(payload: unknown): string | null {
   return message;
 }
 
-export function resolveApiBaseUrl() {
-  const configured = resolveConfiguredApiBaseUrl();
+export function resolveApiBaseUrl(
+  platformOS = Platform.OS,
+  env: ApiBaseUrlEnv = process.env as ApiBaseUrlEnv,
+) {
+  const configured = resolveConfiguredApiBaseUrl(platformOS, env);
   const base = configured && configured.length > 0 ? configured : DEFAULT_API_BASE_URL;
   return base.replace(/\/+$/, "");
 }

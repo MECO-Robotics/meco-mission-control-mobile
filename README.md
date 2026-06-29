@@ -65,9 +65,10 @@ powershell -ExecutionPolicy Bypass -File ./script/build_and_run.ps1 --android
 
 The Android launcher uses `10.0.2.2` as the emulator route back to the Windows
 host and keeps `adb reverse tcp:8081 tcp:8081` refreshed before Expo opens.
-The local Android simulator uses `.env.local` with
-`EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8080` so it can reach a backend running
-on the Windows host.
+The local Android simulator launchers set
+`EXPO_PUBLIC_ANDROID_API_BASE_URL=http://10.0.2.2:8080` by default so they can
+reach a backend running on the host. Set `EXPO_PUBLIC_ANDROID_API_BASE_URL`
+yourself when testing against a physical Android device or another backend URL.
 
 ## Project map
 
@@ -85,7 +86,9 @@ Start with `docs/overview.md`, `docs/development.md`, `docs/features.md`, and `d
 
 ## Auth configuration (no secrets in source)
 
-- `EXPO_PUBLIC_API_BASE_URL` (required): platform API base URL for auth/bootstrap and data calls.
+- `EXPO_PUBLIC_API_BASE_URL` (required): shared platform API base URL for auth/bootstrap and data calls.
+- `EXPO_PUBLIC_IOS_API_BASE_URL`: optional iOS-specific API override.
+- `EXPO_PUBLIC_ANDROID_API_BASE_URL`: optional Android-specific API override.
 - `EXPO_PUBLIC_GOOGLE_CLIENT_ID`: fallback Google client ID for sign-in.
 - `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`: optional Google web override.
 - `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`: optional iOS override.
