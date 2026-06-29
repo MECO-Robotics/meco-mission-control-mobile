@@ -23,6 +23,20 @@ function Add-SessionPathEntry {
   }
 }
 
+function Set-DefaultEnvValue {
+  param(
+    [string]$Name,
+    [string]$Value
+  )
+
+  $currentValue = [Environment]::GetEnvironmentVariable($Name, "Process")
+  if (-not [string]::IsNullOrWhiteSpace($currentValue)) {
+    return
+  }
+
+  [Environment]::SetEnvironmentVariable($Name, $Value, "Process")
+}
+
 function Use-AndroidSdk {
   $sdk = $env:ANDROID_HOME
   if (-not $sdk -or -not (Test-Path $sdk)) {
@@ -197,7 +211,8 @@ switch ($Mode) {
   { $_ -in @("--android", "android") } {
     Start-AndroidEmulatorIfNeeded
     Stop-ExpoGoIfRunning
-    $env:REACT_NATIVE_PACKAGER_HOSTNAME = "10.0.2.2"
+    Set-DefaultEnvValue "REACT_NATIVE_PACKAGER_HOSTNAME" "10.0.2.2"
+    Set-DefaultEnvValue "EXPO_PUBLIC_ANDROID_API_BASE_URL" "http://10.0.2.2:8080"
     if (Get-Command adb -ErrorAction SilentlyContinue) {
       & adb reverse tcp:8081 tcp:8081 | Out-Null
     }

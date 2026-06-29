@@ -54,8 +54,9 @@ screens render from the same server-confirmed snapshot.
 ## Backend Bootstrap Contract
 
 The API base URL is resolved by `resolveApiBaseUrl` in `src/data/api.ts`.
-`EXPO_PUBLIC_API_BASE_URL` is used when set; otherwise the app falls back to
-`http://localhost:8080`.
+`EXPO_PUBLIC_IOS_API_BASE_URL` or `EXPO_PUBLIC_ANDROID_API_BASE_URL` is used
+first for the active platform when set. Otherwise the app uses
+`EXPO_PUBLIC_API_BASE_URL`, then falls back to `http://localhost:8080`.
 
 The mobile app expects these bootstrap and auth endpoints:
 

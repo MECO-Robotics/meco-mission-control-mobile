@@ -82,7 +82,7 @@ EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=<web-client-id>
 Android emulator local backend:
 
 ```text
-EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8080
+EXPO_PUBLIC_ANDROID_API_BASE_URL=http://10.0.2.2:8080
 ```
 
 Production release secret:
@@ -99,7 +99,9 @@ The repo includes `script/build_and_run.ps1` for Windows Android simulator workf
 powershell -ExecutionPolicy Bypass -File ./script/build_and_run.ps1 --android
 ```
 
-The helper keeps `adb reverse tcp:8081 tcp:8081` refreshed and uses `10.0.2.2` for emulator-to-host backend access.
+The helper keeps `adb reverse tcp:8081 tcp:8081` refreshed and sets
+`EXPO_PUBLIC_ANDROID_API_BASE_URL=http://10.0.2.2:8080` by default for
+emulator-to-host backend access.
 
 ## Adding Code
 
