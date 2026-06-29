@@ -160,6 +160,7 @@ case "$MODE" in
     exec "${EXPO_CMD[@]}" start
     ;;
   --ios|ios)
+    export EXPO_PUBLIC_IOS_API_BASE_URL="${EXPO_PUBLIC_IOS_API_BASE_URL:-http://localhost:8080}"
     exec "${EXPO_CMD[@]}" start --ios
     ;;
   --android|android)
