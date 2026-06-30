@@ -240,7 +240,7 @@ export const loginColors = {
   placeholder: "#f1f5ff",
   notice: "#dbeafe",
   darkError: "#fecdd3",
-  googleButton: "#1e293b",
+  devModeButton: "#1e293b",
   badgeBlue: "#1e5aae",
 } as const;
 

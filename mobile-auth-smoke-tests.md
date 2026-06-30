@@ -11,19 +11,19 @@
    - Confirm the login screen is visible when no token is cached.
    - Confirm hosted-domain hint uses the platform-configured domain (or `mecorobotics.org` fallback).
 
-2. Google sign-in flow.
-   - Tap **Sign in with Google** with a valid workspace account.
-   - Verify the app returns to the authenticated app shell.
-   - Kill and relaunch the app, verify it returns to authenticated state without prompting sign-in.
-
-3. Hosted-domain restriction handling.
-   - Use a Google account that is not allowed by platform policy.
-   - Verify the app shows a clear server-provided message instead of a local domain-format error.
-
-4. Email sign-in flow.
+2. Email sign-in flow.
    - Enter a non-allowed email and submit.
    - Verify a clear error from backend policy appears in UI.
    - Enter an allowed email and request a code, then complete verification.
+   - Kill and relaunch the app, verify it returns to authenticated state without prompting sign-in.
+
+3. Hosted-domain restriction handling.
+   - Use an email address that is not allowed by platform policy.
+   - Verify the app shows a clear server-provided message instead of proceeding to code verification.
+
+4. Development-mode sign-in flow.
+   - In a development backend with dev bypass enabled, tap **Continue in dev mode**.
+   - Verify the app returns to the authenticated app shell.
 
 5. Session persistence and restart safety.
    - After successful sign-in, restart the app.

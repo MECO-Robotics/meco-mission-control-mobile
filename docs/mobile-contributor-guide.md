@@ -64,7 +64,6 @@ The mobile app expects these bootstrap and auth endpoints:
 - `GET /api/bootstrap` returns `PlatformBootstrapPayload`.
 - `POST /api/auth/dev-bypass` returns `SessionResponse` when development bypass
   is available.
-- `POST /api/auth/google` exchanges a Google ID token for `SessionResponse`.
 - `POST /api/auth/email/start` starts the email-code flow.
 - `POST /api/auth/email/verify` verifies an email code and returns
   `SessionResponse`.
@@ -94,8 +93,8 @@ The app remains usable from last fetched data when the backend is offline.
 If auth config cannot load, the app treats auth as unavailable and keeps the
 user on the login screen. Email sign-in must start the email-code flow and then
 verify the submitted code before a session is created. If development bypass is
-available, contributor testing may use `POST /api/auth/dev-bypass` through the
-Google/bootstrap testing paths.
+available, contributor testing may use `POST /api/auth/dev-bypass` for
+backend-issued development sessions.
 
 Most local fallback data is not durable backend sync. Work-log creation is the
 exception: failed offline creates are stored as local AsyncStorage drafts,
@@ -124,8 +123,7 @@ device path that matches the work being changed.
   screen.
 - Verify the app remains usable when the backend is offline and clearly surfaces
   sync failure state.
-- Verify the intended auth path: Google sign-in, email-code sign-in, or dev
-  bypass.
+- Verify the intended auth path: email-code sign-in or dev bypass.
 - Navigate the core screens touched by the change: Home, Attendance, Tasks, Work
   Logs, Inventory, QA/Reports, Risks, and related subviews.
 - Exercise relevant editor flows, including create, edit, delete, save error,

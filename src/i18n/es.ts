@@ -234,7 +234,6 @@ export const es = {
   Sending: "Enviando",
   "Send Code": "Enviar código",
   "Signing in": "Iniciando sesión",
-  "Sign in with Google": "Iniciar sesión con Google",
   "Robot project selector": "Selector de proyecto de robot",
   "Edit robot": "Editar robot",
   "Switch project": "Cambiar proyecto",
