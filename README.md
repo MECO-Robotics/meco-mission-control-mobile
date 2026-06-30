@@ -89,6 +89,10 @@ Start with `docs/overview.md`, `docs/development.md`, `docs/features.md`, and `d
 - `EXPO_PUBLIC_API_BASE_URL` (required): shared platform API base URL for auth/bootstrap and data calls.
 - `EXPO_PUBLIC_IOS_API_BASE_URL`: optional iOS-specific API override.
 - `EXPO_PUBLIC_ANDROID_API_BASE_URL`: optional Android-specific API override.
+- `EXPO_PUBLIC_GOOGLE_CLIENT_ID`: fallback Google client ID for sign-in.
+- `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`: optional Google web override.
+- `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`: optional iOS override.
+- `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`: optional Android override.
 - `EXPO_PUBLIC_DEV_AUTH_BYPASS=true`: optional development-only local sign-in bypass that uses bundled workspace data when the backend/auth service is unavailable.
 
 Do not put bearer tokens, API secrets, or third-party secret keys in
