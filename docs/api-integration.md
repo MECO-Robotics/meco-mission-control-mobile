@@ -57,40 +57,6 @@ type PublicAuthConfig = {
 
 The hosted domain defaults in app behavior to `mecorobotics.org` when config is missing.
 
-## Google Sign-In
-
-Google sign-in uses `expo-auth-session/providers/google` and expects an ID token from Google.
-
-Environment variables:
-
-- `EXPO_PUBLIC_GOOGLE_CLIENT_ID`
-- `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`
-- `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`
-- `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`
-
-If platform-specific IDs are not provided, the app falls back to `EXPO_PUBLIC_GOOGLE_CLIENT_ID` or the backend-provided `googleClientId`.
-
-Credential exchange endpoint:
-
-```text
-POST /api/auth/google
-```
-
-Body:
-
-```json
-{ "credential": "<google-id-token>" }
-```
-
-Expected response:
-
-```ts
-type SessionResponse = {
-  token: string;
-  user: SessionUser;
-};
-```
-
 ## Email Sign-In
 
 Email auth is controlled by `PublicAuthConfig.emailEnabled`.
@@ -135,13 +101,13 @@ development session:
 POST /api/auth/dev-bypass
 ```
 
-This is used when Google credentials are missing during development or when the
-app needs a backend-issued token for bootstrap/mutation testing.
+This is used when the app needs a backend-issued development token for
+bootstrap/mutation testing.
 
 For backend-offline mobile development, `EXPO_PUBLIC_DEV_AUTH_BYPASS=true`
-enables an explicit local dev bypass button in development builds. That path
-signs in as a local admin user and keeps the bundled workspace snapshot instead
-of requesting a backend token.
+enables the dev-mode sign-in fallback. That path signs in as a local admin user
+and keeps the bundled workspace snapshot instead of requesting a backend token.
+Email sign-in still starts and verifies the email-code flow.
 
 ## Bootstrap Data
 

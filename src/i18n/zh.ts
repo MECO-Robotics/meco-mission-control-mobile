@@ -223,7 +223,6 @@ export const zh = {
   Sending: "正在发送",
   "Send Code": "发送验证码",
   "Signing in": "正在登录",
-  "Sign in with Google": "使用 Google 登录",
   "Robot project selector": "机器人项目选择器",
   "Edit robot": "编辑机器人",
   "Switch project": "切换项目",

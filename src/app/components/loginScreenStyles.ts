@@ -135,11 +135,11 @@ export const loginScreenStyles = StyleSheet.create({
     marginTop: 10,
     textAlign: "center",
   },
-  googleButton: {
+  devModeButton: {
     width: "100%",
     minHeight: 42,
     borderRadius: 999,
-    backgroundColor: loginColors.googleButton,
+    backgroundColor: loginColors.devModeButton,
     flexDirection: "row",
     alignItems: "center",
     marginTop: 76,
@@ -151,10 +151,10 @@ export const loginScreenStyles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 4,
   },
-  googleButtonPressed: {
+  devModeButtonPressed: {
     opacity: 0.78,
   },
-  avatar: {
+  devModeAvatar: {
     width: 22,
     height: 22,
     borderRadius: 999,
@@ -162,27 +162,15 @@ export const loginScreenStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarText: {
+  devModeAvatarText: {
     color: colors.white,
     fontSize: 12,
     fontWeight: "800",
   },
-  googleText: {
+  devModeText: {
     flex: 1,
     color: colors.white,
     fontSize: 13,
     fontWeight: "700",
-  },
-  googleMark: {
-    width: 38,
-    height: 38,
-    borderRadius: 999,
-    backgroundColor: colors.white,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  googleMarkImage: {
-    width: 26,
-    height: 26,
   },
 });

@@ -1,11 +1,7 @@
 import * as ScreenOrientation from "expo-screen-orientation";
-import * as Google from "expo-auth-session/providers/google";
-import * as WebBrowser from "expo-web-browser";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert,
   PanResponder,
-  Platform,
   useColorScheme,
   useWindowDimensions,
 } from "react-native";
@@ -169,10 +165,8 @@ import {
 } from "./src/app/appModel";
 import {
   DEVICE_SESSION_RESTORED_NOTICE,
-  GOOGLE_CLIENT_ID_PLACEHOLDER,
-  getActiveGoogleClientId,
   normalizeThemeModeFromResponse,
-  resolveGoogleClientIds,
+  resolveEmailSignInOperation,
   type EmailCodeStartResponse,
   type ThemePreferenceResponse,
 } from "./src/app/authConfigModel";
@@ -222,8 +216,6 @@ import {
   schedulePersistedWorkLogTimerReminders,
 } from "./src/services/workLogTimerNotifications";
 
-WebBrowser.maybeCompleteAuthSession();
-
 export default function App() {
   const { height, width } = useWindowDimensions();
   const systemColorScheme = useColorScheme();
@@ -245,7 +237,6 @@ export default function App() {
     useState<MobileAuthErrorState | null>(null);
   const [authNotice, setAuthNotice] = useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const [isGoogleSignInPending, setIsGoogleSignInPending] = useState(false);
   const [isRestoringAuthSession, setIsRestoringAuthSession] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [backendStatus, setBackendStatus] = useState<
@@ -255,35 +246,10 @@ export default function App() {
     useState<BackendReachability>("unknown");
   const [syncError, setSyncError] = useState<string | null>(null);
   const isLocalDevBypassAvailable = isLocalDevAuthBypassEnabled();
-  const {
-    googleClientId,
-    googleIosClientId,
-    googleAndroidClientId,
-    googleWebClientId,
-  } = useMemo(() => resolveGoogleClientIds(authConfig), [authConfig]);
   const requiredEmailDomain = normalizeRequiredEmailDomain(authConfig?.hostedDomain);
   const isAuthConfigUnavailable = authErrorState === "auth-config-unavailable";
   const isDevBypassAvailable =
     isLocalDevBypassAvailable || authConfig?.devBypassAvailable === true;
-  const activeGoogleClientId = getActiveGoogleClientId(
-    { googleClientId, googleIosClientId, googleAndroidClientId, googleWebClientId },
-    Platform.OS,
-  );
-
-  const [googleRequest, googleResponse, promptGoogleSignIn] =
-    Google.useIdTokenAuthRequest({
-      androidClientId: googleAndroidClientId || GOOGLE_CLIENT_ID_PLACEHOLDER,
-      clientId: googleClientId || GOOGLE_CLIENT_ID_PLACEHOLDER,
-      iosClientId: googleIosClientId || GOOGLE_CLIENT_ID_PLACEHOLDER,
-      selectAccount: true,
-      webClientId: googleWebClientId || GOOGLE_CLIENT_ID_PLACEHOLDER,
-    });
-
-  const showAuthError = useCallback((message: string) => {
-    setAuthErrorState(null);
-    setAuthError(message);
-    Alert.alert("Sign-in problem", message);
-  }, []);
 
   const endSessionForAuthFailure = useCallback((message: string) => {
     setApiToken(null);
@@ -291,7 +257,6 @@ export default function App() {
     setHasAuthenticated(false);
     setAuthCode("");
     setHasRequestedEmailCode(false);
-    setIsGoogleSignInPending(false);
     setIsAuthenticating(false);
     setSyncError(null);
     setAuthNotice(null);
@@ -897,126 +862,6 @@ export default function App() {
     };
   }, [finishSignIn]);
 
-  const signInWithGoogle = useCallback(async () => {
-    setIsAuthenticating(true);
-    setAuthError(null);
-    setAuthErrorState(null);
-    setAuthNotice(null);
-
-    try {
-      if (isAuthConfigUnavailable) {
-        setAuthErrorState("auth-config-unavailable");
-        setAuthError(getMobileAuthErrorMessage("auth-config-unavailable"));
-        return;
-      }
-
-      if (!activeGoogleClientId) {
-        if (!isDevBypassAvailable) {
-          showAuthError(
-            Platform.OS === "ios"
-              ? "Google sign-in needs a configured Google client ID, then Expo must be restarted."
-              : Platform.OS === "android"
-                ? "Google sign-in needs a configured Google client ID, then Expo must be restarted."
-                : "Google sign-in is not configured for this app yet.",
-          );
-          return;
-        }
-
-        await signInWithDevBypass();
-        return;
-      }
-
-      if (!googleRequest) {
-        showAuthError("Google sign-in is still loading. Try again in a moment.");
-        return;
-      }
-
-      setIsGoogleSignInPending(true);
-      const result = await promptGoogleSignIn();
-      if (result.type === "cancel" || result.type === "dismiss") {
-        setIsGoogleSignInPending(false);
-        return;
-      }
-
-      if (result.type !== "success") {
-        setIsGoogleSignInPending(false);
-        showAuthError("Google sign-in did not complete.");
-      }
-    } catch (error) {
-      setIsGoogleSignInPending(false);
-      showAuthError(getClientErrorMessage(error));
-    } finally {
-      setIsAuthenticating(false);
-    }
-  }, [
-    activeGoogleClientId,
-    googleRequest,
-    isDevBypassAvailable,
-    isAuthConfigUnavailable,
-    promptGoogleSignIn,
-    signInWithDevBypass,
-    showAuthError,
-  ]);
-
-  useEffect(() => {
-    if (!isGoogleSignInPending || hasAuthenticated || googleResponse?.type !== "success") {
-      return;
-    }
-
-    const credential =
-      googleResponse.params.id_token ?? googleResponse.authentication?.idToken;
-    const hasAuthorizationCode = Boolean(googleResponse.params.code);
-
-    let isActive = true;
-
-    async function exchangeGoogleCredential() {
-      if (!credential) {
-        setIsGoogleSignInPending(false);
-        showAuthError(
-          hasAuthorizationCode
-            ? "Google returned an authorization code instead of an ID token. This app needs an ID token to sign in."
-            : "Google did not return an ID token.",
-        );
-        return;
-      }
-
-      setIsAuthenticating(true);
-      setAuthError(null);
-      setAuthErrorState(null);
-      setAuthNotice(null);
-
-      try {
-        const session = await requestJson<SessionResponse>(
-          apiBaseUrl,
-          "/api/auth/google",
-          {
-            method: "POST",
-            body: JSON.stringify({ credential }),
-          },
-        );
-
-        if (isActive) {
-          await finishSignIn(session.token, session.user);
-        }
-      } catch (error) {
-        if (isActive) {
-          showAuthError(getClientErrorMessage(error));
-        }
-      } finally {
-        if (isActive) {
-          setIsGoogleSignInPending(false);
-          setIsAuthenticating(false);
-        }
-      }
-    }
-
-    void exchangeGoogleCredential();
-
-    return () => {
-      isActive = false;
-    };
-  }, [apiBaseUrl, finishSignIn, googleResponse, hasAuthenticated, isGoogleSignInPending, showAuthError]);
-
   const signInWithEmail = useCallback(async () => {
     const email = authEmail.trim().toLowerCase();
     const code = authCode.trim();
@@ -1039,7 +884,12 @@ export default function App() {
       }
     }
 
-    if (currentAuthConfig?.emailEnabled === false) {
+    const emailSignInOperation = resolveEmailSignInOperation(
+      currentAuthConfig,
+      hasRequestedEmailCode,
+    );
+
+    if (emailSignInOperation === "email-disabled") {
       setAuthError("Email sign-in is not enabled for this workspace.");
       return;
     }
@@ -1057,7 +907,7 @@ export default function App() {
     setIsAuthenticating(true);
 
     try {
-      if (hasRequestedEmailCode) {
+      if (emailSignInOperation === "verify-code") {
         const deviceNumber = await getOrCreateAuthDeviceNumber();
         const session = await requestJson<SessionResponse>(
           apiBaseUrl,
@@ -1074,26 +924,7 @@ export default function App() {
         return;
       }
 
-      if (isLocalDevBypassAvailable) {
-        await finishLocalDevBypass();
-        return;
-      }
-
-      if (currentAuthConfig?.devBypassAvailable) {
-        const session = await requestJson<SessionResponse>(
-          apiBaseUrl,
-          "/api/auth/dev-bypass",
-          { method: "POST" },
-        );
-        await finishSignIn(session.token, {
-          ...session.user,
-          authProvider: "email",
-          email,
-        });
-        return;
-      }
-
-      if (currentAuthConfig?.enabled === false) {
+      if (emailSignInOperation === "auth-unavailable") {
         setAuthError(
           "Authentication service is unavailable. Check the backend auth configuration and try again.",
         );
@@ -1131,9 +962,7 @@ export default function App() {
     authCode,
     authEmail,
     finishSignIn,
-    finishLocalDevBypass,
     hasRequestedEmailCode,
-    isLocalDevBypassAvailable,
     isAuthConfigUnavailable,
     loadPublicAuthConfig,
     requiredEmailDomain,
@@ -5054,7 +4883,6 @@ export default function App() {
     setAuthError(null);
     setAuthNotice(null);
     setIsAuthenticating(false);
-    setIsGoogleSignInPending(false);
     setHasRequestedEmailCode(false);
     setIsPersonMenuVisible(false);
     setIsSeasonMenuVisible(false);
@@ -5472,17 +5300,17 @@ export default function App() {
           authNotice={authNotice}
           hasRequestedEmailCode={hasRequestedEmailCode}
           height={height}
-          isAuthConfigUnavailable={isAuthConfigUnavailable}
           isAuthenticating={isAuthenticating}
           isDarkModeEnabled={isDarkModeEnabled}
+          isDevBypassAvailable={isDevBypassAvailable}
           setAuthCode={setAuthCode}
           setAuthEmail={setAuthEmail}
           setAuthError={setAuthError}
           setAuthErrorState={setAuthErrorState}
           setAuthNotice={setAuthNotice}
           setHasRequestedEmailCode={setHasRequestedEmailCode}
+          signInWithDevBypass={signInWithDevBypass}
           signInWithEmail={signInWithEmail}
-          signInWithGoogle={signInWithGoogle}
           width={width}
         />
       ) : (

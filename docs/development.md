@@ -70,15 +70,6 @@ Do not place bearer tokens or service credentials in `EXPO_PUBLIC_` variables;
 they are embedded in the Expo bundle. Use normal sign-in or the backend-issued
 development bypass endpoint when a local session token is needed.
 
-Google auth:
-
-```text
-EXPO_PUBLIC_GOOGLE_CLIENT_ID=<shared-client-id>
-EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=<ios-client-id>
-EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=<android-client-id>
-EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=<web-client-id>
-```
-
 Android emulator local backend:
 
 ```text

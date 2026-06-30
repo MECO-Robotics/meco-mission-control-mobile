@@ -223,7 +223,6 @@ export const ar = {
   Sending: "جار الإرسال",
   "Send Code": "إرسال الرمز",
   "Signing in": "جار تسجيل الدخول",
-  "Sign in with Google": "تسجيل الدخول عبر Google",
   "Robot project selector": "اختيار مشروع الروبوت",
   "Edit robot": "تعديل الروبوت",
   "Switch project": "تبديل المشروع",
