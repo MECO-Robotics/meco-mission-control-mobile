@@ -2,7 +2,6 @@ import type { PublicAuthConfig } from "../types/domain";
 import type { AppThemeName } from "../theme";
 
 export const DEVICE_SESSION_RESTORED_NOTICE = "Signed in on this device.";
-export const GOOGLE_CLIENT_ID_PLACEHOLDER = "missing-google-client-id";
 
 export type EmailCodeStartResponse = {
   sentTo?: string;
@@ -13,52 +12,29 @@ export type ThemePreferenceResponse = {
   themeMode: AppThemeName | null;
 };
 
-export type GoogleClientIds = {
-  googleClientId: string;
-  googleIosClientId: string;
-  googleAndroidClientId: string;
-  googleWebClientId: string;
-};
+export type EmailSignInOperation =
+  | "auth-unavailable"
+  | "email-disabled"
+  | "request-code"
+  | "verify-code";
 
-type GoogleClientEnv = {
-  EXPO_PUBLIC_GOOGLE_CLIENT_ID?: string;
-  EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?: string;
-  EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?: string;
-  EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?: string;
-};
-
-export function resolveGoogleClientIds(
+export function resolveEmailSignInOperation(
   authConfig: PublicAuthConfig | null,
-  env?: GoogleClientEnv,
-): GoogleClientIds {
-  const sourceEnv = env ?? (process.env as GoogleClientEnv);
-  const envGoogleClientId = sourceEnv.EXPO_PUBLIC_GOOGLE_CLIENT_ID?.trim() ?? "";
-  const googleClientId = authConfig?.googleClientId?.trim() || envGoogleClientId;
-
-  return {
-    googleClientId,
-    googleIosClientId:
-      sourceEnv.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() || googleClientId,
-    googleAndroidClientId:
-      sourceEnv.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?.trim() || googleClientId,
-    googleWebClientId:
-      sourceEnv.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() || googleClientId,
-  };
-}
-
-export function getActiveGoogleClientId(
-  googleClientIds: GoogleClientIds,
-  platformOS: string,
-) {
-  if (platformOS === "ios") {
-    return googleClientIds.googleIosClientId;
+  hasRequestedEmailCode: boolean,
+): EmailSignInOperation {
+  if (authConfig?.emailEnabled === false) {
+    return "email-disabled";
   }
 
-  if (platformOS === "android") {
-    return googleClientIds.googleAndroidClientId;
+  if (hasRequestedEmailCode) {
+    return "verify-code";
   }
 
-  return googleClientIds.googleWebClientId;
+  if (authConfig?.enabled === false) {
+    return "auth-unavailable";
+  }
+
+  return "request-code";
 }
 
 export function normalizeThemeModeFromResponse(

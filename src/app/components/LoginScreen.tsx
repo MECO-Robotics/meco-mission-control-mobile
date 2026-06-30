@@ -22,17 +22,17 @@ type LoginScreenProps = {
   authNotice: string | null;
   hasRequestedEmailCode: boolean;
   height: number;
-  isAuthConfigUnavailable: boolean;
   isAuthenticating: boolean;
   isDarkModeEnabled: boolean;
+  isDevBypassAvailable: boolean;
   setAuthCode: Dispatch<SetStateAction<string>>;
   setAuthEmail: Dispatch<SetStateAction<string>>;
   setAuthError: Dispatch<SetStateAction<string | null>>;
   setAuthErrorState: Dispatch<SetStateAction<MobileAuthErrorState | null>>;
   setAuthNotice: Dispatch<SetStateAction<string | null>>;
   setHasRequestedEmailCode: Dispatch<SetStateAction<boolean>>;
+  signInWithDevBypass: () => void;
   signInWithEmail: () => void;
-  signInWithGoogle: () => void;
   width: number;
 };
 
@@ -44,17 +44,17 @@ export function LoginScreen({
   authNotice,
   hasRequestedEmailCode,
   height,
-  isAuthConfigUnavailable,
   isAuthenticating,
   isDarkModeEnabled,
+  isDevBypassAvailable,
   setAuthCode,
   setAuthEmail,
   setAuthError,
   setAuthErrorState,
   setAuthNotice,
   setHasRequestedEmailCode,
+  signInWithDevBypass,
   signInWithEmail,
-  signInWithGoogle,
   width,
 }: LoginScreenProps) {
   const hostedDomain = authConfig?.hostedDomain ?? "mecorobotics.org";
@@ -264,53 +264,35 @@ export function LoginScreen({
             </Text>
           ) : null}
 
-          <Pressable
-            accessibilityRole="button"
-            disabled={isAuthenticating || isAuthConfigUnavailable}
-            onPress={signInWithGoogle}
-            style={({ pressed }) => [
-              styles.googleButton,
-              {
-                gap: scaleLogin(8),
-                marginTop: "auto",
-                minHeight: scaleLogin(42),
-                paddingHorizontal: scaleLogin(8),
-              },
-              pressed && styles.googleButtonPressed,
-            ]}
-          >
-            <View
-              style={[
-                styles.avatar,
-                { height: scaleLogin(22), width: scaleLogin(22) },
+          {isDevBypassAvailable ? (
+            <Pressable
+              accessibilityRole="button"
+              disabled={isAuthenticating}
+              onPress={signInWithDevBypass}
+              style={({ pressed }) => [
+                styles.devModeButton,
+                {
+                  gap: scaleLogin(8),
+                  marginTop: "auto",
+                  minHeight: scaleLogin(42),
+                  paddingHorizontal: scaleLogin(14),
+                },
+                pressed && styles.devModeButtonPressed,
               ]}
             >
-              <Text style={[styles.avatarText, { fontSize: scaleLogin(12) }]}>A</Text>
-            </View>
-            <Text style={[styles.googleText, { fontSize: scaleLogin(13) }]}>
-              {isAuthConfigUnavailable
-                ? "Auth unavailable"
-                : isAuthenticating
-                  ? "Signing in"
-                  : "Sign in with Google"}
-            </Text>
-            <View
-              style={[
-                styles.googleMark,
-                { height: scaleLogin(38), width: scaleLogin(38) },
-              ]}
-            >
-              <Image
-                accessibilityLabel="Google logo"
-                resizeMode="contain"
-                source={require("../../../assets/google-g.png")}
+              <View
                 style={[
-                  styles.googleMarkImage,
-                  { height: scaleLogin(26), width: scaleLogin(26) },
+                  styles.devModeAvatar,
+                  { height: scaleLogin(22), width: scaleLogin(22) },
                 ]}
-              />
-            </View>
-          </Pressable>
+              >
+                <Text style={[styles.devModeAvatarText, { fontSize: scaleLogin(12) }]}>A</Text>
+              </View>
+              <Text style={[styles.devModeText, { fontSize: scaleLogin(13) }]}>
+                {isAuthenticating ? "Signing in" : "Continue in dev mode"}
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
       </SafeAreaView>
     </View>

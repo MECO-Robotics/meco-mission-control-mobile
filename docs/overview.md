@@ -27,7 +27,7 @@ The app is the mobile companion to the hosted platform backend. It can run from 
 ## Runtime Modes
 
 - Connected mode: the app reads auth config and bootstrap data from the configured API base URL, then writes mutations to the API.
-- Development bypass mode: if the backend exposes dev bypass auth, contributor testing can obtain a session without a real Google flow. Email sign-in still requires starting and verifying an email-code flow.
+- Development bypass mode: if the backend exposes dev bypass auth, contributor testing can obtain a backend-issued development session. Email sign-in still requires starting and verifying an email-code flow.
 - Local fallback mode: if the backend cannot be reached, the app keeps enough seeded data to render and demonstrate the workspace.
 
 ## Related Repositories

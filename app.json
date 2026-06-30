@@ -22,7 +22,6 @@
       ],
       "expo-localization",
       "expo-notifications",
-      "expo-web-browser",
       "expo-secure-store"
     ],
     "splash": {

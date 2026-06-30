@@ -223,7 +223,6 @@ export const tr = {
   Sending: "Gönderiliyor",
   "Send Code": "Kod gönder",
   "Signing in": "Giriş yapılıyor",
-  "Sign in with Google": "Google ile giriş yap",
   "Robot project selector": "Robot proje seçici",
   "Edit robot": "Robotu düzenle",
   "Switch project": "Projeyi değiştir",
