@@ -53,11 +53,19 @@ function buildIosEnv(baseEnv, repoRoot) {
   return env;
 }
 
-function runIos(repoRoot = process.cwd(), baseEnv = process.env) {
+function buildExpoArgs(extraArgs = []) {
+  return ["expo", "start", "--localhost", "--port", "8081", ...extraArgs];
+}
+
+function runIos(
+  repoRoot = process.cwd(),
+  baseEnv = process.env,
+  extraArgs = process.argv.slice(2),
+) {
   const command = process.platform === "win32" ? "npx.cmd" : "npx";
   const result = spawnSync(
     command,
-    ["expo", "start", "--localhost", "--port", "8081"],
+    buildExpoArgs(extraArgs),
     {
       cwd: repoRoot,
       env: buildIosEnv(baseEnv, repoRoot),
@@ -80,6 +88,7 @@ if (require.main === module) {
 module.exports = {
   DEFAULT_DEVELOPER_DIR,
   DEFAULT_IOS_API_BASE_URL,
+  buildExpoArgs,
   buildIosEnv,
   dotenvDefinesKey,
   parseDotenvKey,

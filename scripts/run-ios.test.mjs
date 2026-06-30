@@ -9,6 +9,7 @@ const require = createRequire(import.meta.url);
 const {
   DEFAULT_DEVELOPER_DIR,
   DEFAULT_IOS_API_BASE_URL,
+  buildExpoArgs,
   buildIosEnv,
   parseDotenvKey,
 } = require("./run-ios.js");
@@ -72,4 +73,15 @@ test("buildIosEnv lets dotenv iOS API overrides win over the default", () => {
 
     assert.equal(env.EXPO_PUBLIC_IOS_API_BASE_URL, undefined);
   });
+});
+
+test("buildExpoArgs forwards additional Expo start flags", () => {
+  assert.deepEqual(buildExpoArgs(["--clear"]), [
+    "expo",
+    "start",
+    "--localhost",
+    "--port",
+    "8081",
+    "--clear",
+  ]);
 });
