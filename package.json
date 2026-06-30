@@ -14,7 +14,7 @@
     "dev": "node scripts/run-build-and-run.js --android",
     "start": "expo start",
     "android": "node scripts/run-build-and-run.js --android",
-    "ios": "DEVELOPER_DIR=${DEVELOPER_DIR:-/Applications/Xcode-beta.app/Contents/Developer} EXPO_PUBLIC_IOS_API_BASE_URL=${EXPO_PUBLIC_IOS_API_BASE_URL:-http://localhost:8080} expo start --localhost --port 8081",
+    "ios": "node scripts/run-ios.js",
     "lint": "eslint .",
     "test": "jest --runInBand",
     "test:role-permissions": "node --test scripts/role-permissions.test.mjs",
