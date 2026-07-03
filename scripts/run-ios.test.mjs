@@ -11,6 +11,7 @@ const {
   DEFAULT_IOS_API_BASE_URL,
   buildExpoArgs,
   buildIosEnv,
+  getExpoDotenvFiles,
   parseDotenvKey,
 } = require("./run-ios.js");
 
@@ -73,6 +74,28 @@ test("buildIosEnv lets dotenv iOS API overrides win over the default", () => {
 
     assert.equal(env.EXPO_PUBLIC_IOS_API_BASE_URL, undefined);
   });
+});
+
+test("buildIosEnv honors development dotenv iOS API overrides", () => {
+  withTempRepo((repoRoot) => {
+    writeFileSync(
+      path.join(repoRoot, ".env.development.local"),
+      "EXPO_PUBLIC_IOS_API_BASE_URL=http://development.example.test\n",
+    );
+
+    const env = buildIosEnv({}, repoRoot);
+
+    assert.equal(env.EXPO_PUBLIC_IOS_API_BASE_URL, undefined);
+  });
+});
+
+test("getExpoDotenvFiles follows NODE_ENV when provided", () => {
+  assert.deepEqual(getExpoDotenvFiles({ NODE_ENV: "test" }), [
+    ".env",
+    ".env.local",
+    ".env.test",
+    ".env.test.local",
+  ]);
 });
 
 test("buildExpoArgs forwards additional Expo start flags", () => {

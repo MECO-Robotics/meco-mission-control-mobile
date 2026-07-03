@@ -4,7 +4,7 @@ const path = require("node:path");
 
 const DEFAULT_DEVELOPER_DIR = "/Applications/Xcode-beta.app/Contents/Developer";
 const DEFAULT_IOS_API_BASE_URL = "http://localhost:8080";
-const DOTENV_FILES = [".env", ".env.local"];
+const DEFAULT_EXPO_ENV = "development";
 
 function hasValue(value) {
   return typeof value === "string" && value.trim().length > 0;
@@ -23,8 +23,19 @@ function parseDotenvKey(line) {
   return match?.[1] ?? null;
 }
 
-function dotenvDefinesKey(repoRoot, key) {
-  return DOTENV_FILES.some((fileName) => {
+function getExpoDotenvFiles(baseEnv = process.env) {
+  const expoEnv = hasValue(baseEnv.NODE_ENV) ? baseEnv.NODE_ENV : DEFAULT_EXPO_ENV;
+
+  return [
+    ".env",
+    ".env.local",
+    `.env.${expoEnv}`,
+    `.env.${expoEnv}.local`,
+  ];
+}
+
+function dotenvDefinesKey(repoRoot, key, fileNames = getExpoDotenvFiles()) {
+  return fileNames.some((fileName) => {
     const filePath = path.join(repoRoot, fileName);
     if (!existsSync(filePath)) {
       return false;
@@ -45,7 +56,11 @@ function buildIosEnv(baseEnv, repoRoot) {
 
   if (
     !hasValue(env.EXPO_PUBLIC_IOS_API_BASE_URL) &&
-    !dotenvDefinesKey(repoRoot, "EXPO_PUBLIC_IOS_API_BASE_URL")
+    !dotenvDefinesKey(
+      repoRoot,
+      "EXPO_PUBLIC_IOS_API_BASE_URL",
+      getExpoDotenvFiles(env),
+    )
   ) {
     env.EXPO_PUBLIC_IOS_API_BASE_URL = DEFAULT_IOS_API_BASE_URL;
   }
@@ -91,6 +106,7 @@ module.exports = {
   buildExpoArgs,
   buildIosEnv,
   dotenvDefinesKey,
+  getExpoDotenvFiles,
   parseDotenvKey,
   runIos,
 };
