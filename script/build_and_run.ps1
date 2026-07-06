@@ -37,6 +37,54 @@ function Set-DefaultEnvValue {
   [Environment]::SetEnvironmentVariable($Name, $Value, "Process")
 }
 
+function Test-DotenvDefinesKey {
+  param([string]$Name)
+
+  $expoEnv = if ([string]::IsNullOrWhiteSpace($env:NODE_ENV)) { "development" } else { $env:NODE_ENV }
+  $dotenvFiles = @(
+    ".env",
+    ".env.local",
+    ".env.$expoEnv",
+    ".env.$expoEnv.local"
+  )
+
+  foreach ($fileName in $dotenvFiles) {
+    $filePath = Join-Path $RootDir $fileName
+    if (-not (Test-Path $filePath)) {
+      continue
+    }
+
+    foreach ($line in Get-Content $filePath) {
+      $trimmed = $line.Trim()
+      if (-not $trimmed -or $trimmed.StartsWith("#")) {
+        continue
+      }
+
+      $assignment = $trimmed
+      if ($assignment.StartsWith("export ")) {
+        $assignment = $assignment.Substring("export ".Length).TrimStart()
+      }
+
+      if ($assignment -match "^$([Regex]::Escape($Name))\s*=") {
+        return $true
+      }
+    }
+  }
+
+  return $false
+}
+
+function Set-IosApiDefaultIfNeeded {
+  $currentValue = [Environment]::GetEnvironmentVariable("EXPO_PUBLIC_IOS_API_BASE_URL", "Process")
+  if (-not [string]::IsNullOrWhiteSpace($currentValue)) {
+    return
+  }
+
+  if (-not (Test-DotenvDefinesKey "EXPO_PUBLIC_IOS_API_BASE_URL")) {
+    [Environment]::SetEnvironmentVariable("EXPO_PUBLIC_IOS_API_BASE_URL", "http://localhost:8080", "Process")
+  }
+}
+
 function Use-AndroidSdk {
   $sdk = $env:ANDROID_HOME
   if (-not $sdk -or -not (Test-Path $sdk)) {
@@ -219,7 +267,7 @@ switch ($Mode) {
     Invoke-Expo @("start", "--android", "--lan")
   }
   { $_ -in @("--ios", "ios") } {
-    Set-DefaultEnvValue "EXPO_PUBLIC_IOS_API_BASE_URL" "http://localhost:8080"
+    Set-IosApiDefaultIfNeeded
     Invoke-Expo @("start", "--ios")
   }
   { $_ -in @("--web", "web") } {

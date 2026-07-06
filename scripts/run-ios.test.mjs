@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -107,4 +107,29 @@ test("buildExpoArgs forwards additional Expo start flags", () => {
     "8081",
     "--clear",
   ]);
+});
+
+test("build_and_run launchers check dotenv before injecting iOS API default", () => {
+  const bashLauncher = readFileSync(
+    path.join(process.cwd(), "script", "build_and_run.sh"),
+    "utf8",
+  );
+  const powershellLauncher = readFileSync(
+    path.join(process.cwd(), "script", "build_and_run.ps1"),
+    "utf8",
+  );
+
+  assert.match(bashLauncher, /use_ios_api_default_if_needed/);
+  assert.match(bashLauncher, /\.env\.\$\{expo_env\}\.local/);
+  assert.doesNotMatch(
+    bashLauncher,
+    /EXPO_PUBLIC_IOS_API_BASE_URL="\$\{EXPO_PUBLIC_IOS_API_BASE_URL:-http:\/\/localhost:8080\}"/,
+  );
+
+  assert.match(powershellLauncher, /Set-IosApiDefaultIfNeeded/);
+  assert.match(powershellLauncher, /\.env\.\$expoEnv\.local/);
+  assert.doesNotMatch(
+    powershellLauncher,
+    /Set-DefaultEnvValue "EXPO_PUBLIC_IOS_API_BASE_URL" "http:\/\/localhost:8080"/,
+  );
 });
