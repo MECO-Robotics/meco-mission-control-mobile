@@ -12,6 +12,7 @@ const {
   buildExpoArgs,
   buildIosEnv,
   getExpoDotenvFiles,
+  parseDotenvAssignment,
   parseDotenvKey,
 } = require("./run-ios.js");
 
@@ -37,6 +38,20 @@ test("parseDotenvKey reads normal and exported assignments", () => {
     parseDotenvKey("# EXPO_PUBLIC_IOS_API_BASE_URL=http://example.test"),
     null,
   );
+});
+
+test("parseDotenvAssignment reads keys and values", () => {
+  assert.deepEqual(
+    parseDotenvAssignment("EXPO_PUBLIC_IOS_API_BASE_URL=http://example.test"),
+    {
+      key: "EXPO_PUBLIC_IOS_API_BASE_URL",
+      value: "http://example.test",
+    },
+  );
+  assert.deepEqual(parseDotenvAssignment("EXPO_PUBLIC_IOS_API_BASE_URL=   "), {
+    key: "EXPO_PUBLIC_IOS_API_BASE_URL",
+    value: "",
+  });
 });
 
 test("buildIosEnv supplies simulator defaults when no override exists", () => {
@@ -86,6 +101,16 @@ test("buildIosEnv honors development dotenv iOS API overrides", () => {
     const env = buildIosEnv({}, repoRoot);
 
     assert.equal(env.EXPO_PUBLIC_IOS_API_BASE_URL, undefined);
+  });
+});
+
+test("buildIosEnv treats blank dotenv iOS API values as missing", () => {
+  withTempRepo((repoRoot) => {
+    writeFileSync(path.join(repoRoot, ".env.local"), "EXPO_PUBLIC_IOS_API_BASE_URL=\n");
+
+    const env = buildIosEnv({}, repoRoot);
+
+    assert.equal(env.EXPO_PUBLIC_IOS_API_BASE_URL, DEFAULT_IOS_API_BASE_URL);
   });
 });
 

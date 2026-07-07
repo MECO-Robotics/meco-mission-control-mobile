@@ -37,7 +37,7 @@ function Set-DefaultEnvValue {
   [Environment]::SetEnvironmentVariable($Name, $Value, "Process")
 }
 
-function Test-DotenvDefinesKey {
+function Test-DotenvDefinesValue {
   param([string]$Name)
 
   $expoEnv = if ([string]::IsNullOrWhiteSpace($env:NODE_ENV)) { "development" } else { $env:NODE_ENV }
@@ -65,7 +65,12 @@ function Test-DotenvDefinesKey {
         $assignment = $assignment.Substring("export ".Length).TrimStart()
       }
 
-      if ($assignment -match "^$([Regex]::Escape($Name))\s*=") {
+      if ($assignment -match "^$([Regex]::Escape($Name))\s*=(.*)$") {
+        $value = $Matches[1].Trim()
+        if ([string]::IsNullOrWhiteSpace($value)) {
+          continue
+        }
+
         return $true
       }
     }
@@ -80,7 +85,7 @@ function Set-IosApiDefaultIfNeeded {
     return
   }
 
-  if (-not (Test-DotenvDefinesKey "EXPO_PUBLIC_IOS_API_BASE_URL")) {
+  if (-not (Test-DotenvDefinesValue "EXPO_PUBLIC_IOS_API_BASE_URL")) {
     [Environment]::SetEnvironmentVariable("EXPO_PUBLIC_IOS_API_BASE_URL", "http://localhost:8080", "Process")
   }
 }

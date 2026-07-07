@@ -10,7 +10,7 @@ function hasValue(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function parseDotenvKey(line) {
+function parseDotenvAssignment(line) {
   const trimmed = line.trim();
   if (!trimmed || trimmed.startsWith("#")) {
     return null;
@@ -19,8 +19,19 @@ function parseDotenvKey(line) {
   const assignment = trimmed.startsWith("export ")
     ? trimmed.slice("export ".length).trimStart()
     : trimmed;
-  const match = assignment.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=/);
-  return match?.[1] ?? null;
+  const match = assignment.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    key: match[1],
+    value: match[2].trim(),
+  };
+}
+
+function parseDotenvKey(line) {
+  return parseDotenvAssignment(line)?.key ?? null;
 }
 
 function getExpoDotenvFiles(baseEnv = process.env) {
@@ -34,7 +45,7 @@ function getExpoDotenvFiles(baseEnv = process.env) {
   ];
 }
 
-function dotenvDefinesKey(repoRoot, key, fileNames = getExpoDotenvFiles()) {
+function dotenvDefinesValue(repoRoot, key, fileNames = getExpoDotenvFiles()) {
   return fileNames.some((fileName) => {
     const filePath = path.join(repoRoot, fileName);
     if (!existsSync(filePath)) {
@@ -43,7 +54,10 @@ function dotenvDefinesKey(repoRoot, key, fileNames = getExpoDotenvFiles()) {
 
     return readFileSync(filePath, "utf8")
       .split(/\r?\n/)
-      .some((line) => parseDotenvKey(line) === key);
+      .some((line) => {
+        const assignment = parseDotenvAssignment(line);
+        return assignment?.key === key && hasValue(assignment.value);
+      });
   });
 }
 
@@ -56,7 +70,7 @@ function buildIosEnv(baseEnv, repoRoot) {
 
   if (
     !hasValue(env.EXPO_PUBLIC_IOS_API_BASE_URL) &&
-    !dotenvDefinesKey(
+    !dotenvDefinesValue(
       repoRoot,
       "EXPO_PUBLIC_IOS_API_BASE_URL",
       getExpoDotenvFiles(env),
@@ -105,8 +119,9 @@ module.exports = {
   DEFAULT_IOS_API_BASE_URL,
   buildExpoArgs,
   buildIosEnv,
-  dotenvDefinesKey,
+  dotenvDefinesValue,
   getExpoDotenvFiles,
+  parseDotenvAssignment,
   parseDotenvKey,
   runIos,
 };

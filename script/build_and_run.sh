@@ -152,7 +152,7 @@ run_doctor() {
   fi
 }
 
-dotenv_defines_key() {
+dotenv_defines_value() {
   local key="$1"
   local expo_env="${NODE_ENV:-development}"
   local dotenv_files=(
@@ -162,7 +162,7 @@ dotenv_defines_key() {
     ".env.${expo_env}.local"
   )
 
-  local file line assignment
+  local file line assignment value
   for file in "${dotenv_files[@]}"; do
     [[ -f "$file" ]] || continue
 
@@ -178,6 +178,10 @@ dotenv_defines_key() {
       fi
 
       if [[ "$assignment" =~ ^${key}[[:space:]]*= ]]; then
+        value="${assignment#*=}"
+        value="${value#"${value%%[![:space:]]*}"}"
+        value="${value%"${value##*[![:space:]]}"}"
+        [[ -n "$value" ]] || continue
         return 0
       fi
     done < "$file"
@@ -187,7 +191,7 @@ dotenv_defines_key() {
 }
 
 use_ios_api_default_if_needed() {
-  if [[ -z "${EXPO_PUBLIC_IOS_API_BASE_URL:-}" ]] && ! dotenv_defines_key "EXPO_PUBLIC_IOS_API_BASE_URL"; then
+  if [[ -z "${EXPO_PUBLIC_IOS_API_BASE_URL:-}" ]] && ! dotenv_defines_value "EXPO_PUBLIC_IOS_API_BASE_URL"; then
     export EXPO_PUBLIC_IOS_API_BASE_URL="http://localhost:8080"
   fi
 }
