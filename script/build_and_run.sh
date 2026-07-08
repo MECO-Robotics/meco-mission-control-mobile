@@ -152,6 +152,31 @@ run_doctor() {
   fi
 }
 
+parse_dotenv_value() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+
+  if [[ -z "$value" ]]; then
+    return
+  fi
+  if [[ "${value:0:1}" == "#" ]]; then
+    return
+  fi
+
+  local quote="${value:0:1}"
+  if [[ "$quote" == '"' || "$quote" == "'" || "$quote" == "\`" ]]; then
+    value="${value:1}"
+    printf '%s\n' "${value%%"$quote"*}"
+    return
+  fi
+
+  value="$(printf '%s\n' "$value" | sed -E 's/[[:space:]]+#.*$//')"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s\n' "$value"
+}
+
 dotenv_defines_value() {
   local key="$1"
   local expo_env="${NODE_ENV:-development}"
@@ -178,9 +203,7 @@ dotenv_defines_value() {
       fi
 
       if [[ "$assignment" =~ ^${key}[[:space:]]*= ]]; then
-        value="${assignment#*=}"
-        value="${value#"${value%%[![:space:]]*}"}"
-        value="${value%"${value##*[![:space:]]}"}"
+        value="$(parse_dotenv_value "${assignment#*=}")"
         [[ -n "$value" ]] || continue
         return 0
       fi

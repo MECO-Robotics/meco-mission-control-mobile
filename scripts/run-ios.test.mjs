@@ -14,6 +14,7 @@ const {
   getExpoDotenvFiles,
   parseDotenvAssignment,
   parseDotenvKey,
+  parseDotenvValue,
 } = require("./run-ios.js");
 
 function withTempRepo(callback) {
@@ -52,6 +53,17 @@ test("parseDotenvAssignment reads keys and values", () => {
     key: "EXPO_PUBLIC_IOS_API_BASE_URL",
     value: "",
   });
+});
+
+test("parseDotenvValue follows quoted empty and inline comment syntax", () => {
+  assert.equal(parseDotenvValue('""'), "");
+  assert.equal(parseDotenvValue("''"), "");
+  assert.equal(parseDotenvValue("   # placeholder"), "");
+  assert.equal(parseDotenvValue('"http://quoted.example.test"'), "http://quoted.example.test");
+  assert.equal(
+    parseDotenvValue("http://example.test # local staging server"),
+    "http://example.test",
+  );
 });
 
 test("buildIosEnv supplies simulator defaults when no override exists", () => {
@@ -107,6 +119,23 @@ test("buildIosEnv honors development dotenv iOS API overrides", () => {
 test("buildIosEnv treats blank dotenv iOS API values as missing", () => {
   withTempRepo((repoRoot) => {
     writeFileSync(path.join(repoRoot, ".env.local"), "EXPO_PUBLIC_IOS_API_BASE_URL=\n");
+
+    const env = buildIosEnv({}, repoRoot);
+
+    assert.equal(env.EXPO_PUBLIC_IOS_API_BASE_URL, DEFAULT_IOS_API_BASE_URL);
+  });
+});
+
+test("buildIosEnv treats parsed empty dotenv iOS API values as missing", () => {
+  withTempRepo((repoRoot) => {
+    writeFileSync(
+      path.join(repoRoot, ".env.local"),
+      [
+        'EXPO_PUBLIC_IOS_API_BASE_URL=""',
+        "EXPO_PUBLIC_API_BASE_URL=http://stale.example.test",
+        "",
+      ].join("\n"),
+    );
 
     const env = buildIosEnv({}, repoRoot);
 

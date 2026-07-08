@@ -26,12 +26,49 @@ function parseDotenvAssignment(line) {
 
   return {
     key: match[1],
-    value: match[2].trim(),
+    value: parseDotenvValue(match[2]),
   };
 }
 
 function parseDotenvKey(line) {
   return parseDotenvAssignment(line)?.key ?? null;
+}
+
+function parseDotenvValue(rawValue) {
+  const value = rawValue.trim();
+  if (!value) {
+    return "";
+  }
+  if (value.startsWith("#")) {
+    return "";
+  }
+
+  const quote = value[0];
+  if (quote === "\"" || quote === "'" || quote === "`") {
+    let parsed = "";
+    let escaped = false;
+
+    for (let index = 1; index < value.length; index += 1) {
+      const char = value[index];
+      if (escaped) {
+        parsed += char;
+        escaped = false;
+        continue;
+      }
+      if (char === "\\") {
+        escaped = true;
+        continue;
+      }
+      if (char === quote) {
+        return parsed;
+      }
+      parsed += char;
+    }
+
+    return parsed;
+  }
+
+  return value.replace(/\s+#.*$/, "").trim();
 }
 
 function getExpoDotenvFiles(baseEnv = process.env) {
@@ -123,5 +160,6 @@ module.exports = {
   getExpoDotenvFiles,
   parseDotenvAssignment,
   parseDotenvKey,
+  parseDotenvValue,
   runIos,
 };

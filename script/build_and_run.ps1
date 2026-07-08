@@ -37,6 +37,30 @@ function Set-DefaultEnvValue {
   [Environment]::SetEnvironmentVariable($Name, $Value, "Process")
 }
 
+function ConvertFrom-DotenvValue {
+  param([string]$RawValue)
+
+  $value = $RawValue.Trim()
+  if (-not $value) {
+    return ""
+  }
+  if ($value.StartsWith("#")) {
+    return ""
+  }
+
+  $quote = $value[0]
+  if ($quote -in @('"', "'", '`')) {
+    $closingIndex = $value.IndexOf($quote, 1)
+    if ($closingIndex -gt 0) {
+      return $value.Substring(1, $closingIndex - 1)
+    }
+
+    return $value.Substring(1)
+  }
+
+  return ($value -replace "\s+#.*$", "").Trim()
+}
+
 function Test-DotenvDefinesValue {
   param([string]$Name)
 
@@ -66,7 +90,7 @@ function Test-DotenvDefinesValue {
       }
 
       if ($assignment -match "^$([Regex]::Escape($Name))\s*=(.*)$") {
-        $value = $Matches[1].Trim()
+        $value = ConvertFrom-DotenvValue $Matches[1]
         if ([string]::IsNullOrWhiteSpace($value)) {
           continue
         }
