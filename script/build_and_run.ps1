@@ -37,6 +37,83 @@ function Set-DefaultEnvValue {
   [Environment]::SetEnvironmentVariable($Name, $Value, "Process")
 }
 
+function ConvertFrom-DotenvValue {
+  param([string]$RawValue)
+
+  $value = $RawValue.Trim()
+  if (-not $value) {
+    return ""
+  }
+  if ($value.StartsWith("#")) {
+    return ""
+  }
+
+  $quote = $value[0]
+  if ($quote -in @('"', "'", '`')) {
+    $closingIndex = $value.IndexOf($quote, 1)
+    if ($closingIndex -gt 0) {
+      return $value.Substring(1, $closingIndex - 1)
+    }
+
+    return $value.Substring(1)
+  }
+
+  return ($value -replace "\s+#.*$", "").Trim()
+}
+
+function Test-DotenvDefinesValue {
+  param([string]$Name)
+
+  $expoEnv = if ([string]::IsNullOrWhiteSpace($env:NODE_ENV)) { "development" } else { $env:NODE_ENV }
+  $dotenvFiles = @(
+    ".env",
+    ".env.local",
+    ".env.$expoEnv",
+    ".env.$expoEnv.local"
+  )
+
+  foreach ($fileName in $dotenvFiles) {
+    $filePath = Join-Path $RootDir $fileName
+    if (-not (Test-Path $filePath)) {
+      continue
+    }
+
+    foreach ($line in Get-Content $filePath) {
+      $trimmed = $line.Trim()
+      if (-not $trimmed -or $trimmed.StartsWith("#")) {
+        continue
+      }
+
+      $assignment = $trimmed
+      if ($assignment.StartsWith("export ")) {
+        $assignment = $assignment.Substring("export ".Length).TrimStart()
+      }
+
+      if ($assignment -match "^$([Regex]::Escape($Name))\s*=(.*)$") {
+        $value = ConvertFrom-DotenvValue $Matches[1]
+        if ([string]::IsNullOrWhiteSpace($value)) {
+          continue
+        }
+
+        return $true
+      }
+    }
+  }
+
+  return $false
+}
+
+function Set-IosApiDefaultIfNeeded {
+  $currentValue = [Environment]::GetEnvironmentVariable("EXPO_PUBLIC_IOS_API_BASE_URL", "Process")
+  if (-not [string]::IsNullOrWhiteSpace($currentValue)) {
+    return
+  }
+
+  if (-not (Test-DotenvDefinesValue "EXPO_PUBLIC_IOS_API_BASE_URL")) {
+    [Environment]::SetEnvironmentVariable("EXPO_PUBLIC_IOS_API_BASE_URL", "http://localhost:8080", "Process")
+  }
+}
+
 function Use-AndroidSdk {
   $sdk = $env:ANDROID_HOME
   if (-not $sdk -or -not (Test-Path $sdk)) {
@@ -219,6 +296,7 @@ switch ($Mode) {
     Invoke-Expo @("start", "--android", "--lan")
   }
   { $_ -in @("--ios", "ios") } {
+    Set-IosApiDefaultIfNeeded
     Invoke-Expo @("start", "--ios")
   }
   { $_ -in @("--web", "web") } {

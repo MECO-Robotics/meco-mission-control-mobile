@@ -152,6 +152,73 @@ run_doctor() {
   fi
 }
 
+parse_dotenv_value() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+
+  if [[ -z "$value" ]]; then
+    return
+  fi
+  if [[ "${value:0:1}" == "#" ]]; then
+    return
+  fi
+
+  local quote="${value:0:1}"
+  if [[ "$quote" == '"' || "$quote" == "'" || "$quote" == "\`" ]]; then
+    value="${value:1}"
+    printf '%s\n' "${value%%"$quote"*}"
+    return
+  fi
+
+  value="$(printf '%s\n' "$value" | sed -E 's/[[:space:]]+#.*$//')"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s\n' "$value"
+}
+
+dotenv_defines_value() {
+  local key="$1"
+  local expo_env="${NODE_ENV:-development}"
+  local dotenv_files=(
+    ".env"
+    ".env.local"
+    ".env.${expo_env}"
+    ".env.${expo_env}.local"
+  )
+
+  local file line assignment value
+  for file in "${dotenv_files[@]}"; do
+    [[ -f "$file" ]] || continue
+
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      line="${line#"${line%%[![:space:]]*}"}"
+      line="${line%"${line##*[![:space:]]}"}"
+      [[ -n "$line" && "${line:0:1}" != "#" ]] || continue
+
+      assignment="$line"
+      if [[ "$assignment" == export[[:space:]]* ]]; then
+        assignment="${assignment#export}"
+        assignment="${assignment#"${assignment%%[![:space:]]*}"}"
+      fi
+
+      if [[ "$assignment" =~ ^${key}[[:space:]]*= ]]; then
+        value="$(parse_dotenv_value "${assignment#*=}")"
+        [[ -n "$value" ]] || continue
+        return 0
+      fi
+    done < "$file"
+  done
+
+  return 1
+}
+
+use_ios_api_default_if_needed() {
+  if [[ -z "${EXPO_PUBLIC_IOS_API_BASE_URL:-}" ]] && ! dotenv_defines_value "EXPO_PUBLIC_IOS_API_BASE_URL"; then
+    export EXPO_PUBLIC_IOS_API_BASE_URL="http://localhost:8080"
+  fi
+}
+
 use_android_sdk
 resolve_expo_cmd
 
@@ -160,6 +227,7 @@ case "$MODE" in
     exec "${EXPO_CMD[@]}" start
     ;;
   --ios|ios)
+    use_ios_api_default_if_needed
     exec "${EXPO_CMD[@]}" start --ios
     ;;
   --android|android)

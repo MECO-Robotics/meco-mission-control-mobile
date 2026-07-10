@@ -36,7 +36,10 @@ npm run sim:reset
 Command notes:
 
 - `npm run start`: starts Expo.
-- `npm run ios`: resets the iOS simulator first, then starts Expo on localhost port 8081.
+- `npm run ios`: resets the iOS simulator first, then starts Expo on
+  localhost port 8081. It uses `EXPO_PUBLIC_IOS_API_BASE_URL` from the parent
+  environment or local `.env` files when present; otherwise it defaults iOS
+  simulator API traffic to `http://localhost:8080`.
 - `npm run android`: runs `script/build_and_run.sh --android`.
 - `npm run dev`: Android-focused alias for the same build/run script.
 - `npm run lint`: runs ESLint.

@@ -21,6 +21,15 @@ function resolveConfiguredApiBaseUrl(platformOS: string, env: ApiBaseUrlEnv) {
   return platformConfigured || env.EXPO_PUBLIC_API_BASE_URL?.trim();
 }
 
+function getRuntimeApiBaseUrlEnv(): ApiBaseUrlEnv {
+  return {
+    EXPO_PUBLIC_API_BASE_URL: process.env.EXPO_PUBLIC_API_BASE_URL,
+    EXPO_PUBLIC_ANDROID_API_BASE_URL:
+      process.env.EXPO_PUBLIC_ANDROID_API_BASE_URL,
+    EXPO_PUBLIC_IOS_API_BASE_URL: process.env.EXPO_PUBLIC_IOS_API_BASE_URL,
+  };
+}
+
 export class ApiRequestError extends Error {
   readonly status: number;
   readonly body: unknown;
@@ -132,7 +141,7 @@ function parseErrorMessage(payload: unknown): string | null {
 
 export function resolveApiBaseUrl(
   platformOS = Platform.OS,
-  env: ApiBaseUrlEnv = process.env as ApiBaseUrlEnv,
+  env: ApiBaseUrlEnv = getRuntimeApiBaseUrlEnv(),
 ) {
   const configured = resolveConfiguredApiBaseUrl(platformOS, env);
   const base = configured && configured.length > 0 ? configured : DEFAULT_API_BASE_URL;
