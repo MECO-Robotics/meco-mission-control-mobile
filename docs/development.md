@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Node 22 LTS is recommended. `package.json` allows Node `>=20 <24`.
+- Node 22.13 or newer Node 22 is required by Expo SDK 57 and `package.json`.
 - npm is used with the committed `package-lock.json`.
 - Expo CLI is used through package scripts.
 - iOS simulator requires macOS/Xcode. On newer Xcode/macOS releases, the device
@@ -16,10 +16,9 @@ nvm use
 npm install
 ```
 
-The `postinstall` script runs `scripts/patch-freeport-async.js` and
-`scripts/patch-expo-device-hub.js`. Each patch logs whether it was applied,
-already applied, or skipped; the iOS Device Hub patch skips automatically on
-non-macOS platforms.
+Expo SDK 57 no longer needs the repository's former `freeport-async` or Expo
+Device Hub installation patches, so dependency installation does not execute
+repository postinstall scripts.
 
 ## Common Commands
 
@@ -29,6 +28,7 @@ npm run ios
 npm run android
 npm run dev
 npm run lint
+npm run test:workflow-security
 npm run typecheck
 npm run sim:reset
 ```
@@ -40,6 +40,7 @@ Command notes:
 - `npm run android`: runs `script/build_and_run.sh --android`.
 - `npm run dev`: Android-focused alias for the same build/run script.
 - `npm run lint`: runs ESLint.
+- `npm run test:workflow-security`: verifies secretless PR jobs, trusted release sources, immutable Action pins, and release credential scoping.
 - `npm run typecheck`: runs TypeScript with `--noEmit`.
 - `npm run sim:reset`: runs `scripts/reset-ios-sim.js`.
 
@@ -76,11 +77,15 @@ Android emulator local backend:
 EXPO_PUBLIC_ANDROID_API_BASE_URL=http://10.0.2.2:8080
 ```
 
-Production release secret:
+Production environment secrets:
 
 ```text
 EXPO_TOKEN=<expo-token>
+EXPO_PUBLIC_API_BASE_URL=https://mission-control-api.example
 ```
+
+Store these values in the protected GitHub `production` environment, not in a
+developer `.env` file or a pull-request workflow.
 
 ## Windows Android Helper
 

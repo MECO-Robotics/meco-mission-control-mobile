@@ -81,7 +81,7 @@ async function resolvePlatformSourceContract() {
   const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
   const remoteContractUrlTemplate =
     process.env.PLATFORM_BOOTSTRAP_CONTRACT_URL ??
-    `https://api.github.com/repos/MECO-Robotics/meco-mission-control-platform/contents/contracts/platform/bootstrap/v1/contract.json?ref=%s`;
+    `https://raw.githubusercontent.com/MECO-Robotics/meco-mission-control-platform/%s/contracts/platform/bootstrap/v1/contract.json`;
 
   const primaryBranch = process.env.PLATFORM_BOOTSTRAP_CONTRACT_BRANCH ?? "development";
   const fallbackBranches = uniqueBranches([primaryBranch, "development", "main"]);

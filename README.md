@@ -26,7 +26,7 @@ The `meco-mission-control-web` repo complements this app with browser-first dash
 
 ## Local commands
 
-Use Node 22 LTS for local Expo development. `package.json` allows Node `>=20 <24`, so avoid Node 24+ unless the engine range changes:
+Use Node 22.13 or newer Node 22 for Expo SDK 57 development. The repository rejects other Node major versions through `package.json`:
 
 ```bash
 nvm use
@@ -153,12 +153,13 @@ Workflow labels:
 
 ## Release automation
 
-- `CI` workflow runs `npm run typecheck` on pull requests and `main`.
-- `Mobile Release` workflow builds iOS + Android via EAS after `CI` succeeds on `main`, or manually via `workflow_dispatch`.
-- Set GitHub repository secret `EXPO_TOKEN` before running release builds.
-- Set GitHub repository secret `EXPO_PUBLIC_API_BASE_URL` so production builds point at the hosted API.
+- `CI` runs the full secretless verification suite on pull requests and protected branches.
+- `Mobile Release` builds iOS + Android only from protected `main` or an optional `release-*` source tag whose commit is contained in `main`.
+- Configure the GitHub `production` environment with required reviewers before enabling releases.
+- Set `EXPO_TOKEN` and `EXPO_PUBLIC_API_BASE_URL` as `production` environment secrets; release credentials are exposed only to their EAS steps.
+- Manual releases must be dispatched from `main`; use `source_tag` to build a qualifying `release-*` tag.
 - Ensure `expo.ios.bundleIdentifier` and `expo.android.package` are set in `app.json` for non-interactive EAS builds.
-- Production EAS builds use `eas.json` profile `production`, with Android output as an app bundle.
+- Production EAS builds use Expo SDK 57 and the exact EAS CLI version in `eas.json`, with Android output as an app bundle.
 
 See `docs/release.md` for the fuller release checklist.
 

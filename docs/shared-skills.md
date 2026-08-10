@@ -109,11 +109,14 @@ bash scripts/check-skills-current.sh
 
 The check uses the configured `SKILLS_REPO` and `SKILLS_REF`, imports or compares the shared skills depending on the repo script, and exits nonzero when the import fails.
 
-CI runs the same import check on pull requests and pushes. Configure:
+CI runs the same credential-free import check on pull requests and pushes. Configure:
 
-- `SKILLS_REPO` as an optional repository variable or secret when the default repo is not correct.
+- `SKILLS_REPO` as an optional repository variable when the default public repo is not correct.
 - `SKILLS_REF` as a repository variable pinned to the approved release tag.
-- `SKILLS_REPO_DEPLOY_KEY` or `SKILLS_REPO_TOKEN` as a secret if the shared repo is private.
+
+The pull-request workflow intentionally does not support private shared-skill
+credentials. Validate a private fork locally or in a separate trusted workflow
+that executes only protected-branch code.
 
 Do not hardcode credentials in scripts or workflow files.
 
