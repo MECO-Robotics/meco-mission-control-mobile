@@ -1,5 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
 import type { WorkLog } from "../types/domain";
 
 export type WorkLogDraftSyncStatus = "pending" | "syncing" | "failed";
@@ -20,8 +18,6 @@ export type PendingWorkLogDraft = {
   status: WorkLogDraftSyncStatus;
   updatedAt: string;
 };
-
-const WORK_LOG_DRAFT_STORAGE_KEY = "meco-mobile-work-log-drafts:v1";
 
 type EnqueuePendingWorkLogDraftOptions = {
   attemptCount?: number;
@@ -106,7 +102,7 @@ function isPendingWorkLogDraft(value: unknown): value is PendingWorkLogDraft {
   );
 }
 
-function parsePendingWorkLogDrafts(rawValue: string | null) {
+export function parsePendingWorkLogDrafts(rawValue: string | null) {
   if (!rawValue) {
     return [];
   }
@@ -129,26 +125,6 @@ function parsePendingWorkLogDrafts(rawValue: string | null) {
     // A sync can be interrupted by app shutdown; retry those drafts normally.
     status: draft.status === "syncing" ? "pending" : draft.status,
   }));
-}
-
-export async function loadPendingWorkLogDrafts() {
-  const rawValue = await AsyncStorage.getItem(WORK_LOG_DRAFT_STORAGE_KEY);
-  const drafts = parsePendingWorkLogDrafts(rawValue);
-
-  if (rawValue !== null && drafts.length === 0) {
-    await AsyncStorage.removeItem(WORK_LOG_DRAFT_STORAGE_KEY);
-  }
-
-  return drafts;
-}
-
-export async function savePendingWorkLogDrafts(drafts: PendingWorkLogDraft[]) {
-  if (drafts.length === 0) {
-    await AsyncStorage.removeItem(WORK_LOG_DRAFT_STORAGE_KEY);
-    return;
-  }
-
-  await AsyncStorage.setItem(WORK_LOG_DRAFT_STORAGE_KEY, JSON.stringify(drafts));
 }
 
 export function enqueuePendingWorkLogDraft(

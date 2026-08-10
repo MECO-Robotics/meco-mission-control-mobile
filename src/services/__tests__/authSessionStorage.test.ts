@@ -14,6 +14,7 @@ jest.mock("@react-native-async-storage/async-storage", () => {
 
   return {
     __store: store,
+    WHEN_UNLOCKED_THIS_DEVICE_ONLY: "WHEN_UNLOCKED_THIS_DEVICE_ONLY",
     getItem: jest.fn((key: string) => Promise.resolve(store.get(key) ?? null)),
     removeItem: jest.fn((key: string) => {
       store.delete(key);
@@ -63,6 +64,19 @@ const sessionUser: SessionUser = {
   picture: null,
 };
 
+const mobileSession = {
+  accessTokenExpiresAt: "2026-08-10T13:00:00.000Z",
+  refreshToken: "refresh-token",
+  session: {
+    createdAt: "2026-08-10T12:00:00.000Z",
+    id: "device-session-one",
+    lastUsedAt: "2026-08-10T12:00:00.000Z",
+  },
+  sessionExpiresAt: "2026-11-08T12:00:00.000Z",
+  token: "access-token",
+  user: sessionUser,
+};
+
 describe("auth session storage", () => {
   beforeEach(() => {
     storage.__store.clear();
@@ -83,18 +97,16 @@ describe("auth session storage", () => {
 
     await savePersistedAuthSession({
       deviceNumber,
-      token: "session-token",
-      user: sessionUser,
+      ...mobileSession,
     });
 
     await expect(loadPersistedAuthSession(deviceNumber)).resolves.toEqual({
       deviceNumber,
-      token: "session-token",
-      user: sessionUser,
+      ...mobileSession,
     });
     expect(storage.__store.get("meco-mobile-auth-session:v1")).toBeUndefined();
-    expect(secureStorage.__store.get("meco-mobile-auth-session:v2")).toContain(
-      "session-token",
+    expect(secureStorage.__store.get("meco-mobile-auth-session:v3")).toContain(
+      "refresh-token",
     );
   });
 
@@ -103,16 +115,15 @@ describe("auth session storage", () => {
 
     await savePersistedAuthSession({
       deviceNumber,
-      token: "session-token",
-      user: sessionUser,
+      ...mobileSession,
     });
 
     await expect(loadPersistedAuthSession("999999999999")).resolves.toBeNull();
     await expect(loadPersistedAuthSession(deviceNumber)).resolves.toBeNull();
-    expect(secureStorage.__store.get("meco-mobile-auth-session:v2")).toBeUndefined();
+    expect(secureStorage.__store.get("meco-mobile-auth-session:v3")).toBeUndefined();
   });
 
-  it("migrates a legacy saved session to secure storage", async () => {
+  it("deletes legacy long-lived sessions and requires sign-in", async () => {
     const deviceNumber = await getOrCreateAuthDeviceNumber();
 
     storage.__store.set(
@@ -126,23 +137,22 @@ describe("auth session storage", () => {
       "legacy-session-token",
     );
 
-    await expect(loadPersistedAuthSession(deviceNumber)).resolves.toEqual({
-      deviceNumber,
-      token: "legacy-session-token",
-      user: sessionUser,
-    });
-    await expect(loadPersistedAuthSession("999999999999")).resolves.toBeNull();
+    secureStorage.__store.set("meco-mobile-auth-session:v2", "legacy-secure-token");
+
+    await expect(loadPersistedAuthSession(deviceNumber)).resolves.toBeNull();
     expect(storage.__store.get("meco-mobile-auth-session:v1")).toBeUndefined();
     expect(secureStorage.__store.get("meco-mobile-auth-session:v2")).toBeUndefined();
   });
 
   it("clears both current secure and legacy plaintext sessions", async () => {
     storage.__store.set("meco-mobile-auth-session:v1", "legacy-session-token");
-    secureStorage.__store.set("meco-mobile-auth-session:v2", "session-token");
+    secureStorage.__store.set("meco-mobile-auth-session:v2", "legacy-secure-token");
+    secureStorage.__store.set("meco-mobile-auth-session:v3", "session-token");
 
     await clearPersistedAuthSession();
 
     expect(storage.__store.get("meco-mobile-auth-session:v1")).toBeUndefined();
     expect(secureStorage.__store.get("meco-mobile-auth-session:v2")).toBeUndefined();
+    expect(secureStorage.__store.get("meco-mobile-auth-session:v3")).toBeUndefined();
   });
 });

@@ -25,6 +25,8 @@ type LoginScreenProps = {
   isAuthenticating: boolean;
   isDarkModeEnabled: boolean;
   isDevBypassAvailable: boolean;
+  canRetrySavedSession: boolean;
+  retrySavedSession: () => void;
   setAuthCode: Dispatch<SetStateAction<string>>;
   setAuthEmail: Dispatch<SetStateAction<string>>;
   setAuthError: Dispatch<SetStateAction<string | null>>;
@@ -47,6 +49,8 @@ export function LoginScreen({
   isAuthenticating,
   isDarkModeEnabled,
   isDevBypassAvailable,
+  canRetrySavedSession,
+  retrySavedSession,
   setAuthCode,
   setAuthEmail,
   setAuthError,
@@ -262,6 +266,19 @@ export function LoginScreen({
             >
               {authError}
             </Text>
+          ) : null}
+
+          {canRetrySavedSession ? (
+            <Pressable
+              accessibilityRole="button"
+              disabled={isAuthenticating}
+              onPress={retrySavedSession}
+              style={styles.sendButton}
+            >
+              <Text style={styles.sendButtonText}>
+                {isAuthenticating ? "Retrying" : "Retry workspace load"}
+              </Text>
+            </Pressable>
           ) : null}
 
           {isDevBypassAvailable ? (

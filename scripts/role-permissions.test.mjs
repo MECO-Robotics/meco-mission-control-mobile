@@ -5,6 +5,8 @@ import { test } from "node:test";
 const appSource = readFileSync(new URL("../App.tsx", import.meta.url), "utf8");
 const screenTypesSource = readFileSync(new URL("../src/screens/types.ts", import.meta.url), "utf8");
 const manufacturingSource = readFileSync(new URL("../src/screens/manufacturing/ManufacturingScreen.tsx", import.meta.url), "utf8");
+const purchasesSource = readFileSync(new URL("../src/screens/inventory/InventoryPurchasesScreen.tsx", import.meta.url), "utf8");
+const workLogsSource = readFileSync(new URL("../src/screens/worklogs/WorkLogsScreen.tsx", import.meta.url), "utf8");
 
 test("App derives mentor approval permission from trusted mentor and admin roles", () => {
   const signedInMemberBlock = appSource.match(
@@ -30,6 +32,18 @@ test("manufacturing mentor review actions are guarded by the role permission", (
   assert.match(manufacturingSource, /canMentorApprove/);
   assert.match(manufacturingSource, /const canApproveItem\s*=\s*canMentorApprove && !item\.mentorReviewed;/);
   assert.match(manufacturingSource, /\{canApproveItem \? \(/);
+  assert.match(manufacturingSource, /item\.status === "qa"/);
+  assert.match(appSource, /\/api\/manufacturing\/\$\{item\.id\}\/review/);
+  assert.match(appSource, /\/api\/manufacturing\/\$\{item\.id\}\/transition/);
+  assert.doesNotMatch(manufacturingSource, /mentorReviewed:\s*true,[\s\S]{0,80}status:\s*"complete"/);
+});
+
+test("synced work-log editing and purchasing workflow controls are role gated", () => {
+  assert.match(workLogsSource, /:\s*canMentorApprove;/);
+  assert.match(purchasesSource, /item\.status === "requested" \|\| canMentorApprove/);
+  assert.match(purchasesSource, /canMentorApprove && item\.status === "requested"/);
+  assert.match(appSource, /\/api\/purchases\/\$\{item\.id\}\/approval/);
+  assert.match(appSource, /\/api\/purchases\/\$\{item\.id\}\/transition/);
 });
 
 test("QA report drafts preserve automatic mentor approval from the role permission", () => {

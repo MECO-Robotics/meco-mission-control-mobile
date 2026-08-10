@@ -38,7 +38,10 @@ Task actions include create, edit, claim, unclaim, mentor reassign, start work, 
 
 Work logs capture hours, participants, task linkage, and notes. The screen supports searching by task or note text and sorting by newest, oldest, longest, or shortest.
 
-When the backend is unreachable, newly created work logs are saved as local drafts with AsyncStorage. Draft rows remain visible in the work-log list with pending, syncing, or failed sync status and retry during normal workspace sync without posting duplicate matching drafts.
+When the backend is unreachable, newly created work logs are saved as
+XChaCha20-Poly1305 encrypted, account-bound local drafts. Same-account drafts are
+retained for seven days across logout and retry during normal workspace sync.
+Only mentors/admins may edit or delete a work log after it reaches the server.
 
 The work timer can be started from the work-log flow. Timer state is persisted locally with AsyncStorage and reminders are scheduled at 30, 60, and 90 minutes when notification permission is available.
 
@@ -62,7 +65,10 @@ Manufacturing statuses:
 - QA
 - Complete
 
-Mentor review is separate from status so the app can show whether a job was explicitly approved before work progresses.
+Mentors/admins explicitly review requested work. After review, any internal user
+may progress only the adjacent Approved → In progress → QA → Complete states.
+Completion does not create or bypass mentor review, and deletion remains a
+mentor/admin action.
 
 ## Inventory
 
@@ -87,7 +93,10 @@ Purchase statuses:
 - Shipped
 - Delivered
 
-Mentor approval is shown separately as Mentor Approved when a request is approved but not yet purchased.
+Mentor approval is shown separately as Mentor Approved when a request is
+approved but not yet purchased. Pending request details may be edited by any
+internal user; approval, purchase-state transitions, final cost, and deletion
+remain mentor/admin actions.
 
 Creating a part definition can also generate acquisition work through manufacturing, purchase, or stock workflows.
 
