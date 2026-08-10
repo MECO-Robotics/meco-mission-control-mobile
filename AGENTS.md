@@ -169,7 +169,8 @@ On Windows, assume PowerShell 5.1 semantics unless proven otherwise.
 * Release safety requirements:
   * Validate sanitized production-like snapshots before merge.
   * Enforce stricter cross-repo validation before `main` merges.
-  * Publish mobile releases only from `main`, `release-*` tags, or a release manifest.
+  * Publish mobile releases only from protected `main` or a `release-*` tag whose commit is contained in protected `main`.
+  * Require the GitHub `production` environment approval before EAS builds and GitHub release publication.
   * Mobile release target is GitHub Releases/EAS builds, not the VPS.
 * Do not introduce or rely on a permanent live staging environment. Staging branches are auditable release-candidate snapshots, not a second runtime.
 
@@ -333,4 +334,3 @@ Exceeding any hard limit is not allowed.
   - Keep `AGENTS.md` cross-repo notes synchronized with `pr-286` before review.
   - Ensure optional backends remain graceful fallbacks (Graphify, Sourcebot/Qdrant/Repo-Intelligence vector paths, Semgrep, Promptfoo, Langfuse, etc.).
   - Downstream repos should align with generated context/retrieval artifacts from mission-control-skills when handling task planning, implementation, and review workflows.
-
