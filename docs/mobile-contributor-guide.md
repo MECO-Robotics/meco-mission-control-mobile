@@ -6,10 +6,10 @@ assumptions, and device testing expectations.
 
 ## Screen Structure
 
-`App.tsx` is the top-level application shell. It owns navigation state, shared
-workspace data, auth and bootstrap flows, derived data, editor state, mutation
-wiring, responsive layout state, and cross-screen services such as the work-log
-timer.
+`App.tsx` is the top-level application shell. It coordinates navigation,
+workspace state, bootstrap, editor state, mutation wiring, responsive layout,
+and cross-screen services. Session persistence, refresh, logout ordering, and
+encrypted draft storage live in focused modules under `src/services/`.
 
 Screen components live in feature folders under `src/screens/`. They should stay
 focused on rendering and screen-local interactions. Shared screen inputs are
@@ -65,8 +65,14 @@ The mobile app expects these bootstrap and auth endpoints:
 - `POST /api/auth/dev-bypass` returns `SessionResponse` when development bypass
   is available.
 - `POST /api/auth/email/start` starts the email-code flow.
-- `POST /api/auth/email/verify` verifies an email code and returns
-  `SessionResponse`.
+- `POST /api/auth/mobile/email/verify` verifies an email code and returns the
+  opaque mobile session envelope.
+- `POST /api/auth/mobile/refresh` rotates the single-use refresh credential.
+- `POST /api/auth/mobile/logout` and `POST /api/auth/mobile/logout-all` revoke
+  device sessions.
+- `GET /api/auth/mobile/sessions` and `DELETE
+  /api/auth/mobile/sessions/:sessionId` support the Personal settings device
+  manager.
 
 `PlatformBootstrapPayload` is defined in `src/types/domain.ts`. It can include
 members, subsystems, disciplines, mechanisms, part definitions, part instances,
@@ -79,12 +85,13 @@ milestones, work logs, manufacturing items, purchases, members, subsystems, and
 part definitions. Mutations should return successfully before the mobile app
 refreshes from `/api/bootstrap`.
 
-Requests go through `requestJson` in `src/data/api.ts`. It sends JSON accept
-headers, adds `Content-Type: application/json` when there is a body, and adds an
-`Authorization: Bearer <token>` header when an API token is available.
-Persisted auth sessions are stored with `expo-secure-store`; the per-install
-device number remains in AsyncStorage and saved sessions are restored only when
-the stored device number matches the current install.
+Requests go through `requestJson` in `src/data/api.ts`. Authenticated requests
+are coordinated by `MobileSessionClient`, which refreshes five minutes before
+the one-hour access expiry, uses one single-flight refresh, and retries a failed
+request at most once after successful rotation. The v3 session envelope is
+stored with `expo-secure-store`; v1/v2 credentials are deleted and require one
+fresh sign-in. The per-install device number remains in AsyncStorage and saved
+sessions restore only on the installation that created them.
 
 ## Offline And No-Auth Assumptions
 
@@ -97,10 +104,16 @@ available, contributor testing may use `POST /api/auth/dev-bypass` for
 backend-issued development sessions.
 
 Most local fallback data is not durable backend sync. Work-log creation is the
-exception: failed offline creates are stored as local AsyncStorage drafts,
-displayed in the work-log list, and retried during later sync. Other failed sync
-and mutation paths surface `syncError`, set backend status to offline, and leave
-the current local workspace state in place.
+exception: failed offline creates are encrypted with XChaCha20-Poly1305 under
+an installation key held in SecureStore. AsyncStorage contains only the
+account-bound ciphertext envelope. Same-account drafts remain recoverable for
+seven days after logout; other accounts cannot view them. Other failed sync and
+mutation paths surface `syncError`, set backend status to offline, and leave an
+already-loaded same-account workspace in place.
+
+A newly signed-in or restored account is not shown workspace data until its
+bootstrap succeeds. Network failure stays on a retry state; `401` or `403`
+clears credentials and identity-scoped state.
 
 Mock data and development bypass are contributor conveniences, not production
 authorization behavior.
