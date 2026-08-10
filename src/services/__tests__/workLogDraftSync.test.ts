@@ -1,15 +1,18 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 
 import {
   buildWorkLogDraftFingerprint,
   enqueuePendingWorkLogDraft,
-  loadPendingWorkLogDrafts,
   markPendingWorkLogDraftFailed,
   markPendingWorkLogDraftSyncing,
   reconcilePendingWorkLogDrafts,
   removePendingWorkLogDraft,
-  savePendingWorkLogDrafts,
 } from "../workLogDraftSync";
+import {
+  loadPendingWorkLogDrafts,
+  savePendingWorkLogDrafts,
+} from "../workLogDraftStorage";
 import type { WorkLog } from "../../types/domain";
 
 jest.mock("@react-native-async-storage/async-storage", () => {
@@ -18,11 +21,42 @@ jest.mock("@react-native-async-storage/async-storage", () => {
   return {
     __store: store,
     getItem: jest.fn((key: string) => Promise.resolve(store.get(key) ?? null)),
+    getAllKeys: jest.fn(() => Promise.resolve([...store.keys()])),
+    multiGet: jest.fn((keys: string[]) =>
+      Promise.resolve(keys.map((key) => [key, store.get(key) ?? null])),
+    ),
+    multiRemove: jest.fn((keys: string[]) => {
+      keys.forEach((key) => store.delete(key));
+      return Promise.resolve();
+    }),
     removeItem: jest.fn((key: string) => {
       store.delete(key);
       return Promise.resolve();
     }),
     setItem: jest.fn((key: string, value: string) => {
+      store.set(key, value);
+      return Promise.resolve();
+    }),
+  };
+});
+
+jest.mock("expo-crypto", () => ({
+  CryptoDigestAlgorithm: { SHA256: "SHA-256" },
+  digestStringAsync: jest.fn((_: string, value: string) =>
+    Promise.resolve([...value].map((character) => character.charCodeAt(0).toString(16)).join("")),
+  ),
+  getRandomBytesAsync: jest.fn((length: number) =>
+    Promise.resolve(Uint8Array.from({ length }, (_, index) => (index + 1) % 256)),
+  ),
+}));
+
+jest.mock("expo-secure-store", () => {
+  const store = new Map<string, string>();
+  return {
+    __store: store,
+    WHEN_UNLOCKED_THIS_DEVICE_ONLY: "WHEN_UNLOCKED_THIS_DEVICE_ONLY",
+    getItemAsync: jest.fn((key: string) => Promise.resolve(store.get(key) ?? null)),
+    setItemAsync: jest.fn((key: string, value: string) => {
       store.set(key, value);
       return Promise.resolve();
     }),
@@ -40,10 +74,15 @@ const payload = {
 const storage = AsyncStorage as typeof AsyncStorage & {
   __store: Map<string, string>;
 };
+const secureStorage = SecureStore as typeof SecureStore & {
+  __store: Map<string, string>;
+};
+const ownerKey = "alex@mecorobotics.org";
 
 describe("offline work log draft sync queue", () => {
   beforeEach(() => {
     storage.__store.clear();
+    secureStorage.__store.clear();
     jest.clearAllMocks();
     jest.spyOn(Math, "random").mockReturnValue(0.123456);
   });
@@ -96,11 +135,48 @@ describe("offline work log draft sync queue", () => {
       [],
       payload,
       new Date("2026-04-23T18:00:00.000Z"),
+      { ownerKey },
     );
 
-    await savePendingWorkLogDrafts(drafts);
+    await savePendingWorkLogDrafts(ownerKey, drafts);
 
-    await expect(loadPendingWorkLogDrafts()).resolves.toEqual(drafts);
+    await expect(loadPendingWorkLogDrafts(ownerKey)).resolves.toEqual(drafts);
+    const persisted = [...storage.__store.values()].join(" ");
+    expect(persisted).not.toContain(payload.notes);
+    expect(persisted).not.toContain(payload.participantIds[0]);
+  });
+
+  it("isolates drafts by owner and expires them after seven days", async () => {
+    const { drafts } = enqueuePendingWorkLogDraft(
+      [],
+      payload,
+      new Date("2026-04-23T18:00:00.000Z"),
+      { ownerKey },
+    );
+    await savePendingWorkLogDrafts(
+      ownerKey,
+      drafts,
+      new Date("2026-04-23T18:00:00.000Z"),
+    );
+
+    await expect(loadPendingWorkLogDrafts("sam@mecorobotics.org")).resolves.toEqual([]);
+    await expect(
+      loadPendingWorkLogDrafts(ownerKey, new Date("2026-04-30T18:00:00.001Z")),
+    ).resolves.toEqual([]);
+  });
+
+  it("purges an encrypted envelope when its SecureStore key is missing", async () => {
+    const { drafts } = enqueuePendingWorkLogDraft(
+      [],
+      payload,
+      new Date("2026-04-23T18:00:00.000Z"),
+      { ownerKey },
+    );
+    await savePendingWorkLogDrafts(ownerKey, drafts);
+    secureStorage.__store.clear();
+
+    await expect(loadPendingWorkLogDrafts(ownerKey)).resolves.toEqual([]);
+    expect([...storage.__store.keys()].some((key) => key.includes(":v2:"))).toBe(false);
   });
 
   it("marks draft sync attempts and failures visibly", () => {

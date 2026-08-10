@@ -14,12 +14,13 @@ import type { ReactNode } from "react";
 
 import { Text } from "../../i18n";
 import { appThemes, type AppThemeName } from "../../theme";
-import type { Member } from "../../types/domain";
+import type { Member, MobileDeviceSessionSummary } from "../../types/domain";
 import { styles } from "../../ui/styles";
 import type { NavItem, ViewTab } from "../../ui/types";
 import type { AttendanceStatus, SeasonOption } from "../appModel";
 import { AttendanceModal, ProjectOverlay } from "./AppOverlays";
 import { AppTopBar } from "./AppTopBar";
+import { DeviceSessionsModal } from "./DeviceSessionsModal";
 import { NavigationMenu } from "./NavigationMenu";
 import { PersonMenu } from "./PersonMenu";
 
@@ -75,11 +76,15 @@ type WorkspaceShellProps = {
   apiToken: string | null;
   createSeason: () => void;
   deleteSeason: (seasonId: string) => void;
+  deviceSessions: MobileDeviceSessionSummary[];
+  deviceSessionsError: string | null;
   editorModals: ReactNode;
   hasSubtabPages: boolean;
   isAttendanceModalVisible: boolean;
   isCompactLayout: boolean;
   isDarkModeEnabled: boolean;
+  isDeviceSessionsVisible: boolean;
+  isLoadingDeviceSessions: boolean;
   isNavMenuVisible: boolean;
   isPersonMenuVisible: boolean;
   isProjectOverlayVisible: boolean;
@@ -89,14 +94,18 @@ type WorkspaceShellProps = {
   navigationOpenHandlers: GestureResponderHandlers;
   navigationSections: NavigationSection[];
   onCloseAttendance: () => void;
+  onCloseDeviceSessions: () => void;
   onCloseNavigation: () => void;
   onClosePersonMenu: () => void;
   onCloseProjectOverlay: () => void;
   onOpenNavigation: () => void;
+  onOpenDeviceSessions: () => void;
   onOpenPersonMenu: () => void;
   onOpenProjectOverlay: () => void;
   onOpenSubsystems: () => void;
   onResetWorkspaceData: () => void;
+  onRevokeAllDeviceSessions: () => void;
+  onRevokeDeviceSession: (sessionId: string) => void;
   onSelectSeason: (seasonId: string) => void;
   onSelectTab: (tab: ViewTab) => void;
   onSignOut: () => void;
@@ -127,11 +136,15 @@ export function WorkspaceShell({
   apiToken,
   createSeason,
   deleteSeason,
+  deviceSessions,
+  deviceSessionsError,
   editorModals,
   hasSubtabPages,
   isAttendanceModalVisible,
   isCompactLayout,
   isDarkModeEnabled,
+  isDeviceSessionsVisible,
+  isLoadingDeviceSessions,
   isNavMenuVisible,
   isPersonMenuVisible,
   isProjectOverlayVisible,
@@ -141,14 +154,18 @@ export function WorkspaceShell({
   navigationOpenHandlers,
   navigationSections,
   onCloseAttendance,
+  onCloseDeviceSessions,
   onCloseNavigation,
   onClosePersonMenu,
   onCloseProjectOverlay,
   onOpenNavigation,
+  onOpenDeviceSessions,
   onOpenPersonMenu,
   onOpenProjectOverlay,
   onOpenSubsystems,
   onResetWorkspaceData,
+  onRevokeAllDeviceSessions,
+  onRevokeDeviceSession,
   onSelectSeason,
   onSelectTab,
   onSignOut,
@@ -250,6 +267,7 @@ export function WorkspaceShell({
         isDarkModeEnabled={isDarkModeEnabled}
         isSeasonMenuVisible={isSeasonMenuVisible}
         onClose={onClosePersonMenu}
+        onOpenDeviceSessions={onOpenDeviceSessions}
         onResetWorkspaceData={onResetWorkspaceData}
         onSelectSeason={onSelectSeason}
         onSignOut={onSignOut}
@@ -266,6 +284,16 @@ export function WorkspaceShell({
         themeColors={themeColors}
         themeMode={themeMode}
         visible={isPersonMenuVisible}
+      />
+      <DeviceSessionsModal
+        error={deviceSessionsError}
+        isLoading={isLoadingDeviceSessions}
+        onClose={onCloseDeviceSessions}
+        onRevoke={onRevokeDeviceSession}
+        onRevokeAll={onRevokeAllDeviceSessions}
+        sessions={deviceSessions}
+        themeColors={themeColors}
+        visible={isDeviceSessionsVisible}
       />
     </SafeAreaView>
   );

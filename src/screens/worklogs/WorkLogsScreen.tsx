@@ -24,6 +24,7 @@ import type { AppScreenProps, WorkLogListItem } from "../types";
 export function WorkLogsScreen(props: AppScreenProps) {
   const {
     appResponsiveStyles,
+    canMentorApprove,
     editTagStyle,
     filteredWorkLogs,
     membersById,
@@ -128,7 +129,9 @@ const renderScreen = () => {
         const task = taskById[workLog.taskId];
         const subsystemName = task ? (subsystemsById[task.subsystemId]?.name ?? "Unknown") : "Unknown";
         const isLocalDraft = Boolean(workLog.syncStatus);
-        const canEditWorkLog = !isLocalDraft || workLog.syncStatus !== "syncing";
+        const canEditWorkLog = isLocalDraft
+          ? workLog.syncStatus !== "syncing"
+          : canMentorApprove;
         const people = workLog.participantIds
           .map((participantId) => membersById[participantId]?.name)
           .filter((name): name is string => Boolean(name));
@@ -148,7 +151,9 @@ const renderScreen = () => {
                 <Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>{formatDate(workLog.date)}</Text>
                 <Text style={[styles.queueRowSubtitle, appResponsiveStyles.rowSubtitle]}>{workLog.hours.toFixed(1)}h logged</Text>
               </View>
-              <Text style={editTagStyle}>{getWorkLogSyncLabel(workLog)}</Text>
+              <Text style={editTagStyle}>
+                {canEditWorkLog ? getWorkLogSyncLabel(workLog) : "VIEW"}
+              </Text>
             </View>
 
             <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>Task: {task?.title ?? "Missing task"}</Text>

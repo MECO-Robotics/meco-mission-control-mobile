@@ -133,15 +133,18 @@ export function ManufacturingScreen(props: AppScreenProps) {
             ? (membersById[item.requestedById]?.name ?? "Unassigned")
             : "Unassigned";
           const canApproveItem = canMentorApprove && !item.mentorReviewed;
-          const canStartItem =
-            item.mentorReviewed &&
-            (item.status === "requested" || item.status === "approved");
-          const canCompleteItem = item.status !== "complete";
+          const canStartItem = item.mentorReviewed && item.status === "approved";
+          const canCompleteItem = item.mentorReviewed && item.status === "qa";
+          const canEditItem = item.status === "requested";
 
           return (
             <Pressable
               key={item.id}
-              onPress={() => openEditManufacturingEditor(item)}
+              onPress={() => {
+                if (canEditItem) {
+                  openEditManufacturingEditor(item);
+                }
+              }}
               style={[styles.queueRowCard, appResponsiveStyles.rowCard]}
             >
               <View style={styles.queueRowHeader}>
@@ -151,7 +154,7 @@ export function ManufacturingScreen(props: AppScreenProps) {
                     {subsystemName} - {requesterName}
                   </Text>
                 </View>
-                <Text style={editTagStyle}>EDIT</Text>
+                <Text style={editTagStyle}>{canEditItem ? "EDIT" : "VIEW"}</Text>
               </View>
 
               <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
@@ -172,7 +175,6 @@ export function ManufacturingScreen(props: AppScreenProps) {
                     onPress={() =>
                       patchManufacturingItem(item, {
                         mentorReviewed: true,
-                        status: item.status === "requested" ? "approved" : item.status,
                       })
                     }
                     style={[
@@ -188,9 +190,7 @@ export function ManufacturingScreen(props: AppScreenProps) {
                 {canStartItem ? (
                   <Pressable
                     onPress={() =>
-                      patchManufacturingItem(item, {
-                        status: item.status === "qa" ? "qa" : "in-progress",
-                      })
+                      patchManufacturingItem(item, { status: "in-progress" })
                     }
                     style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
                   >
@@ -214,10 +214,7 @@ export function ManufacturingScreen(props: AppScreenProps) {
                 {canCompleteItem ? (
                   <Pressable
                     onPress={() =>
-                      patchManufacturingItem(item, {
-                        mentorReviewed: true,
-                        status: "complete",
-                      })
+                      patchManufacturingItem(item, { status: "complete" })
                     }
                     style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
                   >

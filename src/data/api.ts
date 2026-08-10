@@ -3,10 +3,18 @@ import { Platform } from "react-native";
 export const DEFAULT_API_BASE_URL = "http://localhost:8080";
 
 type ApiBaseUrlEnv = {
+  EXPO_PUBLIC_ALLOW_INSECURE_PRIVATE_LAN?: string;
   EXPO_PUBLIC_API_BASE_URL?: string;
   EXPO_PUBLIC_ANDROID_API_BASE_URL?: string;
   EXPO_PUBLIC_IOS_API_BASE_URL?: string;
 };
+
+export class ApiConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ApiConfigurationError";
+  }
+}
 
 function resolveConfiguredApiBaseUrl(platformOS: string, env: ApiBaseUrlEnv) {
   // Device-specific overrides let simulators and physical devices point at
@@ -133,10 +141,55 @@ function parseErrorMessage(payload: unknown): string | null {
 export function resolveApiBaseUrl(
   platformOS = Platform.OS,
   env: ApiBaseUrlEnv = process.env as ApiBaseUrlEnv,
+  isDevelopment = typeof __DEV__ === "boolean" && __DEV__,
 ) {
   const configured = resolveConfiguredApiBaseUrl(platformOS, env);
   const base = configured && configured.length > 0 ? configured : DEFAULT_API_BASE_URL;
-  return base.replace(/\/+$/, "");
+  const normalized = base.replace(/\/+$/, "");
+
+  let url: URL;
+  try {
+    url = new URL(normalized);
+  } catch {
+    throw new ApiConfigurationError("The configured API URL is invalid.");
+  }
+
+  if (url.protocol === "https:") {
+    return normalized;
+  }
+
+  if (url.protocol !== "http:") {
+    throw new ApiConfigurationError("The API URL must use HTTPS.");
+  }
+
+  if (!isDevelopment) {
+    throw new ApiConfigurationError("Production mobile builds require an HTTPS API URL.");
+  }
+
+  const host = url.hostname.toLowerCase();
+  const isLocalHost =
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host === "::1" ||
+    host === "10.0.2.2";
+  if (isLocalHost) {
+    return normalized;
+  }
+
+  const privateLanAllowed =
+    env.EXPO_PUBLIC_ALLOW_INSECURE_PRIVATE_LAN?.trim().toLowerCase() === "true";
+  const isPrivateLan =
+    /^10\./.test(host) ||
+    /^192\.168\./.test(host) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(host);
+
+  if (privateLanAllowed && isPrivateLan) {
+    return normalized;
+  }
+
+  throw new ApiConfigurationError(
+    "Development HTTP is limited to loopback/emulators unless the private-LAN override is enabled.",
+  );
 }
 
 export async function requestJson<T>(

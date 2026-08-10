@@ -5,6 +5,9 @@
   "build": {
     "production": {
       "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "production"
+      },
       "android": {
         "buildType": "app-bundle"
       }

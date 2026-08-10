@@ -2,19 +2,16 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Crypto from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
 
-import type { SessionUser } from "../types/domain";
+import type { MobileSessionResponse, SessionUser } from "../types/domain";
 
-type PersistedAuthSession = {
+type PersistedAuthSession = MobileSessionResponse & {
   deviceNumber: string | null;
-  token: string;
-  user: SessionUser;
 };
 
 const DEVICE_NUMBER_STORAGE_KEY = "meco-mobile-device-number:v1";
 const LEGACY_SESSION_STORAGE_KEY = "meco-mobile-auth-session:v1";
-const SESSION_SECURE_STORAGE_KEY = "meco-mobile-auth-session:v2";
-
-type StoredSessionSource = "secure" | "legacy";
+const LEGACY_SECURE_STORAGE_KEY = "meco-mobile-auth-session:v2";
+const SESSION_SECURE_STORAGE_KEY = "meco-mobile-auth-session:v3";
 
 function isDeviceNumber(value: unknown): value is string {
   return typeof value === "string" && /^\d{12,15}$/.test(value);
@@ -39,6 +36,10 @@ function isSessionUser(value: unknown): value is SessionUser {
     typeof candidate.hostedDomain === "string" &&
     candidate.hostedDomain.length > 0
   );
+}
+
+function isIsoDate(value: unknown): value is string {
+  return typeof value === "string" && Number.isFinite(Date.parse(value));
 }
 
 function generateDeviceNumber() {
@@ -87,6 +88,26 @@ function parsePersistedSession(rawValue: string | null): PersistedAuthSession | 
     return null;
   }
 
+  if (
+    typeof candidate.refreshToken !== "string" ||
+    candidate.refreshToken.length === 0 ||
+    !isIsoDate(candidate.accessTokenExpiresAt) ||
+    !isIsoDate(candidate.sessionExpiresAt)
+  ) {
+    return null;
+  }
+
+  const session = candidate.session as Record<string, unknown> | undefined;
+  if (
+    !session ||
+    typeof session.id !== "string" ||
+    session.id.length === 0 ||
+    !isIsoDate(session.createdAt) ||
+    !isIsoDate(session.lastUsedAt)
+  ) {
+    return null;
+  }
+
   if (!isSessionUser(candidate.user)) {
     return null;
   }
@@ -94,44 +115,52 @@ function parsePersistedSession(rawValue: string | null): PersistedAuthSession | 
   return {
     deviceNumber,
     token: candidate.token,
+    refreshToken: candidate.refreshToken,
+    accessTokenExpiresAt: candidate.accessTokenExpiresAt,
+    sessionExpiresAt: candidate.sessionExpiresAt,
+    session: {
+      id: session.id,
+      createdAt: session.createdAt,
+      lastUsedAt: session.lastUsedAt,
+    },
     user: candidate.user,
   };
 }
 
-async function readStoredSessionRaw(): Promise<{
-  rawValue: string | null;
-  source: StoredSessionSource | null;
-}> {
+async function readStoredSessionRaw() {
   try {
     const secureValue = await SecureStore.getItemAsync(SESSION_SECURE_STORAGE_KEY);
-    if (secureValue !== null) {
-      return { rawValue: secureValue, source: "secure" };
-    }
+    return secureValue;
   } catch {
-    await AsyncStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
-    return { rawValue: null, source: null };
+    return null;
   }
-
-  const legacyValue = await AsyncStorage.getItem(LEGACY_SESSION_STORAGE_KEY);
-  return {
-    rawValue: legacyValue,
-    source: legacyValue === null ? null : "legacy",
-  };
 }
 
 async function writeStoredSessionRaw(rawValue: string | null) {
-  await AsyncStorage.removeItem(LEGACY_SESSION_STORAGE_KEY);
+  await Promise.allSettled([
+    AsyncStorage.removeItem(LEGACY_SESSION_STORAGE_KEY),
+    SecureStore.deleteItemAsync(LEGACY_SECURE_STORAGE_KEY),
+  ]);
 
   if (rawValue === null) {
     await SecureStore.deleteItemAsync(SESSION_SECURE_STORAGE_KEY);
     return;
   }
 
-  await SecureStore.setItemAsync(SESSION_SECURE_STORAGE_KEY, rawValue);
+  await SecureStore.setItemAsync(SESSION_SECURE_STORAGE_KEY, rawValue, {
+    keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+  });
 }
 
 export async function loadPersistedAuthSession(deviceNumber: string) {
-  const { rawValue, source } = await readStoredSessionRaw();
+  // v1/v2 credentials were long-lived bearer sessions. Delete them instead of
+  // silently upgrading so every install starts with independently rotatable v3 tokens.
+  await Promise.allSettled([
+    AsyncStorage.removeItem(LEGACY_SESSION_STORAGE_KEY),
+    SecureStore.deleteItemAsync(LEGACY_SECURE_STORAGE_KEY),
+  ]);
+
+  const rawValue = await readStoredSessionRaw();
   const parsed = parsePersistedSession(rawValue);
 
   if (!parsed && rawValue !== null) {
@@ -143,21 +172,10 @@ export async function loadPersistedAuthSession(deviceNumber: string) {
     return null;
   }
 
-  if (parsed.deviceNumber === null) {
-    // Upgrade sessions written before device binding was added.
-    const upgradedSession = { ...parsed, deviceNumber };
-    await savePersistedAuthSession(upgradedSession);
-    return upgradedSession;
-  }
-
-  if (parsed.deviceNumber !== deviceNumber) {
+  if (parsed.deviceNumber === null || parsed.deviceNumber !== deviceNumber) {
     // Avoid restoring a copied AsyncStorage session on a different install.
     await writeStoredSessionRaw(null);
     return null;
-  }
-
-  if (source === "legacy") {
-    await savePersistedAuthSession(parsed);
   }
 
   return parsed;

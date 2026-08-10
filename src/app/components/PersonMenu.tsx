@@ -23,6 +23,7 @@ type PersonMenuProps = {
   isSeasonMenuVisible: boolean;
   onClose: () => void;
   onResetWorkspaceData: () => void;
+  onOpenDeviceSessions: () => void;
   onSelectSeason: (seasonId: string) => void;
   onSignOut: () => void;
   onToggleSeasonMenu: () => void;
@@ -54,6 +55,7 @@ export function PersonMenu({
   isSeasonMenuVisible,
   onClose,
   onResetWorkspaceData,
+  onOpenDeviceSessions,
   onSelectSeason,
   onSignOut,
   onToggleSeasonMenu,
@@ -205,6 +207,16 @@ export function PersonMenu({
               })}
             </View>
           ) : null}
+
+          <Pressable
+            onPress={onOpenDeviceSessions}
+            style={[styles.settingsRow, rowStyle]}
+          >
+            <View>
+              <Text style={[styles.settingsRowTitle, { color: themeColors.ink }]}>Signed-in devices</Text>
+            </View>
+            <Text style={[styles.settingsRowValue, { color: themeColors.navyInk }]}>Manage</Text>
+          </Pressable>
 
           <Pressable
             onPress={onResetWorkspaceData}
