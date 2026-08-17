@@ -2,7 +2,6 @@ import * as ScreenOrientation from "expo-screen-orientation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   PanResponder,
-  Platform,
   useColorScheme,
   useWindowDimensions,
 } from "react-native";
@@ -262,20 +261,6 @@ export default function App() {
   const isAuthConfigUnavailable = authErrorState === "auth-config-unavailable";
   const isDevBypassAvailable =
     isLocalDevBypassAvailable || authConfig?.devBypassAvailable === true;
-
-  const saveActiveMobileSession = useCallback(
-    async (session: PersistedAuthSession | null) => {
-      mobileSessionRef.current = session;
-      setApiToken(session?.token ?? null);
-      setSessionUser(session?.user ?? null);
-      if (session) {
-        await savePersistedAuthSession(session);
-      } else {
-        await clearPersistedAuthSession();
-      }
-    },
-    [],
-  );
 
   const endSessionForAuthFailure = useCallback(async (message: string) => {
     mobileSessionRef.current = null;
@@ -952,34 +937,6 @@ export default function App() {
     };
   }, [finishSignIn]);
 
-  useEffect(() => {
-    const session = mobileSessionRef.current;
-    if (!hasAuthenticated || !session) {
-      return;
-    }
-
-    const refreshAt = Date.parse(session.accessTokenExpiresAt) - 5 * 60 * 1000;
-    const delay = Math.max(0, Math.min(refreshAt - Date.now(), 2_147_000_000));
-    const timer = setTimeout(() => {
-      void mobileSessionClient.refresh().catch(() => undefined);
-    }, delay);
-
-    return () => clearTimeout(timer);
-  }, [apiToken, hasAuthenticated, mobileSessionClient]);
-
-  const retrySavedSession = useCallback(async () => {
-    const session = mobileSessionRef.current;
-    if (!session) {
-      return;
-    }
-    setIsAuthenticating(true);
-    try {
-      await finishSignIn(session.token, session.user, session);
-    } finally {
-      setIsAuthenticating(false);
-    }
-  }, [finishSignIn]);
-
   const signInWithEmail = useCallback(async () => {
     const email = authEmail.trim().toLowerCase();
     const code = authCode.trim();
@@ -1043,7 +1000,7 @@ export default function App() {
           AUTH_REQUEST_TIMEOUT_MS,
         );
         setAuthCode("");
-        await finishSignIn(session.token, session.user, session);
+        await finishSignIn(session.token, session.user);
         return;
       }
 
@@ -5547,9 +5504,6 @@ export default function App() {
           isAuthenticating={isAuthenticating}
           isDarkModeEnabled={isDarkModeEnabled}
           isDevBypassAvailable={isDevBypassAvailable}
-          retrySavedSession={() => {
-            void retrySavedSession();
-          }}
           setAuthCode={setAuthCode}
           setAuthEmail={setAuthEmail}
           setAuthError={setAuthError}

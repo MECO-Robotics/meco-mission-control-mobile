@@ -21,16 +21,7 @@
       ],
       "expo-localization",
       "expo-notifications",
-      "expo-secure-store",
-      "expo-status-bar",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/splash-icon.png",
-          "resizeMode": "contain",
-          "backgroundColor": "#10284d"
-        }
-      ]
+      "expo-secure-store"
     ],
     "ios": {
       "bundleIdentifier": "org.mecorobotics.missioncontrol",
