@@ -1,14 +1,13 @@
 import type { Dispatch, SetStateAction } from "react";
 
-import { PURCHASE_STATUS_OPTIONS } from "../../ui/constants";
 import type { EditorMode, Option, PurchaseDraft } from "../../ui/types";
-import { AdvancedOptions, DropdownField, EditorModal, ModalField, ToggleField } from "../../ui/ui";
-import type { PurchaseItem } from "../../types/domain";
+import { AdvancedOptions, DropdownField, EditorModal, ModalField } from "../../ui/ui";
 import type { WorkspaceResponsiveStyles } from "../components/WorkspaceShell";
 import { EditorCallout } from "./EditorCallout";
 
 type PurchaseEditorModalProps = {
   appResponsiveStyles: Pick<WorkspaceResponsiveStyles, "calloutBody" | "calloutBox" | "calloutTitle">;
+  canManageProtectedFields: boolean;
   deletePurchaseDraft: () => void;
   memberOptions: Option[];
   onCancel: () => void;
@@ -23,6 +22,7 @@ type PurchaseEditorModalProps = {
 
 export function PurchaseEditorModal({
   appResponsiveStyles,
+  canManageProtectedFields,
   deletePurchaseDraft,
   memberOptions,
   onCancel,
@@ -37,7 +37,11 @@ export function PurchaseEditorModal({
   return (
     <EditorModal
       onCancel={onCancel}
-      onDelete={purchaseEditorMode === "edit" ? deletePurchaseDraft : undefined}
+      onDelete={
+        purchaseEditorMode === "edit" && canManageProtectedFields
+          ? deletePurchaseDraft
+          : undefined
+      }
       onSave={onSave}
       saveLabel={purchaseEditorMode === "edit" ? "Update purchase" : "Create purchase"}
       title={purchaseEditorMode === "edit" ? "Edit purchase" : "Create purchase"}
@@ -83,18 +87,6 @@ export function PurchaseEditorModal({
         placeholder="Select requester"
         value={purchaseDraft.requestedById}
       />
-      <DropdownField
-        label="Status"
-        onChange={(value) => {
-          setPurchaseError(null);
-          setPurchaseDraft((current) => ({
-            ...current,
-            status: value as PurchaseItem["status"],
-          }));
-        }}
-        options={PURCHASE_STATUS_OPTIONS}
-        value={purchaseDraft.status}
-      />
       <ModalField
         label="Vendor"
         onChangeText={(value) => {
@@ -134,24 +126,18 @@ export function PurchaseEditorModal({
           placeholder="vendor.com/item"
           value={purchaseDraft.linkLabel}
         />
-        <ModalField
-          label="Final cost (optional)"
-          keyboardType="decimal-pad"
-          onChangeText={(value) => {
-            setPurchaseError(null);
-            setPurchaseDraft((current) => ({ ...current, finalCost: value }));
-          }}
-          placeholder="61"
-          value={purchaseDraft.finalCost}
-        />
-        <ToggleField
-          label="Mentor approved"
-          onToggle={(value) => {
-            setPurchaseError(null);
-            setPurchaseDraft((current) => ({ ...current, approvedByMentor: value }));
-          }}
-          value={purchaseDraft.approvedByMentor}
-        />
+        {canManageProtectedFields ? (
+          <ModalField
+            label="Final cost (optional)"
+            keyboardType="decimal-pad"
+            onChangeText={(value) => {
+              setPurchaseError(null);
+              setPurchaseDraft((current) => ({ ...current, finalCost: value }));
+            }}
+            placeholder="61"
+            value={purchaseDraft.finalCost}
+          />
+        ) : null}
       </AdvancedOptions>
     </EditorModal>
   );

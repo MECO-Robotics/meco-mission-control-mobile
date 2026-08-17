@@ -3,16 +3,17 @@ import { View } from "react-native";
 
 import { Text } from "../../i18n";
 import type { AppThemeColors } from "../../theme";
-import { MANUFACTURING_STATUS_OPTIONS, MANUFACTURING_VIEW_OPTIONS } from "../../ui/constants";
+import { MANUFACTURING_VIEW_OPTIONS } from "../../ui/constants";
 import { styles } from "../../ui/styles";
 import type { EditorMode, ManufacturingDraft, Option } from "../../ui/types";
-import { AdvancedOptions, DropdownField, EditorModal, ModalField, ToggleField } from "../../ui/ui";
+import { AdvancedOptions, DropdownField, EditorModal, ModalField } from "../../ui/ui";
 import type { ManufacturingItem } from "../../types/domain";
 import type { WorkspaceResponsiveStyles } from "../components/WorkspaceShell";
 import { EditorCallout } from "./EditorCallout";
 
 type ManufacturingEditorModalProps = {
   appResponsiveStyles: Pick<WorkspaceResponsiveStyles, "calloutBody" | "calloutBox" | "calloutTitle">;
+  canDelete: boolean;
   deleteManufacturingDraft: () => void;
   manufacturingDraft: ManufacturingDraft;
   manufacturingEditorMode: EditorMode | null;
@@ -29,6 +30,7 @@ type ManufacturingEditorModalProps = {
 
 export function ManufacturingEditorModal({
   appResponsiveStyles,
+  canDelete,
   deleteManufacturingDraft,
   manufacturingDraft,
   manufacturingEditorMode,
@@ -45,7 +47,7 @@ export function ManufacturingEditorModal({
   return (
     <EditorModal
       onCancel={onCancel}
-      onDelete={manufacturingEditorMode === "edit" ? deleteManufacturingDraft : undefined}
+      onDelete={manufacturingEditorMode === "edit" && canDelete ? deleteManufacturingDraft : undefined}
       onSave={onSave}
       saveLabel={manufacturingEditorMode === "edit" ? "Update item" : "Create item"}
       title={manufacturingEditorMode === "edit" ? "Edit manufacturing item" : "Create manufacturing item"}
@@ -126,18 +128,6 @@ export function ManufacturingEditorModal({
             }))}
             value={manufacturingDraft.process}
           />
-          <DropdownField
-            label="Status"
-            onChange={(value) => {
-              setManufacturingError(null);
-              setManufacturingDraft((current) => ({
-                ...current,
-                status: value as ManufacturingItem["status"],
-              }));
-            }}
-            options={MANUFACTURING_STATUS_OPTIONS}
-            value={manufacturingDraft.status}
-          />
         </>
       )}
       <ModalField
@@ -188,16 +178,6 @@ export function ManufacturingEditorModal({
           placeholder="0"
           value={manufacturingDraft.qaReviewCount}
         />
-        {manufacturingEditorMode === "edit" ? (
-          <ToggleField
-            label="Mentor reviewed"
-            onToggle={(value) => {
-              setManufacturingError(null);
-              setManufacturingDraft((current) => ({ ...current, mentorReviewed: value }));
-            }}
-            value={manufacturingDraft.mentorReviewed}
-          />
-        ) : null}
       </AdvancedOptions>
     </EditorModal>
   );

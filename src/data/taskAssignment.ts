@@ -8,6 +8,11 @@ export type TaskAssignmentResponse = {
   item?: Task;
 };
 
+export type TaskAssignmentRequester = (
+  path: string,
+  init: RequestInit,
+) => Promise<TaskAssignmentResponse>;
+
 export type TaskAssignmentConflict = {
   code: typeof TASK_ALREADY_CLAIMED_CODE;
   message: string;
@@ -166,29 +171,24 @@ export function claimTaskRequest(
   taskId: string,
   start: boolean,
   token?: string | null,
+  requester?: TaskAssignmentRequester,
 ) {
-  return requestJson<TaskAssignmentResponse>(
-    baseUrl,
-    `/api/tasks/${taskId}/claim`,
-    {
-      method: "POST",
-      body: JSON.stringify({ start }),
-    },
-    token,
-  );
+  const path = `/api/tasks/${taskId}/claim`;
+  const init = { method: "POST", body: JSON.stringify({ start }) };
+  return requester?.(path, init) ??
+    requestJson<TaskAssignmentResponse>(baseUrl, path, init, token);
 }
 
 export function releaseTaskRequest(
   baseUrl: string,
   taskId: string,
   token?: string | null,
+  requester?: TaskAssignmentRequester,
 ) {
-  return requestJson<TaskAssignmentResponse>(
-    baseUrl,
-    `/api/tasks/${taskId}/release`,
-    { method: "POST" },
-    token,
-  );
+  const path = `/api/tasks/${taskId}/release`;
+  const init = { method: "POST" };
+  return requester?.(path, init) ??
+    requestJson<TaskAssignmentResponse>(baseUrl, path, init, token);
 }
 
 export function reassignTaskRequest(
@@ -196,14 +196,10 @@ export function reassignTaskRequest(
   taskId: string,
   ownerId: string | null,
   token?: string | null,
+  requester?: TaskAssignmentRequester,
 ) {
-  return requestJson<TaskAssignmentResponse>(
-    baseUrl,
-    `/api/tasks/${taskId}/reassign`,
-    {
-      method: "POST",
-      body: JSON.stringify({ ownerId }),
-    },
-    token,
-  );
+  const path = `/api/tasks/${taskId}/reassign`;
+  const init = { method: "POST", body: JSON.stringify({ ownerId }) };
+  return requester?.(path, init) ??
+    requestJson<TaskAssignmentResponse>(baseUrl, path, init, token);
 }

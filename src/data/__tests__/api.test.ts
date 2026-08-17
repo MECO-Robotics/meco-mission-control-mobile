@@ -1,5 +1,6 @@
 import {
   ApiNetworkError,
+  ApiConfigurationError,
   ApiRequestError,
   classifyMobileAuthError,
   getBackendConnectionErrorMessage,
@@ -97,7 +98,7 @@ describe("mobile auth API fail-safe handling", () => {
       resolveApiBaseUrl("android", {
         EXPO_PUBLIC_API_BASE_URL: "http://192.168.1.174:8080",
         EXPO_PUBLIC_ANDROID_API_BASE_URL: "http://10.0.2.2:8080",
-      }),
+      }, true),
     ).toBe("http://10.0.2.2:8080");
   });
 
@@ -105,8 +106,39 @@ describe("mobile auth API fail-safe handling", () => {
     expect(
       resolveApiBaseUrl("ios", {
         EXPO_PUBLIC_IOS_API_BASE_URL: "http://localhost:8080/",
-      }),
+      }, true),
     ).toBe("http://localhost:8080");
+  });
+
+  it("rejects cleartext API URLs in production", () => {
+    expect(() =>
+      resolveApiBaseUrl(
+        "android",
+        { EXPO_PUBLIC_API_BASE_URL: "http://10.0.2.2:8080" },
+        false,
+      ),
+    ).toThrow(ApiConfigurationError);
+  });
+
+  it("requires an explicit development override for private-LAN HTTP", () => {
+    expect(() =>
+      resolveApiBaseUrl(
+        "ios",
+        { EXPO_PUBLIC_API_BASE_URL: "http://192.168.1.50:8080" },
+        true,
+      ),
+    ).toThrow("private-LAN override");
+
+    expect(
+      resolveApiBaseUrl(
+        "ios",
+        {
+          EXPO_PUBLIC_ALLOW_INSECURE_PRIVATE_LAN: "true",
+          EXPO_PUBLIC_API_BASE_URL: "http://192.168.1.50:8080",
+        },
+        true,
+      ),
+    ).toBe("http://192.168.1.50:8080");
   });
 
   it("aborts hanging requests when a timeout is provided", async () => {

@@ -349,3 +349,19 @@ export interface SessionResponse {
   token: string;
   user: SessionUser;
 }
+
+export interface MobileDeviceSessionSummary {
+  createdAt: string;
+  current: boolean;
+  deviceName?: string | null;
+  expiresAt: string;
+  id: string;
+  lastUsedAt: string;
+}
+
+export interface MobileSessionResponse extends SessionResponse {
+  accessTokenExpiresAt: string;
+  refreshToken: string;
+  session: Pick<MobileDeviceSessionSummary, "createdAt" | "id" | "lastUsedAt">;
+  sessionExpiresAt: string;
+}

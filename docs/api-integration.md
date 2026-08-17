@@ -76,7 +76,7 @@ Body:
 Verify code:
 
 ```text
-POST /api/auth/email/verify
+POST /api/auth/mobile/email/verify
 ```
 
 Body:
@@ -85,12 +85,17 @@ Body:
 { "email": "person@mecorobotics.org", "code": "123456", "deviceId": "123456789012" }
 ```
 
-The mobile app generates one local numeric device ID per app install and stores
-it outside the bearer token. Persisted auth sessions are stored with
-`expo-secure-store`; legacy plaintext `AsyncStorage` sessions are migrated into
-secure storage and removed. On launch, the app restores the saved session only
-when the current device ID matches the saved session's device ID; otherwise it
-clears the session and requires sign-in again.
+The response includes independent opaque access and refresh tokens plus access,
+device-session, and activity timestamps. Access tokens are refreshed five
+minutes before their one-hour expiry. Refresh tokens rotate exactly once; a
+failed rotation is never replayed. The v3 envelope is stored in
+`expo-secure-store` and bound to the app installation. Legacy v1/v2 credentials
+are deleted and require one fresh sign-in.
+
+Session management uses `POST /api/auth/mobile/refresh`, `POST
+/api/auth/mobile/logout`, `POST /api/auth/mobile/logout-all`, `GET
+/api/auth/mobile/sessions`, and `DELETE /api/auth/mobile/sessions/:sessionId`.
+The Personal settings device view exposes the latter three operations.
 
 ## Development Bypass
 
@@ -164,9 +169,13 @@ The mobile app currently writes to these resource paths:
 - `DELETE /api/work-logs/:id`
 - `POST /api/manufacturing`
 - `PATCH /api/manufacturing/:id`
+- `PUT /api/manufacturing/:id/review`
+- `POST /api/manufacturing/:id/transition`
 - `DELETE /api/manufacturing/:id`
 - `POST /api/purchases`
 - `PATCH /api/purchases/:id`
+- `PUT /api/purchases/:id/approval`
+- `POST /api/purchases/:id/transition`
 - `DELETE /api/purchases/:id`
 - `POST /api/members`
 - `PATCH /api/members/:id`
@@ -180,4 +189,15 @@ The mobile app currently writes to these resource paths:
 
 After a successful mutation, the app refreshes `/api/bootstrap` so derived lists and summaries are recalculated from server state.
 
-Work-log creation has an offline-safe mobile fallback. If `POST /api/work-logs` fails because the backend is unreachable, the mobile app stores the work-log payload as a local AsyncStorage draft, shows it in the Work Logs screen, and retries it during later workspace sync. Draft retry uses a local fingerprint of task, date, hours, participants, and notes to avoid posting duplicate matching work logs.
+Work-log creation has an offline-safe mobile fallback. Draft payloads are
+encrypted with XChaCha20-Poly1305 under an installation key held in SecureStore;
+only ciphertext and expiry metadata are kept in AsyncStorage. The account and
+schema version are authenticated as associated data. Same-account drafts remain
+available for seven days after logout, while other accounts' drafts stay hidden.
+Corrupt, expired, or undecryptable envelopes are purged.
+
+The server remains authoritative for permissions: any internal user may create
+work logs and pending purchase/manufacturing requests, but only mentors/admins
+may edit/delete synced work logs, approve purchases/reviews, progress purchases,
+or delete purchase/manufacturing records. Any internal user may make adjacent
+manufacturing transitions after an active mentor review.

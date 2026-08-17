@@ -79,9 +79,19 @@ platform override (`EXPO_PUBLIC_IOS_API_BASE_URL` or
 `EXPO_PUBLIC_ANDROID_API_BASE_URL`), then `EXPO_PUBLIC_API_BASE_URL`, defaulting
 to `http://localhost:8080`. `requestJson` adds JSON headers, applies a bearer
 token when present, parses JSON responses, and throws `ApiRequestError` on
-non-2xx responses.
+non-2xx responses. Production config rejects non-HTTPS API URLs. Development
+HTTP is limited to loopback/emulator hosts unless the private-LAN override is
+explicitly enabled; native production builds disable cleartext traffic.
 
-Mutations use a shared `runMutation` path in `App.tsx`: submit the request, refresh `/api/bootstrap`, and update sync status. If the backend is unavailable, the app preserves local optimistic state where the feature flow requires it. Work-log creates additionally use `src/services/workLogDraftSync.ts` to persist offline drafts in AsyncStorage, show draft sync status, and retry later without duplicate matching submissions.
+Authenticated requests use `src/services/mobileSessionClient.ts` for proactive,
+single-flight refresh and at most one post-refresh retry. Workspace data is not
+shown for a newly restored account until bootstrap succeeds; authentication or
+authorization failure clears credentials and identity-scoped workspace state.
+
+Mutations use a shared `runMutation` path in `App.tsx`: submit the request,
+refresh `/api/bootstrap`, and update sync status. Work-log creates use
+`workLogDraftSync.ts` for queue semantics and `workLogDraftStorage.ts` for
+owner-bound authenticated encryption and seven-day retention.
 
 ## Work Timer Services
 

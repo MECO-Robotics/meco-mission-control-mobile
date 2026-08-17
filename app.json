@@ -12,7 +12,6 @@
     ],
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "plugins": [
       [
         "expo-screen-orientation",
@@ -24,11 +23,6 @@
       "expo-notifications",
       "expo-secure-store"
     ],
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#10284d"
-    },
     "ios": {
       "bundleIdentifier": "org.mecorobotics.missioncontrol",
       "supportsTablet": true,
@@ -53,7 +47,6 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#10284d"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     }
   }

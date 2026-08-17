@@ -75,9 +75,7 @@ export function LoginScreen({
       ]}
     >
       <StatusBar
-        backgroundColor={isDarkModeEnabled ? loginColors.darkShell : loginColors.lightShell}
         style={isDarkModeEnabled ? "light" : "dark"}
-        translucent={false}
       />
       <SafeAreaView
         style={[

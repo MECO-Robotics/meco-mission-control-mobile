@@ -67,6 +67,7 @@ import { AppThemeProvider } from "./src/ui/themeContext";
 import { LocalizationProvider, type LanguageCode } from "./src/i18n";
 import {
   ApiNetworkError,
+  ApiRequestError,
   classifyMobileAuthError,
   getBackendConnectionErrorMessage,
   getMobileAuthErrorMessage,
@@ -98,12 +99,14 @@ import type {
   Event,
   MemberRole,
   ManufacturingItem,
+  MobileDeviceSessionSummary,
   HelpRequest,
   PlatformBootstrapPayload,
   PublicAuthConfig,
   PurchaseItem,
   QaRequest,
   QaReview,
+  MobileSessionResponse,
   SessionResponse,
   SessionUser,
   Subsystem,
@@ -189,14 +192,17 @@ import type { SubsystemCounts, WorkLogListItem } from "./src/screens/types";
 import {
   buildWorkLogDraftFingerprint,
   enqueuePendingWorkLogDraft,
-  loadPendingWorkLogDrafts,
   markPendingWorkLogDraftFailed,
   markPendingWorkLogDraftSyncing,
   reconcilePendingWorkLogDrafts,
   removePendingWorkLogDraft,
-  savePendingWorkLogDrafts,
   type PendingWorkLogDraft,
 } from "./src/services/workLogDraftSync";
+import {
+  loadPendingWorkLogDrafts,
+  purgeExpiredWorkLogDrafts,
+  savePendingWorkLogDrafts,
+} from "./src/services/workLogDraftStorage";
 import {
   endWorkLogLiveActivity,
   startWorkLogLiveActivity,
@@ -207,7 +213,10 @@ import {
   getOrCreateAuthDeviceNumber,
   loadPersistedAuthSession,
   savePersistedAuthSession,
+  type PersistedAuthSession,
 } from "./src/services/authSessionStorage";
+import { MobileSessionClient } from "./src/services/mobileSessionClient";
+import { revokeThenClearMobileSession } from "./src/services/mobileLogout";
 import {
   cancelWorkLogTimerReminders,
   clearPersistedWorkLogTimerState,
@@ -245,13 +254,16 @@ export default function App() {
   const [backendReachability, setBackendReachability] =
     useState<BackendReachability>("unknown");
   const [syncError, setSyncError] = useState<string | null>(null);
+  const mobileSessionRef = useRef<PersistedAuthSession | null>(null);
+  const clearIdentityScopedStateRef = useRef<() => void>(() => undefined);
   const isLocalDevBypassAvailable = isLocalDevAuthBypassEnabled();
   const requiredEmailDomain = normalizeRequiredEmailDomain(authConfig?.hostedDomain);
   const isAuthConfigUnavailable = authErrorState === "auth-config-unavailable";
   const isDevBypassAvailable =
     isLocalDevBypassAvailable || authConfig?.devBypassAvailable === true;
 
-  const endSessionForAuthFailure = useCallback((message: string) => {
+  const endSessionForAuthFailure = useCallback(async (message: string) => {
+    mobileSessionRef.current = null;
     setApiToken(null);
     setSessionUser(null);
     setHasAuthenticated(false);
@@ -265,7 +277,36 @@ export default function App() {
     setBackendStatus("connected");
     setBackendReachability("reachable");
     setThemeOverride(null);
+    clearIdentityScopedStateRef.current();
+    await clearPersistedAuthSession().catch(() => undefined);
   }, []);
+
+  const mobileSessionClient = useMemo(
+    () =>
+      new MobileSessionClient({
+        baseUrl: apiBaseUrl,
+        getSession: () => mobileSessionRef.current,
+        onSessionExpired: () =>
+          endSessionForAuthFailure(getMobileAuthErrorMessage("expired-session")),
+        saveSession: saveActiveMobileSession,
+      }),
+    [apiBaseUrl, endSessionForAuthFailure, saveActiveMobileSession],
+  );
+
+  const authenticatedRequestJson = useCallback(
+    <T,>(
+      path: string,
+      init: RequestInit = {},
+      timeoutMs?: number,
+      fallbackToken: string | null = apiToken,
+    ) => {
+      if (mobileSessionRef.current) {
+        return mobileSessionClient.request<T>(path, init, timeoutMs);
+      }
+      return requestJson<T>(apiBaseUrl, path, init, fallbackToken, timeoutMs);
+    },
+    [apiBaseUrl, apiToken, mobileSessionClient],
+  );
 
   const applyThemePreferenceFromServer = useCallback(
     async (token: string | null) => {
@@ -275,9 +316,9 @@ export default function App() {
       }
 
       try {
-        const preferences = await requestJson<ThemePreferenceResponse>(
-          apiBaseUrl,
+        const preferences = await authenticatedRequestJson<ThemePreferenceResponse>(
           "/api/users/me/preferences",
+          undefined,
           undefined,
           token,
         );
@@ -287,7 +328,7 @@ export default function App() {
         setThemeOverride(null);
       }
     },
-    [apiBaseUrl],
+    [authenticatedRequestJson],
   );
 
   const updateThemePreference = useCallback(
@@ -299,20 +340,20 @@ export default function App() {
       }
 
       try {
-        await requestJson(
-          apiBaseUrl,
+        await authenticatedRequestJson(
           "/api/users/me/preferences",
           {
             method: "PATCH",
             body: JSON.stringify({ themeMode: nextThemeMode }),
           },
+          undefined,
           nextAuthToken,
         );
       } catch {
         // Preference persistence is best-effort; keep local theme preference even if backend sync fails.
       }
     },
-    [apiBaseUrl],
+    [authenticatedRequestJson],
   );
 
   const [activeTab, setActiveTab] = useState<ViewTab>("home");
@@ -325,6 +366,10 @@ export default function App() {
   const [isNavMenuVisible, setIsNavMenuVisible] = useState(false);
   const [isProjectOverlayVisible, setIsProjectOverlayVisible] = useState(false);
   const [isPersonMenuVisible, setIsPersonMenuVisible] = useState(false);
+  const [isDeviceSessionsVisible, setIsDeviceSessionsVisible] = useState(false);
+  const [deviceSessions, setDeviceSessions] = useState<MobileDeviceSessionSummary[]>([]);
+  const [deviceSessionsError, setDeviceSessionsError] = useState<string | null>(null);
+  const [isLoadingDeviceSessions, setIsLoadingDeviceSessions] = useState(false);
   const [isSeasonMenuVisible, setIsSeasonMenuVisible] = useState(false);
   const [isAttendanceModalVisible, setIsAttendanceModalVisible] = useState(false);
   const [attendanceStatusByMemberId, setAttendanceStatusByMemberId] =
@@ -513,12 +558,17 @@ export default function App() {
   const [qaReportError, setQaReportError] = useState<string | null>(null);
 
   const persistPendingWorkLogDrafts = useCallback(
-    async (drafts: PendingWorkLogDraft[]) => {
+    async (
+      drafts: PendingWorkLogDraft[],
+      ownerKey: string | null = activeWorkLogDraftOwnerKey,
+    ) => {
       pendingWorkLogDraftsRef.current = drafts;
       setPendingWorkLogDrafts(drafts);
-      await savePendingWorkLogDrafts(drafts);
+      if (ownerKey) {
+        await savePendingWorkLogDrafts(ownerKey, drafts);
+      }
     },
-    [],
+    [activeWorkLogDraftOwnerKey],
   );
 
   const applyBootstrapPayload = useCallback((payload: PlatformBootstrapPayload) => {
@@ -548,16 +598,16 @@ export default function App() {
 
   const refreshWorkspaceFromServer = useCallback(
     async (token: string | null) => {
-      const payload = await requestJson<PlatformBootstrapPayload>(
-        apiBaseUrl,
+      const payload = await authenticatedRequestJson<PlatformBootstrapPayload>(
         "/api/bootstrap",
+        undefined,
         undefined,
         token,
       );
       applyBootstrapPayload(payload);
       return payload;
     },
-    [apiBaseUrl, applyBootstrapPayload],
+    [applyBootstrapPayload, authenticatedRequestJson],
   );
 
   const syncPendingWorkLogDrafts = useCallback(
@@ -582,29 +632,29 @@ export default function App() {
         );
 
         if (drafts.length !== pendingWorkLogDraftsRef.current.length) {
-          await persistPendingWorkLogDrafts(drafts);
+          await persistPendingWorkLogDrafts(drafts, ownerKey);
         }
 
         let didSyncDraft = false;
         let draftSyncError: string | null = null;
         for (const draft of drafts.filter((draft) => isWorkLogDraftOwnedBy(draft, ownerKey))) {
           drafts = markPendingWorkLogDraftSyncing(drafts, draft.id);
-          await persistPendingWorkLogDrafts(drafts);
+          await persistPendingWorkLogDrafts(drafts, ownerKey);
 
           try {
-            await requestJson<WorkLogMutationResponse>(
-              apiBaseUrl,
+            await authenticatedRequestJson<WorkLogMutationResponse>(
               "/api/work-logs",
               {
                 method: "POST",
                 body: JSON.stringify(draft.payload),
               },
+              undefined,
               token,
             );
 
             drafts = removePendingWorkLogDraft(drafts, draft.id);
             didSyncDraft = true;
-            await persistPendingWorkLogDrafts(drafts);
+            await persistPendingWorkLogDrafts(drafts, ownerKey);
 
             const loggedTask = tasksRef.current.find(
               (task) => task.id === draft.payload.taskId,
@@ -621,13 +671,13 @@ export default function App() {
 
             const message = getClientErrorMessage(error);
             drafts = markPendingWorkLogDraftFailed(drafts, draft.id, message);
-            await persistPendingWorkLogDrafts(drafts);
+            await persistPendingWorkLogDrafts(drafts, ownerKey);
             draftSyncError = draftSyncError ?? message;
           }
         }
 
         if (drafts.length !== pendingWorkLogDraftsRef.current.length) {
-          await persistPendingWorkLogDrafts(drafts);
+          await persistPendingWorkLogDrafts(drafts, ownerKey);
         }
 
         if (!didSyncDraft && pendingWorkLogDraftsRef.current.length === 0) {
@@ -641,7 +691,7 @@ export default function App() {
             ensureArray(payload.workLogs),
             ownerKey,
           );
-          await persistPendingWorkLogDrafts(reconciledDrafts);
+          await persistPendingWorkLogDrafts(reconciledDrafts, ownerKey);
           return draftSyncError;
         } catch (error) {
           if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
@@ -654,7 +704,7 @@ export default function App() {
         isSyncingWorkLogDraftsRef.current = false;
       }
     },
-    [apiBaseUrl, persistPendingWorkLogDrafts, refreshWorkspaceFromServer, sessionUser],
+    [authenticatedRequestJson, persistPendingWorkLogDrafts, refreshWorkspaceFromServer, sessionUser],
   );
 
   useEffect(() => {
@@ -665,7 +715,16 @@ export default function App() {
   useEffect(() => {
     let isActive = true;
 
-    void loadPendingWorkLogDrafts().then((drafts) => {
+    if (!activeWorkLogDraftOwnerKey) {
+      pendingWorkLogDraftsRef.current = [];
+      setPendingWorkLogDrafts([]);
+      void purgeExpiredWorkLogDrafts();
+      return () => {
+        isActive = false;
+      };
+    }
+
+    void loadPendingWorkLogDrafts(activeWorkLogDraftOwnerKey).then((drafts) => {
       if (!isActive) {
         return;
       }
@@ -680,14 +739,14 @@ export default function App() {
       setPendingWorkLogDrafts(reconciledDrafts);
 
       if (reconciledDrafts.length !== drafts.length) {
-        void savePendingWorkLogDrafts(reconciledDrafts);
+        void savePendingWorkLogDrafts(activeWorkLogDraftOwnerKey, reconciledDrafts);
       }
     });
 
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [activeWorkLogDraftOwnerKey]);
 
   const loadPublicAuthConfig = useCallback(async () => {
     setBackendStatus("connecting");
@@ -730,19 +789,27 @@ export default function App() {
   }, [apiBaseUrl]);
 
   const finishSignIn = useCallback(
-    async (token: string | null, user: SessionUser) => {
+    async (
+      token: string | null,
+      user: SessionUser,
+      mobileSession?: MobileSessionResponse | PersistedAuthSession,
+    ) => {
+      if (sessionUser && sessionUser.accountId !== user.accountId) {
+        clearIdentityScopedStateRef.current();
+      }
       setThemeOverride(null);
-      setApiToken(token);
-      setSessionUser(user);
+      setHasAuthenticated(false);
       setIsSyncing(true);
       setSyncError(null);
+      setAuthError(null);
 
-      if (token) {
+      if (mobileSession) {
         const deviceNumber = await getOrCreateAuthDeviceNumber();
-        await savePersistedAuthSession({ deviceNumber, token, user }).catch(
-          () => undefined,
-        );
+        await saveActiveMobileSession({ ...mobileSession, deviceNumber });
       } else {
+        mobileSessionRef.current = null;
+        setApiToken(token);
+        setSessionUser(user);
         await clearPersistedAuthSession().catch(() => undefined);
       }
 
@@ -757,24 +824,33 @@ export default function App() {
         setBackendStatus(draftSyncError ? "offline" : "connected");
         setBackendReachability("reachable");
         setSyncError(draftSyncError);
+        setHasAuthenticated(true);
       } catch (error) {
-        if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
-          endSessionForAuthFailure(getMobileAuthErrorMessage("expired-session"));
+        if (
+          (error instanceof ApiRequestError &&
+            (error.status === 401 || error.status === 403)) ||
+          classifyMobileAuthError(error, "authenticated") === "expired-session"
+        ) {
+          await endSessionForAuthFailure(getMobileAuthErrorMessage("expired-session"));
           return;
         }
 
         setBackendStatus("offline");
         setBackendReachability(backendReachabilityAfterError(error));
         setSyncError(parseClientError(error));
+        setAuthError(
+          "Your session is saved, but workspace data could not be loaded. Check your connection and try again.",
+        );
       } finally {
         setIsSyncing(false);
-        setHasAuthenticated(true);
       }
     },
     [
       applyThemePreferenceFromServer,
       endSessionForAuthFailure,
       refreshWorkspaceFromServer,
+      saveActiveMobileSession,
+      sessionUser,
       syncPendingWorkLogDrafts,
     ],
   );
@@ -842,12 +918,11 @@ export default function App() {
         // Let the app shell appear immediately while the restored token refreshes
         // workspace data and validates that the backend still accepts it.
         setAuthNotice(DEVICE_SESSION_RESTORED_NOTICE);
-        const restorePromise = finishSignIn(
+        await finishSignIn(
           persistedSession.token,
           persistedSession.user,
+          persistedSession,
         );
-        setIsRestoringAuthSession(false);
-        await restorePromise;
       } finally {
         if (isActive) {
           setIsRestoringAuthSession(false);
@@ -909,12 +984,17 @@ export default function App() {
     try {
       if (emailSignInOperation === "verify-code") {
         const deviceNumber = await getOrCreateAuthDeviceNumber();
-        const session = await requestJson<SessionResponse>(
+        const session = await requestJson<MobileSessionResponse>(
           apiBaseUrl,
-          "/api/auth/email/verify",
+          "/api/auth/mobile/email/verify",
           {
             method: "POST",
-            body: JSON.stringify({ code, deviceId: deviceNumber, email }),
+            body: JSON.stringify({
+              code,
+              deviceId: deviceNumber,
+              deviceName: Platform.OS === "ios" ? "iOS device" : "Android device",
+              email,
+            }),
           },
           undefined,
           AUTH_REQUEST_TIMEOUT_MS,
@@ -1031,7 +1111,7 @@ export default function App() {
       setSyncError(null);
 
       try {
-        await requestJson(apiBaseUrl, path, init, apiToken);
+        await authenticatedRequestJson(path, init);
         // Mutations refresh the full bootstrap snapshot so cross-feature derived
         // data stays consistent after backend-side cascades.
         const payload = await refreshWorkspaceFromServer(apiToken);
@@ -1059,9 +1139,9 @@ export default function App() {
       }
     },
     [
-      apiBaseUrl,
       apiToken,
       activeWorkLogDraftOwnerKey,
+      authenticatedRequestJson,
       endSessionForAuthFailure,
       refreshWorkspaceFromServer,
       syncPendingWorkLogDrafts,
@@ -3043,8 +3123,7 @@ export default function App() {
     try {
       await Promise.all(
         openTasksToShift.map((task) =>
-          requestJson(
-            apiBaseUrl,
+          authenticatedRequestJson(
             `/api/tasks/${task.id}`,
             {
               method: "PATCH",
@@ -3070,7 +3149,6 @@ export default function App() {
                 actualHours: task.actualHours,
               }),
             },
-            apiToken,
           ),
         ),
       );
@@ -3342,14 +3420,12 @@ export default function App() {
     setSyncError(null);
 
     try {
-      const response = await requestJson<MilestoneMutationResponse>(
-        apiBaseUrl,
+      const response = await authenticatedRequestJson<MilestoneMutationResponse>(
         isEdit ? `/api/milestones/${activeMilestoneId}` : "/api/milestones",
         {
           method: isEdit ? "PATCH" : "POST",
           body: JSON.stringify(payload),
         },
-        apiToken,
       );
 
       await refreshWorkspaceFromServer(apiToken);
@@ -3485,7 +3561,7 @@ export default function App() {
     }
 
     await runTaskAssignmentMutation(() =>
-      claimTaskRequest(apiBaseUrl, task.id, false, apiToken),
+      claimTaskRequest(apiBaseUrl, task.id, false, apiToken, authenticatedRequestJson),
     );
   };
 
@@ -3495,7 +3571,7 @@ export default function App() {
     }
 
     await runTaskAssignmentMutation(() =>
-      releaseTaskRequest(apiBaseUrl, task.id, apiToken),
+      releaseTaskRequest(apiBaseUrl, task.id, apiToken, authenticatedRequestJson),
     );
   };
 
@@ -3505,7 +3581,13 @@ export default function App() {
     }
 
     await runTaskAssignmentMutation(() =>
-      reassignTaskRequest(apiBaseUrl, task.id, ownerId, apiToken),
+      reassignTaskRequest(
+        apiBaseUrl,
+        task.id,
+        ownerId,
+        apiToken,
+        authenticatedRequestJson,
+      ),
     );
   };
 
@@ -3531,7 +3613,7 @@ export default function App() {
 
     if (!currentTask.ownerId) {
       const ok = await runTaskAssignmentMutation(() =>
-        claimTaskRequest(apiBaseUrl, task.id, true, apiToken),
+        claimTaskRequest(apiBaseUrl, task.id, true, apiToken, authenticatedRequestJson),
       );
       if (ok && openWorkLog) {
         openCreateWorkLogEditor(task.id);
@@ -3896,14 +3978,12 @@ export default function App() {
 
     let serverCreateSucceeded = false;
     try {
-      await requestJson<WorkLogMutationResponse>(
-        apiBaseUrl,
+      await authenticatedRequestJson<WorkLogMutationResponse>(
         "/api/work-logs",
         {
           method: "POST",
           body: JSON.stringify(payload),
         },
-        apiToken,
       );
       serverCreateSucceeded = true;
       const refreshedPayload = await refreshWorkspaceFromServer(apiToken);
@@ -3986,6 +4066,11 @@ export default function App() {
       return;
     }
 
+    if (!canMentorApprove) {
+      setWorkLogError("Only a mentor or admin can delete a synced work log.");
+      return;
+    }
+
     const ok = await runMutation(`/api/work-logs/${activeWorkLogId}`, {
       method: "DELETE",
     });
@@ -4058,10 +4143,11 @@ export default function App() {
       dueDate: manufacturingDraft.dueDate || isoToday(),
       material,
       quantity: parsedQty,
-      status: manufacturingDraft.status,
-      mentorReviewed: manufacturingDraft.mentorReviewed,
       batchLabel: manufacturingDraft.batchLabel.trim() || undefined,
       qaReviewCount: parsedQaReviewCount,
+      ...(manufacturingEditorMode === "create"
+        ? { status: "requested", mentorReviewed: false }
+        : {}),
     };
 
     const isEdit = manufacturingEditorMode === "edit" && activeManufacturingId;
@@ -4079,7 +4165,7 @@ export default function App() {
   };
 
   const deleteManufacturingDraft = async () => {
-    if (!activeManufacturingId) {
+    if (!activeManufacturingId || !canMentorApprove) {
       return;
     }
 
@@ -4096,30 +4182,20 @@ export default function App() {
     item: ManufacturingItem,
     patch: Partial<Pick<ManufacturingItem, "mentorReviewed" | "status">>,
   ) => {
-    const nextItem = { ...item, ...patch };
+    if (patch.mentorReviewed !== undefined) {
+      await runMutation(`/api/manufacturing/${item.id}/review`, {
+        method: "PUT",
+        body: JSON.stringify({ reviewed: patch.mentorReviewed }),
+      });
+      return;
+    }
 
-    setManufacturingItems((current) =>
-      current.map((manufacturingItem) =>
-        manufacturingItem.id === item.id ? nextItem : manufacturingItem,
-      ),
-    );
-
-    await runMutation(`/api/manufacturing/${item.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({
-        title: nextItem.title,
-        subsystemId: nextItem.subsystemId,
-        requestedById: nextItem.requestedById,
-        process: nextItem.process,
-        dueDate: nextItem.dueDate,
-        material: nextItem.material,
-        quantity: nextItem.quantity,
-        status: nextItem.status,
-        mentorReviewed: nextItem.mentorReviewed,
-        batchLabel: nextItem.batchLabel,
-        qaReviewCount: nextItem.qaReviewCount,
-      }),
-    });
+    if (patch.status !== undefined) {
+      await runMutation(`/api/manufacturing/${item.id}/transition`, {
+        method: "POST",
+        body: JSON.stringify({ status: patch.status }),
+      });
+    }
   };
 
   const openCreatePurchaseEditor = () => {
@@ -4211,9 +4287,12 @@ export default function App() {
       linkLabel: linkLabel || "n/a",
       estimatedCost: parsedEstimate,
       finalCost:
-        typeof parsedFinal === "number" && !Number.isNaN(parsedFinal) ? parsedFinal : undefined,
-      approvedByMentor: purchaseDraft.approvedByMentor,
-      status: purchaseDraft.status,
+        canMentorApprove && typeof parsedFinal === "number" && !Number.isNaN(parsedFinal)
+          ? parsedFinal
+          : undefined,
+      ...(purchaseEditorMode === "create"
+        ? { approvedByMentor: false, status: "requested" }
+        : {}),
     };
 
     const isEdit = purchaseEditorMode === "edit" && activePurchaseId;
@@ -4231,7 +4310,7 @@ export default function App() {
   };
 
   const deletePurchaseDraft = async () => {
-    if (!activePurchaseId) {
+    if (!activePurchaseId || !canMentorApprove) {
       return;
     }
 
@@ -4242,6 +4321,23 @@ export default function App() {
     if (ok) {
       closePurchaseEditor();
     }
+  };
+
+  const approvePurchaseItem = async (item: PurchaseItem, approved: boolean) => {
+    await runMutation(`/api/purchases/${item.id}/approval`, {
+      method: "PUT",
+      body: JSON.stringify({ approved }),
+    });
+  };
+
+  const transitionPurchaseItem = async (
+    item: PurchaseItem,
+    status: PurchaseItem["status"],
+  ) => {
+    await runMutation(`/api/purchases/${item.id}/transition`, {
+      method: "POST",
+      body: JSON.stringify({ status }),
+    });
   };
 
   const openCreateMemberEditor = (role: MemberRole = "student") => {
@@ -4829,6 +4925,46 @@ export default function App() {
     void syncFromBackend();
   };
 
+  const clearIdentityScopedState = () => {
+    setMembers([]);
+    setSubsystems([]);
+    setDisciplines([]);
+    setMechanisms([]);
+    tasksRef.current = [];
+    taskByIdRef.current = {};
+    setTasks([]);
+    setEvents([]);
+    workLogsRef.current = [];
+    setWorkLogs([]);
+    pendingWorkLogDraftsRef.current = [];
+    setPendingWorkLogDrafts([]);
+    setManufacturingItems([]);
+    setPurchaseItems([]);
+    setPartDefinitions([]);
+    setPartInstances([]);
+    setQaReviews([]);
+    setQaRequests([]);
+    setHelpRequests([]);
+    setActivePersonFilter("all");
+    setSelectedMemberId(null);
+    setIsPersonMenuVisible(false);
+    setIsSeasonMenuVisible(false);
+    setIsNavMenuVisible(false);
+    setIsProjectOverlayVisible(false);
+    closeTaskEditor();
+    closeWorkLogEditor();
+    closeMilestoneEditor();
+    closeDeadlineEditor();
+    closeManufacturingEditor();
+    closePurchaseEditor();
+    closeMemberEditor();
+    closeSubsystemEditor();
+    closePartDefinitionEditor();
+    closeQaReportEditor();
+    clearWorkLogTimer();
+  };
+  clearIdentityScopedStateRef.current = clearIdentityScopedState;
+
   const clearWorkspaceForNewSeason = () => {
     setMembers((current) => current.filter((member) => member.role === "student"));
     setSubsystems([]);
@@ -4872,8 +5008,9 @@ export default function App() {
     });
   };
 
-  const signOut = () => {
-    void clearPersistedAuthSession().catch(() => undefined);
+  const finishLocalSignOut = async (serverSignOutConfirmed: boolean) => {
+    mobileSessionRef.current = null;
+    await clearPersistedAuthSession().catch(() => undefined);
     setApiToken(null);
     setSessionUser(null);
     setHasAuthenticated(false);
@@ -4881,28 +5018,87 @@ export default function App() {
     setAuthCode("");
     setAuthEmail("");
     setAuthError(null);
-    setAuthNotice(null);
+    setAuthNotice(
+      serverSignOutConfirmed
+        ? null
+        : "Local sign-out completed, but the server could not confirm revocation. Sign in again when connected to manage this device session.",
+    );
     setIsAuthenticating(false);
     setHasRequestedEmailCode(false);
-    setIsPersonMenuVisible(false);
-    setIsSeasonMenuVisible(false);
-    setIsNavMenuVisible(false);
-    setIsProjectOverlayVisible(false);
-    setActivePersonFilter("all");
-    setSelectedMemberId(null);
     setSyncError(null);
-    setHelpRequests([]);
-    closeTaskEditor();
-    closeWorkLogEditor();
-    closeMilestoneEditor();
-    closeDeadlineEditor();
-    closeManufacturingEditor();
-    closePurchaseEditor();
-    closeMemberEditor();
-    closeSubsystemEditor();
-    closePartDefinitionEditor();
-    closeQaReportEditor();
-    clearWorkLogTimer();
+    setIsDeviceSessionsVisible(false);
+    setDeviceSessions([]);
+    setDeviceSessionsError(null);
+    clearIdentityScopedState();
+    await purgeExpiredWorkLogDrafts().catch(() => undefined);
+  };
+
+  const signOut = async () => {
+    const mobileSession = mobileSessionRef.current;
+    if (!mobileSession) {
+      await finishLocalSignOut(true);
+      return;
+    }
+
+    await revokeThenClearMobileSession({
+      revokeServerState: () =>
+        requestJson(
+          apiBaseUrl,
+          "/api/auth/mobile/logout",
+          {
+            method: "POST",
+            body: JSON.stringify({ refreshToken: mobileSession.refreshToken }),
+          },
+          mobileSession.token,
+          AUTH_REQUEST_TIMEOUT_MS,
+        ),
+      clearLocalState: finishLocalSignOut,
+    });
+  };
+
+  const openDeviceSessions = async () => {
+    setIsPersonMenuVisible(false);
+    setIsDeviceSessionsVisible(true);
+    setIsLoadingDeviceSessions(true);
+    setDeviceSessionsError(null);
+    try {
+      const response = await authenticatedRequestJson<{
+        sessions: MobileDeviceSessionSummary[];
+      }>("/api/auth/mobile/sessions");
+      setDeviceSessions(response.sessions);
+    } catch (error) {
+      setDeviceSessionsError(getClientErrorMessage(error));
+    } finally {
+      setIsLoadingDeviceSessions(false);
+    }
+  };
+
+  const revokeDeviceSession = async (sessionId: string) => {
+    setDeviceSessionsError(null);
+    try {
+      await authenticatedRequestJson(`/api/auth/mobile/sessions/${sessionId}`, {
+        method: "DELETE",
+      });
+      if (mobileSessionRef.current?.session.id === sessionId) {
+        await finishLocalSignOut(true);
+        return;
+      }
+      setDeviceSessions((current) =>
+        current.filter((session) => session.id !== sessionId),
+      );
+    } catch (error) {
+      setDeviceSessionsError(getClientErrorMessage(error));
+    }
+  };
+
+  const revokeAllDeviceSessions = async () => {
+    setDeviceSessionsError(null);
+    try {
+      await authenticatedRequestJson("/api/auth/mobile/logout-all", { method: "POST" });
+      await finishLocalSignOut(true);
+    } catch (error) {
+      setDeviceSessionsError(getClientErrorMessage(error));
+    }
   };
 
   const screenProps = {
@@ -4911,6 +5107,7 @@ export default function App() {
     appResponsiveStyles,
     attendancePreview,
     attendanceSummary,
+    approvePurchaseItem,
     canMentorApprove,
     canReassignTasks,
     claimTask,
@@ -5070,6 +5267,7 @@ export default function App() {
     taskArchiveFilter,
     taskBlockerFilter,
     taskById,
+    transitionPurchaseItem,
     taskOwnerFilter,
     taskPriorityFilter,
     taskQueueSections,
@@ -5200,6 +5398,7 @@ export default function App() {
 
         <ManufacturingEditorModal
           appResponsiveStyles={appResponsiveStyles}
+          canDelete={canMentorApprove}
           deleteManufacturingDraft={deleteManufacturingDraft}
           manufacturingDraft={manufacturingDraft}
           manufacturingEditorMode={manufacturingEditorMode}
@@ -5220,6 +5419,7 @@ export default function App() {
 
         <PurchaseEditorModal
           appResponsiveStyles={appResponsiveStyles}
+          canManageProtectedFields={canMentorApprove}
           deletePurchaseDraft={deletePurchaseDraft}
           memberOptions={memberOptions}
           onCancel={closePurchaseEditor}
@@ -5298,6 +5498,7 @@ export default function App() {
           authEmail={authEmail}
           authError={authError}
           authNotice={authNotice}
+          canRetrySavedSession={Boolean(mobileSessionRef.current)}
           hasRequestedEmailCode={hasRequestedEmailCode}
           height={height}
           isAuthenticating={isAuthenticating}
@@ -5325,11 +5526,15 @@ export default function App() {
             apiToken={apiToken}
             createSeason={createSeason}
             deleteSeason={deleteSeason}
+            deviceSessions={deviceSessions}
+            deviceSessionsError={deviceSessionsError}
             editorModals={renderEditorModals()}
             hasSubtabPages={hasSubtabPages}
             isAttendanceModalVisible={isAttendanceModalVisible}
             isCompactLayout={isCompactLayout}
             isDarkModeEnabled={isDarkModeEnabled}
+            isDeviceSessionsVisible={isDeviceSessionsVisible}
+            isLoadingDeviceSessions={isLoadingDeviceSessions}
             isNavMenuVisible={isNavMenuVisible}
             isPersonMenuVisible={isPersonMenuVisible}
             isProjectOverlayVisible={isProjectOverlayVisible}
@@ -5339,6 +5544,7 @@ export default function App() {
             navigationOpenHandlers={navigationOpenSwipeResponder.panHandlers}
             navigationSections={navigationSections}
             onCloseAttendance={() => setIsAttendanceModalVisible(false)}
+            onCloseDeviceSessions={() => setIsDeviceSessionsVisible(false)}
             onCloseNavigation={closeNavigationMenu}
             onClosePersonMenu={() => {
               setIsPersonMenuVisible(false);
@@ -5346,6 +5552,9 @@ export default function App() {
             }}
             onCloseProjectOverlay={() => setIsProjectOverlayVisible(false)}
             onOpenNavigation={openNavigationMenu}
+            onOpenDeviceSessions={() => {
+              void openDeviceSessions();
+            }}
             onOpenPersonMenu={() => {
               setIsSeasonMenuVisible(false);
               setIsPersonMenuVisible(true);
@@ -5356,6 +5565,12 @@ export default function App() {
               setIsProjectOverlayVisible(false);
             }}
             onResetWorkspaceData={resetWorkspaceData}
+            onRevokeAllDeviceSessions={() => {
+              void revokeAllDeviceSessions();
+            }}
+            onRevokeDeviceSession={(sessionId) => {
+              void revokeDeviceSession(sessionId);
+            }}
             onSelectSeason={(seasonId) => {
               setActiveSeasonId(seasonId);
               setIsSeasonMenuVisible(false);

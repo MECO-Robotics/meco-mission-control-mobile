@@ -180,6 +180,7 @@ export interface AppScreenProps {
   openCreateTaskEditor: () => void;
   openCreateWorkLogEditor: (taskId?: string) => void;
   openWorkLogFromTimer: () => void;
+  approvePurchaseItem: (item: PurchaseItem, approved: boolean) => Promise<void>;
   createQaRequest: (subject: string, mentorId: string, taskId?: string | null) => void;
   openEditManufacturingEditor: (item: ManufacturingItem) => void;
   openEditMemberEditor: (memberId: string) => void;
@@ -205,6 +206,10 @@ export interface AppScreenProps {
   patchManufacturingItem: (
     item: ManufacturingItem,
     patch: Partial<Pick<ManufacturingItem, "mentorReviewed" | "status">>,
+  ) => Promise<void>;
+  transitionPurchaseItem: (
+    item: PurchaseItem,
+    status: PurchaseItem["status"],
   ) => Promise<void>;
   purchaseApprovalFilter: string;
   purchaseItems: PurchaseItem[];

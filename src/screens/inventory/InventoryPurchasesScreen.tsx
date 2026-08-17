@@ -23,6 +23,8 @@ import type { AppScreenProps } from "../types";
 export function InventoryPurchasesScreen(props: AppScreenProps) {
   const {
     appResponsiveStyles,
+    approvePurchaseItem,
+    canMentorApprove,
     editTagStyle,
     filteredPurchases,
     membersById,
@@ -39,6 +41,7 @@ export function InventoryPurchasesScreen(props: AppScreenProps) {
     setPurchaseVendorFilter,
     subsystemsById,
     themeColors,
+    transitionPurchaseItem,
   } = props;
   const [isFiltersVisible, setIsFiltersVisible] = useState(false);
 
@@ -66,11 +69,24 @@ export function InventoryPurchasesScreen(props: AppScreenProps) {
           item.approvedByMentor || item.status === "approved";
         const shouldShowStatus = item.status !== "approved";
         const shouldShowNotPurchased = item.status === "approved";
+        const canEditItem = item.status === "requested" || canMentorApprove;
+        const nextStatus =
+          item.status === "approved"
+            ? "purchased"
+            : item.status === "purchased"
+              ? "shipped"
+              : item.status === "shipped"
+                ? "delivered"
+                : null;
 
         return (
           <Pressable
             key={item.id}
-            onPress={() => openEditPurchaseEditor(item)}
+            onPress={() => {
+              if (canEditItem) {
+                openEditPurchaseEditor(item);
+              }
+            }}
             style={[styles.queueRowCard, appResponsiveStyles.rowCard]}
           >
             <View style={styles.queueRowHeader}>
@@ -80,7 +96,7 @@ export function InventoryPurchasesScreen(props: AppScreenProps) {
                   {subsystemName} - requester {requesterName}
                 </Text>
               </View>
-              <Text style={editTagStyle}>EDIT</Text>
+              <Text style={editTagStyle}>{canEditItem ? "EDIT" : "VIEW"}</Text>
             </View>
 
             <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
@@ -95,6 +111,29 @@ export function InventoryPurchasesScreen(props: AppScreenProps) {
               {shouldShowMentorApproved ? <StatusPill label="Mentor Approved" value="approved" /> : null}
               {shouldShowNotPurchased ? <StatusPill label="Not purchased" value="waiting" /> : null}
             </View>
+
+            {canMentorApprove && item.status === "requested" ? (
+              <View style={styles.quickActionRow}>
+                <Pressable
+                  onPress={() => approvePurchaseItem(item, true)}
+                  style={[styles.quickActionButton, styles.quickActionButtonPrimary]}
+                >
+                  <Text style={styles.quickActionButtonPrimaryLabel}>Approve</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {canMentorApprove && nextStatus ? (
+              <View style={styles.quickActionRow}>
+                <Pressable
+                  onPress={() => transitionPurchaseItem(item, nextStatus)}
+                  style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+                >
+                  <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
+                    Mark {nextStatus}
+                  </Text>
+                </Pressable>
+              </View>
+            ) : null}
           </Pressable>
         );
       })}
