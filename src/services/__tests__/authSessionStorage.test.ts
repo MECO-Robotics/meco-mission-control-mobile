@@ -155,4 +155,12 @@ describe("auth session storage", () => {
     expect(secureStorage.__store.get("meco-mobile-auth-session:v2")).toBeUndefined();
     expect(secureStorage.__store.get("meco-mobile-auth-session:v3")).toBeUndefined();
   });
+
+  it("propagates secure storage read failures instead of treating them as no session", async () => {
+    const deviceNumber = await getOrCreateAuthDeviceNumber();
+    const storageError = new Error("Keychain unavailable");
+    jest.mocked(SecureStore.getItemAsync).mockRejectedValueOnce(storageError);
+
+    await expect(loadPersistedAuthSession(deviceNumber)).rejects.toBe(storageError);
+  });
 });

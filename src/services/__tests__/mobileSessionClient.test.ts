@@ -53,11 +53,13 @@ describe("MobileSessionClient", () => {
     const rotated = buildSession({ token: "access-two", refreshToken: "refresh-two" });
     const saveSession = jest.fn(async (next: PersistedAuthSession | null) => {
       session = next;
+      return true;
     });
     fetchMock.mockReturnValueOnce(jsonResponse(rotated));
     const client = new MobileSessionClient({
       baseUrl: "https://api.example.test",
       getSession: () => session,
+      getSessionVersion: () => 0,
       onSessionExpired: jest.fn(),
       saveSession,
     });
@@ -65,7 +67,10 @@ describe("MobileSessionClient", () => {
     await Promise.all([client.refresh(), client.refresh()]);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(saveSession).toHaveBeenCalledWith({ ...rotated, deviceNumber: session?.deviceNumber });
+    expect(saveSession).toHaveBeenCalledWith(
+      { ...rotated, deviceNumber: session?.deviceNumber },
+      0,
+    );
   });
 
   it("refreshes once and retries an authenticated request once after 401", async () => {
@@ -78,9 +83,11 @@ describe("MobileSessionClient", () => {
     const client = new MobileSessionClient({
       baseUrl: "https://api.example.test",
       getSession: () => session,
+      getSessionVersion: () => 0,
       onSessionExpired: jest.fn(),
       saveSession: async (next) => {
         session = next;
+        return true;
       },
     });
 
@@ -100,12 +107,131 @@ describe("MobileSessionClient", () => {
     const client = new MobileSessionClient({
       baseUrl: "https://api.example.test",
       getSession: () => session,
+      getSessionVersion: () => 0,
       onSessionExpired,
-      saveSession: jest.fn(),
+      saveSession: jest.fn(async () => true),
     });
 
     await expect(client.refresh()).rejects.toMatchObject({ status: 401 });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(onSessionExpired).toHaveBeenCalledTimes(1);
+  });
+
+  it("retains the session when refresh fails before the server responds", async () => {
+    const session = buildSession();
+    const onSessionExpired = jest.fn();
+    fetchMock.mockRejectedValueOnce(new TypeError("Network request failed"));
+    const client = new MobileSessionClient({
+      baseUrl: "https://api.example.test",
+      getSession: () => session,
+      getSessionVersion: () => 0,
+      onSessionExpired,
+      saveSession: jest.fn(async () => true),
+    });
+
+    await expect(client.refresh()).rejects.toMatchObject({
+      name: "ApiNetworkError",
+    });
+    expect(onSessionExpired).not.toHaveBeenCalled();
+    expect(client.getAccessToken()).toBe("access-one");
+  });
+
+  it("retains the session when refresh receives a retryable server error", async () => {
+    const session = buildSession();
+    const onSessionExpired = jest.fn();
+    fetchMock.mockReturnValueOnce(jsonResponse({ message: "Unavailable" }, 503));
+    const client = new MobileSessionClient({
+      baseUrl: "https://api.example.test",
+      getSession: () => session,
+      getSessionVersion: () => 0,
+      onSessionExpired,
+      saveSession: jest.fn(async () => true),
+    });
+
+    await expect(client.refresh()).rejects.toMatchObject({ status: 503 });
+    expect(onSessionExpired).not.toHaveBeenCalled();
+  });
+
+  it("does not publish a refresh completed after the session version changes", async () => {
+    let session: PersistedAuthSession | null = buildSession();
+    let sessionVersion = 0;
+    const rotated = buildSession({ token: "access-two", refreshToken: "refresh-two" });
+    let resolveRefresh: ((response: Response) => void) | undefined;
+    fetchMock.mockReturnValueOnce(
+      new Promise<Response>((resolve) => {
+        resolveRefresh = resolve;
+      }),
+    );
+    const saveSession = jest.fn(async () => false);
+    const onSessionExpired = jest.fn();
+    const client = new MobileSessionClient({
+      baseUrl: "https://api.example.test",
+      getSession: () => session,
+      getSessionVersion: () => sessionVersion,
+      onSessionExpired,
+      saveSession,
+    });
+
+    const refresh = client.refresh();
+    session = null;
+    sessionVersion += 1;
+    resolveRefresh?.(await jsonResponse(rotated));
+
+    await expect(refresh).rejects.toMatchObject({ name: "SessionChangedError" });
+    expect(saveSession).toHaveBeenCalledWith(
+      { ...rotated, deviceNumber: "123456789012345" },
+      0,
+    );
+    expect(onSessionExpired).not.toHaveBeenCalled();
+    expect(client.getAccessToken()).toBeNull();
+  });
+
+  it("does not expire the session when rotated credential persistence fails", async () => {
+    const session = buildSession();
+    const rotated = buildSession({ token: "access-two", refreshToken: "refresh-two" });
+    fetchMock.mockReturnValueOnce(jsonResponse(rotated));
+    const persistenceError = new Error("SecureStore unavailable");
+    const onSessionExpired = jest.fn();
+    const client = new MobileSessionClient({
+      baseUrl: "https://api.example.test",
+      getSession: () => session,
+      getSessionVersion: () => 0,
+      onSessionExpired,
+      saveSession: jest.fn(async () => {
+        throw persistenceError;
+      }),
+    });
+
+    await expect(client.refresh()).rejects.toBe(persistenceError);
+    expect(onSessionExpired).not.toHaveBeenCalled();
+    expect(client.getAccessToken()).toBe("access-one");
+  });
+
+  it("does not expire a newer session after an old refresh is rejected", async () => {
+    let session: PersistedAuthSession | null = buildSession();
+    let sessionVersion = 0;
+    let resolveRefresh: ((response: Response) => void) | undefined;
+    fetchMock.mockReturnValueOnce(
+      new Promise<Response>((resolve) => {
+        resolveRefresh = resolve;
+      }),
+    );
+    const onSessionExpired = jest.fn();
+    const client = new MobileSessionClient({
+      baseUrl: "https://api.example.test",
+      getSession: () => session,
+      getSessionVersion: () => sessionVersion,
+      onSessionExpired,
+      saveSession: jest.fn(async () => true),
+    });
+
+    const refresh = client.refresh();
+    session = buildSession({ token: "new-access", refreshToken: "new-refresh" });
+    sessionVersion += 1;
+    resolveRefresh?.(await jsonResponse({ message: "invalid" }, 401));
+
+    await expect(refresh).rejects.toMatchObject({ status: 401 });
+    expect(onSessionExpired).not.toHaveBeenCalled();
+    expect(client.getAccessToken()).toBe("new-access");
   });
 });

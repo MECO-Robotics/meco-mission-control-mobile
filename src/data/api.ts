@@ -212,44 +212,56 @@ export async function requestJson<T>(
 
   const abortController =
     typeof timeoutMs === "number" && timeoutMs > 0 ? new AbortController() : null;
+  const abortFromCaller = () => abortController?.abort(init.signal?.reason);
+  if (abortController && init.signal) {
+    if (init.signal.aborted) {
+      abortFromCaller();
+    } else {
+      init.signal.addEventListener("abort", abortFromCaller, { once: true });
+    }
+  }
   const timeoutHandle =
     abortController !== null
       ? setTimeout(() => abortController.abort(), timeoutMs)
       : null;
 
-  let response: Response;
   try {
-    response = await fetch(`${baseUrl}${path}`, {
+    const response = await fetch(`${baseUrl}${path}`, {
       ...init,
       headers,
       signal: abortController?.signal ?? init.signal,
     });
+    const rawBody = await response.text();
+    let parsedBody: unknown = null;
+    if (rawBody) {
+      try {
+        parsedBody = JSON.parse(rawBody) as unknown;
+      } catch {
+        parsedBody = rawBody;
+      }
+    }
+
+    if (!response.ok) {
+      throw new ApiRequestError(
+        parseErrorMessage(parsedBody) ??
+          `Request failed with status ${response.status}.`,
+        response.status,
+        parsedBody,
+      );
+    }
+
+    return parsedBody as T;
   } catch (error) {
+    if (error instanceof ApiRequestError) {
+      throw error;
+    }
     throw new ApiNetworkError(error);
   } finally {
     if (timeoutHandle !== null) {
       clearTimeout(timeoutHandle);
     }
-  }
-
-  const rawBody = await response.text();
-  let parsedBody: unknown = null;
-  if (rawBody) {
-    try {
-      parsedBody = JSON.parse(rawBody) as unknown;
-    } catch {
-      parsedBody = rawBody;
+    if (abortController && init.signal) {
+      init.signal.removeEventListener("abort", abortFromCaller);
     }
   }
-
-  if (!response.ok) {
-    throw new ApiRequestError(
-      parseErrorMessage(parsedBody) ??
-        `Request failed with status ${response.status}.`,
-      response.status,
-      parsedBody,
-    );
-  }
-
-  return parsedBody as T;
 }

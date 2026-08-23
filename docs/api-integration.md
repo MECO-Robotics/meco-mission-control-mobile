@@ -88,9 +88,11 @@ Body:
 The response includes independent opaque access and refresh tokens plus access,
 device-session, and activity timestamps. Access tokens are refreshed five
 minutes before their one-hour expiry. Refresh tokens rotate exactly once; a
-failed rotation is never replayed. The v3 envelope is stored in
-`expo-secure-store` and bound to the app installation. Legacy v1/v2 credentials
-are deleted and require one fresh sign-in.
+definitive authentication rejection clears the local session, while ambiguous
+transport or server failures retain it for a later retry. Rotated credentials
+are published to app state only after the v3 envelope is stored successfully in
+`expo-secure-store`; the envelope is bound to the app installation. Legacy v1/v2
+credentials are deleted and require one fresh sign-in.
 
 Session management uses `POST /api/auth/mobile/refresh`, `POST
 /api/auth/mobile/logout`, `POST /api/auth/mobile/logout-all`, `GET
