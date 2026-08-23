@@ -206,4 +206,32 @@ describe("MobileSessionClient", () => {
     expect(onSessionExpired).not.toHaveBeenCalled();
     expect(client.getAccessToken()).toBe("access-one");
   });
+
+  it("does not expire a newer session after an old refresh is rejected", async () => {
+    let session: PersistedAuthSession | null = buildSession();
+    let sessionVersion = 0;
+    let resolveRefresh: ((response: Response) => void) | undefined;
+    fetchMock.mockReturnValueOnce(
+      new Promise<Response>((resolve) => {
+        resolveRefresh = resolve;
+      }),
+    );
+    const onSessionExpired = jest.fn();
+    const client = new MobileSessionClient({
+      baseUrl: "https://api.example.test",
+      getSession: () => session,
+      getSessionVersion: () => sessionVersion,
+      onSessionExpired,
+      saveSession: jest.fn(async () => true),
+    });
+
+    const refresh = client.refresh();
+    session = buildSession({ token: "new-access", refreshToken: "new-refresh" });
+    sessionVersion += 1;
+    resolveRefresh?.(await jsonResponse({ message: "invalid" }, 401));
+
+    await expect(refresh).rejects.toMatchObject({ status: 401 });
+    expect(onSessionExpired).not.toHaveBeenCalled();
+    expect(client.getAccessToken()).toBe("new-access");
+  });
 });

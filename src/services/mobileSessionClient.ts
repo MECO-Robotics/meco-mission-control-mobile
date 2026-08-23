@@ -113,7 +113,8 @@ export class MobileSessionClient {
       // retry or sign out explicitly.
       if (
         error instanceof ApiRequestError &&
-        (error.status === 401 || error.status === 403)
+        (error.status === 401 || error.status === 403) &&
+        this.options.getSessionVersion() === expectedVersion
       ) {
         await this.options.onSessionExpired();
       }
