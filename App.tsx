@@ -216,7 +216,7 @@ import {
   savePersistedAuthSession,
   type PersistedAuthSession,
 } from "./src/services/authSessionStorage";
-import { commitActiveMobileSession } from "./src/services/activeMobileSession";
+import { ActiveMobileSessionCoordinator } from "./src/services/activeMobileSession";
 import { MobileSessionClient } from "./src/services/mobileSessionClient";
 import { revokeThenClearMobileSession } from "./src/services/mobileLogout";
 import {
@@ -258,6 +258,12 @@ export default function App() {
   const [syncError, setSyncError] = useState<string | null>(null);
   const mobileSessionRef = useRef<PersistedAuthSession | null>(null);
   const authSessionVersionRef = useRef(0);
+  const authSessionCoordinatorRef = useRef(
+    new ActiveMobileSessionCoordinator({
+      clear: clearPersistedAuthSession,
+      persist: savePersistedAuthSession,
+    }),
+  );
   const clearIdentityScopedStateRef = useRef<() => void>(() => undefined);
   const isLocalDevBypassAvailable = isLocalDevAuthBypassEnabled();
   const requiredEmailDomain = normalizeRequiredEmailDomain(authConfig?.hostedDomain);
@@ -282,7 +288,7 @@ export default function App() {
     setBackendReachability("reachable");
     setThemeOverride(null);
     clearIdentityScopedStateRef.current();
-    await clearPersistedAuthSession().catch(() => undefined);
+    await authSessionCoordinatorRef.current.clear().catch(() => undefined);
   }, []);
 
   const saveActiveMobileSession = useCallback(
@@ -290,11 +296,9 @@ export default function App() {
       session: PersistedAuthSession,
       expectedVersion = authSessionVersionRef.current,
     ) => {
-      return commitActiveMobileSession({
-        clearPersisted: clearPersistedAuthSession,
+      return authSessionCoordinatorRef.current.commit({
         expectedVersion,
         getVersion: () => authSessionVersionRef.current,
-        persist: savePersistedAuthSession,
         publish: (nextSession) => {
           mobileSessionRef.current = nextSession;
           setApiToken(nextSession.token);
@@ -847,10 +851,11 @@ export default function App() {
           return;
         }
       } else {
+        authSessionVersionRef.current += 1;
         mobileSessionRef.current = null;
         setApiToken(token);
         setSessionUser(user);
-        await clearPersistedAuthSession().catch(() => undefined);
+        await authSessionCoordinatorRef.current.clear().catch(() => undefined);
       }
 
       try {
@@ -5056,7 +5061,7 @@ export default function App() {
   const finishLocalSignOut = async (serverSignOutConfirmed: boolean) => {
     authSessionVersionRef.current += 1;
     mobileSessionRef.current = null;
-    await clearPersistedAuthSession().catch(() => undefined);
+    await authSessionCoordinatorRef.current.clear().catch(() => undefined);
     setApiToken(null);
     setSessionUser(null);
     setHasAuthenticated(false);

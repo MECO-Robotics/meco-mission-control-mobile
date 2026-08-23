@@ -1,4 +1,4 @@
-import { commitActiveMobileSession } from "../activeMobileSession";
+import { ActiveMobileSessionCoordinator } from "../activeMobileSession";
 import type { PersistedAuthSession } from "../authSessionStorage";
 
 const session = {
@@ -22,19 +22,22 @@ const session = {
   },
 } satisfies PersistedAuthSession;
 
-describe("commitActiveMobileSession", () => {
+describe("ActiveMobileSessionCoordinator", () => {
   it("does not publish memory state when persistence fails", async () => {
     const persistenceError = new Error("SecureStore unavailable");
     const publish = jest.fn();
 
+    const coordinator = new ActiveMobileSessionCoordinator({
+      clear: jest.fn(),
+      persist: jest.fn(async () => {
+        throw persistenceError;
+      }),
+    });
+
     await expect(
-      commitActiveMobileSession({
-        clearPersisted: jest.fn(),
+      coordinator.commit({
         expectedVersion: 0,
         getVersion: () => 0,
-        persist: jest.fn(async () => {
-          throw persistenceError;
-        }),
         publish,
         session,
       }),
@@ -44,23 +47,73 @@ describe("commitActiveMobileSession", () => {
 
   it("clears a persisted rotation and does not publish after logout", async () => {
     let version = 0;
-    const clearPersisted = jest.fn(async () => undefined);
+    const clear = jest.fn(async () => undefined);
     const publish = jest.fn();
     const persist = jest.fn(async () => {
       version += 1;
     });
 
+    const coordinator = new ActiveMobileSessionCoordinator({ clear, persist });
+
     await expect(
-      commitActiveMobileSession({
-        clearPersisted,
+      coordinator.commit({
         expectedVersion: 0,
         getVersion: () => version,
-        persist,
         publish,
         session,
       }),
     ).resolves.toBe(false);
-    expect(clearPersisted).toHaveBeenCalledTimes(1);
+    expect(clear).toHaveBeenCalledTimes(1);
     expect(publish).not.toHaveBeenCalled();
+  });
+
+  it("finishes stale cleanup before persisting a newer sign-in", async () => {
+    let version = 0;
+    let persistedToken: string | null = null;
+    let releaseStalePersist: (() => void) | undefined;
+    const stalePersistStarted = new Promise<void>((resolve) => {
+      releaseStalePersist = resolve;
+    });
+    let persistCount = 0;
+    const coordinator = new ActiveMobileSessionCoordinator({
+      clear: async () => {
+        persistedToken = null;
+      },
+      persist: async (nextSession) => {
+        persistCount += 1;
+        persistedToken = nextSession.token;
+        if (persistCount === 1) {
+          await stalePersistStarted;
+        }
+      },
+    });
+    const stalePublish = jest.fn();
+    const nextPublish = jest.fn();
+
+    const staleCommit = coordinator.commit({
+      expectedVersion: 0,
+      getVersion: () => version,
+      publish: stalePublish,
+      session,
+    });
+    version = 1;
+    const nextSession = {
+      ...session,
+      refreshToken: "refresh-three",
+      token: "access-three",
+    };
+    const nextCommit = coordinator.commit({
+      expectedVersion: 1,
+      getVersion: () => version,
+      publish: nextPublish,
+      session: nextSession,
+    });
+    releaseStalePersist?.();
+
+    await expect(staleCommit).resolves.toBe(false);
+    await expect(nextCommit).resolves.toBe(true);
+    expect(stalePublish).not.toHaveBeenCalled();
+    expect(nextPublish).toHaveBeenCalledWith(nextSession);
+    expect(persistedToken).toBe("access-three");
   });
 });
