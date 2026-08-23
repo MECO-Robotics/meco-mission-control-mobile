@@ -216,6 +216,7 @@ import {
   savePersistedAuthSession,
   type PersistedAuthSession,
 } from "./src/services/authSessionStorage";
+import { commitActiveMobileSession } from "./src/services/activeMobileSession";
 import { MobileSessionClient } from "./src/services/mobileSessionClient";
 import { revokeThenClearMobileSession } from "./src/services/mobileLogout";
 import {
@@ -256,6 +257,7 @@ export default function App() {
     useState<BackendReachability>("unknown");
   const [syncError, setSyncError] = useState<string | null>(null);
   const mobileSessionRef = useRef<PersistedAuthSession | null>(null);
+  const authSessionVersionRef = useRef(0);
   const clearIdentityScopedStateRef = useRef<() => void>(() => undefined);
   const isLocalDevBypassAvailable = isLocalDevAuthBypassEnabled();
   const requiredEmailDomain = normalizeRequiredEmailDomain(authConfig?.hostedDomain);
@@ -264,6 +266,7 @@ export default function App() {
     isLocalDevBypassAvailable || authConfig?.devBypassAvailable === true;
 
   const endSessionForAuthFailure = useCallback(async (message: string) => {
+    authSessionVersionRef.current += 1;
     mobileSessionRef.current = null;
     setApiToken(null);
     setSessionUser(null);
@@ -283,16 +286,22 @@ export default function App() {
   }, []);
 
   const saveActiveMobileSession = useCallback(
-    async (session: PersistedAuthSession | null) => {
-      mobileSessionRef.current = session;
-      setApiToken(session?.token ?? null);
-      setSessionUser(session?.user ?? null);
-
-      if (session) {
-        await savePersistedAuthSession(session);
-      } else {
-        await clearPersistedAuthSession();
-      }
+    async (
+      session: PersistedAuthSession,
+      expectedVersion = authSessionVersionRef.current,
+    ) => {
+      return commitActiveMobileSession({
+        clearPersisted: clearPersistedAuthSession,
+        expectedVersion,
+        getVersion: () => authSessionVersionRef.current,
+        persist: savePersistedAuthSession,
+        publish: (nextSession) => {
+          mobileSessionRef.current = nextSession;
+          setApiToken(nextSession.token);
+          setSessionUser(nextSession.user);
+        },
+        session,
+      });
     },
     [],
   );
@@ -302,6 +311,7 @@ export default function App() {
       new MobileSessionClient({
         baseUrl: apiBaseUrl,
         getSession: () => mobileSessionRef.current,
+        getSessionVersion: () => authSessionVersionRef.current,
         onSessionExpired: () =>
           endSessionForAuthFailure(getMobileAuthErrorMessage("expired-session")),
         saveSession: saveActiveMobileSession,
@@ -820,8 +830,22 @@ export default function App() {
       setAuthError(null);
 
       if (mobileSession) {
-        const deviceNumber = await getOrCreateAuthDeviceNumber();
-        await saveActiveMobileSession({ ...mobileSession, deviceNumber });
+        try {
+          const deviceNumber = await getOrCreateAuthDeviceNumber();
+          const sessionSaved = await saveActiveMobileSession({
+            ...mobileSession,
+            deviceNumber,
+          });
+          if (!sessionSaved) {
+            setIsSyncing(false);
+            return;
+          }
+        } catch (error) {
+          setAuthError(getClientErrorMessage(error));
+          setAuthErrorState(classifyMobileAuthError(error));
+          setIsSyncing(false);
+          return;
+        }
       } else {
         mobileSessionRef.current = null;
         setApiToken(token);
@@ -5030,6 +5054,7 @@ export default function App() {
   };
 
   const finishLocalSignOut = async (serverSignOutConfirmed: boolean) => {
+    authSessionVersionRef.current += 1;
     mobileSessionRef.current = null;
     await clearPersistedAuthSession().catch(() => undefined);
     setApiToken(null);

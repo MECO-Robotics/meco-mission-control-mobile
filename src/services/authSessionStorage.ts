@@ -128,12 +128,7 @@ function parsePersistedSession(rawValue: string | null): PersistedAuthSession | 
 }
 
 async function readStoredSessionRaw() {
-  try {
-    const secureValue = await SecureStore.getItemAsync(SESSION_SECURE_STORAGE_KEY);
-    return secureValue;
-  } catch {
-    return null;
-  }
+  return SecureStore.getItemAsync(SESSION_SECURE_STORAGE_KEY);
 }
 
 async function writeStoredSessionRaw(rawValue: string | null) {

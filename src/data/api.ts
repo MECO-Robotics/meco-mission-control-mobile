@@ -225,14 +225,36 @@ export async function requestJson<T>(
       ? setTimeout(() => abortController.abort(), timeoutMs)
       : null;
 
-  let response: Response;
   try {
-    response = await fetch(`${baseUrl}${path}`, {
+    const response = await fetch(`${baseUrl}${path}`, {
       ...init,
       headers,
       signal: abortController?.signal ?? init.signal,
     });
+    const rawBody = await response.text();
+    let parsedBody: unknown = null;
+    if (rawBody) {
+      try {
+        parsedBody = JSON.parse(rawBody) as unknown;
+      } catch {
+        parsedBody = rawBody;
+      }
+    }
+
+    if (!response.ok) {
+      throw new ApiRequestError(
+        parseErrorMessage(parsedBody) ??
+          `Request failed with status ${response.status}.`,
+        response.status,
+        parsedBody,
+      );
+    }
+
+    return parsedBody as T;
   } catch (error) {
+    if (error instanceof ApiRequestError) {
+      throw error;
+    }
     throw new ApiNetworkError(error);
   } finally {
     if (timeoutHandle !== null) {
@@ -242,25 +264,4 @@ export async function requestJson<T>(
       init.signal.removeEventListener("abort", abortFromCaller);
     }
   }
-
-  const rawBody = await response.text();
-  let parsedBody: unknown = null;
-  if (rawBody) {
-    try {
-      parsedBody = JSON.parse(rawBody) as unknown;
-    } catch {
-      parsedBody = rawBody;
-    }
-  }
-
-  if (!response.ok) {
-    throw new ApiRequestError(
-      parseErrorMessage(parsedBody) ??
-        `Request failed with status ${response.status}.`,
-      response.status,
-      parsedBody,
-    );
-  }
-
-  return parsedBody as T;
 }

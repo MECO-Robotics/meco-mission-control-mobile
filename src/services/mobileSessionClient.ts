@@ -5,11 +5,23 @@ import type { PersistedAuthSession } from "./authSessionStorage";
 const REFRESH_EARLY_MS = 5 * 60 * 1000;
 
 type SessionReader = () => PersistedAuthSession | null;
-type SessionWriter = (session: PersistedAuthSession | null) => Promise<void>;
+type SessionVersionReader = () => number;
+type SessionWriter = (
+  session: PersistedAuthSession,
+  expectedVersion: number,
+) => Promise<boolean>;
+
+class SessionChangedError extends Error {
+  constructor() {
+    super("The active session changed while credentials were refreshing.");
+    this.name = "SessionChangedError";
+  }
+}
 
 type MobileSessionClientOptions = {
   baseUrl: string;
   getSession: SessionReader;
+  getSessionVersion: SessionVersionReader;
   onSessionExpired: () => Promise<void> | void;
   saveSession: SessionWriter;
 };
@@ -29,7 +41,8 @@ export class MobileSessionClient {
     }
 
     const session = this.requireSession();
-    this.refreshPromise = this.rotate(session).finally(() => {
+    const sessionVersion = this.options.getSessionVersion();
+    this.refreshPromise = this.rotate(session, sessionVersion).finally(() => {
       this.refreshPromise = null;
     });
     return this.refreshPromise;
@@ -77,7 +90,7 @@ export class MobileSessionClient {
     return session;
   }
 
-  private async rotate(session: PersistedAuthSession) {
+  private async rotate(session: PersistedAuthSession, expectedVersion: number) {
     try {
       const response = await requestJson<MobileSessionResponse>(
         this.options.baseUrl,
@@ -88,7 +101,10 @@ export class MobileSessionClient {
         },
       );
       const rotated = { ...response, deviceNumber: session.deviceNumber };
-      await this.options.saveSession(rotated);
+      const saved = await this.options.saveSession(rotated, expectedVersion);
+      if (!saved) {
+        throw new SessionChangedError();
+      }
       return rotated;
     } catch (error) {
       // A refresh response may be lost after the one-time token was consumed.

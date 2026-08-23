@@ -214,4 +214,34 @@ describe("mobile auth API fail-safe handling", () => {
       ),
     ).rejects.toBeInstanceOf(ApiNetworkError);
   });
+
+  it("keeps the timeout active while the response body is being read", async () => {
+    jest.useFakeTimers();
+    try {
+      global.fetch = jest.fn((_, init) => {
+        const signal = (init as RequestInit | undefined)?.signal;
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          text: () =>
+            new Promise<string>((_resolve, reject) => {
+              signal?.addEventListener("abort", () => reject(new Error("aborted")));
+            }),
+        } as Response);
+      }) as jest.Mock;
+
+      const promise = requestJson(
+        "https://api.example.test",
+        "/api/bootstrap",
+        undefined,
+        "token",
+        1,
+      );
+      const expectation = expect(promise).rejects.toBeInstanceOf(ApiNetworkError);
+      await jest.advanceTimersByTimeAsync(5);
+      await expectation;
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
