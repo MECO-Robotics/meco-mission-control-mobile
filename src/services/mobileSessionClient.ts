@@ -92,8 +92,15 @@ export class MobileSessionClient {
       return rotated;
     } catch (error) {
       // A refresh response may be lost after the one-time token was consumed.
-      // Never replay it: clear the session and require a fresh sign-in.
-      await this.options.onSessionExpired();
+      // Only definitive authentication rejection invalidates local credentials;
+      // ambiguous transport/server failures retain the session so the user can
+      // retry or sign out explicitly.
+      if (
+        error instanceof ApiRequestError &&
+        (error.status === 401 || error.status === 403)
+      ) {
+        await this.options.onSessionExpired();
+      }
       throw error;
     }
   }

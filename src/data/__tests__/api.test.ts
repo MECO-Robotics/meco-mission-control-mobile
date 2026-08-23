@@ -168,4 +168,50 @@ describe("mobile auth API fail-safe handling", () => {
       jest.useRealTimers();
     }
   });
+
+  it("honors caller cancellation when a timeout is also provided", async () => {
+    const callerController = new AbortController();
+    const capturedSignal: { current?: AbortSignal } = {};
+    global.fetch = jest.fn((_, init) => {
+      const fetchSignal = (init as RequestInit | undefined)?.signal;
+      if (fetchSignal) {
+        capturedSignal.current = fetchSignal;
+      }
+      return new Promise((_resolve, reject) => {
+        fetchSignal?.addEventListener("abort", () => reject(new Error("aborted")));
+      });
+    }) as jest.Mock;
+
+    const promise = requestJson(
+      "https://api.example.test",
+      "/api/bootstrap",
+      { signal: callerController.signal },
+      "token",
+      60_000,
+    );
+    callerController.abort();
+
+    await expect(promise).rejects.toBeInstanceOf(ApiNetworkError);
+    expect(capturedSignal.current?.aborted).toBe(true);
+  });
+
+  it("starts aborted when the caller signal was already cancelled", async () => {
+    const callerController = new AbortController();
+    callerController.abort();
+    global.fetch = jest.fn((_, init) => {
+      const signal = (init as RequestInit | undefined)?.signal;
+      expect(signal?.aborted).toBe(true);
+      return Promise.reject(new Error("aborted"));
+    }) as jest.Mock;
+
+    await expect(
+      requestJson(
+        "https://api.example.test",
+        "/api/bootstrap",
+        { signal: callerController.signal },
+        "token",
+        60_000,
+      ),
+    ).rejects.toBeInstanceOf(ApiNetworkError);
+  });
 });

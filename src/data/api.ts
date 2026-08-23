@@ -212,6 +212,14 @@ export async function requestJson<T>(
 
   const abortController =
     typeof timeoutMs === "number" && timeoutMs > 0 ? new AbortController() : null;
+  const abortFromCaller = () => abortController?.abort(init.signal?.reason);
+  if (abortController && init.signal) {
+    if (init.signal.aborted) {
+      abortFromCaller();
+    } else {
+      init.signal.addEventListener("abort", abortFromCaller, { once: true });
+    }
+  }
   const timeoutHandle =
     abortController !== null
       ? setTimeout(() => abortController.abort(), timeoutMs)
@@ -229,6 +237,9 @@ export async function requestJson<T>(
   } finally {
     if (timeoutHandle !== null) {
       clearTimeout(timeoutHandle);
+    }
+    if (abortController && init.signal) {
+      init.signal.removeEventListener("abort", abortFromCaller);
     }
   }
 

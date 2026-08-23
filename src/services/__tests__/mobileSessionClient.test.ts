@@ -108,4 +108,37 @@ describe("MobileSessionClient", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(onSessionExpired).toHaveBeenCalledTimes(1);
   });
+
+  it("retains the session when refresh fails before the server responds", async () => {
+    const session = buildSession();
+    const onSessionExpired = jest.fn();
+    fetchMock.mockRejectedValueOnce(new TypeError("Network request failed"));
+    const client = new MobileSessionClient({
+      baseUrl: "https://api.example.test",
+      getSession: () => session,
+      onSessionExpired,
+      saveSession: jest.fn(),
+    });
+
+    await expect(client.refresh()).rejects.toMatchObject({
+      name: "ApiNetworkError",
+    });
+    expect(onSessionExpired).not.toHaveBeenCalled();
+    expect(client.getAccessToken()).toBe("access-one");
+  });
+
+  it("retains the session when refresh receives a retryable server error", async () => {
+    const session = buildSession();
+    const onSessionExpired = jest.fn();
+    fetchMock.mockReturnValueOnce(jsonResponse({ message: "Unavailable" }, 503));
+    const client = new MobileSessionClient({
+      baseUrl: "https://api.example.test",
+      getSession: () => session,
+      onSessionExpired,
+      saveSession: jest.fn(),
+    });
+
+    await expect(client.refresh()).rejects.toMatchObject({ status: 503 });
+    expect(onSessionExpired).not.toHaveBeenCalled();
+  });
 });

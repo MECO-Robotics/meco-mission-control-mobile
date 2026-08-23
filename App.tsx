@@ -2,6 +2,7 @@ import * as ScreenOrientation from "expo-screen-orientation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   PanResponder,
+  Platform,
   useColorScheme,
   useWindowDimensions,
 } from "react-native";
@@ -280,6 +281,21 @@ export default function App() {
     clearIdentityScopedStateRef.current();
     await clearPersistedAuthSession().catch(() => undefined);
   }, []);
+
+  const saveActiveMobileSession = useCallback(
+    async (session: PersistedAuthSession | null) => {
+      mobileSessionRef.current = session;
+      setApiToken(session?.token ?? null);
+      setSessionUser(session?.user ?? null);
+
+      if (session) {
+        await savePersistedAuthSession(session);
+      } else {
+        await clearPersistedAuthSession();
+      }
+    },
+    [],
+  );
 
   const mobileSessionClient = useMemo(
     () =>
@@ -923,6 +939,11 @@ export default function App() {
           persistedSession.user,
           persistedSession,
         );
+      } catch (error) {
+        if (isActive) {
+          setAuthError(getClientErrorMessage(error));
+          setAuthErrorState(classifyMobileAuthError(error));
+        }
       } finally {
         if (isActive) {
           setIsRestoringAuthSession(false);
@@ -1000,7 +1021,7 @@ export default function App() {
           AUTH_REQUEST_TIMEOUT_MS,
         );
         setAuthCode("");
-        await finishSignIn(session.token, session.user);
+        await finishSignIn(session.token, session.user, session);
         return;
       }
 
@@ -5498,7 +5519,6 @@ export default function App() {
           authEmail={authEmail}
           authError={authError}
           authNotice={authNotice}
-          canRetrySavedSession={Boolean(mobileSessionRef.current)}
           hasRequestedEmailCode={hasRequestedEmailCode}
           height={height}
           isAuthenticating={isAuthenticating}
