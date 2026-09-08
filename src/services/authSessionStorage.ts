@@ -9,8 +9,6 @@ type PersistedAuthSession = MobileSessionResponse & {
 };
 
 const DEVICE_NUMBER_STORAGE_KEY = "meco-mobile-device-number:v1";
-const LEGACY_SESSION_STORAGE_KEY = "meco-mobile-auth-session:v1";
-const LEGACY_SECURE_STORAGE_KEY = "meco-mobile-auth-session:v2";
 const SESSION_SECURE_STORAGE_KEY = "meco-mobile-auth-session:v3";
 
 function isDeviceNumber(value: unknown): value is string {
@@ -132,11 +130,6 @@ async function readStoredSessionRaw() {
 }
 
 async function writeStoredSessionRaw(rawValue: string | null) {
-  await Promise.allSettled([
-    AsyncStorage.removeItem(LEGACY_SESSION_STORAGE_KEY),
-    SecureStore.deleteItemAsync(LEGACY_SECURE_STORAGE_KEY),
-  ]);
-
   if (rawValue === null) {
     await SecureStore.deleteItemAsync(SESSION_SECURE_STORAGE_KEY);
     return;
@@ -148,13 +141,6 @@ async function writeStoredSessionRaw(rawValue: string | null) {
 }
 
 export async function loadPersistedAuthSession(deviceNumber: string) {
-  // v1/v2 credentials were long-lived bearer sessions. Delete them instead of
-  // silently upgrading so every install starts with independently rotatable v3 tokens.
-  await Promise.allSettled([
-    AsyncStorage.removeItem(LEGACY_SESSION_STORAGE_KEY),
-    SecureStore.deleteItemAsync(LEGACY_SECURE_STORAGE_KEY),
-  ]);
-
   const rawValue = await readStoredSessionRaw();
   const parsed = parsePersistedSession(rawValue);
 

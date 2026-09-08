@@ -4,26 +4,7 @@ The mobile app is designed to work with the hosted platform API, while still bei
 
 ## Base URL
 
-The API base URL is resolved by `resolveApiBaseUrl()` in `src/data/api.ts`.
-
-Default:
-
-```text
-http://localhost:8080
-```
-
-Override:
-
-```text
-EXPO_PUBLIC_API_BASE_URL=https://your-api-host.example
-```
-
-Platform-specific overrides take precedence when set:
-
-```text
-EXPO_PUBLIC_IOS_API_BASE_URL=http://localhost:8080
-EXPO_PUBLIC_ANDROID_API_BASE_URL=http://10.0.2.2:8080
-```
+See [API and device environment setup](development.md#api-and-device-environment) for emulator defaults, physical-device URLs and the development-only private-LAN opt-in. `resolveApiBaseUrl()` in `src/data/api.ts` owns URL validation.
 
 ## Request Behavior
 
@@ -146,12 +127,7 @@ The payload may include:
 
 Milestones can be mapped into event-like records for mobile timeline behavior.
 
-`actions` are platform audit history for create, update, and delete activity. They follow the
-platform audit retention policy: retain for 3 years after the related season ends, then delete or
-anonymize actor/member references and free-text labels/messages. Archive hides records from active
-views but does not shorten retention; delete removes the domain record while leaving a minimal
-tombstone until retention expires. Audit history must avoid sensitive minor data and should only be
-shown to authenticated leads, mentors, admins, or scoped users with a legitimate operational need.
+`actions` are platform audit history. Automatic expiration and privacy maintenance are not implemented. Before deployment, establish the [platform audit retention policy](https://github.com/MECO-Robotics/meco-mission-control-platform/blob/development/docs/backend-overview.md) and its enforcement; the policy is a requirement, not an existing background process.
 
 ## Mutation Endpoints Used By The App
 

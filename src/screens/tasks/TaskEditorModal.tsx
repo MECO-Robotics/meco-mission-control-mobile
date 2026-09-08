@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import type { useTaskEditor } from "./useTaskEditor";
 import { View, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
 
 import { Text } from "../../i18n";
@@ -6,7 +6,7 @@ import type { AppThemeColors } from "../../theme";
 import { TASK_PRIORITY_OPTIONS, TASK_STATUS_OPTIONS } from "../../ui/constants";
 import { isoToday } from "../../ui/helpers";
 import { styles } from "../../ui/styles";
-import type { EditorMode, Option } from "../../ui/types";
+import type { Option } from "../../ui/types";
 import { AdvancedOptions, DropdownField, EditorModal, ModalField } from "../../ui/ui";
 import type {
   Discipline,
@@ -14,22 +14,17 @@ import type {
   Mechanism,
   PartInstance,
   Subsystem,
-  Task,
   TaskPriority,
   TaskStatus,
 } from "../../types/domain";
 import { EditorCallout } from "../../app/editorModals/EditorCallout";
-import type { TaskDraft } from "./taskDraft";
 import { TaskDependenciesField } from "./TaskDependenciesField";
 
 type TaskEditorModalProps = {
-  addTaskDependency: (dependencyId: string) => void;
+  editor: ReturnType<typeof useTaskEditor>;
   appResponsiveStyles: { calloutBody: StyleProp<TextStyle>; calloutBox: StyleProp<ViewStyle>; calloutTitle: StyleProp<TextStyle> };
-  availableTaskDependencyOptions: Task[];
-  deleteTaskDraft: () => void;
   disciplineOptions: Option[];
   disciplinesById: Record<string, Discipline | undefined>;
-  downstreamTaskDependencies: Task[];
   eventOptions: Option[];
   eventsById: Record<string, Event | undefined>;
   isLandscapeCardLayout: boolean;
@@ -38,32 +33,18 @@ type TaskEditorModalProps = {
   mechanisms: Mechanism[];
   mechanismsById: Record<string, Mechanism | undefined>;
   memberOptions: Option[];
-  onCancel: () => void;
-  onSave: () => void;
   partInstances: PartInstance[];
   partInstancesById: Record<string, PartInstance | undefined>;
-  removeTaskDependency: (dependencyId: string) => void;
-  selectedTaskDependencies: Task[];
-  setTaskDependencySearch: (value: string) => void;
-  setTaskDraft: Dispatch<SetStateAction<TaskDraft>>;
   subsystemsById: Record<string, Subsystem | undefined>;
-  taskDependencyReadinessMessage: string | null;
-  taskDependencySearch: string;
-  taskDraft: TaskDraft;
-  taskEditorError: string | null;
-  taskEditorMode: EditorMode | null;
   taskSubsystemOptions: Option[];
   themeColors: AppThemeColors;
 };
 
 export function TaskEditorModal({
-  addTaskDependency,
+  editor,
   appResponsiveStyles,
-  availableTaskDependencyOptions,
-  deleteTaskDraft,
   disciplineOptions,
   disciplinesById,
-  downstreamTaskDependencies,
   eventOptions,
   eventsById,
   isLandscapeCardLayout,
@@ -72,23 +53,14 @@ export function TaskEditorModal({
   mechanisms,
   mechanismsById,
   memberOptions,
-  onCancel,
-  onSave,
   partInstances,
   partInstancesById,
-  removeTaskDependency,
-  selectedTaskDependencies,
-  setTaskDependencySearch,
-  setTaskDraft,
   subsystemsById,
-  taskDependencyReadinessMessage,
-  taskDependencySearch,
-  taskDraft,
-  taskEditorError,
-  taskEditorMode,
   taskSubsystemOptions,
   themeColors,
 }: TaskEditorModalProps) {
+  const { addTaskDependency, availableTaskDependencyOptions, deleteTaskDraft, downstreamTaskDependencies, removeTaskDependency, selectedTaskDependencies, setTaskDependencySearch, setTaskDraft, taskDependencyReadinessMessage, taskDependencySearch, taskDraft, taskEditorError, taskEditorMode, closeTaskEditor: onCancel, saveTaskDraft: onSave } = editor;
+
   return (
     <EditorModal
       onCancel={onCancel}
@@ -103,7 +75,7 @@ export function TaskEditorModal({
           body={taskEditorError}
           bodyStyle={appResponsiveStyles.calloutBody}
           boxStyle={appResponsiveStyles.calloutBox}
-          title="Missing task details"
+          title="Task could not be saved"
           titleStyle={appResponsiveStyles.calloutTitle}
         />
       ) : null}
@@ -279,6 +251,7 @@ export function TaskEditorModal({
               placeholder="4"
               value={taskDraft.estimatedHours}
             />
+
             <ModalField
               label="Checklist / substeps (comma separated)"
               multiline

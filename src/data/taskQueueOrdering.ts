@@ -1,3 +1,4 @@
+import { isTaskBlocked } from "./taskReadiness";
 import type { Task } from "../types/domain";
 import { TASK_SUBTEAM_DISCIPLINE_IDS, TASK_SUBTEAM_OPTIONS } from "../ui/constants";
 import type { TaskSubteamTab } from "../ui/types";
@@ -20,7 +21,6 @@ export type TaskQueueSection = {
 type BuildTaskQueueSectionsInput = {
   activeTaskSubteam: TaskSubteamTab;
   canViewAllQueues: boolean;
-  taskById: Record<string, Task>;
   tasks: Task[];
 };
 
@@ -47,19 +47,8 @@ export function getTaskSubteamForDisciplineId(
   );
 }
 
-function hasOpenDependency(task: Task, taskById: Record<string, Task>) {
-  return task.dependencyIds
-    .map((dependencyId) => taskById[dependencyId])
-    .some((dependency) => dependency && dependency.status !== "complete");
-}
-
-function isAvailableTask(task: Task, taskById: Record<string, Task>) {
-  return (
-    task.status !== "complete" &&
-    task.status !== "waiting-for-qa" &&
-    task.blockers.length === 0 &&
-    !hasOpenDependency(task, taskById)
-  );
+function isAvailableTask(task: Task) {
+  return task.status !== "complete" && task.status !== "waiting-for-qa" && !isTaskBlocked(task);
 }
 
 function getTaskSubteam(task: Task, fallback: TaskSubteamTab) {
@@ -69,7 +58,6 @@ function getTaskSubteam(task: Task, fallback: TaskSubteamTab) {
 export function buildTaskQueueSections({
   activeTaskSubteam,
   canViewAllQueues,
-  taskById,
   tasks,
 }: BuildTaskQueueSectionsInput): TaskQueueSection[] {
   const primarySubteam = activeTaskSubteam;
@@ -83,22 +71,22 @@ export function buildTaskQueueSections({
     // up unblocked tasks when their primary queue is empty.
     return (
       getTaskSubteam(task, primarySubteam) === primarySubteam ||
-      isAvailableTask(task, taskById)
+      isAvailableTask(task)
     );
   });
 
   const primaryAvailable = scopedTasks
     .filter((task) => getTaskSubteam(task, primarySubteam) === primarySubteam)
-    .filter((task) => isAvailableTask(task, taskById))
+    .filter((task) => isAvailableTask(task))
     .sort(compareTasksByDueDate);
   const otherAvailable = scopedTasks
     .filter((task) => getTaskSubteam(task, primarySubteam) !== primarySubteam)
-    .filter((task) => isAvailableTask(task, taskById))
+    .filter((task) => isAvailableTask(task))
     .sort(compareTasksByDueDate);
   const blocked = scopedTasks
     .filter((task) => task.status !== "waiting-for-qa")
     .filter((task) => task.status !== "complete")
-    .filter((task) => task.blockers.length > 0 || hasOpenDependency(task, taskById))
+    .filter((task) => isTaskBlocked(task))
     .sort(compareTasksByDueDate);
   const waitingQa = scopedTasks
     .filter((task) => task.status === "waiting-for-qa")

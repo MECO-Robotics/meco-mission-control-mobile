@@ -118,6 +118,22 @@ export interface PartInstance {
   status?: PartInstanceStatus;
 }
 
+export interface TaskDependency {
+  id: string;
+  taskId: string;
+  kind: "task" | "milestone" | "part_instance";
+  refId: string;
+  requiredState: string;
+  dependencyType: "hard" | "soft";
+  createdAt: string;
+}
+export interface TaskBlocker {
+  id: string;
+  blockedTaskId: string;
+  description: string;
+  status: "open" | "resolved";
+}
+
 export interface Task {
   id: string;
   projectId?: string;
@@ -139,10 +155,11 @@ export interface Task {
   dueDate: string;
   priority: TaskPriority;
   status: TaskStatus;
-  dependencyIds: string[];
-  checklistItems?: string[];
+
+  checklistItems: string[];
   blockers: string[];
   isBlocked: boolean;
+  isWaitingOnDependency: boolean;
   linkedManufacturingIds: string[];
   linkedPurchaseIds: string[];
   estimatedHours: number;
@@ -150,6 +167,8 @@ export interface Task {
   requiresDocumentation?: boolean;
   documentationLinked?: boolean;
 }
+
+export type ServerTask = Omit<Task, "targetEventId"> & { targetMilestoneId: string | null };
 
 export interface Event {
   id: string;
@@ -305,7 +324,9 @@ export interface PlatformBootstrapPayload {
   mechanisms?: Mechanism[];
   partDefinitions?: PartDefinition[];
   partInstances?: PartInstance[];
-  tasks?: Task[];
+  tasks?: ServerTask[];
+  taskDependencies?: TaskDependency[];
+  taskBlockers?: TaskBlocker[];
   events?: Event[];
   milestones?: BootstrapMilestone[];
   meetings?: Meeting[];

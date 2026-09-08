@@ -9,13 +9,11 @@ const mentor: Member = { id: "mentor-1", name: "Mentor One", role: "mentor" };
 const baseTask: Task = {
   actualHours: 0,
   blockers: [],
-  checklistItems: [],
-  dependencyIds: [],
   disciplineId: "software",
   dueDate: "2026-06-10",
   estimatedHours: 2,
   id: "task",
-  isBlocked: false,
+  isBlocked: false, isWaitingOnDependency: false, checklistItems: [],
   linkedManufacturingIds: [],
   linkedPurchaseIds: [],
   mechanismId: null,
@@ -43,7 +41,7 @@ function taskIds(sectionId: string, tasks: Task[]) {
   const section = buildTaskQueueSections({
     activeTaskSubteam: "programming",
     canViewAllQueues: false,
-    taskById: Object.fromEntries(tasks.map((task) => [task.id, task])),
+
     tasks,
   }).find((candidate) => candidate.id === sectionId);
 
@@ -76,8 +74,8 @@ describe("task queue ordering", () => {
     });
     const tasks = [
       dependency,
-      makeTask({ id: "blocked", blockers: ["Need mentor review"] }),
-      makeTask({ dependencyIds: [dependency.id], id: "dependency-wait" }),
+      makeTask({ id: "blocked", blockers: ["Need mentor review"], isBlocked: true }),
+      makeTask({ isBlocked: true, isWaitingOnDependency: true, id: "dependency-wait" }),
       makeTask({ id: "waiting", status: "waiting-for-qa" }),
       makeTask({ id: "available" }),
     ];
@@ -89,13 +87,13 @@ describe("task queue ordering", () => {
 
   it("lets mentors and admins see blocked and QA work across queues", () => {
     const tasks = [
-      makeTask({ disciplineId: "mechanical", id: "mechanical-blocked", blockers: ["Part missing"] }),
+      makeTask({ disciplineId: "mechanical", id: "mechanical-blocked", blockers: ["Part missing"], isBlocked: true }),
       makeTask({ disciplineId: "electrical", id: "electrical-qa", status: "waiting-for-qa" }),
     ];
     const sections = buildTaskQueueSections({
       activeTaskSubteam: "programming",
       canViewAllQueues: true,
-      taskById: Object.fromEntries(tasks.map((task) => [task.id, task])),
+
       tasks,
     });
 
@@ -121,12 +119,12 @@ describe("task queue ordering", () => {
     const tasks = [
       makeTask({ disciplineId: "software", id: "software-available" }),
       makeTask({ disciplineId: "mechanical", id: "mechanical-available" }),
-      makeTask({ disciplineId: "mechanical", id: "mechanical-blocked", blockers: ["Need stock"] }),
+      makeTask({ disciplineId: "mechanical", id: "mechanical-blocked", blockers: ["Need stock"], isBlocked: true }),
     ];
     const sections = buildTaskQueueSections({
       activeTaskSubteam: "mechanical",
       canViewAllQueues: false,
-      taskById: Object.fromEntries(tasks.map((task) => [task.id, task])),
+
       tasks,
     });
 

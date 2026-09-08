@@ -1,3 +1,4 @@
+import { WorkLogTimerDisplay } from "./WorkLogTimerDisplay";
 import { Modal, Pressable, View } from "react-native";
 import { useState } from "react";
 
@@ -44,7 +45,7 @@ export function WorkLogsScreen(props: AppScreenProps) {
     workLogSortMode,
     workLogSubsystemFilter,
     workLogSummary,
-    workTimerElapsedLabel,
+    workLogTimer,
     workTimerIsActive,
     workTimerIsPaused,
   } = props;
@@ -99,7 +100,7 @@ const renderScreen = () => {
             <View style={styles.queueRowPrimaryText}>
               <Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>Work timer</Text>
               <Text style={[styles.queueRowSubtitle, appResponsiveStyles.rowSubtitle]}>
-                {workTimerElapsedLabel}
+                <WorkLogTimerDisplay timer={workLogTimer} />
               </Text>
             </View>
             <Text style={editTagStyle}>{workTimerIsPaused ? "PAUSED" : "RUNNING"}</Text>

@@ -1,3 +1,4 @@
+import { taskDependencies } from "./tasks/dependencies";
 import {
   AttendanceRecord,
   Discipline,
@@ -841,6 +842,7 @@ export const mecoSnapshot = {
   partInstances,
   events,
   tasks,
+  taskDependencies,
   meetings,
   workLogs,
   attendanceRecords,

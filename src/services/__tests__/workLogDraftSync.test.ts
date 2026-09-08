@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Crypto from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
 
 import {
@@ -84,6 +85,8 @@ describe("offline work log draft sync queue", () => {
     storage.__store.clear();
     secureStorage.__store.clear();
     jest.clearAllMocks();
+    let nonceSequence = 0;
+    jest.mocked(Crypto.getRandomBytesAsync).mockImplementation(async (length) => Uint8Array.from({ length }, (_, index) => (index + ++nonceSequence) % 256));
     jest.spyOn(Math, "random").mockReturnValue(0.123456);
   });
 
@@ -144,6 +147,35 @@ describe("offline work log draft sync queue", () => {
     const persisted = [...storage.__store.values()].join(" ");
     expect(persisted).not.toContain(payload.notes);
     expect(persisted).not.toContain(payload.participantIds[0]);
+  });
+
+  it("uses fresh decryptable envelopes and rejects ciphertext tampering", async () => {
+    const { drafts } = enqueuePendingWorkLogDraft([], payload, new Date(), { ownerKey });
+    await savePendingWorkLogDrafts(ownerKey, drafts);
+    const [key, first] = [...storage.__store.entries()][0];
+    await expect(loadPendingWorkLogDrafts(ownerKey)).resolves.toEqual(drafts);
+    await savePendingWorkLogDrafts(ownerKey, drafts);
+    const second = storage.__store.get(key)!;
+    expect(JSON.parse(second).nonce).not.toBe(JSON.parse(first).nonce);
+    expect(JSON.parse(second).ciphertext).not.toBe(JSON.parse(first).ciphertext);
+    await expect(loadPendingWorkLogDrafts(ownerKey)).resolves.toEqual(drafts);
+    const envelope = JSON.parse(second);
+    envelope.ciphertext = (envelope.ciphertext[0] === "0" ? "1" : "0") + envelope.ciphertext.slice(1);
+    storage.__store.set(key, JSON.stringify(envelope));
+    await expect(loadPendingWorkLogDrafts(ownerKey)).resolves.toEqual([]);
+    expect(storage.__store.has(key)).toBe(false);
+  });
+
+  it("rejects an envelope transplanted into another owner's storage key", async () => {
+    const { drafts } = enqueuePendingWorkLogDraft([], payload, new Date(), { ownerKey });
+    await savePendingWorkLogDrafts(ownerKey, drafts);
+    const envelope = [...storage.__store.values()][0];
+    const otherOwner = "other@mecorobotics.org";
+    await savePendingWorkLogDrafts(otherOwner, drafts.map((draft) => ({ ...draft, ownerKey: otherOwner })));
+    const otherKey = [...storage.__store.keys()][1];
+    storage.__store.set(otherKey, envelope);
+    await expect(loadPendingWorkLogDrafts(otherOwner)).resolves.toEqual([]);
+    await expect(loadPendingWorkLogDrafts(ownerKey)).resolves.toEqual(drafts);
   });
 
   it("isolates drafts by owner and expires them after seven days", async () => {
