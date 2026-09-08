@@ -24,52 +24,12 @@ The mobile client is built with Expo/React Native. The companion `meco-mission-c
 
 The `meco-mission-control-web` repo complements this app with browser-first dashboards for mentors and admin workflows.
 
-## Local commands
+## Local development
 
-Use Node 22.13 or newer Node 22 for Expo SDK 57 development. The repository rejects other Node major versions through `package.json`:
-
-```bash
-nvm use
-```
-
-```bash
-npm install
-npm run sim:reset
-npm run start
-npm run ios
-npm run android
-npm run verify
-npm run lint
-npm run test:role-permissions
-npm run verify:bootstrap-contract
-npm run typecheck
-npm test
-```
-
-`npm run verify` runs lint, Jest, role-permission and workflow tests, TypeScript, and the bootstrap contract verifier. Use it before opening or updating a PR when practical.
-
-`npm run dev` delegates to `npm run android` on every host. The Android command invokes the installed Expo CLI directly. No launcher injects API variables before Expo loads dotenv.
-
-Do not run Expo or npm scripts with `sudo`. If `node_modules` or `.expo` become owned by `root`, fix ownership from the repo root before starting the app:
-
-```bash
-sudo chown -R "$USER":staff .expo node_modules
-```
-
-Use the Codex `Run Android` action or `npm run android` on Windows, macOS, or Linux.
-Expo owns SDK discovery, emulator selection/boot, and Metro port forwarding.
-Set `ANDROID_HOME` if your SDK is outside its standard location. To choose a
-particular emulator, start it in Android Studio before running the command.
-
-The app resolver defaults the API URL to `http://10.0.2.2:8080` for emulator-to-host
-access. An explicit `EXPO_PUBLIC_ANDROID_API_BASE_URL` or shared
-`EXPO_PUBLIC_API_BASE_URL` takes precedence. Physical devices require a reachable
-API URL. Metro uses Expo's host selection rather than a forced emulator hostname.
-
-Other modes use Expo directly: `npm start -- --web`, `npm start -- --dev-client`,
-`npm start -- --tunnel`, `npx expo export --platform web`, and `npx expo-doctor`.
-The old `build_and_run` scripts and custom `BASH_PATH`, `EXPO_CLI`, and
-`ANDROID_AVD_NAME` wrapper settings have been removed.
+Use the Node version in `.nvmrc`, then `npm ci` and `npm start`.
+`npm run android` launches Expo for Android; `npm run ios` requires macOS/Xcode.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for validation and PR guidance and
+[development setup](docs/development.md) for emulator and API configuration.
 
 ## Project map
 
@@ -81,7 +41,7 @@ The old `build_and_run` scripts and custom `BASH_PATH`, `EXPO_CLI`, and
 - `src/i18n/`: translations and RTL-aware localization setup.
 - `contracts/platform/bootstrap/v1/contract.json`: mobile-facing bootstrap payload contract.
 - `docs/`: deeper product, architecture, API, development, release, data-model, and contributor documentation.
-- `script/` and `scripts/`: simulator launchers, local patches, role-permission checks, contract verification, and shared-skill sync helpers.
+- `scripts/`: simulator reset, role-permission checks, contract verification, and optional shared-skill sync helpers.
 
 Start with `docs/overview.md`, `docs/development.md`, `docs/features.md`, and `docs/api-integration.md` when onboarding.
 
@@ -117,41 +77,6 @@ npm run verify:bootstrap-contract
 
 See `docs/api-integration.md` for endpoint details and the current mutation paths used by the app.
 
-## Repository labels
-
-Use the shared Mission Control label vocabulary when filing or triaging issues.
-Every issue should have at least one area label, one type label, and one
-priority label. Add a workflow label when the issue is blocked or waiting on
-design input.
-
-Area labels:
-
-- `area:mobile` - mobile app code, Expo configuration, simulator workflow, or app UX.
-- `area:docs` - repository documentation, checklists, templates, or contributor guidance.
-- `area:backend` - platform API contracts or mobile/backend integration work.
-- `area:data` - mock data, bootstrap data, seed references, or data integrity.
-- `area:qa` - test coverage, smoke checks, validation workflows, or release verification.
-
-Type labels:
-
-- `type:bug` - incorrect behavior or regression.
-- `type:feature` - new user-facing behavior or workflow.
-- `type:tech-debt` - cleanup, refactor, dependency, or maintainability work.
-- `type:docs` - documentation-only work.
-- `type:test` - test-only or validation-only work.
-
-Priority labels:
-
-- `priority:p0` - production-blocking or release-blocking.
-- `priority:p1` - high-impact work needed soon.
-- `priority:p2` - normal backlog priority.
-- `priority:p3` - low-priority polish or follow-up.
-
-Workflow labels:
-
-- `blocked` - cannot proceed until an external dependency is resolved.
-- `needs-design` - needs UI, content, or workflow design input before implementation.
-
 ## Release automation
 
 - `CI` runs the full secretless verification suite on pull requests and protected branches.
@@ -163,9 +88,3 @@ Workflow labels:
 - Production EAS builds use Expo SDK 57 and the exact EAS CLI version in `eas.json`, with Android output as an app bundle.
 
 See `docs/release.md` for the fuller release checklist.
-
-## Next product steps
-
-1. Continue closing gaps between mobile mutations and the hosted platform API.
-2. Expand production smoke coverage around auth, bootstrap, work-log draft retry, and QA/report workflows.
-3. Keep mobile, web, and platform contracts aligned as new workspace entities ship.
