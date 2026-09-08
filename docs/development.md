@@ -30,22 +30,17 @@ npm run dev
 npm run lint
 npm run test:workflow-security
 npm run typecheck
-npm run sim:reset
 ```
 
 Command notes:
 
 - `npm run start`: starts Expo.
-- `npm run ios`: resets the iOS simulator first, then starts Expo on localhost port 8081.
+- `npm run ios`: starts Expo on localhost port 8081.
 - `npm run android`: invokes the installed Expo CLI directly on every host.
 - `npm run dev`: delegates to `npm run android`; additional Expo arguments are forwarded.
 - `npm run lint`: runs ESLint.
 - `npm run test:workflow-security`: verifies secretless PR jobs, trusted release sources, immutable Action pins, and release credential scoping.
 - `npm run typecheck`: runs TypeScript with `--noEmit`.
-- `npm run sim:reset`: runs `scripts/reset-ios-sim.js`.
-
-Set `SIMULATOR_APP_NAME` if your local Xcode release uses a different device UI
-app name.
 
 Do not run Expo or npm scripts with `sudo`.
 
@@ -108,3 +103,11 @@ Bash/PowerShell launch scripts and their custom environment switches are removed
 Follow [CONTRIBUTING.md](../CONTRIBUTING.md): keep one clear owner for each behavior, explicit dependencies and minimal forwarding. Split or consolidate by responsibility rather than file size. Keep styles scoped to a component or feature.
 
 For this app's current architecture, prefer adding feature rendering inside the relevant `src/screens/<feature>/` folder, app-shell components inside `src/app/`, shared controls inside `src/ui/`, domain types inside `src/types/domain.ts`, API helpers inside `src/data/`, and device services inside `src/services/`.
+
+## API and device environment
+
+Android development defaults to `http://10.0.2.2:8080`; iOS simulator development defaults to `http://localhost:8080`. `EXPO_PUBLIC_ANDROID_API_BASE_URL` / `EXPO_PUBLIC_IOS_API_BASE_URL` override the shared `EXPO_PUBLIC_API_BASE_URL`. Physical devices need a reachable host address. Development HTTP on a private LAN additionally requires `EXPO_PUBLIC_ALLOW_INSECURE_PRIVATE_LAN=true`; this opt-in never applies to production, which requires HTTPS. Public Expo variables must contain no secrets.
+
+The direct `expo-splash-screen` dependency is retained for native launch lifecycle ownership: Expo autolinking registers its iOS app-delegate subscriber and Android splash module even without a JavaScript import. No custom splash wrapper is needed.
+
+Ordinary iOS startup delegates to Expo without resetting the simulator or killing processes on port 8081. Resolve a port conflict explicitly or select another Expo port.

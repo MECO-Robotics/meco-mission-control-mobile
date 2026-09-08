@@ -6,8 +6,6 @@
     "node": ">=22.13 <23"
   },
   "scripts": {
-    "sim:reset": "node scripts/reset-ios-sim.js",
-    "preios": "DEVELOPER_DIR=${DEVELOPER_DIR:-/Applications/Xcode-beta.app/Contents/Developer} node scripts/reset-ios-sim.js",
     "verify": "npm run verify:core && npm run verify:bootstrap-contract",
     "verify:core": "npm run lint && npm run test && npm run test:workflow-security && npm run typecheck",
     "dev": "npm run android --",
