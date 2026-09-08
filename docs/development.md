@@ -90,7 +90,7 @@ developer `.env` file or a pull-request workflow.
 ## Android Launching
 
 Run `npm run android` on Windows, macOS, or Linux. The installed
-Expo CLI Expo handles SDK/device discovery, emulator boot, and Metro forwarding.
+Expo CLI handles SDK/device discovery, emulator boot, and Metro forwarding.
 Set `ANDROID_HOME` for a nonstandard SDK location, or start a selected emulator
 in Android Studio before launching Expo.
 
