@@ -49,11 +49,13 @@ export class MobileSessionClient {
   }
 
   async request<T>(path: string, init: RequestInit = {}, timeoutMs?: number) {
+    const requestVersion = this.options.getSessionVersion();
     let session = this.requireSession();
     if (Date.parse(session.accessTokenExpiresAt) - Date.now() <= REFRESH_EARLY_MS) {
       session = await this.refresh();
     }
 
+    this.requireVersion(requestVersion);
     try {
       return await requestJson<T>(
         this.options.baseUrl,
@@ -67,11 +69,13 @@ export class MobileSessionClient {
         throw error;
       }
 
+      this.requireVersion(requestVersion);
       const currentSession = this.requireSession();
       const refreshedSession =
         currentSession.token === session.token
           ? await this.refresh()
           : currentSession;
+      this.requireVersion(requestVersion);
       return requestJson<T>(
         this.options.baseUrl,
         path,
@@ -80,6 +84,10 @@ export class MobileSessionClient {
         timeoutMs,
       );
     }
+  }
+
+  private requireVersion(expected: number) {
+    if (this.options.getSessionVersion() !== expected) throw new SessionChangedError();
   }
 
   private requireSession() {
