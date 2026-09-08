@@ -108,6 +108,16 @@ jobs:
           CI: true
         run: npm run verify
 
+      - name: Render Expo public configuration
+        run: npx expo config --type public --json > expo-public-config.json
+
+      - name: Upload verified Expo configuration
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: mobile-expo-config-${{ github.sha }}
+          path: expo-public-config.json
+          if-no-files-found: error
+
   snapshot-validate:
     name: snapshot-validate
     needs: ci-validate
@@ -118,24 +128,17 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - name: Download verified Expo configuration
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          node-version: 22.13.0
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Render production-like Expo config
-        run: npx expo config --type public --json > snapshot-expo-public-config.json
+          name: mobile-expo-config-${{ github.sha }}
+          path: snapshot
 
       - name: Build sanitized release snapshot
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p snapshot
-          mv snapshot-expo-public-config.json snapshot/expo-public-config.json
           node <<'NODE'
           const fs = require('node:fs');
 
@@ -144,7 +147,7 @@ jobs:
             commit: process.env.GITHUB_SHA,
             ref: process.env.GITHUB_REF,
             generatedAtUtc: new Date().toISOString(),
-            validations: ['npm run typecheck', 'npm run lint', 'npx expo config --type public --json'],
+            validations: ['npm run verify', 'npx expo config --type public --json'],
             artifacts: ['app.json', 'eas.json', 'snapshot/expo-public-config.json'],
             releaseTarget: 'github-releases',
           };
