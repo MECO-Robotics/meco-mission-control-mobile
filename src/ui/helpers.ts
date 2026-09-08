@@ -318,3 +318,9 @@ export function capitalize(value: string) {
 
   return `${value[0].toUpperCase()}${value.slice(1)}`;
 }
+
+export function shiftDateByDays(value: string, dayDelta: number) {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + dayDelta);
+  return date.toISOString().slice(0, 10);
+}

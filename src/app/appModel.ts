@@ -4,7 +4,6 @@ import {
   classifyMobileAuthError,
   getMobileAuthErrorMessage,
 } from "../data/api";
-import { tasks as seededTasks } from "../data/tasks";
 import type { PendingWorkLogDraft } from "../services/workLogDraftSync";
 import type {
   BootstrapMilestone,
@@ -15,8 +14,8 @@ import type {
   SessionUser,
   Subsystem,
   Task,
+  ServerTask,
   TaskPriority,
-  TaskStatus,
   WorkLog,
 } from "../types/domain";
 import type { AttendanceStatus, RiskPriority, WorkLogListItem } from "../screens/types";
@@ -25,22 +24,12 @@ export const SWIPE_ACTIVATION_DISTANCE = 18;
 export const SWIPE_COMMIT_DISTANCE = 52;
 export const SUBTAB_SWIPE_ACTIVATION_DISTANCE = 24;
 export const SUBTAB_SWIPE_COMMIT_DISTANCE = 72;
-export const TIMER_TICK_MS = 1000;
 export const REQUIRED_EMAIL_DOMAIN = "mecorobotics.org";
 export const AUTH_REQUEST_TIMEOUT_MS = 15000;
-
-const MS_PER_HOUR = 1000 * 60 * 60;
 
 export type SeasonOption = {
   id: string;
   label: string;
-};
-export type WorkLogTimerState = {
-  id: string;
-  elapsedMs: number;
-  isPaused: boolean;
-  reminderNotificationIds: string[];
-  startedAt: number | null;
 };
 export type StartTaskOptions = {
   openWorkLog?: boolean;
@@ -169,43 +158,6 @@ export function mapPendingWorkLogDraftToWorkLog(
   };
 }
 
-export function formatTimerElapsed(elapsedMs: number) {
-  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  const paddedMinutes = String(minutes).padStart(2, "0");
-  const paddedSeconds = String(seconds).padStart(2, "0");
-
-  return hours > 0
-    ? `${hours}:${paddedMinutes}:${paddedSeconds}`
-    : `${minutes}:${paddedSeconds}`;
-}
-
-export function formatHoursFromTimer(elapsedMs: number) {
-  const roundedHours = Math.round((elapsedMs / MS_PER_HOUR) * 100) / 100;
-
-  return Number.isInteger(roundedHours)
-    ? String(roundedHours)
-    : String(roundedHours).replace(/0$/, "");
-}
-
-export function getWorkLogTimerElapsedMs(
-  timer: WorkLogTimerState | null,
-  now = Date.now(),
-) {
-  if (!timer) {
-    return 0;
-  }
-
-  return (
-    timer.elapsedMs +
-    (timer.startedAt && !timer.isPaused
-      ? Math.max(0, now - timer.startedAt)
-      : 0)
-  );
-}
-
 export function buildSubsystemOptions(subsystems: Subsystem[]) {
   return subsystems.map((subsystem) => ({
     id: subsystem.id,
@@ -215,13 +167,6 @@ export function buildSubsystemOptions(subsystems: Subsystem[]) {
 
 export function normalizeTaskSubsystems(currentSubsystems: Subsystem[]) {
   return currentSubsystems.length > 0 ? currentSubsystems : REQUIRED_TASK_SUBSYSTEMS;
-}
-
-export function withSeededSubteamTasks(currentTasks: Task[]) {
-  const currentTaskIds = new Set(currentTasks.map((task) => task.id));
-  const missingSeededTasks = seededTasks.filter((task) => !currentTaskIds.has(task.id));
-
-  return [...currentTasks, ...missingSeededTasks];
 }
 
 export function parseClientError(error: unknown) {
@@ -277,70 +222,8 @@ export function isValidTimeInput(value: string) {
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 }
 
-export function taskDependsOnTarget(
-  taskId: string,
-  targetTaskId: string,
-  taskById: Record<string, Task>,
-  visitedTaskIds = new Set<string>(),
-): boolean {
-  if (taskId === targetTaskId) {
-    return true;
-  }
-
-  if (visitedTaskIds.has(taskId)) {
-    return false;
-  }
-
-  visitedTaskIds.add(taskId);
-
-  const task = taskById[taskId];
-  if (!task) {
-    return false;
-  }
-
-  return task.dependencyIds.some((dependencyId) =>
-    taskDependsOnTarget(dependencyId, targetTaskId, taskById, visitedTaskIds),
-  );
-}
-
-export function getAutoTaskStatus(
-  task: Pick<Task, "blockers" | "dependencyIds" | "ownerId" | "status">,
-  taskById: Record<string, Task>,
-): TaskStatus {
-  if (task.status !== "not-started") {
-    return task.status;
-  }
-
-  const hasOpenDependency = task.dependencyIds
-    .map((dependencyId) => taskById[dependencyId])
-    .some((dependency) => dependency && dependency.status !== "complete");
-
-  if (task.ownerId && task.blockers.length === 0 && !hasOpenDependency) {
-    return "in-progress";
-  }
-
-  return task.status;
-}
-
 export function buildTaskById(tasks: Task[]) {
   return Object.fromEntries(tasks.map((task) => [task.id, task])) as Record<string, Task>;
-}
-
-export function hasOpenTaskDependency(
-  task: Pick<Task, "dependencyIds">,
-  taskById: Record<string, Task>,
-) {
-  return task.dependencyIds
-    .map((dependencyId) => taskById[dependencyId])
-    .some((dependency) => dependency && dependency.status !== "complete");
-}
-
-export function isTaskReadyForQaPass(task: Task, taskById: Record<string, Task>) {
-  return (
-    task.status === "waiting-for-qa" &&
-    task.blockers.length === 0 &&
-    !hasOpenTaskDependency(task, taskById)
-  );
 }
 
 export function getQaReviewTaskId(review: QaReview) {
@@ -355,49 +238,12 @@ export function getOptionalCreatedAt(item: { id: string; createdAt?: string }) {
   return item.createdAt ?? item.id;
 }
 
-export function buildTaskMutationPayload(task: Task) {
-  return {
-    title: task.title,
-    summary: task.summary,
-    subsystemId: task.subsystemId,
-    disciplineId: task.disciplineId,
-    mechanismId: task.mechanismId,
-    partInstanceId: task.partInstanceId,
-    targetEventId: task.targetEventId,
-    ownerId: task.ownerId,
-    mentorId: task.mentorId,
-    dueDate: task.dueDate,
-    priority: task.priority,
-    status: task.status,
-    dependencyIds: task.dependencyIds,
-    checklistItems: task.checklistItems ?? [],
-    blockers: task.blockers,
-    linkedManufacturingIds: task.linkedManufacturingIds,
-    linkedPurchaseIds: task.linkedPurchaseIds,
-    estimatedHours: task.estimatedHours,
-    actualHours: task.actualHours,
-  };
-}
-
-export function shiftDateByDays(value: string, dayDelta: number) {
-  const date = new Date(`${value}T00:00:00.000Z`);
-  date.setUTCDate(date.getUTCDate() + dayDelta);
-  return date.toISOString().slice(0, 10);
-}
-
 export function ensureArray<T>(value: T[] | undefined | null): T[] {
   return Array.isArray(value) ? value : [];
 }
 
-type ServerTask = Task & {
-  targetMilestoneId?: string | null;
-};
-
-export function normalizeTaskFromServer(task: ServerTask): Task {
-  return {
-    ...task,
-    targetEventId: task.targetEventId ?? task.targetMilestoneId ?? null,
-  };
+export function normalizeTaskFromServer({ targetMilestoneId, ...task }: ServerTask): Task {
+  return { ...task, targetEventId: targetMilestoneId };
 }
 
 export function mapTaskPayloadToServer<T extends { targetEventId?: string | null }>(

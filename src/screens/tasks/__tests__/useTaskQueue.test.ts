@@ -5,12 +5,11 @@ import { useTaskQueue } from "../useTaskQueue";
 const ready: Task = {
   id: "ready", title: "Build drive", summary: "", disciplineId: "software", subsystemId: "drive",
   ownerId: "student", mentorId: "mentor", dueDate: "2099-01-01", priority: "medium",
-  status: "not-started", actualHours: 1, estimatedHours: 2, blockers: [], dependencyIds: [],
-  checklistItems: [], linkedManufacturingIds: [], linkedPurchaseIds: [], isBlocked: false,
+  status: "not-started", actualHours: 1, estimatedHours: 2, blockers: [], linkedManufacturingIds: [], linkedPurchaseIds: [], isBlocked: false, isWaitingOnDependency: false, checklistItems: [],
   mechanismId: null, partInstanceId: null, targetEventId: null,
 };
-const blocked: Task = { ...ready, id: "blocked", title: "Blocked", blockers: ["Supply"] };
-const waiting: Task = { ...ready, id: "waiting", title: "Wait", dependencyIds: [blocked.id] };
+const blocked: Task = { ...ready, id: "blocked", title: "Blocked", blockers: ["Supply"], isBlocked: true };
+const waiting: Task = { ...ready, id: "waiting", title: "Wait", isBlocked: true, isWaitingOnDependency: true, };
 const complete: Task = { ...ready, id: "complete", title: "Finished", status: "complete" };
 const tasks = [ready, blocked, waiting, complete];
 const inputs = {

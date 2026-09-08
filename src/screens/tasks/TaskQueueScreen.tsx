@@ -1,3 +1,4 @@
+import { isTaskBlocked } from "../../data/taskReadiness";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
 
@@ -46,7 +47,7 @@ type TaskQueueScreenProps = Pick<TaskScreenProps,
   | "setTaskSearch" | "setTaskStatusFilter" | "setTaskSubsystemFilter"
   | "setActiveTab" | "signedInMember" | "startTask"
   | "subsystems" | "subsystemsById" | "taskArchiveFilter"
-  | "taskBlockerFilter" | "taskById" | "taskOwnerFilter"
+  | "taskBlockerFilter" | "taskById" | "taskDependencies" | "taskOwnerFilter"
   | "taskPriorityFilter" | "taskQueueSections" | "taskSearch"
   | "taskStatusFilter" | "taskSubsystemFilter" | "taskLoggedHoursById"
   | "taskSummary" | "themeColors" | "qaReviews"
@@ -95,6 +96,7 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
     taskArchiveFilter,
     taskBlockerFilter,
     taskById,
+    taskDependencies,
     taskOwnerFilter,
     taskPriorityFilter,
     taskQueueSections,
@@ -170,8 +172,10 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
       return;
     }
 
-    await clearTaskBlockers(blockerResolutionTask, blockerResolutionNote);
-    closeBlockerResolution();
+    try {
+      await clearTaskBlockers(blockerResolutionTask, blockerResolutionNote);
+      closeBlockerResolution();
+    } catch (error) { setBlockerResolutionError(error instanceof Error ? error.message : String(error)); }
   };
 
   const resetTaskQueueFilters = () => {
@@ -278,10 +282,11 @@ const renderScreen = () => {
         const targetEvent = task.targetEventId
           ? (eventsById[task.targetEventId]?.title ?? "Event")
           : "No event";
-        const openDependencies = task.dependencyIds
-          .map((dependencyId) => taskById[dependencyId])
+        const openDependencies = taskDependencies.filter((edge) => edge.taskId === task.id && edge.kind === "task" && edge.dependencyType === "hard")
+          .filter((edge) => taskById[edge.refId]?.status !== edge.requiredState)
+          .map((edge) => taskById[edge.refId])
           .filter((dependency): dependency is Task => Boolean(dependency))
-          .filter((dependency) => dependency.status !== "complete");
+;
         const loggedHours = taskLoggedHoursById[task.id] ?? task.actualHours;
         const isOverEstimate = task.estimatedHours > 0 && loggedHours > task.estimatedHours;
         const today = localTodayDate();
@@ -293,7 +298,6 @@ const renderScreen = () => {
           task.status !== "complete" && task.dueDate >= today && task.dueDate <= soonDate;
         const assignmentState = getTaskAssignmentState({
           canReassignTasks,
-          hasOpenDependencies: openDependencies.length > 0,
           membersById,
           signedInMember,
           task,
@@ -301,10 +305,9 @@ const renderScreen = () => {
         const canStartTask = assignmentState.canStartWork;
         const canRequestQa =
           task.status === "in-progress" &&
-          task.blockers.length === 0 &&
-          openDependencies.length === 0;
-        const canRequestHelp = task.status === "in-progress";
+          !isTaskBlocked(task);
         const checklistItems = task.checklistItems ?? [];
+        const canRequestHelp = task.status === "in-progress";
         const hasQaReport = qaReviews.some(
           (review) =>
             review.taskId === task.id ||
@@ -318,7 +321,7 @@ const renderScreen = () => {
               value="waiting"
             />
           ) : null,
-          task.blockers.length > 0 ? <StatusPill key="blocked" label="Blocked" value="critical" /> : null,
+          isTaskBlocked(task) ? <StatusPill key="blocked" label="Blocked" value="critical" /> : null,
           isOverdue ? <StatusPill key="overdue" label="Overdue" value="critical" /> : null,
           isDueSoon ? <StatusPill key="due-soon" label="Due soon" value="waiting" /> : null,
           isOverEstimate ? <StatusPill key="over-estimate" label="Over estimate" value="critical" /> : null,

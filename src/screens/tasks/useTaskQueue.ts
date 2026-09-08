@@ -1,13 +1,12 @@
 import { useMemo, useState, type SetStateAction } from "react";
 import type { Member, Mechanism, Subsystem, Task } from "../../types/domain";
 import type { ArchiveFilterMode, BlockerFilterMode, SummaryChipData, TaskSubteamTab } from "../../ui/types";
-import { localTodayDate } from "../../ui/helpers";
-import { hasOpenTaskDependency, shiftDateByDays } from "../../app/appModel";
+import { localTodayDate, shiftDateByDays } from "../../ui/helpers";
+import { hasOpenTaskDependency, isTaskBlocked } from "../../data/taskReadiness";
 import { buildTaskQueueSections } from "../../data/taskQueueOrdering";
 
 type QueueInputs = {
   tasks: Task[];
-  taskById: Record<string, Task>;
   taskLoggedHoursById: Record<string, number>;
   activeTaskSubteam: TaskSubteamTab;
   canMentorApprove: boolean;
@@ -24,7 +23,7 @@ const initialFilters = {
   taskBlockerFilter: "all" as BlockerFilterMode,
 };
 
-export function useTaskQueue({ tasks, taskById, taskLoggedHoursById, activeTaskSubteam,
+export function useTaskQueue({ tasks, taskLoggedHoursById, activeTaskSubteam,
   canMentorApprove, activePersonFilter, membersById, mechanismsById, subsystemsById }: QueueInputs) {
   const [filters, setFilters] = useState(initialFilters);
   const { taskSearch, taskStatusFilter, taskSubsystemFilter, taskOwnerFilter,
@@ -91,7 +90,7 @@ export function useTaskQueue({ tasks, taskById, taskLoggedHoursById, activeTaskS
         }
 
         if (taskBlockerFilter === "dependency-wait") {
-          const hasOpenDependency = hasOpenTaskDependency(task, taskById);
+          const hasOpenDependency = hasOpenTaskDependency(task);
 
           if (!hasOpenDependency) {
             return false;
@@ -99,12 +98,12 @@ export function useTaskQueue({ tasks, taskById, taskLoggedHoursById, activeTaskS
         }
 
         if (taskBlockerFilter === "ready-now") {
-          const hasOpenDependency = hasOpenTaskDependency(task, taskById);
+          const hasOpenDependency = hasOpenTaskDependency(task);
 
           if (
             task.status === "complete" ||
             task.status === "waiting-for-qa" ||
-            task.blockers.length > 0 ||
+            isTaskBlocked(task) ||
             hasOpenDependency ||
             !task.ownerId
           ) {
@@ -113,11 +112,11 @@ export function useTaskQueue({ tasks, taskById, taskLoggedHoursById, activeTaskS
         }
 
         if (taskBlockerFilter === "ready-to-qa") {
-          const hasOpenDependency = hasOpenTaskDependency(task, taskById);
+          const hasOpenDependency = hasOpenTaskDependency(task);
 
           if (
             task.status !== "waiting-for-qa" ||
-            task.blockers.length > 0 ||
+            isTaskBlocked(task) ||
             hasOpenDependency
           ) {
             return false;
@@ -171,7 +170,6 @@ export function useTaskQueue({ tasks, taskById, taskLoggedHoursById, activeTaskS
     taskArchiveFilter,
     taskBlockerFilter,
     taskLoggedHoursById,
-    taskById,
     taskSearch,
     taskStatusFilter,
     taskSubsystemFilter,
@@ -182,10 +180,9 @@ export function useTaskQueue({ tasks, taskById, taskLoggedHoursById, activeTaskS
     return buildTaskQueueSections({
       activeTaskSubteam,
       canViewAllQueues: canMentorApprove,
-      taskById,
-      tasks: filteredTaskQueueCandidates,
+        tasks: filteredTaskQueueCandidates,
     });
-  }, [activeTaskSubteam, canMentorApprove, filteredTaskQueueCandidates, taskById]);
+  }, [activeTaskSubteam, canMentorApprove, filteredTaskQueueCandidates]);
 
   const filteredTaskQueue = useMemo(() => {
     return taskQueueSections.flatMap((section) => section.tasks);
@@ -206,22 +203,22 @@ export function useTaskQueue({ tasks, taskById, taskLoggedHoursById, activeTaskS
       return task.estimatedHours > 0 && taskLoggedHours > task.estimatedHours;
     }).length;
     const readyNow = filteredTaskQueue.filter((task) => {
-      const hasOpenDependency = hasOpenTaskDependency(task, taskById);
+      const hasOpenDependency = hasOpenTaskDependency(task);
 
       return (
         task.status !== "complete" &&
         task.status !== "waiting-for-qa" &&
-        task.blockers.length === 0 &&
+        !isTaskBlocked(task) &&
         !hasOpenDependency &&
         Boolean(task.ownerId)
       );
     }).length;
     const readyForQa = filteredTaskQueue.filter((task) => {
-      const hasOpenDependency = hasOpenTaskDependency(task, taskById);
+      const hasOpenDependency = hasOpenTaskDependency(task);
 
       return (
         task.status === "waiting-for-qa" &&
-        task.blockers.length === 0 &&
+        !isTaskBlocked(task) &&
         !hasOpenDependency
       );
     }).length;
@@ -236,7 +233,7 @@ export function useTaskQueue({ tasks, taskById, taskLoggedHoursById, activeTaskS
       { label: "Over est.", value: String(overEstimate) },
       { label: "Complete", value: String(complete) },
     ] satisfies SummaryChipData[];
-  }, [filteredTaskQueue, taskById, taskLoggedHoursById]);
+  }, [filteredTaskQueue, taskLoggedHoursById]);
 
   return {
     ...filters, filteredTaskQueue, taskQueueSections, taskSummary,

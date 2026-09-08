@@ -1,6 +1,6 @@
 # Architecture
 
-The app is an Expo/React Native application with TypeScript. `App.tsx` currently owns the main workspace state, backend synchronization, authentication flow, navigation state, editor modal state, and cross-screen action handlers. Root presentation chrome is split into `src/app/components/`, editor form rendering lives in `src/app/editorModals/`, and screens in `src/screens/` receive computed data and callbacks through `AppScreenProps`.
+The app is an Expo/React Native application with TypeScript. `App.tsx` composes workspace data, authentication, navigation and cross-screen actions. Task editing state and commands belong to `src/screens/tasks/useTaskEditor.ts`; task snapshots have one synchronous owner in `taskState.ts`, with indexes derived from that snapshot. Root presentation chrome is split into `src/app/components/`, editor form rendering lives in `src/app/editorModals/`, and screens in `src/screens/` receive computed data and callbacks through `AppScreenProps`.
 
 ## Source Layout
 
@@ -13,13 +13,13 @@ The app is an Expo/React Native application with TypeScript. `App.tsx` currently
 - `src/data/`: API helper, mock snapshot, and seeded task data.
 - `src/data/tasks/`: seeded discipline-specific tasks.
 - `src/types/`: domain types for API payloads and in-app entities.
-- `src/services/`: auth-session storage, work-log draft sync, work-log timer notifications, and placeholder live-activity service.
+- `src/services/`: auth-session storage, work-log draft sync, work-log timer notifications, and durable work-log queue ownership.
 - `src/i18n/`: localization provider, dictionaries, and demo dictionaries.
-- `script/` and `scripts/`: simulator launch helpers, Expo patching, and reset scripts.
+- `scripts/`: contract verification, workflow checks and optional skills import. Expo owns device launch.
 
 ## State Ownership
 
-`App.tsx` owns the canonical in-memory workspace arrays:
+The workspace composition retains these arrays; task updates go through the task snapshot owner:
 
 - members
 - subsystems
@@ -47,7 +47,7 @@ Screens are mostly presentational. They receive:
 - action callbacks for create/edit/status transitions,
 - shared responsive styles and theme colors.
 
-This keeps feature screens focused on rendering and interaction wiring while centralizing persistence and cross-entity behavior.
+Task queue filters belong to `useTaskQueue`; the task editor owns draft state, relationship commands and save errors. The root passes the editor owner directly to its modal rather than forwarding individual setters.
 
 ## Navigation
 
@@ -75,9 +75,7 @@ Swipe responders in `App.tsx` support tab/subtab gestures.
 ## Backend Synchronization
 
 The API helper in `src/data/api.ts` resolves the base URL from the active
-platform override (`EXPO_PUBLIC_IOS_API_BASE_URL` or
-`EXPO_PUBLIC_ANDROID_API_BASE_URL`), then `EXPO_PUBLIC_API_BASE_URL`, defaulting
-to `http://localhost:8080`. `requestJson` adds JSON headers, applies a bearer
+platform override, then the shared URL. See [device environment defaults](development.md#api-and-device-environment). `requestJson` adds JSON headers, applies a bearer
 token when present, parses JSON responses, and throws `ApiRequestError` on
 non-2xx responses. Production config rejects non-HTTPS API URLs. Development
 HTTP is limited to loopback/emulator hosts unless the private-LAN override is
@@ -89,18 +87,16 @@ shown for a newly restored account until bootstrap succeeds; authentication or
 authorization failure clears credentials and identity-scoped workspace state.
 
 Mutations use a shared `runMutation` path in `App.tsx`: submit the request,
-refresh `/api/bootstrap`, and update sync status. Work-log creates use
-`workLogDraftSync.ts` for queue semantics and `workLogDraftStorage.ts` for
-owner-bound authenticated encryption and seven-day retention.
+refresh `/api/bootstrap`, and update sync status. Task editor commands save the task and canonical dependency/blocker records, retain a newly created ID on partial failure, and refresh the snapshot after success. Work-log queue operations use `workLogQueue.ts` for serialized durable writes and session-scoped upload ownership, `workLogDraftSync.ts` for ID transformations, and `workLogDraftStorage.ts` for owner-bound authenticated encryption and seven-day retention. Upload completion changes only the submitted ID; subsequent edits remain queued.
 
 ## Work Timer Services
 
 `src/services/workLogTimerNotifications.ts` persists active timer state to AsyncStorage and schedules local reminders through `expo-notifications`.
 
-`src/services/workLogLiveActivity.ts` defines the live-activity interface but currently returns unavailable results. It is a platform extension point for future native live activity support.
+Timer elapsed-time formatting and display ticking belong to `src/screens/worklogs/`. Native live activities are unimplemented; notification reminders are handled by `src/services/workLogTimerNotifications.ts`.
 
 ## Styling
 
 Most shared styles live in `src/ui/styles.ts`. Feature-specific styles can live with their component, such as the login screen styles under `src/app/components/`. Landscape timeline styles are split into dedicated modules under `src/ui/landscapeTimeline/`. Responsive sizing comes from `src/ui/responsive.ts`, and theme values come from `src/theme.ts` plus `src/ui/themeContext.tsx`.
 
-Follow the repository `AGENTS.md` limits when adding or modifying implementation files: split files above the refactor thresholds and keep feature responsibilities separated.
+Follow `AGENTS.md`: co-own feature state and commands, delete redundant layers and use cohesive responsibilities rather than file-size quotas.

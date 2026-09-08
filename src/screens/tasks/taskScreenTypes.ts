@@ -60,6 +60,7 @@ export interface TaskScreenProps {
   taskArchiveFilter: ArchiveFilterMode;
   taskBlockerFilter: BlockerFilterMode;
   taskById: Record<string, Task>;
+  taskDependencies: import("../../types/domain").TaskDependency[];
   taskOwnerFilter: string;
   taskPriorityFilter: string;
   taskQueueSections: TaskQueueSection[];

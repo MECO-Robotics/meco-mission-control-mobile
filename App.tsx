@@ -1,6 +1,13 @@
+import { formatHoursFromTimer, getWorkLogTimerElapsedMs, type WorkLogTimerState } from "./src/screens/worklogs/workLogTimer";
+import { taskBlockers as seededTaskBlockers } from "./src/data/tasks/blockers";
+import { taskDependencies as seededTaskDependencies } from "./src/data/tasks/dependencies";
+import { getAutoTaskStatus, isTaskBlocked, isTaskReadyForQaPass } from "./src/data/taskReadiness";
+import { useTaskEditor } from "./src/screens/tasks/useTaskEditor";
+import { createWorkLogQueue } from "./src/services/workLogQueue";
+import { createTaskState } from "./src/screens/tasks/taskState";
 import { getSessionPermissions } from "./src/data/sessionPermissions";
 import * as ScreenOrientation from "expo-screen-orientation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   PanResponder,
   Platform,
@@ -12,7 +19,6 @@ import {
   EVENT_TYPE_STYLES,
   INVENTORY_VIEW_OPTIONS,
   MANUFACTURING_VIEW_OPTIONS,
-  STATUS_LABELS,
   TASK_SUBTEAM_DISCIPLINE_IDS,
   TASK_SUBTEAM_OPTIONS,
   TASK_VIEW_OPTIONS,
@@ -35,6 +41,7 @@ import {
   isoToday,
   localTodayDate,
   splitList,
+  shiftDateByDays,
   timePortion,
 } from "./src/ui/helpers";
 import { getResponsiveMetrics, scaleFont } from "./src/ui/responsive";
@@ -80,7 +87,6 @@ import {
 } from "./src/data/devAuthBypass";
 import { buildHelpRequest, type HelpRequestInput } from "./src/data/helpRequests";
 import {
-  buildOwnedTaskStartPayload,
   claimTaskRequest,
   getDefaultWorkLogParticipantIds,
   getTaskAssignmentConflict,
@@ -110,7 +116,6 @@ import type {
   Subsystem,
   Task,
   TaskPriority,
-  TaskStatus,
   WorkLog,
 } from "./src/types/domain";
 import {
@@ -122,24 +127,17 @@ import {
   SUBTAB_SWIPE_COMMIT_DISTANCE,
   SWIPE_ACTIVATION_DISTANCE,
   SWIPE_COMMIT_DISTANCE,
-  TIMER_TICK_MS,
   applyMilestoneSubsystemLinks,
   backendReachabilityAfterError,
   buildSubsystemOptions,
   buildTaskById,
-  buildTaskMutationPayload,
   ensureArray,
-  formatHoursFromTimer,
-  formatTimerElapsed,
-  getAutoTaskStatus,
   getClientErrorMessage,
   getEmailCodeVerificationErrorMessage,
   getOptionalCreatedAt,
   getQaReviewTaskId,
   getWorkLogDraftOwnerKey,
-  getWorkLogTimerElapsedMs,
   hasRequiredEmailDomain,
-  isTaskReadyForQaPass,
   isValidDateInput,
   isValidTimeInput,
   isWorkLogDraftOwnedBy,
@@ -152,16 +150,12 @@ import {
   normalizeTaskFromServer,
   normalizeTaskSubsystems,
   parseClientError,
-  shiftDateByDays,
   shouldQueueWorkLogDraftAfterError,
-  taskDependsOnTarget,
-  withSeededSubteamTasks,
   type BackendReachability,
   type MilestoneMutationResponse,
   type SeasonOption,
   type StartTaskOptions,
   type WorkLogMutationResponse,
-  type WorkLogTimerState,
 } from "./src/app/appModel";
 import {
   DEVICE_SESSION_RESTORED_NOTICE,
@@ -184,7 +178,6 @@ import { PartDefinitionEditorModal } from "./src/app/editorModals/PartDefinition
 import { PurchaseEditorModal } from "./src/app/editorModals/PurchaseEditorModal";
 import { QaReportEditorModal } from "./src/app/editorModals/QaReportEditorModal";
 import { SubsystemEditorModal } from "./src/app/editorModals/SubsystemEditorModal";
-import { buildTaskDraft, type TaskDraft } from "./src/screens/tasks/taskDraft";
 import { TaskEditorModal } from "./src/screens/tasks/TaskEditorModal";
 import { WorkLogEditorModal } from "./src/app/editorModals/WorkLogEditorModal";
 
@@ -193,22 +186,12 @@ import type { AttendanceStatus, SubsystemCounts, WorkLogListItem } from "./src/s
 import {
   buildWorkLogDraftFingerprint,
   enqueuePendingWorkLogDraft,
-  markPendingWorkLogDraftFailed,
-  markPendingWorkLogDraftSyncing,
   reconcilePendingWorkLogDrafts,
   removePendingWorkLogDraft,
-  type PendingWorkLogDraft,
 } from "./src/services/workLogDraftSync";
 import {
-  loadPendingWorkLogDrafts,
   purgeExpiredWorkLogDrafts,
-  savePendingWorkLogDrafts,
 } from "./src/services/workLogDraftStorage";
-import {
-  endWorkLogLiveActivity,
-  startWorkLogLiveActivity,
-  updateWorkLogLiveActivity,
-} from "./src/services/workLogLiveActivity";
 import {
   clearPersistedAuthSession,
   getOrCreateAuthDeviceNumber,
@@ -414,17 +397,14 @@ export default function App() {
   const [subsystems, setSubsystems] = useState(() => normalizeTaskSubsystems(mecoSnapshot.subsystems));
   const [disciplines, setDisciplines] = useState(() => mecoSnapshot.disciplines);
   const [mechanisms, setMechanisms] = useState(() => mecoSnapshot.mechanisms);
-  const [tasks, setTasks] = useState(() => withSeededSubteamTasks(mecoSnapshot.tasks));
-  const tasksRef = useRef<Task[]>(tasks);
-  const taskByIdRef = useRef<Record<string, Task>>(buildTaskById(tasks));
+  const [taskState] = useState(() => createTaskState(mecoSnapshot.tasks));
+  const tasks = useSyncExternalStore(taskState.subscribe, taskState.getSnapshot);
+  const setTasks = taskState.replace;
+  const [taskDependencies, setTaskDependencies] = useState(seededTaskDependencies);
+  const [taskBlockers, setTaskBlockers] = useState(seededTaskBlockers);
   const [events, setEvents] = useState(() => mecoSnapshot.events);
   const [workLogs, setWorkLogs] = useState(() => mecoSnapshot.workLogs);
   const workLogsRef = useRef<WorkLog[]>(mecoSnapshot.workLogs);
-  const [pendingWorkLogDrafts, setPendingWorkLogDrafts] = useState<
-    PendingWorkLogDraft[]
-  >([]);
-  const pendingWorkLogDraftsRef = useRef<PendingWorkLogDraft[]>([]);
-  const isSyncingWorkLogDraftsRef = useRef(false);
   const hasRestoredAuthSessionRef = useRef(false);
   const startTaskRef = useRef<(task: Task, options?: StartTaskOptions) => Promise<void>>(
     async () => undefined,
@@ -433,6 +413,20 @@ export default function App() {
     () => getWorkLogDraftOwnerKey(sessionUser),
     [sessionUser],
   );
+  const activeMobileSessionId = mobileSessionRef.current?.session.id ?? activeWorkLogDraftOwnerKey;
+  const workLogSession = useMemo(() => {
+    const version = authSessionVersionRef.current;
+    return { id: activeMobileSessionId, queue: createWorkLogQueue(activeWorkLogDraftOwnerKey, undefined, () => authSessionVersionRef.current === version) };
+  }, [activeWorkLogDraftOwnerKey, activeMobileSessionId]);
+  const workLogQueue = workLogSession.queue;
+  const pendingWorkLogDrafts = useSyncExternalStore(workLogQueue.subscribe, workLogQueue.getSnapshot);
+  useEffect(() => {
+    workLogQueue.activate();
+    void workLogQueue.ready().catch((error: unknown) => {
+      if (workLogQueue.isActive()) setSyncError(getClientErrorMessage(error));
+    });
+    return () => workLogQueue.dispose();
+  }, [workLogQueue]);
   const [manufacturingItems, setManufacturingItems] = useState(
     () => mecoSnapshot.manufacturingItems,
   );
@@ -500,12 +494,6 @@ export default function App() {
 
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
 
-  const [taskEditorMode, setTaskEditorMode] = useState<EditorMode | null>(null);
-  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
-  const [taskDraft, setTaskDraft] = useState<TaskDraft>(buildTaskDraft());
-  const [taskEditorError, setTaskEditorError] = useState<string | null>(null);
-  const [taskDependencySearch, setTaskDependencySearch] = useState("");
-
   const [milestoneEditorMode, setMilestoneEditorMode] = useState<EditorMode | null>(null);
   const [activeMilestoneId, setActiveMilestoneId] = useState<string | null>(null);
   const [milestoneDraft, setMilestoneDraft] = useState<MilestoneDraft>(
@@ -529,7 +517,6 @@ export default function App() {
   const [workLogError, setWorkLogError] = useState<string | null>(null);
   const [workLogTimer, setWorkLogTimer] = useState<WorkLogTimerState | null>(null);
   const workLogTimerRef = useRef<WorkLogTimerState | null>(null);
-  const [workLogTimerTick, setWorkLogTimerTick] = useState(Date.now());
 
   const [manufacturingEditorMode, setManufacturingEditorMode] = useState<EditorMode | null>(
     null,
@@ -578,20 +565,6 @@ export default function App() {
   });
   const [qaReportError, setQaReportError] = useState<string | null>(null);
 
-  const persistPendingWorkLogDrafts = useCallback(
-    async (
-      drafts: PendingWorkLogDraft[],
-      ownerKey: string | null = activeWorkLogDraftOwnerKey,
-    ) => {
-      pendingWorkLogDraftsRef.current = drafts;
-      setPendingWorkLogDrafts(drafts);
-      if (ownerKey) {
-        await savePendingWorkLogDrafts(ownerKey, drafts);
-      }
-    },
-    [activeWorkLogDraftOwnerKey],
-  );
-
   const applyBootstrapPayload = useCallback((payload: PlatformBootstrapPayload) => {
     const events = ensureArray(payload.events);
     const tasks = ensureArray(payload.tasks).map((task) => normalizeTaskFromServer(task));
@@ -603,9 +576,9 @@ export default function App() {
     setSubsystems(normalizeTaskSubsystems(ensureArray(payload.subsystems)));
     setDisciplines(ensureArray(payload.disciplines));
     setMechanisms(ensureArray(payload.mechanisms));
-    tasksRef.current = tasks;
-    taskByIdRef.current = buildTaskById(tasks);
     setTasks(tasks);
+    setTaskDependencies(ensureArray(payload.taskDependencies));
+    setTaskBlockers(ensureArray(payload.taskBlockers));
     setEvents(events.length > 0 ? events : mapMilestonesToEvents(payload));
     workLogsRef.current = payloadWorkLogs;
     setWorkLogs(payloadWorkLogs);
@@ -615,7 +588,7 @@ export default function App() {
     setHelpRequests(ensureArray(payload.helpRequests));
     setPartDefinitions(ensureArray(payload.partDefinitions));
     setPartInstances(ensureArray(payload.partInstances));
-  }, []);
+  }, [setTasks]);
 
   const refreshWorkspaceFromServer = useCallback(
     async (token: string | null) => {
@@ -631,143 +604,28 @@ export default function App() {
     [applyBootstrapPayload, authenticatedRequestJson],
   );
 
-  const syncPendingWorkLogDrafts = useCallback(
-    async (
-      token: string | null,
-      serverWorkLogs: WorkLog[] = workLogsRef.current,
-      ownerKey: string | null = getWorkLogDraftOwnerKey(sessionUser),
-    ) => {
-      if (isSyncingWorkLogDraftsRef.current) {
-        return null;
-      }
-
-      isSyncingWorkLogDraftsRef.current = true;
-
-      try {
-        // Drop local drafts that already exist on the server before attempting
-        // uploads; this covers both successful prior syncs and manual refreshes.
-        let drafts = reconcilePendingWorkLogDrafts(
-          pendingWorkLogDraftsRef.current,
-          serverWorkLogs,
-          ownerKey,
-        );
-
-        if (drafts.length !== pendingWorkLogDraftsRef.current.length) {
-          await persistPendingWorkLogDrafts(drafts, ownerKey);
-        }
-
-        let didSyncDraft = false;
-        let draftSyncError: string | null = null;
-        for (const draft of drafts.filter((draft) => isWorkLogDraftOwnedBy(draft, ownerKey))) {
-          drafts = markPendingWorkLogDraftSyncing(drafts, draft.id);
-          await persistPendingWorkLogDrafts(drafts, ownerKey);
-
-          try {
-            await authenticatedRequestJson<WorkLogMutationResponse>(
-              "/api/work-logs",
-              {
-                method: "POST",
-                body: JSON.stringify(draft.payload),
-              },
-              undefined,
-              token,
-            );
-
-            drafts = removePendingWorkLogDraft(drafts, draft.id);
-            didSyncDraft = true;
-            await persistPendingWorkLogDrafts(drafts, ownerKey);
-
-            const loggedTask = tasksRef.current.find(
-              (task) => task.id === draft.payload.taskId,
-            );
-            if (loggedTask) {
-              // Reuse the normal start-task flow so synced work logs advance task
-              // status the same way an online log would.
-              await startTaskRef.current(loggedTask, { openWorkLog: false });
-            }
-          } catch (error) {
-            if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
-              throw error;
-            }
-
-            const message = getClientErrorMessage(error);
-            drafts = markPendingWorkLogDraftFailed(drafts, draft.id, message);
-            await persistPendingWorkLogDrafts(drafts, ownerKey);
-            draftSyncError = draftSyncError ?? message;
-          }
-        }
-
-        if (drafts.length !== pendingWorkLogDraftsRef.current.length) {
-          await persistPendingWorkLogDrafts(drafts, ownerKey);
-        }
-
-        if (!didSyncDraft && pendingWorkLogDraftsRef.current.length === 0) {
-          return null;
-        }
-
-        try {
-          const payload = await refreshWorkspaceFromServer(token);
-          const reconciledDrafts = reconcilePendingWorkLogDrafts(
-            pendingWorkLogDraftsRef.current,
-            ensureArray(payload.workLogs),
-            ownerKey,
-          );
-          await persistPendingWorkLogDrafts(reconciledDrafts, ownerKey);
-          return draftSyncError;
-        } catch (error) {
-          if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
-            throw error;
-          }
-
-          return getClientErrorMessage(error);
-        }
-      } finally {
-        isSyncingWorkLogDraftsRef.current = false;
-      }
-    },
-    [authenticatedRequestJson, persistPendingWorkLogDrafts, refreshWorkspaceFromServer, sessionUser],
-  );
-
-  useEffect(() => {
-    tasksRef.current = tasks;
-    taskByIdRef.current = buildTaskById(tasks);
-  }, [tasks]);
-
-  useEffect(() => {
-    let isActive = true;
-
-    if (!activeWorkLogDraftOwnerKey) {
-      pendingWorkLogDraftsRef.current = [];
-      setPendingWorkLogDrafts([]);
-      void purgeExpiredWorkLogDrafts();
-      return () => {
-        isActive = false;
-      };
-    }
-
-    void loadPendingWorkLogDrafts(activeWorkLogDraftOwnerKey).then((drafts) => {
-      if (!isActive) {
-        return;
-      }
-
-      const reconciledDrafts = reconcilePendingWorkLogDrafts(
-        drafts,
-        workLogsRef.current,
-      );
-      // Reconcile on boot in case a previous run uploaded drafts but exited
-      // before local storage was pruned.
-      pendingWorkLogDraftsRef.current = reconciledDrafts;
-      setPendingWorkLogDrafts(reconciledDrafts);
-
-      if (reconciledDrafts.length !== drafts.length) {
-        void savePendingWorkLogDrafts(activeWorkLogDraftOwnerKey, reconciledDrafts);
-      }
-    });
-
-    return () => {
-      isActive = false;
-    };
-  }, [activeWorkLogDraftOwnerKey]);
+  const syncPendingWorkLogDrafts = useCallback(async (
+    token: string | null, serverWorkLogs: WorkLog[] = workLogsRef.current,
+    ownerKey: string | null = activeWorkLogDraftOwnerKey,
+  ) => {
+    if (ownerKey !== activeWorkLogDraftOwnerKey) return null;
+    await workLogQueue.ready();
+    if (workLogQueue.getSnapshot().length === 0) return null;
+    const result = await workLogQueue.sync(serverWorkLogs, async (draft) => {
+      await authenticatedRequestJson<WorkLogMutationResponse>("/api/work-logs", {
+        method: "POST", body: JSON.stringify(draft.payload),
+      }, undefined, token);
+    }, async (draft) => {
+      const task = taskState.getSnapshot().find((candidate) => candidate.id === draft.payload.taskId);
+      if (task) await startTaskRef.current(task, { openWorkLog: false });
+    }, (failure) => classifyMobileAuthError(failure, "authenticated") === "expired-session", getClientErrorMessage);
+    if (!result || !workLogQueue.isActive()) return null;
+    const payload = await authenticatedRequestJson<PlatformBootstrapPayload>("/api/bootstrap", undefined, undefined, token);
+    if (!workLogQueue.isActive()) return null;
+    applyBootstrapPayload(payload);
+    await workLogQueue.update((current) => reconcilePendingWorkLogDrafts(current, ensureArray(payload.workLogs), ownerKey));
+    return result.error;
+  }, [activeWorkLogDraftOwnerKey, workLogQueue, authenticatedRequestJson, taskState, applyBootstrapPayload]);
 
   const loadPublicAuthConfig = useCallback(async () => {
     setBackendStatus("connecting");
@@ -1318,6 +1176,11 @@ export default function App() {
   const taskById = useMemo(() => {
     return buildTaskById(tasks);
   }, [tasks]);
+  const taskEditor = useTaskEditor({ tasks, taskById, taskDependencies, members, membersById, disciplines,
+    subsystemsById, taskSubsystemOptions, activeTaskSubteam, setActiveTaskSubteam,
+    request: authenticatedRequestJson, refresh: () => refreshWorkspaceFromServer(apiToken),
+  });
+  const { taskDraft, openCreateTaskEditor, openEditTaskEditor, openDuplicateTaskEditor, closeTaskEditor } = taskEditor;
   const workLogsForDisplay = useMemo<WorkLogListItem[]>(() => {
     const serverFingerprints = new Set(
       workLogs.map((workLog) => buildWorkLogDraftFingerprint(workLog)),
@@ -1343,109 +1206,6 @@ export default function App() {
   const activeTaskSubteamLabel =
     TASK_SUBTEAM_OPTIONS.find((option) => option.value === activeTaskSubteam)?.label ??
     "Programming";
-  const selectedTaskDependencyIds = useMemo(() => {
-    return splitList(taskDraft.dependencyIdsText)
-      .filter((dependencyId) => taskById[dependencyId])
-      .filter((dependencyId) => dependencyId !== activeTaskId);
-  }, [activeTaskId, taskById, taskDraft.dependencyIdsText]);
-  const selectedTaskDependencies = useMemo(() => {
-    return selectedTaskDependencyIds
-      .map((dependencyId) => taskById[dependencyId])
-      .filter((task): task is Task => Boolean(task));
-  }, [selectedTaskDependencyIds, taskById]);
-  const openTaskDependencies = useMemo(() => {
-    return selectedTaskDependencies.filter((dependency) => dependency.status !== "complete");
-  }, [selectedTaskDependencies]);
-  const taskDependencyReadinessMessage = useMemo(() => {
-    if (openTaskDependencies.length === 0) {
-      return null;
-    }
-
-    const dependencyNames = openTaskDependencies
-      .map((dependency) => `${dependency.title} (${STATUS_LABELS[dependency.status]})`)
-      .join(", ");
-
-    if (taskDraft.status === "complete") {
-      return `This task is marked complete but still depends on: ${dependencyNames}.`;
-    }
-
-    if (taskDraft.status === "waiting-for-qa") {
-      return `This task is waiting for QA with unfinished dependencies: ${dependencyNames}.`;
-    }
-
-    return `This task is not ready until these dependencies finish: ${dependencyNames}.`;
-  }, [openTaskDependencies, taskDraft.status]);
-  const downstreamTaskDependencies = useMemo(() => {
-    if (!activeTaskId) {
-      return [];
-    }
-
-    return tasks
-      .filter((task) => task.id !== activeTaskId)
-      .filter((task) => task.dependencyIds.includes(activeTaskId))
-      .sort(
-        (firstTask, secondTask) =>
-          firstTask.dueDate.localeCompare(secondTask.dueDate) ||
-          firstTask.title.localeCompare(secondTask.title),
-      )
-      .slice(0, 6);
-  }, [activeTaskId, tasks]);
-  const availableTaskDependencyOptions = useMemo(() => {
-    const selectedIds = new Set(selectedTaskDependencyIds);
-    const search = taskDependencySearch.trim().toLowerCase();
-
-    return tasks
-      .filter((task) => task.id !== activeTaskId)
-      .filter((task) => !selectedIds.has(task.id))
-      .filter(
-        (task) => !activeTaskId || !taskDependsOnTarget(task.id, activeTaskId, taskById),
-      )
-      .filter((task) => {
-        if (!search) {
-          return true;
-        }
-
-        const subsystemName = subsystemsById[task.subsystemId]?.name ?? "";
-        const ownerName = task.ownerId ? (membersById[task.ownerId]?.name ?? "") : "";
-
-        return [
-          task.id,
-          task.title,
-          task.summary,
-          STATUS_LABELS[task.status],
-          subsystemName,
-          ownerName,
-        ]
-          .join(" ")
-          .toLowerCase()
-          .includes(search);
-      })
-      .sort((firstTask, secondTask) => {
-        const firstSubsystemScore = firstTask.subsystemId === taskDraft.subsystemId ? 0 : 1;
-        const secondSubsystemScore = secondTask.subsystemId === taskDraft.subsystemId ? 0 : 1;
-        const firstDisciplineScore = firstTask.disciplineId === taskDraft.disciplineId ? 0 : 1;
-        const secondDisciplineScore = secondTask.disciplineId === taskDraft.disciplineId ? 0 : 1;
-
-        return (
-          firstSubsystemScore - secondSubsystemScore ||
-          firstDisciplineScore - secondDisciplineScore ||
-          firstTask.dueDate.localeCompare(secondTask.dueDate) ||
-          firstTask.title.localeCompare(secondTask.title)
-        );
-      })
-      .slice(0, search ? 20 : 10);
-  }, [
-    activeTaskId,
-    membersById,
-    selectedTaskDependencyIds,
-    subsystemsById,
-    taskById,
-    taskDependencySearch,
-    taskDraft.disciplineId,
-    taskDraft.subsystemId,
-    tasks,
-  ]);
-
   const navigationItems = useMemo<NavItem[]>(() => {
     const homeCount = tasks.filter((task) => task.status !== "complete").length;
 
@@ -1544,7 +1304,7 @@ export default function App() {
     }, {});
   }, [workLogsForDisplay]);
 
-  const taskQueue = useTaskQueue({ tasks, taskById, taskLoggedHoursById, activeTaskSubteam,
+  const taskQueue = useTaskQueue({ tasks, taskLoggedHoursById, activeTaskSubteam,
     canMentorApprove, activePersonFilter, membersById, mechanismsById, subsystemsById });
   const { taskArchiveFilter } = taskQueue;
 
@@ -2251,8 +2011,9 @@ export default function App() {
         const ownerName = task.ownerId
           ? (membersById[task.ownerId]?.name ?? "Unassigned")
           : "Unassigned";
-        const openDependencies = task.dependencyIds
-          .map((dependencyId) => taskById[dependencyId])
+        const openDependencies = taskDependencies.filter((edge) => edge.taskId === task.id && edge.kind === "task" && edge.dependencyType === "hard")
+          .filter((edge) => taskById[edge.refId]?.status !== edge.requiredState)
+          .map((edge) => taskById[edge.refId])
           .filter((dependency): dependency is Task => Boolean(dependency))
           .filter((dependency) => dependency.status !== "complete");
         const actions = [];
@@ -2287,9 +2048,9 @@ export default function App() {
             source: "task" as const,
             title: task.title,
           });
-        } else if (openDependencies.length > 0) {
+        } else if (task.isWaitingOnDependency) {
           actions.push({
-            detail: `${subsystemName} - ${ownerName} - waiting on ${openDependencies.map((dependency) => dependency.title).join(", ")}`,
+            detail: `${subsystemName} - ${ownerName} - waiting on ${openDependencies.map((dependency) => dependency.title).join(", ") || "a milestone, part, or unavailable dependency"}`,
             id: `dependencies-${task.id}`,
             label: "Dependency wait",
             onPressTargetId: task.id,
@@ -2342,7 +2103,7 @@ export default function App() {
     return [...taskActions, ...manufacturingActions, ...purchaseActions]
       .sort((left, right) => priorityRank[left.priority] - priorityRank[right.priority])
       .slice(0, 8);
-  }, [manufacturingItems, membersById, purchaseItems, subsystemsById, taskById, tasks]);
+  }, [manufacturingItems, membersById, purchaseItems, subsystemsById, taskById, taskDependencies, tasks]);
   const homeInventoryNeeds = useMemo(
     () =>
       [...purchaseItems]
@@ -2778,7 +2539,6 @@ export default function App() {
       };
       workLogTimerRef.current = restoredWorkLogTimer;
       setWorkLogTimer(restoredWorkLogTimer);
-      setWorkLogTimerTick(Date.now());
 
       if (restoredTimer.isPaused === true) {
         void cancelWorkLogTimerReminders(restoredTimer.reminderNotificationIds);
@@ -2821,45 +2581,6 @@ export default function App() {
     }
   }, [selectedSubsystemId, subsystems]);
 
-  useEffect(() => {
-    if (!workLogTimer || workLogTimer.isPaused) {
-      return undefined;
-    }
-
-    const timerId = setInterval(() => setWorkLogTimerTick(Date.now()), TIMER_TICK_MS);
-
-    return () => clearInterval(timerId);
-  }, [workLogTimer]);
-
-  const workLogTimerElapsedMs = getWorkLogTimerElapsedMs(
-    workLogTimer,
-    workLogTimerTick,
-  );
-  const workTimerElapsedLabel = formatTimerElapsed(workLogTimerElapsedMs);
-
-  const openCreateTaskEditor = () => {
-    const today = localTodayDate();
-
-    setActiveTaskId(null);
-    setTaskDraft(
-      buildTaskDraft({
-        subsystemId: taskSubsystemOptions[0]?.id ?? "",
-        disciplineId:
-          TASK_SUBTEAM_DISCIPLINE_IDS[activeTaskSubteam][0] ?? disciplines[0]?.id ?? "",
-        ownerId: members[0]?.id ?? "",
-        mentorId:
-          members.find((member) => member.role === "mentor" || member.role === "admin")?.id ??
-          members[0]?.id ??
-          "",
-        startDate: today,
-        dueDate: today,
-      }),
-    );
-    setTaskEditorError(null);
-    setTaskDependencySearch("");
-    setTaskEditorMode("create");
-  };
-
   const openTaskQueueFromTask = (task: Task) => {
     const nextSubteam = getTaskSubteamForDisciplineId(task.disciplineId, activeTaskSubteam);
 
@@ -2872,33 +2593,6 @@ export default function App() {
   const openInventoryPurchases = () => {
     setInventoryView("purchases");
     setActiveTab("inventory");
-  };
-
-  const openEditTaskEditor = (task: Task) => {
-    setActiveTaskId(task.id);
-    setTaskDraft(buildTaskDraft(task));
-    setTaskEditorError(null);
-    setTaskDependencySearch("");
-    setTaskEditorMode("edit");
-  };
-
-  const openDuplicateTaskEditor = (task: Task) => {
-    setActiveTaskId(null);
-    setTaskDraft(
-      buildTaskDraft({
-        ...task,
-        id: "",
-        title: `Copy of ${task.title}`,
-        dueDate: isoToday(),
-        status: "not-started",
-        blockers: [],
-        actualHours: 0,
-        isBlocked: false,
-      }),
-    );
-    setTaskEditorError(null);
-    setTaskDependencySearch("");
-    setTaskEditorMode("create");
   };
 
   const shiftTaskDueDates = async (tasksToShift: Task[], dayDelta: number) => {
@@ -2926,25 +2620,7 @@ export default function App() {
             {
               method: "PATCH",
               body: JSON.stringify({
-                title: task.title,
-                summary: task.summary,
-                subsystemId: task.subsystemId,
-                disciplineId: task.disciplineId,
-                mechanismId: task.mechanismId,
-                partInstanceId: task.partInstanceId,
-                targetEventId: task.targetEventId,
-                ownerId: task.ownerId,
-                mentorId: task.mentorId,
                 dueDate: shiftDateByDays(task.dueDate, dayDelta),
-                priority: task.priority,
-                status: task.status,
-                dependencyIds: task.dependencyIds,
-                checklistItems: task.checklistItems ?? [],
-                blockers: task.blockers,
-                linkedManufacturingIds: task.linkedManufacturingIds,
-                linkedPurchaseIds: task.linkedPurchaseIds,
-                estimatedHours: task.estimatedHours,
-                actualHours: task.actualHours,
               }),
             },
           ),
@@ -2964,140 +2640,6 @@ export default function App() {
       setSyncError(getClientErrorMessage(error));
     } finally {
       setIsSyncing(false);
-    }
-  };
-
-  const closeTaskEditor = () => {
-    setTaskEditorMode(null);
-    setActiveTaskId(null);
-    setTaskEditorError(null);
-    setTaskDependencySearch("");
-  };
-
-  const addTaskDependency = (dependencyId: string) => {
-    setTaskDraft((current) => {
-      if (dependencyId === activeTaskId) {
-        return current;
-      }
-
-      if (
-        activeTaskId &&
-        taskDependsOnTarget(dependencyId, activeTaskId, taskById)
-      ) {
-        return current;
-      }
-
-      const dependencyIds = splitList(current.dependencyIdsText).filter(
-        (currentDependencyId) => currentDependencyId !== activeTaskId,
-      );
-
-      if (dependencyIds.includes(dependencyId)) {
-        return current;
-      }
-
-      return {
-        ...current,
-        dependencyIdsText: [...dependencyIds, dependencyId].join(", "),
-      };
-    });
-  };
-
-  const removeTaskDependency = (dependencyId: string) => {
-    setTaskDraft((current) => ({
-      ...current,
-      dependencyIdsText: splitList(current.dependencyIdsText)
-        .filter((currentDependencyId) => currentDependencyId !== dependencyId)
-        .join(", "),
-    }));
-  };
-
-  const saveTaskDraft = async () => {
-    const isEdit = taskEditorMode === "edit" && activeTaskId;
-    const existingTask = isEdit ? taskById[activeTaskId] : null;
-    const blockers = splitList(taskDraft.blockersText);
-    const checklistItems = splitList(taskDraft.checklistItemsText);
-    const dependencyIds = splitList(taskDraft.dependencyIdsText)
-      .filter((dependencyId) => taskById[dependencyId])
-      .filter((dependencyId) => dependencyId !== activeTaskId);
-    const title = taskDraft.title.trim();
-    const summary = taskDraft.summary.trim();
-    const parsedEstimatedHours = Number(taskDraft.estimatedHours);
-
-    const missingFields = [
-      !title ? "title" : null,
-      !summary ? "summary" : null,
-      !taskDraft.subsystemId ? "subsystem" : null,
-      !taskDraft.ownerId ? "owner" : null,
-      Number.isNaN(parsedEstimatedHours) || parsedEstimatedHours < 0 ? "estimated hours" : null,
-    ].filter((field): field is string => Boolean(field));
-
-    if (missingFields.length > 0) {
-      setTaskEditorError(`Add ${missingFields.join(", ")} before saving this task.`);
-      return;
-    }
-
-    if (activeTaskId) {
-      const circularDependencies = dependencyIds.filter((dependencyId) =>
-        taskDependsOnTarget(dependencyId, activeTaskId, taskById),
-      );
-
-      if (circularDependencies.length > 0) {
-        const dependencyNames = circularDependencies
-          .map((dependencyId) => taskById[dependencyId]?.title ?? dependencyId)
-          .join(", ");
-        setTaskEditorError(
-          `Remove circular dependencies before saving: ${dependencyNames}.`,
-        );
-        return;
-      }
-    }
-
-    setTaskEditorError(null);
-    const status = getAutoTaskStatus(
-      {
-        blockers,
-        dependencyIds,
-        ownerId: taskDraft.ownerId,
-        status: taskDraft.status,
-      },
-      taskById,
-    );
-
-    const payload = mapTaskPayloadToServer({
-      title,
-      summary,
-      subsystemId: taskDraft.subsystemId,
-      disciplineId:
-        taskDraft.disciplineId || disciplines[0]?.id || "mechanical",
-      mechanismId: taskDraft.mechanismId,
-      partInstanceId: taskDraft.partInstanceId,
-      targetEventId: taskDraft.targetEventId,
-      ownerId: taskDraft.ownerId,
-      mentorId: taskDraft.mentorId || null,
-      startDate: taskDraft.startDate || undefined,
-      dueDate: taskDraft.dueDate || isoToday(),
-      priority: taskDraft.priority,
-      status,
-      dependencyIds,
-      checklistItems,
-      blockers,
-      linkedManufacturingIds: existingTask?.linkedManufacturingIds ?? [],
-      linkedPurchaseIds: existingTask?.linkedPurchaseIds ?? [],
-      estimatedHours: parsedEstimatedHours,
-      actualHours: existingTask?.actualHours ?? 0,
-    });
-
-    const ok = await runMutation(
-      isEdit ? `/api/tasks/${activeTaskId}` : "/api/tasks",
-      {
-        method: isEdit ? "PATCH" : "POST",
-        body: JSON.stringify(payload),
-      },
-    );
-
-    if (ok) {
-      setActiveTaskSubteam(getTaskSubteamForDisciplineId(taskDraft.disciplineId, activeTaskSubteam));
-      closeTaskEditor();
     }
   };
 
@@ -3292,65 +2834,22 @@ export default function App() {
     }
   };
 
-  const deleteTaskDraft = async () => {
-    if (!activeTaskId) {
-      return;
-    }
-
-    const ok = await runMutation(`/api/tasks/${activeTaskId}`, {
-      method: "DELETE",
-    });
-
-    if (ok) {
-      closeTaskEditor();
-    }
-  };
-
   const clearTaskBlockers = async (task: Task, resolutionNote: string) => {
     const trimmedNote = resolutionNote.trim();
     if (!trimmedNote) {
       return;
     }
 
-    const resolutionEntry = `Blockers cleared ${isoToday()}: ${trimmedNote}`;
-    const nextSummary = `${task.summary.trim()}\n\n${resolutionEntry}`;
-    const status = getAutoTaskStatus(
-      { ...task, blockers: [] },
-      taskById,
-    );
-
-    setTasks((current) =>
-      current.map((candidate) =>
-        candidate.id === task.id
-          ? { ...candidate, blockers: [], isBlocked: false, status, summary: nextSummary }
-          : candidate,
-      ),
-    );
-
-    await runMutation(`/api/tasks/${task.id}`, {
-      method: "PATCH",
-      body: JSON.stringify(mapTaskPayloadToServer({
-        title: task.title,
-        summary: nextSummary,
-        subsystemId: task.subsystemId,
-        disciplineId: task.disciplineId,
-        mechanismId: task.mechanismId,
-        partInstanceId: task.partInstanceId,
-        targetEventId: task.targetEventId,
-        ownerId: task.ownerId,
-        mentorId: task.mentorId,
-        dueDate: task.dueDate,
-        priority: task.priority,
-        status,
-        dependencyIds: task.dependencyIds,
-        checklistItems: task.checklistItems ?? [],
-        blockers: [],
-        linkedManufacturingIds: task.linkedManufacturingIds,
-        linkedPurchaseIds: task.linkedPurchaseIds,
-        estimatedHours: task.estimatedHours,
-        actualHours: task.actualHours,
-      })),
-    });
+    for (const blocker of taskBlockers.filter((candidate) => candidate.blockedTaskId === task.id && candidate.status === "open")) {
+      const ok = await runMutation(`/api/task-blockers/${blocker.id}`, {
+        method: "PATCH", body: JSON.stringify({ status: "resolved" }),
+      });
+      if (!ok) throw new Error("Blocker resolution failed. Refresh and retry.");
+    }
+    const saved = await runMutation(`/api/tasks/${task.id}`, { method: "PATCH", body: JSON.stringify({
+      summary: `${task.summary.trim()}\n\nBlockers cleared ${isoToday()}: ${trimmedNote}`,
+    }) });
+    if (!saved) throw new Error("Blockers resolved, but the resolution note failed to save. Retry the note.");
   };
 
   const claimTask = async (task: Task) => {
@@ -3391,15 +2890,11 @@ export default function App() {
 
   const startTask = async (task: Task, options: StartTaskOptions = {}) => {
     const { openWorkLog = true } = options;
-    const currentTaskById = taskByIdRef.current;
+    const currentTaskById = buildTaskById(taskState.getSnapshot());
     const currentTask = currentTaskById[task.id] ?? task;
-    const status = getAutoTaskStatus(currentTask, currentTaskById);
-    const hasOpenDependencies = currentTask.dependencyIds
-      .map((dependencyId) => currentTaskById[dependencyId])
-      .some((dependency) => dependency && dependency.status !== "complete");
+    const status = getAutoTaskStatus(currentTask);
     const assignmentState = getTaskAssignmentState({
       canReassignTasks,
-      hasOpenDependencies,
       membersById,
       signedInMember,
       task: currentTask,
@@ -3438,7 +2933,7 @@ export default function App() {
 
     const ok = await runMutation(`/api/tasks/${task.id}`, {
       method: "PATCH",
-      body: JSON.stringify(buildOwnedTaskStartPayload(currentTask, status)),
+      body: JSON.stringify({ status }),
     });
     if (ok && openWorkLog) {
       openCreateWorkLogEditor(task.id);
@@ -3453,15 +2948,12 @@ export default function App() {
       task.ownerId ||
       members[0]?.id ||
       "";
-    const hasOpenDependency = task.dependencyIds
-      .map((dependencyId) => taskById[dependencyId])
-      .some((dependency) => dependency && dependency.status !== "complete");
 
     if (
       !mentorId ||
       task.status !== "in-progress" ||
       task.blockers.length > 0 ||
-      hasOpenDependency
+      isTaskBlocked(task)
     ) {
       return;
     }
@@ -3477,25 +2969,8 @@ export default function App() {
     const ok = await runMutation(`/api/tasks/${task.id}`, {
       method: "PATCH",
       body: JSON.stringify({
-        title: task.title,
-        summary: task.summary,
-        subsystemId: task.subsystemId,
-        disciplineId: task.disciplineId,
-        mechanismId: task.mechanismId,
-        partInstanceId: task.partInstanceId,
-        targetEventId: task.targetEventId,
-        ownerId: task.ownerId,
         mentorId,
-        dueDate: task.dueDate,
-        priority: task.priority,
         status: "waiting-for-qa",
-        dependencyIds: task.dependencyIds,
-        checklistItems: task.checklistItems ?? [],
-        blockers: task.blockers,
-        linkedManufacturingIds: task.linkedManufacturingIds,
-        linkedPurchaseIds: task.linkedPurchaseIds,
-        estimatedHours: task.estimatedHours,
-        actualHours: task.actualHours,
       }),
     });
 
@@ -3554,8 +3029,6 @@ export default function App() {
 
     workLogTimerRef.current = nextTimer;
     setWorkLogTimer(nextTimer);
-    setWorkLogTimerTick(nextTimer.startedAt);
-    void startWorkLogLiveActivity(nextTimer);
     void persistWorkLogTimerState(nextTimer);
     void cancelWorkLogTimerReminders()
       .then(() => schedulePersistedWorkLogTimerReminders(nextTimer))
@@ -3608,7 +3081,6 @@ export default function App() {
     setWorkLogTimer(nextTimer);
     void persistWorkLogTimerState(nextTimer);
     void cancelWorkLogTimerReminders(workLogTimer.reminderNotificationIds);
-    void updateWorkLogLiveActivity(nextTimer);
   };
 
   const openWorkLogFromTimer = () => {
@@ -3631,7 +3103,6 @@ export default function App() {
     setWorkLogTimer(null);
     void clearPersistedWorkLogTimerState();
     void cancelWorkLogTimerReminders(workLogTimer.reminderNotificationIds);
-    void endWorkLogLiveActivity();
     setWorkLogEditorMode("create");
   };
 
@@ -3645,7 +3116,6 @@ export default function App() {
       return null;
     });
     void clearPersistedWorkLogTimerState();
-    void endWorkLogLiveActivity();
   };
 
   const openEditWorkLogEditor = (workLog: WorkLog) => {
@@ -3692,34 +3162,17 @@ export default function App() {
 
     const isEdit = workLogEditorMode === "edit" && activeWorkLogId;
     if (isEdit) {
-      const localDraft = pendingWorkLogDraftsRef.current.find(
+      const localDraft = workLogQueue.getSnapshot().find(
         (draft) => draft.id === activeWorkLogId,
       );
 
       if (localDraft) {
-        const nextFingerprint = buildWorkLogDraftFingerprint(payload);
-        const didChangeLocalDraftPayload = nextFingerprint !== localDraft.fingerprint;
-        const remainingDrafts = removePendingWorkLogDraft(
-          pendingWorkLogDraftsRef.current,
-          localDraft.id,
-        );
-        const result = enqueuePendingWorkLogDraft(
-          remainingDrafts,
-          payload,
-          new Date(),
-          {
-            ownerKey: localDraft.ownerKey ?? activeWorkLogDraftOwnerKey,
-            ...(didChangeLocalDraftPayload
-              ? { status: "pending" as const }
-              : {
-                  attemptCount: localDraft.attemptCount,
-                  error: localDraft.error,
-                  status:
-                    localDraft.status === "syncing" ? "pending" : localDraft.status,
-                }),
-          },
-        );
-        await persistPendingWorkLogDrafts(result.drafts);
+        try {
+          await workLogQueue.update((current) => enqueuePendingWorkLogDraft(
+            removePendingWorkLogDraft(current, localDraft.id), payload, new Date(),
+            { ownerKey: activeWorkLogDraftOwnerKey },
+          ).drafts);
+        } catch (error) { setWorkLogError(getClientErrorMessage(error)); return; }
         closeWorkLogEditor();
         return;
       }
@@ -3743,7 +3196,7 @@ export default function App() {
 
     const fingerprint = buildWorkLogDraftFingerprint(payload);
     if (
-      pendingWorkLogDraftsRef.current.some(
+      workLogQueue.getSnapshot().some(
         (draft) =>
           draft.fingerprint === fingerprint &&
           isWorkLogDraftOwnedBy(draft, activeWorkLogDraftOwnerKey),
@@ -3755,18 +3208,10 @@ export default function App() {
     }
 
     if (backendStatus === "offline" && backendReachability === "unreachable") {
-      const result = enqueuePendingWorkLogDraft(
-        pendingWorkLogDraftsRef.current,
-        payload,
-        new Date(),
-        { ownerKey: activeWorkLogDraftOwnerKey },
-      );
-      await persistPendingWorkLogDrafts(result.drafts);
-      setSyncError(
-        result.didCreate
-          ? "Work log saved locally. It will sync when the backend is reachable."
-          : "Work log draft is already saved locally and waiting to sync.",
-      );
+      try {
+        await workLogQueue.update((current) => enqueuePendingWorkLogDraft(current, payload, new Date(), { ownerKey: activeWorkLogDraftOwnerKey }).drafts);
+        setSyncError("Work log saved locally. It will sync when the backend is reachable.");
+      } catch (error) { setWorkLogError(getClientErrorMessage(error)); return; }
       closeWorkLogEditor();
       return;
     }
@@ -3822,25 +3267,14 @@ export default function App() {
       }
 
       const message = getClientErrorMessage(error);
-      const result = enqueuePendingWorkLogDraft(
-        pendingWorkLogDraftsRef.current,
-        payload,
-        new Date(),
-        {
-          attemptCount: 1,
-          error: message,
-          ownerKey: activeWorkLogDraftOwnerKey,
-          status: "failed",
-        },
-      );
-      await persistPendingWorkLogDrafts(result.drafts);
-      setBackendStatus("offline");
-      setBackendReachability(backendReachabilityAfterError(error));
-      setSyncError(
-        result.didCreate
-          ? "Work log saved locally. It will sync when the backend is reachable."
-          : "Work log draft is already saved locally and waiting to sync.",
-      );
+      try {
+        await workLogQueue.update((current) => enqueuePendingWorkLogDraft(current, payload, new Date(), {
+          ownerKey: activeWorkLogDraftOwnerKey, attemptCount: 1, error: message, status: "failed",
+        }).drafts);
+        setBackendStatus("offline");
+        setBackendReachability(backendReachabilityAfterError(error));
+        setSyncError(`Work log saved locally. ${message}`);
+      } catch (storageError) { setWorkLogError(getClientErrorMessage(storageError)); return; }
       closeWorkLogEditor();
     } finally {
       setIsSyncing(false);
@@ -3852,14 +3286,12 @@ export default function App() {
       return;
     }
 
-    const localDraft = pendingWorkLogDraftsRef.current.find(
+    const localDraft = workLogQueue.getSnapshot().find(
       (draft) => draft.id === activeWorkLogId,
     );
 
     if (localDraft) {
-      await persistPendingWorkLogDrafts(
-        removePendingWorkLogDraft(pendingWorkLogDraftsRef.current, localDraft.id),
-      );
+      await workLogQueue.update((current) => removePendingWorkLogDraft(current, localDraft.id));
       closeWorkLogEditor();
       return;
     }
@@ -4416,9 +3848,7 @@ export default function App() {
         dueDate,
         priority: "medium",
         status: "not-started",
-        dependencyIds: [],
-        checklistItems: [],
-        blockers: [],
+
         linkedManufacturingIds: [],
         linkedPurchaseIds: [],
         estimatedHours: 0,
@@ -4571,7 +4001,7 @@ export default function App() {
       return;
     }
 
-    if (task && qaReportDraft.result === "pass" && !isTaskReadyForQaPass(task, taskById)) {
+    if (task && qaReportDraft.result === "pass" && !isTaskReadyForQaPass(task)) {
       setQaReportError(
         "A pass report can only complete a task that is waiting for QA with no blockers or unfinished dependencies.",
       );
@@ -4626,72 +4056,31 @@ export default function App() {
         dueDate: isoToday(),
         priority: qaReportDraft.result === "iteration-worthy" ? "high" : "medium",
         status: "not-started",
-        dependencyIds: [],
         checklistItems: [],
-        blockers: [],
+
         linkedManufacturingIds: task.linkedManufacturingIds,
         linkedPurchaseIds: task.linkedPurchaseIds,
         estimatedHours: 0,
         actualHours: 0,
-      } satisfies Omit<Task, "id" | "isBlocked">;
-      const localFollowUpTask: Task = {
-        ...followUpTask,
-        id: `task-local-qa-${Date.now()}`,
-        isBlocked: false,
-      };
-
-      setTasks((current) => [localFollowUpTask, ...current]);
-      await runMutation("/api/tasks", {
-        method: "POST",
-        body: JSON.stringify(followUpTask),
+      } satisfies Omit<Task, "id" | "isBlocked" | "isWaitingOnDependency" | "blockers">;
+      const created = await runMutation("/api/tasks", {
+        method: "POST", body: JSON.stringify(mapTaskPayloadToServer(followUpTask)),
       });
+      if (!created) { setQaReportError("The follow-up task could not be saved."); return; }
     }
 
     if (qaReportDraft.result === "pass") {
-      const completedTasks = tasks.map((candidate) =>
-        candidate.id === task.id ? { ...candidate, status: "complete" as TaskStatus } : candidate,
-      );
-      const completedTaskById = Object.fromEntries(
-        completedTasks.map((candidate) => [candidate.id, candidate]),
-      ) as Record<string, Task>;
-      const nextTasks = completedTasks.map((candidate) =>
-        candidate.id === task.id
-          ? candidate
-          : { ...candidate, status: getAutoTaskStatus(candidate, completedTaskById) },
-      );
-      const changedStatusTasks = nextTasks.filter(
-        (candidate) => taskById[candidate.id]?.status !== candidate.status,
-      );
-
-      setTasks(nextTasks);
-
-      for (const changedTask of changedStatusTasks) {
-        await runMutation(`/api/tasks/${changedTask.id}`, {
-          method: "PATCH",
-          body: JSON.stringify(buildTaskMutationPayload(changedTask)),
-        });
-      }
+      const completed = await runMutation(`/api/tasks/${task.id}`, {
+        method: "PATCH", body: JSON.stringify({ status: "complete" }),
+      });
+      if (!completed) { setQaReportError("Task completion could not be saved."); return; }
     }
-
     if (qaReportDraft.result === "iteration-worthy") {
-      setTasks((current) =>
-        current.map((candidate) =>
-          candidate.id === task.id
-            ? (() => {
-                const nextBlockers = Array.from(
-                  new Set([...candidate.blockers, "QA identified iteration-worthy follow-up."]),
-                );
-
-                return {
-                  ...candidate,
-                  blockers: nextBlockers,
-                  isBlocked: nextBlockers.length > 0,
-                  status: candidate.status === "complete" ? "waiting-for-qa" : candidate.status,
-                };
-              })()
-            : candidate,
-        ),
-      );
+      const blocked = await runMutation("/api/task-blockers", {
+        method: "POST", body: JSON.stringify({ blockedTaskId: task.id, blockerType: "external", blockerId: null,
+          description: "QA identified iteration-worthy follow-up.", issueType: "qa-failed", severity: "medium", status: "open" }),
+      });
+      if (!blocked) { setQaReportError("The QA blocker could not be saved."); return; }
     }
 
     setQaReviews((current) => [nextQaReview, ...current]);
@@ -4728,14 +4117,13 @@ export default function App() {
     setSubsystems([]);
     setDisciplines([]);
     setMechanisms([]);
-    tasksRef.current = [];
-    taskByIdRef.current = {};
     setTasks([]);
+    setTaskDependencies([]);
+    setTaskBlockers([]);
     setEvents([]);
     workLogsRef.current = [];
     setWorkLogs([]);
-    pendingWorkLogDraftsRef.current = [];
-    setPendingWorkLogDrafts([]);
+    workLogQueue.dispose();
     setManufacturingItems([]);
     setPurchaseItems([]);
     setPartDefinitions([]);
@@ -4769,6 +4157,8 @@ export default function App() {
     setDisciplines([]);
     setMechanisms([]);
     setTasks([]);
+    setTaskDependencies([]);
+    setTaskBlockers([]);
     setEvents([]);
     setWorkLogs([]);
     setManufacturingItems([]);
@@ -4939,6 +4329,7 @@ export default function App() {
     startTask,
     subsystemsById,
     taskById,
+    taskDependencies,
     taskLoggedHoursById,
     qaReviews,
     eventOptions,
@@ -5082,6 +4473,7 @@ export default function App() {
     subsystemsById,
     syncFromBackend,
     taskById,
+    taskDependencies,
     transitionPurchaseItem,
     tasks,
     themeColors,
@@ -5090,7 +4482,7 @@ export default function App() {
     workLogSortMode,
     workLogSubsystemFilter,
     workLogSummary,
-    workTimerElapsedLabel,
+    workLogTimer,
     workTimerIsActive: Boolean(workLogTimer),
     workTimerIsPaused: Boolean(workLogTimer?.isPaused),
     pauseWorkLogTimer,
@@ -5121,13 +4513,10 @@ export default function App() {
     return (
       <>
         <TaskEditorModal
-          addTaskDependency={addTaskDependency}
+          editor={taskEditor}
           appResponsiveStyles={appResponsiveStyles}
-          availableTaskDependencyOptions={availableTaskDependencyOptions}
-          deleteTaskDraft={deleteTaskDraft}
           disciplineOptions={disciplineOptions}
           disciplinesById={disciplinesById}
-          downstreamTaskDependencies={downstreamTaskDependencies}
           eventOptions={eventOptions}
           eventsById={eventsById}
           isLandscapeCardLayout={isLandscapeCardLayout}
@@ -5136,20 +4525,9 @@ export default function App() {
           mechanisms={mechanisms}
           mechanismsById={mechanismsById}
           memberOptions={memberOptions}
-          onCancel={closeTaskEditor}
-          onSave={saveTaskDraft}
           partInstances={partInstances}
           partInstancesById={partInstancesById}
-          removeTaskDependency={removeTaskDependency}
-          selectedTaskDependencies={selectedTaskDependencies}
-          setTaskDependencySearch={setTaskDependencySearch}
-          setTaskDraft={setTaskDraft}
           subsystemsById={subsystemsById}
-          taskDependencyReadinessMessage={taskDependencyReadinessMessage}
-          taskDependencySearch={taskDependencySearch}
-          taskDraft={taskDraft}
-          taskEditorError={taskEditorError}
-          taskEditorMode={taskEditorMode}
           taskSubsystemOptions={taskSubsystemOptions}
           themeColors={themeColors}
         />

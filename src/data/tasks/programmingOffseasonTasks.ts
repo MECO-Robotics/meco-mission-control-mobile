@@ -1,6 +1,6 @@
-import type { Task } from "../../types/domain";
+import type { TaskSeed } from "./seedTypes";
 
-export const programmingOffseasonTasks: Task[] = [
+export const programmingOffseasonTasks: TaskSeed[] = [
   {
     id: "auto-replay-suite",
     title: "Build auto replay regression suite",
@@ -17,9 +17,6 @@ export const programmingOffseasonTasks: Task[] = [
     dueDate: "2026-06-05",
     priority: "high",
     status: "in-progress",
-    dependencyIds: ["pathplanner-drive-test", "logging-schema-cleanup"],
-    blockers: ["Driver station image is waiting on firmware and DS log tooling updates."],
-    isBlocked: true,
     linkedManufacturingIds: [],
     linkedPurchaseIds: [],
     estimatedHours: 8,
@@ -43,9 +40,6 @@ export const programmingOffseasonTasks: Task[] = [
     dueDate: "2026-06-06",
     priority: "medium",
     status: "not-started",
-    dependencyIds: [],
-    blockers: ["Awaiting final CTRE and REV tool versions for the offseason laptop image."],
-    isBlocked: true,
     linkedManufacturingIds: [],
     linkedPurchaseIds: [],
     estimatedHours: 4,
@@ -69,9 +63,6 @@ export const programmingOffseasonTasks: Task[] = [
     dueDate: "2026-06-04",
     priority: "high",
     status: "waiting-for-qa",
-    dependencyIds: [],
-    blockers: [],
-    isBlocked: false,
     linkedManufacturingIds: [],
     linkedPurchaseIds: [],
     estimatedHours: 7,
@@ -95,9 +86,6 @@ export const programmingOffseasonTasks: Task[] = [
     dueDate: "2026-06-14",
     priority: "high",
     status: "in-progress",
-    dependencyIds: ["auto-replay-suite"],
-    blockers: [],
-    isBlocked: false,
     linkedManufacturingIds: ["vision-camera-mount-recut"],
     linkedPurchaseIds: ["april-tag-print-set"],
     estimatedHours: 6,

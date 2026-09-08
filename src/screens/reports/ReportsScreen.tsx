@@ -44,6 +44,7 @@ export function ReportsScreen(props: AppScreenProps) {
     reportSummary,
     rosterMentors,
     taskById,
+    taskDependencies,
     tasks,
     workLogs,
   } = props;
@@ -82,7 +83,7 @@ export function ReportsScreen(props: AppScreenProps) {
         const leftTask = left.taskId ? taskById[left.taskId] : null;
         const rightTask = right.taskId ? taskById[right.taskId] : null;
         const dependencyDelta =
-          (rightTask?.dependencyIds.length ?? 0) - (leftTask?.dependencyIds.length ?? 0);
+          taskDependencies.filter((edge) => edge.taskId === rightTask?.id).length - taskDependencies.filter((edge) => edge.taskId === leftTask?.id).length;
         if (dependencyDelta !== 0) {
           return dependencyDelta;
         }
@@ -94,7 +95,7 @@ export function ReportsScreen(props: AppScreenProps) {
 
         return left.subjectTitle.localeCompare(right.subjectTitle);
       }),
-    [qaReviews, taskById],
+    [qaReviews, taskById, taskDependencies],
   );
   const selectedQaReviewPeople = selectedQaReview
     ? selectedQaReview.participantIds
