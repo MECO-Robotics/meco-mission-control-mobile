@@ -1,13 +1,13 @@
 import type { Task, TaskDependency } from "../types/domain";
 
-export function isTaskBlocked(task: Pick<Task, "isBlocked">) {
+export function isTaskBlocked(task: Pick<Task, "isBlocked" | "isWaitingOnDependency">) {
   // Missing projection is not permission to start work.
-  return task.isBlocked !== false;
+  return task.isBlocked !== false || task.isWaitingOnDependency !== false;
 }
 export function hasOpenTaskDependency(task: Pick<Task, "isWaitingOnDependency">) {
   return task.isWaitingOnDependency === true;
 }
-export function getAutoTaskStatus(task: Pick<Task, "status" | "ownerId" | "isBlocked">) {
+export function getAutoTaskStatus(task: Pick<Task, "status" | "ownerId" | "isBlocked" | "isWaitingOnDependency">) {
   return task.status === "not-started" && task.ownerId && !isTaskBlocked(task)
     ? "in-progress" : task.status;
 }

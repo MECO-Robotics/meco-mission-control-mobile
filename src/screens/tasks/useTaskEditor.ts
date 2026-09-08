@@ -313,11 +313,14 @@ export function useTaskEditor({ tasks, taskById, taskDependencies, members, memb
       return;
     }
 
+    const version = editorVersion.current;
     try {
       await request(`/api/tasks/${activeTaskId}`, { method: "DELETE" });
       await refresh();
-      closeTaskEditor();
-    } catch (error) { setTaskEditorError(getClientErrorMessage(error)); }
+      if (editorVersion.current === version) closeTaskEditor();
+    } catch (error) {
+      if (editorVersion.current === version) setTaskEditorError(getClientErrorMessage(error));
+    }
   };
 
   return { taskDraft, taskEditorError, taskEditorMode, taskDependencySearch, setTaskDependencySearch, setTaskDraft, availableTaskDependencyOptions, downstreamTaskDependencies, selectedTaskDependencies, taskDependencyReadinessMessage, openCreateTaskEditor, openEditTaskEditor, openDuplicateTaskEditor, closeTaskEditor, addTaskDependency, removeTaskDependency, saveTaskDraft, deleteTaskDraft };
