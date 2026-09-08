@@ -1,0 +1,26 @@
+import type { TaskDependency } from "../../types/domain";
+
+export const taskDependencies: TaskDependency[] = [
+  {"id": "intake-roller-shim-pack-depends-intake-guard", "taskId": "intake-roller-shim-pack", "kind": "task", "refId": "intake-guard", "requiredState": "complete", "dependencyType": "hard", "createdAt": "2026-09-08T00:00:00Z"},
+  {"id": "chain-tension-window-depends-intake-roller-shim-pack", "taskId": "chain-tension-window", "kind": "task", "refId": "intake-roller-shim-pack", "requiredState": "complete", "dependencyType": "hard", "createdAt": "2026-09-08T00:00:00Z"},
+  {"id": "hard-stop-clearance-depends-chain-tension-window", "taskId": "hard-stop-clearance", "kind": "task", "refId": "chain-tension-window", "requiredState": "complete", "dependencyType": "hard", "createdAt": "2026-09-08T00:00:00Z"},
+  {"id": "drive-module-spares-audit-depends-swerve-sensor-bundle", "taskId": "drive-module-spares-audit", "kind": "task", "refId": "swerve-sensor-bundle", "requiredState": "complete", "dependencyType": "hard", "createdAt": "2026-09-08T00:00:00Z"},
+  {"id": "practice-field-reset-flow-depends-rookie-drive-practice-plan", "taskId": "practice-field-reset-flow", "kind": "task", "refId": "rookie-drive-practice-plan", "requiredState": "complete", "dependencyType": "hard", "createdAt": "2026-09-08T00:00:00Z"},
+  {"id": "integrate-manipulator-depends-wire-intake-roller", "taskId": "integrate-manipulator", "kind": "task", "refId": "wire-intake-roller", "requiredState": "complete", "dependencyType": "hard", "createdAt": "2026-09-08T00:00:00Z"},
+  {"id": "integrate-controls-depends-wire-auto-safety", "taskId": "integrate-controls", "kind": "task", "refId": "wire-auto-safety", "requiredState": "complete", "dependencyType": "hard", "createdAt": "2026-09-08T00:00:00Z"},
+  {"id": "swerve-zeroing-routine-depends-swerve-sensor-bundle", "taskId": "swerve-zeroing-routine", "kind": "task", "refId": "swerve-sensor-bundle", "requiredState": "complete", "dependencyType": "hard", "createdAt": "2026-09-08T00:00:00Z"},
+  {"id": "intake-state-machine-depends-intake-current-limit", "taskId": "intake-state-machine", "kind": "task", "refId": "intake-current-limit", "requiredState": "complete", "dependencyType": "hard", "createdAt": "2026-09-08T00:00:00Z"},
+  {"id": "pathplanner-drive-test-depends-swerve-zeroing-routine", "taskId": "pathplanner-drive-test", "kind": "task", "refId": "swerve-zeroing-routine", "requiredState": "complete", "dependencyType": "hard", "createdAt": "2026-09-08T00:00:00Z"},
+  {"id": "brownout-alerts-depends-radio-power-redundancy", "taskId": "brownout-alerts", "kind": "task", "refId": "radio-power-redundancy", "requiredState": "complete", "dependencyType": "hard", "createdAt": "2026-09-08T00:00:00Z"},
+  {"id": "operator-button-map-depends-intake-state-machine", "taskId": "operator-button-map", "kind": "task", "refId": "intake-state-machine", "requiredState": "complete", "dependencyType": "hard", "createdAt": "2026-09-08T00:00:00Z"},
+  {"id": "wire-auto-safety-depends-swerve-sensor-bundle", "taskId": "wire-auto-safety", "kind": "task", "refId": "swerve-sensor-bundle", "requiredState": "complete", "dependencyType": "hard", "createdAt": "2026-09-08T00:00:00Z"},
+  {"id": "pit-checklist-depends-pdh-labels", "taskId": "pit-checklist", "kind": "task", "refId": "pdh-labels", "requiredState": "complete", "dependencyType": "hard", "createdAt": "2026-09-08T00:00:00Z"},
+  {"id": "main-breaker-strain-relief-depends-pdh-labels", "taskId": "main-breaker-strain-relief", "kind": "task", "refId": "pdh-labels", "requiredState": "complete", "dependencyType": "hard", "createdAt": "2026-09-08T00:00:00Z"},
+  {"id": "intake-current-limit-depends-wire-intake-roller", "taskId": "intake-current-limit", "kind": "task", "refId": "wire-intake-roller", "requiredState": "complete", "dependencyType": "hard", "createdAt": "2026-09-08T00:00:00Z"},
+  {"id": "scrimmage-spares-loadout-depends-battery-health-cull", "taskId": "scrimmage-spares-loadout", "kind": "task", "refId": "battery-health-cull", "requiredState": "complete", "dependencyType": "hard", "createdAt": "2026-09-08T00:00:00Z"},
+  {"id": "scrimmage-spares-loadout-depends-drive-module-spares-audit", "taskId": "scrimmage-spares-loadout", "kind": "task", "refId": "drive-module-spares-audit", "requiredState": "complete", "dependencyType": "hard", "createdAt": "2026-09-08T00:00:00Z"},
+  {"id": "radio-brownout-checklist-depends-battery-health-cull", "taskId": "radio-brownout-checklist", "kind": "task", "refId": "battery-health-cull", "requiredState": "complete", "dependencyType": "hard", "createdAt": "2026-09-08T00:00:00Z"},
+  {"id": "auto-replay-suite-depends-pathplanner-drive-test", "taskId": "auto-replay-suite", "kind": "task", "refId": "pathplanner-drive-test", "requiredState": "complete", "dependencyType": "hard", "createdAt": "2026-09-08T00:00:00Z"},
+  {"id": "auto-replay-suite-depends-logging-schema-cleanup", "taskId": "auto-replay-suite", "kind": "task", "refId": "logging-schema-cleanup", "requiredState": "complete", "dependencyType": "hard", "createdAt": "2026-09-08T00:00:00Z"},
+  {"id": "vision-apriltag-recalibration-depends-auto-replay-suite", "taskId": "vision-apriltag-recalibration", "kind": "task", "refId": "auto-replay-suite", "requiredState": "complete", "dependencyType": "hard", "createdAt": "2026-09-08T00:00:00Z"},
+];

@@ -2,7 +2,6 @@ import { afterEach, describe, expect, it, jest } from "@jest/globals";
 
 import { ApiRequestError } from "../api";
 import {
-  buildOwnedTaskStartPayload,
   claimTaskRequest,
   getDefaultWorkLogParticipantIds,
   getTaskAssignmentConflict,
@@ -33,10 +32,8 @@ const baseTask: Task = {
   dueDate: "2026-06-10",
   priority: "high",
   status: "not-started",
-  dependencyIds: [],
-  checklistItems: [],
   blockers: [],
-  isBlocked: false,
+  isBlocked: false, isWaitingOnDependency: false, checklistItems: [],
   linkedManufacturingIds: [],
   linkedPurchaseIds: [],
   estimatedHours: 2,
@@ -53,7 +50,7 @@ describe("task assignment state", () => {
   it("lets a student claim and start an unowned ready task", () => {
     const state = getTaskAssignmentState({
       canReassignTasks: false,
-      hasOpenDependencies: false,
+
       membersById,
       signedInMember: student,
       task: baseTask,
@@ -67,7 +64,7 @@ describe("task assignment state", () => {
   it("lets the current owner release and start work", () => {
     const state = getTaskAssignmentState({
       canReassignTasks: false,
-      hasOpenDependencies: false,
+
       membersById,
       signedInMember: student,
       task: { ...baseTask, ownerId: student.id },
@@ -82,7 +79,7 @@ describe("task assignment state", () => {
   it("shows claimed-by-other state without student start controls", () => {
     const state = getTaskAssignmentState({
       canReassignTasks: false,
-      hasOpenDependencies: false,
+
       membersById,
       signedInMember: student,
       task: { ...baseTask, ownerId: otherStudent.id },
@@ -98,7 +95,7 @@ describe("task assignment state", () => {
   it("does not expose claim or start controls without a matched signed-in roster member", () => {
     const state = getTaskAssignmentState({
       canReassignTasks: false,
-      hasOpenDependencies: false,
+
       membersById,
       signedInMember: null,
       task: baseTask,
@@ -111,7 +108,7 @@ describe("task assignment state", () => {
   it("does not expose claim or start controls for non task-owning roles", () => {
     const state = getTaskAssignmentState({
       canReassignTasks: false,
-      hasOpenDependencies: false,
+
       membersById,
       signedInMember: external,
       task: baseTask,
@@ -124,17 +121,17 @@ describe("task assignment state", () => {
   it("does not expose start controls while blockers or dependencies are open", () => {
     const blockedState = getTaskAssignmentState({
       canReassignTasks: false,
-      hasOpenDependencies: false,
+
       membersById,
       signedInMember: student,
-      task: { ...baseTask, blockers: ["Waiting on mentor review"], ownerId: student.id },
+      task: { ...baseTask, blockers: ["Waiting on mentor review"], isBlocked: true, ownerId: student.id },
     });
     const dependencyState = getTaskAssignmentState({
       canReassignTasks: false,
-      hasOpenDependencies: true,
+
       membersById,
       signedInMember: student,
-      task: { ...baseTask, ownerId: student.id },
+      task: { ...baseTask, isBlocked: true, isWaitingOnDependency: true, ownerId: student.id },
     });
 
     expect(blockedState.canStartWork).toBe(false);
@@ -144,7 +141,7 @@ describe("task assignment state", () => {
   it("lets mentors reassign claimed tasks", () => {
     const state = getTaskAssignmentState({
       canReassignTasks: true,
-      hasOpenDependencies: false,
+
       membersById,
       signedInMember: mentor,
       task: { ...baseTask, ownerId: student.id },
@@ -278,27 +275,6 @@ describe("task assignment requests", () => {
       }),
       status: 409,
     });
-  });
-});
-
-describe("owned task start payloads", () => {
-  it("updates status without using the claim endpoint for already-owned starts", () => {
-    const payload = buildOwnedTaskStartPayload(
-      {
-        ...baseTask,
-        ownerId: student.id,
-        status: "not-started",
-        targetEventId: "summer-scrimmage",
-      },
-      "in-progress",
-    );
-
-    expect(payload).toMatchObject({
-      ownerId: student.id,
-      status: "in-progress",
-      targetMilestoneId: "summer-scrimmage",
-    });
-    expect(payload).not.toHaveProperty("targetEventId");
   });
 });
 

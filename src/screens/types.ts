@@ -209,6 +209,7 @@ export interface AppScreenProps {
   subsystemsById: Record<string, Subsystem>;
   syncFromBackend: () => Promise<void>;
   taskById: Record<string, Task>;
+  taskDependencies: import("../types/domain").TaskDependency[];
   tasks: Task[];
   themeColors: AppThemeColors;
   workLogSearch: string;
@@ -216,7 +217,7 @@ export interface AppScreenProps {
   workLogSortMode: WorkLogSortMode;
   workLogSubsystemFilter: string;
   workLogSummary: SummaryChipData[];
-  workTimerElapsedLabel: string;
+  workLogTimer: import("./worklogs/workLogTimer").WorkLogTimerState | null;
   workTimerIsActive: boolean;
   workTimerIsPaused: boolean;
   startWorkLogTimer: () => void;

@@ -14,7 +14,6 @@ import {
   type PendingWorkLogDraft,
 } from "./workLogDraftSync";
 
-const LEGACY_STORAGE_KEY = "meco-mobile-work-log-drafts:v1";
 const STORAGE_PREFIX = "meco-mobile-work-log-drafts:v2:";
 const INSTALLATION_KEY = "meco-mobile-work-log-draft-key:v1";
 const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
@@ -88,7 +87,6 @@ async function storageKey(ownerKey: string) {
 }
 
 export async function loadPendingWorkLogDrafts(ownerKey: string, now = new Date()) {
-  await AsyncStorage.removeItem(LEGACY_STORAGE_KEY);
   const keyName = await storageKey(ownerKey);
   const rawValue = await AsyncStorage.getItem(keyName);
   const envelope = parseEnvelope(rawValue);
@@ -125,7 +123,6 @@ export async function savePendingWorkLogDrafts(
   drafts: PendingWorkLogDraft[],
   now = new Date(),
 ) {
-  await AsyncStorage.removeItem(LEGACY_STORAGE_KEY);
   const keyName = await storageKey(ownerKey);
   const ownedDrafts = drafts.filter(
     (draft) => draft.ownerKey?.trim().toLowerCase() === ownerKey.trim().toLowerCase(),
@@ -156,7 +153,6 @@ export async function savePendingWorkLogDrafts(
 }
 
 export async function purgeExpiredWorkLogDrafts(now = new Date()) {
-  await AsyncStorage.removeItem(LEGACY_STORAGE_KEY);
   const keys = await AsyncStorage.getAllKeys();
   const encryptedKeys = keys.filter((key) => key.startsWith(STORAGE_PREFIX));
   const values = await AsyncStorage.multiGet(encryptedKeys);

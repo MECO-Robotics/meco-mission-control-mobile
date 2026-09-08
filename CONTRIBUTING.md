@@ -12,7 +12,7 @@ npm ci
 npm start
 ```
 
-Use `npm run android` for an Android emulator; iOS requires macOS/Xcode and `npm run ios`. The iOS script resets the simulator before starting Expo. See [development](docs/development.md) for device setup and environment overrides. Configure a reachable API for physical devices; never put secrets in Expo public variables.
+Use `npm run android` for an Android emulator; iOS requires macOS/Xcode and `npm run ios`. Expo owns simulator startup and reports port conflicts; startup never terminates another process. See [development](docs/development.md) for device setup and environment overrides. Configure a reachable API for physical devices; never put secrets in Expo public variables.
 
 ## Changes and validation
 

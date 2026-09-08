@@ -1,4 +1,4 @@
-import type { Task, TaskPriority, TaskStatus } from "../../types/domain";
+import type { Task, TaskDependency, TaskPriority, TaskStatus } from "../../types/domain";
 import { isoToday } from "../../ui/helpers";
 
 export type TaskDraft = {
@@ -16,7 +16,8 @@ export type TaskDraft = {
   partInstanceId: string | null;
   targetEventId: string | null;
   estimatedHours: string;
-  dependencyIdsText: string;
+  dependencies: Omit<TaskDependency, "id" | "taskId" | "createdAt">[];
+
   checklistItemsText: string;
   blockersText: string;
 };
@@ -38,7 +39,8 @@ export function buildTaskDraft(seed?: Partial<Task>): TaskDraft {
     targetEventId: seed?.targetEventId ?? null,
     estimatedHours:
       typeof seed?.estimatedHours === "number" ? String(seed.estimatedHours) : "0",
-    dependencyIdsText: seed?.dependencyIds?.join(", ") ?? "",
+    dependencies: [],
+
     checklistItemsText: seed?.checklistItems?.join(", ") ?? "",
     blockersText: seed?.blockers?.join(", ") ?? "",
   };

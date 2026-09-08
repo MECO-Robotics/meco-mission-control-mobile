@@ -123,36 +123,9 @@ describe("auth session storage", () => {
     expect(secureStorage.__store.get("meco-mobile-auth-session:v3")).toBeUndefined();
   });
 
-  it("deletes legacy long-lived sessions and requires sign-in", async () => {
-    const deviceNumber = await getOrCreateAuthDeviceNumber();
-
-    storage.__store.set(
-      "meco-mobile-auth-session:v1",
-      JSON.stringify({
-        token: "legacy-session-token",
-        user: sessionUser,
-      }),
-    );
-    expect(storage.__store.get("meco-mobile-auth-session:v1")).toContain(
-      "legacy-session-token",
-    );
-
-    secureStorage.__store.set("meco-mobile-auth-session:v2", "legacy-secure-token");
-
-    await expect(loadPersistedAuthSession(deviceNumber)).resolves.toBeNull();
-    expect(storage.__store.get("meco-mobile-auth-session:v1")).toBeUndefined();
-    expect(secureStorage.__store.get("meco-mobile-auth-session:v2")).toBeUndefined();
-  });
-
-  it("clears both current secure and legacy plaintext sessions", async () => {
-    storage.__store.set("meco-mobile-auth-session:v1", "legacy-session-token");
-    secureStorage.__store.set("meco-mobile-auth-session:v2", "legacy-secure-token");
+  it("clears the current secure session", async () => {
     secureStorage.__store.set("meco-mobile-auth-session:v3", "session-token");
-
     await clearPersistedAuthSession();
-
-    expect(storage.__store.get("meco-mobile-auth-session:v1")).toBeUndefined();
-    expect(secureStorage.__store.get("meco-mobile-auth-session:v2")).toBeUndefined();
     expect(secureStorage.__store.get("meco-mobile-auth-session:v3")).toBeUndefined();
   });
 

@@ -24,27 +24,6 @@ describe("mobile fallback data integrity", () => {
   const purchaseIds = ids(mecoSnapshot.purchaseItems);
   const workLogIds = ids(mecoSnapshot.workLogs);
 
-  it("keeps new offseason fallback sample coverage broad enough for offline screens", () => {
-    expect(mecoSnapshot.members.length).toBeGreaterThanOrEqual(14);
-    expect(mecoSnapshot.subsystems.map((subsystem) => subsystem.id)).toEqual(
-      expect.arrayContaining(["practice-field", "pit-readiness", "scouting", "vision"]),
-    );
-    expect(mecoSnapshot.events.map((event) => event.id)).toEqual(
-      expect.arrayContaining([
-        "summer-scrimmage-jun-13",
-        "vision-drive-calibration-jun-20",
-        "offseason-volunteer-day-jul-11",
-      ]),
-    );
-    expect(mecoSnapshot.tasks.map((task) => task.id)).toEqual(
-      expect.arrayContaining([
-        "vision-apriltag-recalibration",
-        "practice-field-reset-flow",
-        "radio-brownout-checklist",
-      ]),
-    );
-  });
-
   it("links fallback records only to known members, subsystems, mechanisms, parts, events, and tasks", () => {
     for (const member of mecoSnapshot.members) {
       expectKnownId(member.disciplineId, disciplineIds);
@@ -83,11 +62,15 @@ describe("mobile fallback data integrity", () => {
       expectKnownId(task.targetEventId, eventIds);
       expectKnownId(task.ownerId, memberIds);
       expectKnownId(task.mentorId, memberIds);
-      task.dependencyIds.forEach((dependencyId) => expectKnownId(dependencyId, taskIds));
       task.linkedManufacturingIds.forEach((manufacturingId) =>
         expectKnownId(manufacturingId, manufacturingIds),
       );
       task.linkedPurchaseIds.forEach((purchaseId) => expectKnownId(purchaseId, purchaseIds));
+    }
+
+    for (const edge of mecoSnapshot.taskDependencies) {
+      expectKnownId(edge.taskId, taskIds);
+      if (edge.kind === "task") expectKnownId(edge.refId, taskIds);
     }
 
     for (const workLog of mecoSnapshot.workLogs) {

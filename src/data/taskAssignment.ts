@@ -1,6 +1,7 @@
+import { isTaskBlocked } from "./taskReadiness";
 import type { ApiRequestError } from "./api";
 import { requestJson } from "./api";
-import type { Member, Task, TaskStatus } from "../types/domain";
+import type { Member, Task } from "../types/domain";
 
 export const TASK_ALREADY_CLAIMED_CODE = "task_already_claimed";
 
@@ -32,7 +33,6 @@ export type TaskAssignmentState = {
 
 type AssignmentStateInput = {
   canReassignTasks: boolean;
-  hasOpenDependencies: boolean;
   membersById: Record<string, Member>;
   signedInMember: Member | null;
   task: Task;
@@ -92,7 +92,6 @@ export function getTaskAssignmentConflictMessage(
 
 export function getTaskAssignmentState({
   canReassignTasks,
-  hasOpenDependencies,
   membersById,
   signedInMember,
   task,
@@ -104,7 +103,7 @@ export function getTaskAssignmentState({
   );
   const isClaimedByOtherMember = isClaimed && !isClaimedByCurrentMember;
   const isDone = task.status === "complete";
-  const isBlocked = task.blockers.length > 0 || hasOpenDependencies;
+  const isBlocked = isTaskBlocked(task);
 
   return {
     canClaim: canSignedInMemberOwnTasks && !isDone && !isClaimed,
@@ -138,32 +137,6 @@ export function getDefaultWorkLogParticipantIds(
 
 export function getTaskStartActionLabel(task: Pick<Task, "ownerId">) {
   return task.ownerId ? "Start work" : "Claim + log work";
-}
-
-export function buildOwnedTaskStartPayload(task: Task, status: TaskStatus) {
-  // Starting owned work currently reuses the general task update shape expected
-  // by the platform, including the milestone-era field name.
-  return {
-    title: task.title,
-    summary: task.summary,
-    subsystemId: task.subsystemId,
-    disciplineId: task.disciplineId,
-    mechanismId: task.mechanismId,
-    partInstanceId: task.partInstanceId,
-    targetMilestoneId: task.targetEventId ?? null,
-    ownerId: task.ownerId,
-    mentorId: task.mentorId,
-    dueDate: task.dueDate,
-    priority: task.priority,
-    status,
-    dependencyIds: task.dependencyIds,
-    checklistItems: task.checklistItems ?? [],
-    blockers: task.blockers,
-    linkedManufacturingIds: task.linkedManufacturingIds,
-    linkedPurchaseIds: task.linkedPurchaseIds,
-    estimatedHours: task.estimatedHours,
-    actualHours: task.actualHours,
-  };
 }
 
 export function claimTaskRequest(
