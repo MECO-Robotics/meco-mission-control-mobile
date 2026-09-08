@@ -13,7 +13,7 @@
 
 ```bash
 nvm use
-npm install
+npm ci
 ```
 
 Expo SDK 57 no longer needs the repository's former `freeport-async` or Expo
@@ -105,12 +105,6 @@ Bash/PowerShell launch scripts and their custom environment switches are removed
 
 ## Adding Code
 
-Follow `AGENTS.md` structural rules:
-
-- Keep implementation files under 300 counted implementation lines.
-- Refactor above 220 counted implementation lines.
-- Keep direct directory size under 20 files.
-- Split screens/components/hooks/utilities by responsibility.
-- Keep styles scoped to a component or feature.
+Follow [CONTRIBUTING.md](../CONTRIBUTING.md): keep one clear owner for each behavior, explicit dependencies and minimal forwarding. Split or consolidate by responsibility rather than file size. Keep styles scoped to a component or feature.
 
 For this app's current architecture, prefer adding feature rendering inside the relevant `src/screens/<feature>/` folder, app-shell components inside `src/app/`, shared controls inside `src/ui/`, domain types inside `src/types/domain.ts`, API helpers inside `src/data/`, and device services inside `src/services/`.

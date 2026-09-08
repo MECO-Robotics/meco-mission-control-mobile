@@ -1,8 +1,14 @@
 name: Check shared skills
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
+    branches:
+      - development
+      - staging
+      - "staging/**"
+      - main
 
 permissions:
   contents: read
