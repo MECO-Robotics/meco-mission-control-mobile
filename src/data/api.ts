@@ -140,11 +140,19 @@ function parseErrorMessage(payload: unknown): string | null {
 
 export function resolveApiBaseUrl(
   platformOS = Platform.OS,
-  env: ApiBaseUrlEnv = process.env as ApiBaseUrlEnv,
+  env: ApiBaseUrlEnv = {
+    EXPO_PUBLIC_API_BASE_URL: process.env.EXPO_PUBLIC_API_BASE_URL,
+    EXPO_PUBLIC_ANDROID_API_BASE_URL: process.env.EXPO_PUBLIC_ANDROID_API_BASE_URL,
+    EXPO_PUBLIC_IOS_API_BASE_URL: process.env.EXPO_PUBLIC_IOS_API_BASE_URL,
+    EXPO_PUBLIC_ALLOW_INSECURE_PRIVATE_LAN: process.env.EXPO_PUBLIC_ALLOW_INSECURE_PRIVATE_LAN,
+  },
   isDevelopment = typeof __DEV__ === "boolean" && __DEV__,
 ) {
   const configured = resolveConfiguredApiBaseUrl(platformOS, env);
-  const base = configured && configured.length > 0 ? configured : DEFAULT_API_BASE_URL;
+  const defaultUrl = isDevelopment && platformOS === "android"
+    ? "http://10.0.2.2:8080"
+    : DEFAULT_API_BASE_URL;
+  const base = configured || defaultUrl;
   const normalized = base.replace(/\/+$/, "");
 
   let url: URL;

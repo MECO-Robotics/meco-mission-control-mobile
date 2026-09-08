@@ -12,7 +12,7 @@
     "verify:core": "npm run lint && npm run test && npm run test:role-permissions && npm run test:workflow-security && npm run typecheck",
     "dev": "npm run android --",
     "start": "expo start",
-    "android": "node scripts/start-android.js",
+    "android": "expo start --android",
     "ios": "DEVELOPER_DIR=${DEVELOPER_DIR:-/Applications/Xcode-beta.app/Contents/Developer} expo start --localhost --port 8081",
     "lint": "eslint .",
     "test": "jest --runInBand",

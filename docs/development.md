@@ -37,7 +37,7 @@ Command notes:
 
 - `npm run start`: starts Expo.
 - `npm run ios`: resets the iOS simulator first, then starts Expo on localhost port 8081.
-- `npm run android`: invokes the installed Expo CLI through `scripts/start-android.js` on every host.
+- `npm run android`: invokes the installed Expo CLI directly on every host.
 - `npm run dev`: delegates to `npm run android`; additional Expo arguments are forwarded.
 - `npm run lint`: runs ESLint.
 - `npm run test:workflow-security`: verifies secretless PR jobs, trusted release sources, immutable Action pins, and release credential scoping.
@@ -89,12 +89,12 @@ developer `.env` file or a pull-request workflow.
 
 ## Android Launching
 
-Run `npm run android` on Windows, macOS, or Linux. Node launches the installed
-Expo CLI; Expo handles SDK/device discovery, emulator boot, and Metro forwarding.
+Run `npm run android` on Windows, macOS, or Linux. The installed
+Expo CLI Expo handles SDK/device discovery, emulator boot, and Metro forwarding.
 Set `ANDROID_HOME` for a nonstandard SDK location, or start a selected emulator
 in Android Studio before launching Expo.
 
-The API URL defaults to `http://10.0.2.2:8080`; an explicit Android URL takes
+After Expo loads dotenv, the app API URL defaults to `http://10.0.2.2:8080`; an explicit Android URL takes
 precedence over a shared API URL, and both take precedence over the default.
 For physical devices, configure a reachable API URL. Additional Expo arguments
 work with `npm run android -- --clear` or `npm run dev -- --clear`.

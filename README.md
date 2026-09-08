@@ -48,7 +48,7 @@ npm test
 
 `npm run verify` runs lint, Jest, role-permission and workflow tests, TypeScript, and the bootstrap contract verifier. Use it before opening or updating a PR when practical.
 
-`npm run dev` delegates to `npm run android` on every host. The Android command launches the installed Expo CLI directly through Node; Bash and PowerShell wrappers are unnecessary.
+`npm run dev` delegates to `npm run android` on every host. The Android command invokes the installed Expo CLI directly. No launcher injects API variables before Expo loads dotenv.
 
 Do not run Expo or npm scripts with `sudo`. If `node_modules` or `.expo` become owned by `root`, fix ownership from the repo root before starting the app:
 
@@ -61,7 +61,7 @@ Expo owns SDK discovery, emulator selection/boot, and Metro port forwarding.
 Set `ANDROID_HOME` if your SDK is outside its standard location. To choose a
 particular emulator, start it in Android Studio before running the command.
 
-The launcher defaults the API URL to `http://10.0.2.2:8080` for emulator-to-host
+The app resolver defaults the API URL to `http://10.0.2.2:8080` for emulator-to-host
 access. An explicit `EXPO_PUBLIC_ANDROID_API_BASE_URL` or shared
 `EXPO_PUBLIC_API_BASE_URL` takes precedence. Physical devices require a reachable
 API URL. Metro uses Expo's host selection rather than a forced emulator hostname.
