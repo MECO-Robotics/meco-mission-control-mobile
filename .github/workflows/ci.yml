@@ -14,11 +14,11 @@ on:
       - staging
       - "staging/**"
       - main
-      - "feature/**"
-      - "fix/**"
-      - "hotfix/**"
     paths:
       - "AGENTS.md"
+      - "CONTRIBUTING.md"
+      - "README.md"
+      - "docs/**"
       - ".github/workflows/ci.yml"
       - ".github/workflows/mobile-release.yml"
       - ".nvmrc"
