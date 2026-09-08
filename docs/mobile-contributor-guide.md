@@ -21,15 +21,7 @@ live under `src/ui/`. Domain data contracts live in `src/types/domain.ts`.
 Feature data seeds live in `src/data/`, including `mockData.ts` and task seed
 modules under `src/data/tasks/`.
 
-Follow the repository strict-mode structure rules from `AGENTS.md`:
-
-- Keep React Native/TypeScript files under 300 implementation lines.
-- Treat files over 220 implementation lines as refactor candidates.
-- Keep import sections under 150 lines.
-- Keep style rule/declaration sections under 220 lines.
-- Split directories before they exceed 20 direct files.
-- Prefer feature-based directories and one primary component, hook, or module
-  per file.
+Follow [CONTRIBUTING.md](../CONTRIBUTING.md) for contribution workflow and review criteria. Prefer cohesive feature ownership and explicit dependencies over arbitrary file-size splits.
 
 ## Shared State Model
 
@@ -56,7 +48,7 @@ screens render from the same server-confirmed snapshot.
 The API base URL is resolved by `resolveApiBaseUrl` in `src/data/api.ts`.
 `EXPO_PUBLIC_IOS_API_BASE_URL` or `EXPO_PUBLIC_ANDROID_API_BASE_URL` is used
 first for the active platform when set. Otherwise the app uses
-`EXPO_PUBLIC_API_BASE_URL`, then falls back to `http://localhost:8080`.
+`EXPO_PUBLIC_API_BASE_URL`, then defaults to `http://10.0.2.2:8080` on Android or `http://localhost:8080` otherwise.
 
 The mobile app expects these bootstrap and auth endpoints:
 
@@ -120,11 +112,11 @@ authorization behavior.
 
 ## Device Testing Checklist
 
-Before handing off mobile changes, validate the app on at least one simulator or
-device path that matches the work being changed.
+For changes to device behavior, validate on a simulator or device matching the change.
+Use the relevant scenarios below and report any untested platform or behavior.
 
 - Install dependencies with a Node version compatible with the repo engines:
-  `npm install`.
+  `npm ci`.
 - Run TypeScript validation: `npm run typecheck`.
 - Start Expo with one of the supported commands: `npm run start`,
   `npm run ios`, or `npm run android`.
@@ -146,22 +138,3 @@ device path that matches the work being changed.
 - If work-log timing changed, verify timer persistence, reminders, and live
   activity behavior on a supported device or simulator.
 - Confirm visible text does not overlap or clip on small mobile viewports.
-
-## Documentation-Only Validation
-
-This guide is intended for a documentation-only PR. Do not include source code,
-generated files, dependency files, or config changes with this documentation
-change.
-
-Before opening the PR, review the Markdown against `App.tsx`,
-`src/types/domain.ts`, `src/data/api.ts`, `README.md`, and `AGENTS.md`.
-
-Use this diff check to confirm the change is scoped to this guide:
-
-```bash
-git diff -- docs/mobile-contributor-guide.md
-```
-
-`npm run typecheck` is optional for this documentation-only change, but it is a
-reasonable sanity check when the branch already has no unrelated TypeScript
-failures.
