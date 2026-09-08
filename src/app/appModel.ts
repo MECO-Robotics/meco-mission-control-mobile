@@ -19,7 +19,7 @@ import type {
   TaskStatus,
   WorkLog,
 } from "../types/domain";
-import type { WorkLogListItem } from "../screens/types";
+import type { AttendanceStatus, RiskPriority, WorkLogListItem } from "../screens/types";
 
 export const SWIPE_ACTIVATION_DISTANCE = 18;
 export const SWIPE_COMMIT_DISTANCE = 52;
@@ -31,7 +31,6 @@ export const AUTH_REQUEST_TIMEOUT_MS = 15000;
 
 const MS_PER_HOUR = 1000 * 60 * 60;
 
-export type AttendanceStatus = "yes" | "maybe" | "no";
 export type SeasonOption = {
   id: string;
   label: string;
@@ -50,7 +49,6 @@ export type BackendReachability = "unknown" | "reachable" | "unreachable";
 export type WorkLogMutationResponse = {
   item?: WorkLog;
 };
-export type RiskPriority = "high" | "medium" | "low";
 export type MilestoneMutationResponse = {
   item?: BootstrapMilestone;
 };

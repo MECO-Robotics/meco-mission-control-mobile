@@ -72,9 +72,6 @@ export const styles = StyleSheet.create({
     gap: spacing.sm,
     ...shadows.card,
   },
-  topbarCompact: {
-    marginHorizontal: spacing.md,
-  },
   topbarLeft: {
     flexDirection: "row",
     alignItems: "center",
@@ -142,9 +139,6 @@ export const styles = StyleSheet.create({
     fontWeight: "800",
     marginTop: 2,
   },
-  brandTitleCompact: {
-    fontSize: 16,
-  },
   topbarSubtabDots: {
     flexDirection: "row",
     alignItems: "center",
@@ -156,12 +150,6 @@ export const styles = StyleSheet.create({
     height: 6,
     borderRadius: 999,
     backgroundColor: colors.border,
-  },
-  userChip: {
-    borderRadius: 999,
-    backgroundColor: colors.navySurface,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 7,
   },
   userChipLabel: {
     color: colors.navyInk,
@@ -185,30 +173,6 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "900",
   },
-  sidebarNavRow: {
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    gap: spacing.sm,
-  },
-  sidebarNavRowCompact: {
-    paddingHorizontal: spacing.md,
-  },
-  sidebarTab: {
-    minHeight: 44,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  sidebarTabActive: {
-    borderColor: colors.blue,
-    backgroundColor: colors.navySurface,
-  },
   sidebarIconBubble: {
     width: 28,
     height: 28,
@@ -228,14 +192,6 @@ export const styles = StyleSheet.create({
   },
   sidebarIconLabelActive: {
     color: colors.white,
-  },
-  sidebarTabLabel: {
-    color: colors.ink,
-    fontWeight: "700",
-    fontSize: 13,
-  },
-  sidebarTabLabelActive: {
-    color: colors.navyInk,
   },
   sidebarCountPill: {
     minWidth: 26,
@@ -291,9 +247,6 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     padding: spacing.sm,
     ...shadows.card,
-  },
-  panelCompact: {
-    marginHorizontal: spacing.md,
   },
   panelHeader: {
     flexDirection: "row",
@@ -455,15 +408,6 @@ export const styles = StyleSheet.create({
     marginTop: spacing.xs,
     ...shadows.card,
   },
-  dropdownMenuTitle: {
-    color: colors.subtleText,
-    fontSize: 12,
-    textTransform: "uppercase",
-    letterSpacing: 0.7,
-    fontWeight: "800",
-    paddingHorizontal: spacing.xs,
-    paddingBottom: spacing.xs,
-  },
   dropdownOption: {
     borderRadius: 10,
     paddingHorizontal: spacing.sm,
@@ -600,9 +544,6 @@ export const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 0.5,
     flexShrink: 0,
-  },
-  editTagButton: {
-    borderRadius: 999,
   },
   queuePillRow: {
     flexDirection: "row",
@@ -1584,11 +1525,6 @@ export const styles = StyleSheet.create({
   settingsRowTitle: {
     color: colors.ink,
     fontWeight: "800",
-  },
-  settingsRowSubtitle: {
-    color: colors.subtleText,
-    fontSize: 12,
-    marginTop: 2,
   },
   settingsRowValue: {
     color: colors.navyInk,

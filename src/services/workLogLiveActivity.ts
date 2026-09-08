@@ -1,5 +1,3 @@
-import { Platform } from "react-native";
-
 export type WorkLogTimerActivityState = {
   elapsedMs: number;
   isPaused: boolean;
@@ -13,10 +11,6 @@ export type WorkLogTimerActivityResult = {
 const unavailableResult: WorkLogTimerActivityResult = {
   isNativeLiveActivityAvailable: false,
 };
-
-export function isWorkLogLiveActivityPlatform() {
-  return Platform.OS === "ios" || Platform.OS === "android";
-}
 
 export async function startWorkLogLiveActivity(
   _state: WorkLogTimerActivityState,

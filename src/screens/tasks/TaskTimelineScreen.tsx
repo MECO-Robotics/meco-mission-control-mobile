@@ -19,9 +19,18 @@ import {
 } from "../../ui/ui";
 import type { ArchiveFilterMode } from "../../ui/types";
 
-import type { AppScreenProps } from "../types";
+import type { TaskScreenProps } from "./taskScreenTypes";
 
-export function TaskTimelineScreen(props: AppScreenProps) {
+type TaskTimelineScreenProps = Pick<TaskScreenProps,
+  | "activeTaskSubteamLabel" | "appResponsiveStyles" | "eventOptions"
+  | "eventsById" | "membersById" | "openCreateTaskEditor"
+  | "openEditTaskEditor" | "setTaskArchiveFilter" | "setTimelineMilestoneFilter"
+  | "setTimelineSubsystemFilter" | "subsystems" | "subsystemsById"
+  | "taskArchiveFilter" | "taskSummary" | "timelineMilestoneFilter"
+  | "timelineSubsystemFilter" | "timelineTasks"
+>;
+
+export function TaskTimelineScreen(props: TaskTimelineScreenProps) {
   const {
     activeTaskSubteamLabel,
     appResponsiveStyles,

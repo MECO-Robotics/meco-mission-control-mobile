@@ -1,11 +1,4 @@
-import type {
-  EventType,
-  ManufacturingItem,
-  MemberRole,
-  PurchaseItem,
-  TaskPriority,
-  TaskStatus,
-} from "../types/domain";
+import type { EventType, ManufacturingItem, MemberRole, PurchaseItem } from "../types/domain";
 export type ViewTab =
   | "home"
   | "attendance"
@@ -63,26 +56,6 @@ export type MaterialRollup = {
 
 export type EditorMode = "create" | "edit";
 
-export type TaskDraft = {
-  title: string;
-  summary: string;
-  subsystemId: string;
-  disciplineId: string;
-  ownerId: string;
-  mentorId: string;
-  startDate: string;
-  dueDate: string;
-  priority: TaskPriority;
-  status: TaskStatus;
-  mechanismId: string | null;
-  partInstanceId: string | null;
-  targetEventId: string | null;
-  estimatedHours: string;
-  dependencyIdsText: string;
-  checklistItemsText: string;
-  blockersText: string;
-};
-
 export type WorkLogDraft = {
   taskId: string;
   date: string;
@@ -128,12 +101,6 @@ export type MemberDraft = {
   plannedWeeklyAttendanceHours: string;
   plannedAttendanceDays: string[];
   plannedAttendanceNotes: string;
-};
-
-export type MeetingDraft = {
-  title: string;
-  date: string;
-  time: string;
 };
 
 export type SubsystemDraft = {

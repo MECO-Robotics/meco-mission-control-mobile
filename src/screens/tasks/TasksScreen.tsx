@@ -2,12 +2,12 @@ import { TASK_SUBTEAM_OPTIONS } from "../../ui/constants";
 import { LandscapeSubsystemTimeline } from "../../ui/landscapeTimeline/LandscapeSubsystemTimeline";
 import { SectionTabs } from "../../ui/ui";
 
-import type { AppScreenProps } from "../types";
+import type { TaskScreenProps } from "./taskScreenTypes";
 import { TaskMilestonesScreen } from "./TaskMilestonesScreen";
 import { TaskQueueScreen } from "./TaskQueueScreen";
 import { TaskTimelineScreen } from "./TaskTimelineScreen";
 
-export function TasksScreen(props: AppScreenProps) {
+export function TasksScreen(props: TaskScreenProps) {
   const {
     activeTaskSubteam,
     events,
