@@ -41,7 +41,6 @@ import { styles } from "./src/ui/styles";
 import type {
   AcquisitionMethod,
   ArchiveFilterMode,
-  BlockerFilterMode,
   EditorMode,
   InventoryViewTab,
   ManufacturingDraft,
@@ -90,7 +89,6 @@ import {
   releaseTaskRequest,
 } from "./src/data/taskAssignment";
 import {
-  buildTaskQueueSections,
   getTaskSubteamForDisciplineId,
 } from "./src/data/taskQueueOrdering";
 import { mecoSnapshot } from "./src/data/mockData";
@@ -171,6 +169,7 @@ import {
   type EmailCodeStartResponse,
   type ThemePreferenceResponse,
 } from "./src/app/authConfigModel";
+import { useTaskQueue } from "./src/screens/tasks/useTaskQueue";
 import { TasksScreen } from "./src/screens/tasks/TasksScreen";
 import type { TaskScreenProps } from "./src/screens/tasks/taskScreenTypes";
 import { ActiveTabContent } from "./src/app/components/ActiveTabContent";
@@ -451,15 +450,6 @@ export default function App() {
   const seasonModeLabel =
     seasons.find((option) => option.id === activeSeasonId)?.label ?? "No Season";
 
-  const [taskSearch, setTaskSearch] = useState("");
-  const [taskStatusFilter, setTaskStatusFilter] = useState("all");
-  const [taskSubsystemFilter, setTaskSubsystemFilter] = useState("all");
-  const [taskOwnerFilter, setTaskOwnerFilter] = useState("all");
-  const [taskPriorityFilter, setTaskPriorityFilter] = useState("all");
-  const [taskArchiveFilter, setTaskArchiveFilter] =
-    useState<ArchiveFilterMode>("active");
-  const [taskBlockerFilter, setTaskBlockerFilter] =
-    useState<BlockerFilterMode>("all");
   const [timelineSubsystemFilter, setTimelineSubsystemFilter] = useState("all");
   const [timelineMilestoneFilter, setTimelineMilestoneFilter] = useState("all");
 
@@ -1580,219 +1570,9 @@ export default function App() {
     }, {});
   }, [workLogsForDisplay]);
 
-  const filteredTaskQueueCandidates = useMemo(() => {
-    const search = taskSearch.trim().toLowerCase();
-
-    return [...tasks]
-      .filter((task) => {
-        if (
-          activePersonFilter !== "all" &&
-          task.ownerId !== activePersonFilter &&
-          task.mentorId !== activePersonFilter
-        ) {
-          return false;
-        }
-
-        if (taskStatusFilter !== "all" && task.status !== taskStatusFilter) {
-          return false;
-        }
-
-        if (taskArchiveFilter === "active" && task.status === "complete") {
-          return false;
-        }
-
-        if (taskArchiveFilter === "archived" && task.status !== "complete") {
-          return false;
-        }
-
-        if (taskBlockerFilter === "blocked" && task.blockers.length === 0) {
-          return false;
-        }
-
-        if (taskBlockerFilter === "clear" && task.blockers.length > 0) {
-          return false;
-        }
-
-        if (taskBlockerFilter === "over-estimate") {
-          const loggedHours = taskLoggedHoursById[task.id] ?? task.actualHours;
-          if (task.estimatedHours <= 0 || loggedHours <= task.estimatedHours) {
-            return false;
-          }
-        }
-
-        if (
-          taskBlockerFilter === "overdue" &&
-          (task.status === "complete" || task.dueDate >= localTodayDate())
-        ) {
-          return false;
-        }
-
-        if (taskBlockerFilter === "due-soon") {
-          const today = localTodayDate();
-          const soonDate = shiftDateByDays(today, 7);
-
-          if (task.status === "complete" || task.dueDate < today || task.dueDate > soonDate) {
-            return false;
-          }
-        }
-
-        if (taskBlockerFilter === "dependency-wait") {
-          const hasOpenDependency = task.dependencyIds
-            .map((dependencyId) => taskById[dependencyId])
-            .some((dependency) => dependency && dependency.status !== "complete");
-
-          if (!hasOpenDependency) {
-            return false;
-          }
-        }
-
-        if (taskBlockerFilter === "ready-now") {
-          const hasOpenDependency = task.dependencyIds
-            .map((dependencyId) => taskById[dependencyId])
-            .some((dependency) => dependency && dependency.status !== "complete");
-
-          if (
-            task.status === "complete" ||
-            task.status === "waiting-for-qa" ||
-            task.blockers.length > 0 ||
-            hasOpenDependency ||
-            !task.ownerId
-          ) {
-            return false;
-          }
-        }
-
-        if (taskBlockerFilter === "ready-to-qa") {
-          const hasOpenDependency = task.dependencyIds
-            .map((dependencyId) => taskById[dependencyId])
-            .some((dependency) => dependency && dependency.status !== "complete");
-
-          if (
-            task.status !== "waiting-for-qa" ||
-            task.blockers.length > 0 ||
-            hasOpenDependency
-          ) {
-            return false;
-          }
-        }
-
-        if (taskBlockerFilter === "needs-fabrication" && task.linkedManufacturingIds.length === 0) {
-          return false;
-        }
-
-        if (taskBlockerFilter === "needs-purchase" && task.linkedPurchaseIds.length === 0) {
-          return false;
-        }
-
-        if (taskBlockerFilter === "unassigned" && task.ownerId) {
-          return false;
-        }
-
-        if (taskSubsystemFilter !== "all" && task.subsystemId !== taskSubsystemFilter) {
-          return false;
-        }
-
-        if (taskOwnerFilter !== "all" && task.ownerId !== taskOwnerFilter) {
-          return false;
-        }
-
-        if (taskPriorityFilter !== "all" && task.priority !== taskPriorityFilter) {
-          return false;
-        }
-
-        if (!search) {
-          return true;
-        }
-
-        const subsystemName = subsystemsById[task.subsystemId]?.name ?? "";
-        const ownerName = task.ownerId ? (membersById[task.ownerId]?.name ?? "") : "";
-        const mechanismName = task.mechanismId ? (mechanismsById[task.mechanismId]?.name ?? "") : "";
-
-        return `${task.title} ${task.summary} ${subsystemName} ${ownerName} ${mechanismName}`
-          .toLowerCase()
-          .includes(search);
-      })
-      .sort((left, right) => left.dueDate.localeCompare(right.dueDate));
-  }, [
-    activePersonFilter,
-    membersById,
-    mechanismsById,
-    subsystemsById,
-    taskOwnerFilter,
-    taskPriorityFilter,
-    taskArchiveFilter,
-    taskBlockerFilter,
-    taskLoggedHoursById,
-    taskById,
-    taskSearch,
-    taskStatusFilter,
-    taskSubsystemFilter,
-    tasks,
-  ]);
-
-  const taskQueueSections = useMemo(() => {
-    return buildTaskQueueSections({
-      activeTaskSubteam,
-      canViewAllQueues: canMentorApprove,
-      taskById,
-      tasks: filteredTaskQueueCandidates,
-    });
-  }, [activeTaskSubteam, canMentorApprove, filteredTaskQueueCandidates, taskById]);
-
-  const filteredTaskQueue = useMemo(() => {
-    return taskQueueSections.flatMap((section) => section.tasks);
-  }, [taskQueueSections]);
-
-  const taskSummary = useMemo(() => {
-    const blocked = filteredTaskQueue.filter((task) => task.blockers.length > 0).length;
-    const waiting = filteredTaskQueue.filter(
-      (task) => task.status === "waiting-for-qa",
-    ).length;
-    const complete = filteredTaskQueue.filter((task) => task.status === "complete").length;
-    const loggedHours = filteredTaskQueue.reduce(
-      (sum, task) => sum + (taskLoggedHoursById[task.id] ?? task.actualHours),
-      0,
-    );
-    const overEstimate = filteredTaskQueue.filter((task) => {
-      const taskLoggedHours = taskLoggedHoursById[task.id] ?? task.actualHours;
-      return task.estimatedHours > 0 && taskLoggedHours > task.estimatedHours;
-    }).length;
-    const readyNow = filteredTaskQueue.filter((task) => {
-      const hasOpenDependency = task.dependencyIds
-        .map((dependencyId) => taskById[dependencyId])
-        .some((dependency) => dependency && dependency.status !== "complete");
-
-      return (
-        task.status !== "complete" &&
-        task.status !== "waiting-for-qa" &&
-        task.blockers.length === 0 &&
-        !hasOpenDependency &&
-        Boolean(task.ownerId)
-      );
-    }).length;
-    const readyForQa = filteredTaskQueue.filter((task) => {
-      const hasOpenDependency = task.dependencyIds
-        .map((dependencyId) => taskById[dependencyId])
-        .some((dependency) => dependency && dependency.status !== "complete");
-
-      return (
-        task.status === "waiting-for-qa" &&
-        task.blockers.length === 0 &&
-        !hasOpenDependency
-      );
-    }).length;
-
-    return [
-      { label: "Visible tasks", value: String(filteredTaskQueue.length) },
-      { label: "Ready now", value: String(readyNow) },
-      { label: "Ready QA", value: String(readyForQa) },
-      { label: "Blocked", value: String(blocked) },
-      { label: "Waiting QA", value: String(waiting) },
-      { label: "Logged", value: `${loggedHours.toFixed(1)}h` },
-      { label: "Over est.", value: String(overEstimate) },
-      { label: "Complete", value: String(complete) },
-    ] satisfies SummaryChipData[];
-  }, [filteredTaskQueue, taskById, taskLoggedHoursById]);
+  const taskQueue = useTaskQueue({ tasks, taskById, taskLoggedHoursById, activeTaskSubteam,
+    canMentorApprove, activePersonFilter, membersById, mechanismsById, subsystemsById });
+  const { taskArchiveFilter } = taskQueue;
 
   const filteredMilestones = useMemo(() => {
     const search = milestoneSearch.trim().toLowerCase();
@@ -3111,13 +2891,7 @@ export default function App() {
 
     setActiveTaskSubteam(nextSubteam);
     setTaskView("queue");
-    setTaskSearch("");
-    setTaskSubsystemFilter("all");
-    setTaskOwnerFilter("all");
-    setTaskStatusFilter("all");
-    setTaskPriorityFilter("all");
-    setTaskBlockerFilter("all");
-    setTaskArchiveFilter("active");
+    taskQueue.resetFilters();
     setActiveTab("tasks");
   };
 
@@ -5153,6 +4927,7 @@ export default function App() {
   };
 
   const taskScreenProps: TaskScreenProps = {
+    ...taskQueue,
     activeTaskSubteam,
     events,
     isLandscapeTimelineLayout,
@@ -5172,7 +4947,6 @@ export default function App() {
     disciplinesById,
     editTagStyle,
     eventsById,
-    filteredTaskQueue,
     isCompactLayout,
     isLandscapeCardLayout,
     mechanismsById,
@@ -5186,28 +4960,12 @@ export default function App() {
     releaseTask,
     rosterMentors,
     rosterStudents,
-    setTaskArchiveFilter,
-    setTaskBlockerFilter,
-    setTaskOwnerFilter,
-    setTaskPriorityFilter,
-    setTaskSearch,
-    setTaskStatusFilter,
-    setTaskSubsystemFilter,
     setActiveTab,
     signedInMember,
     startTask,
     subsystemsById,
-    taskArchiveFilter,
-    taskBlockerFilter,
     taskById,
-    taskOwnerFilter,
-    taskPriorityFilter,
-    taskQueueSections,
-    taskSearch,
-    taskStatusFilter,
-    taskSubsystemFilter,
     taskLoggedHoursById,
-    taskSummary,
     qaReviews,
     eventOptions,
     setTimelineMilestoneFilter,
