@@ -187,10 +187,6 @@ export function ResolvedLocalizationProvider({
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
-export function resolveAppLanguage(locale: string) {
-  return resolveLanguage(locale);
-}
-
 export function useTranslation() {
   return useContext(I18nContext);
 }

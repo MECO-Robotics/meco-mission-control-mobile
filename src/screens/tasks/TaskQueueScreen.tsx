@@ -26,13 +26,33 @@ import {
 } from "../../ui/ui";
 import type { Task } from "../../types/domain";
 
-import type { AppScreenProps } from "../types";
+import type { TaskScreenProps } from "./taskScreenTypes";
 import { NeedHelpModal } from "../help/NeedHelpModal";
 import { TaskQueueFilterSheet } from "../taskQueue/TaskQueueFilterSheet";
 import { TaskReassignModal } from "../taskQueue/TaskReassignModal";
 import { useTaskReassignModal } from "../taskQueue/useTaskReassignModal";
 
-export function TaskQueueScreen(props: AppScreenProps) {
+type TaskQueueScreenProps = Pick<TaskScreenProps,
+  | "activeTaskSubteam" | "activeTaskSubteamLabel" | "appResponsiveStyles"
+  | "canReassignTasks" | "claimTask" | "clearTaskBlockers"
+  | "disciplinesById" | "editTagStyle" | "eventsById"
+  | "filteredTaskQueue" | "isCompactLayout" | "isLandscapeCardLayout"
+  | "mechanismsById" | "members" | "membersById"
+  | "openCreateTaskEditor" | "openCreateWorkLogEditor" | "openEditTaskEditor"
+  | "partInstancesById" | "requestHelp" | "requestTaskQa"
+  | "reassignTask" | "releaseTask" | "rosterMentors"
+  | "rosterStudents" | "setActiveTaskSubteam" | "setTaskArchiveFilter"
+  | "setTaskBlockerFilter" | "setTaskOwnerFilter" | "setTaskPriorityFilter"
+  | "setTaskSearch" | "setTaskStatusFilter" | "setTaskSubsystemFilter"
+  | "setActiveTab" | "signedInMember" | "startTask"
+  | "subsystems" | "subsystemsById" | "taskArchiveFilter"
+  | "taskBlockerFilter" | "taskById" | "taskOwnerFilter"
+  | "taskPriorityFilter" | "taskQueueSections" | "taskSearch"
+  | "taskStatusFilter" | "taskSubsystemFilter" | "taskLoggedHoursById"
+  | "taskSummary" | "themeColors" | "qaReviews"
+>;
+
+export function TaskQueueScreen(props: TaskQueueScreenProps) {
   const {
     activeTaskSubteam,
     activeTaskSubteamLabel,

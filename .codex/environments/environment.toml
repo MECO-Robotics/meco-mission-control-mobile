@@ -8,14 +8,14 @@ script = ""
 [[actions]]
 name = "Run"
 icon = "run"
-command = "powershell -ExecutionPolicy Bypass -File ./script/build_and_run.ps1"
+command = "npm start"
 
 [[actions]]
 name = "Run Android"
 icon = "run"
-command = "powershell -ExecutionPolicy Bypass -File ./script/build_and_run.ps1 --android"
+command = "npm run android"
 
 [[actions]]
 name = "Expo Doctor"
 icon = "tool"
-command = "powershell -ExecutionPolicy Bypass -File ./script/build_and_run.ps1 --doctor"
+command = "npx expo-doctor"

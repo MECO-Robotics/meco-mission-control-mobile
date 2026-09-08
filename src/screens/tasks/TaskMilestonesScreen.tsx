@@ -19,9 +19,17 @@ import {
 } from "../../ui/ui";
 import type { MilestoneSortField } from "../../ui/types";
 
-import type { AppScreenProps } from "../types";
+import type { TaskScreenProps } from "./taskScreenTypes";
 
-export function TaskMilestonesScreen(props: AppScreenProps) {
+type TaskMilestonesScreenProps = Pick<TaskScreenProps,
+  | "appResponsiveStyles" | "filteredMilestones" | "isCompactLayout"
+  | "milestoneSearch" | "milestoneSortField" | "milestoneSortOrder"
+  | "milestoneSummary" | "milestoneTypeFilter" | "openCreateMilestoneEditor"
+  | "openEditMilestoneEditor" | "setMilestoneSearch" | "setMilestoneSortField"
+  | "setMilestoneSortOrder" | "setMilestoneTypeFilter" | "subsystemsById"
+>;
+
+export function TaskMilestonesScreen(props: TaskMilestonesScreenProps) {
   const {
     appResponsiveStyles,
     filteredMilestones,

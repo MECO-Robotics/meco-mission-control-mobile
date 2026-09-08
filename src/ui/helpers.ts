@@ -16,39 +16,14 @@ import { STATUS_GROUPS } from "./constants";
 import type {
   ManufacturingDraft,
   MemberDraft,
-  MeetingDraft,
   MilestoneDraft,
   PartDefinitionDraft,
   PartLifecycleStatus,
   PurchaseDraft,
   StatusGroup,
   SubsystemDraft,
-  TaskDraft,
   WorkLogDraft,
 } from "./types";
-export function buildTaskDraft(seed?: Partial<Task>): TaskDraft {
-  return {
-    title: seed?.title ?? "",
-    summary: seed?.summary ?? "",
-    subsystemId: seed?.subsystemId ?? "",
-    disciplineId: seed?.disciplineId ?? "",
-    ownerId: seed?.ownerId ?? "",
-    mentorId: seed?.mentorId ?? "",
-    startDate: seed?.startDate ?? "",
-    dueDate: seed?.dueDate ?? isoToday(),
-    priority: seed?.priority ?? "medium",
-    status: seed?.status ?? "not-started",
-    mechanismId: seed?.mechanismId ?? null,
-    partInstanceId: seed?.partInstanceId ?? null,
-    targetEventId: seed?.targetEventId ?? null,
-    estimatedHours:
-      typeof seed?.estimatedHours === "number" ? String(seed.estimatedHours) : "0",
-    dependencyIdsText: seed?.dependencyIds?.join(", ") ?? "",
-    checklistItemsText: seed?.checklistItems?.join(", ") ?? "",
-    blockersText: seed?.blockers?.join(", ") ?? "",
-  };
-}
-
 export function buildMilestoneDraft(seed?: Partial<Event>): MilestoneDraft {
   return {
     title: seed?.title ?? "",
@@ -134,14 +109,6 @@ export function buildMemberDraft(
   };
 }
 
-export function buildMeetingDraft(seed?: Partial<MeetingDraft>): MeetingDraft {
-  return {
-    title: seed?.title ?? "",
-    date: seed?.date ?? isoToday(),
-    time: seed?.time ?? "18:00",
-  };
-}
-
 export function buildSubsystemDraft(seed?: Partial<Subsystem>): SubsystemDraft {
   return {
     name: seed?.name ?? "",
@@ -173,17 +140,6 @@ export function buildPartDefinitionDraft(
     source,
     acquisitionMethod: seed?.acquisitionMethod ?? "manufacture",
   };
-}
-
-export function buildId(prefix: string, seed: string) {
-  const normalized = seed
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  const suffix = Math.random().toString(36).slice(2, 6);
-  return `${prefix}-${normalized || "item"}-${suffix}`;
 }
 
 export function splitList(value: string): string[] {

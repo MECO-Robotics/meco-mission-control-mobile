@@ -2,40 +2,9 @@ import type { Dispatch, SetStateAction } from "react";
 import type { StyleProp, TextStyle, ViewStyle } from "react-native";
 
 import type { AppThemeColors } from "../theme";
-import type { HelpRequestInput } from "../data/helpRequests";
-import type { TaskQueueSection } from "../data/taskQueueOrdering";
 import type { WorkLogDraftSyncStatus } from "../services/workLogDraftSync";
-import type {
-  Discipline,
-  Event,
-  HelpRequest,
-  ManufacturingItem,
-  Mechanism,
-  Member,
-  PartDefinition,
-  PartInstance,
-  PurchaseItem,
-  QaRequest,
-  QaReview,
-  Subsystem,
-  Task,
-  WorkLog,
-} from "../types/domain";
-import type {
-  ArchiveFilterMode,
-  BlockerFilterMode,
-  InventoryViewTab,
-  ManufacturingViewTab,
-  MaterialRollup,
-  MilestoneSortField,
-  Option,
-  PartLifecycleStatus,
-  SummaryChipData,
-  TaskSubteamTab,
-  TaskViewTab,
-  ViewTab,
-  WorkLogSortMode,
-} from "../ui/types";
+import type { Discipline, HelpRequest, ManufacturingItem, Mechanism, Member, PartDefinition, PartInstance, PurchaseItem, QaRequest, QaReview, Subsystem, Task, WorkLog } from "../types/domain";
+import type { ArchiveFilterMode, InventoryViewTab, ManufacturingViewTab, MaterialRollup, PartLifecycleStatus, SummaryChipData, TaskViewTab, ViewTab, WorkLogSortMode } from "../ui/types";
 
 export type AttendanceStatus = "yes" | "maybe" | "no";
 export type AttendanceRow = {
@@ -89,7 +58,7 @@ export type WorkLogListItem = WorkLog & {
 
 type StateSetter<T> = Dispatch<SetStateAction<T>>;
 type TextSetter = StateSetter<string>;
-type ResponsiveScreenStyles = {
+export type ResponsiveScreenStyles = {
   calloutBody: StyleProp<TextStyle>;
   calloutBox: StyleProp<ViewStyle>;
   calloutTitle: StyleProp<TextStyle>;
@@ -113,28 +82,18 @@ type ResponsiveScreenStyles = {
 };
 
 export interface AppScreenProps {
-  activeTaskSubteam: TaskSubteamTab;
-  activeTaskSubteamLabel: string;
   appResponsiveStyles: ResponsiveScreenStyles;
   attendancePreview: AttendanceRow[];
   attendanceSummary: SummaryChipData[];
   canMentorApprove: boolean;
-  canReassignTasks: boolean;
-  claimTask: (task: Task) => Promise<void>;
-  clearTaskBlockers: (task: Task, resolutionNote: string) => Promise<void>;
   disciplinesById: Record<string, Discipline>;
   editTagStyle: StyleProp<TextStyle>;
-  eventOptions: Option[];
-  events: Event[];
-  eventsById: Record<string, Event>;
   filteredManufacturing: ManufacturingItem[];
   filteredMaterialRollups: MaterialRollup[];
-  filteredMilestones: Event[];
   filteredPartDefinitions: PartDefinition[];
   filteredPartInstances: PartInstanceStatusRow[];
   filteredPurchases: PurchaseItem[];
   filteredSubsystems: Subsystem[];
-  filteredTaskQueue: Task[];
   filteredWorkLogs: WorkLogListItem[];
   helpRequests: HelpRequest[];
   homeInventoryNeeds: PurchaseItem[];
@@ -142,9 +101,7 @@ export interface AppScreenProps {
   homePriorityTasks: Task[];
   homeTaskSummary: SummaryChipData[];
   inventoryView: InventoryViewTab;
-  isCompactLayout: boolean;
   isLandscapeCardLayout: boolean;
-  isLandscapeTimelineLayout: boolean;
   isSyncing: boolean;
   manufacturingItems: ManufacturingItem[];
   manufacturingArchiveFilter: ArchiveFilterMode;
@@ -164,27 +121,18 @@ export interface AppScreenProps {
   meetingAttendance: AttendanceRow[];
   members: Member[];
   membersById: Record<string, Member>;
-  milestoneSearch: string;
-  milestoneSortField: MilestoneSortField;
-  milestoneSortOrder: "asc" | "desc";
-  milestoneSummary: SummaryChipData[];
-  milestoneTypeFilter: string;
-  openCreateDeadlineEditor: () => void;
   openCreateManufacturingEditor: () => void;
   openCreateMemberEditor: (role?: Member["role"]) => void;
-  openCreateMilestoneEditor: () => void;
   openCreatePartDefinitionEditor: () => void;
   openCreatePurchaseEditor: () => void;
   openCreateQaReportEditor: (taskId?: string, qaRequestId?: string) => void;
   openCreateSubsystemEditor: () => void;
-  openCreateTaskEditor: () => void;
   openCreateWorkLogEditor: (taskId?: string) => void;
   openWorkLogFromTimer: () => void;
   approvePurchaseItem: (item: PurchaseItem, approved: boolean) => Promise<void>;
   createQaRequest: (subject: string, mentorId: string, taskId?: string | null) => void;
   openEditManufacturingEditor: (item: ManufacturingItem) => void;
   openEditMemberEditor: (memberId: string) => void;
-  openEditMilestoneEditor: (event: Event) => void;
   openEditPartDefinitionEditor: (partDefinitionId: string) => void;
   openEditPurchaseEditor: (item: PurchaseItem) => void;
   openEditSubsystemEditor: (subsystem: Subsystem) => void;
@@ -194,11 +142,8 @@ export interface AppScreenProps {
   openInventoryPurchases: () => void;
   openMaterialRestockEditor: (row: MaterialRollup) => void;
   openTaskQueueFromTask: (task: Task) => void;
-  requestTaskQa: (task: Task) => Promise<void>;
-  startTask: (task: Task) => Promise<void>;
   partDefinitions: PartDefinition[];
   partDefinitionsById: Record<string, PartDefinition>;
-  partInstancesById: Record<string, PartInstance>;
   partInstancesWithStatus: PartInstanceStatusRow[];
   partsSearch: string;
   partsStatusFilter: string;
@@ -222,19 +167,15 @@ export interface AppScreenProps {
   qaRequests: QaRequest[];
   qaReviews: QaReview[];
   reportSummary: SummaryChipData[];
-  requestHelp: (input: HelpRequestInput) => boolean;
   riskRows: RiskRow[];
   riskSummary: SummaryChipData[];
   rosterAdmins: Member[];
   rosterExternal: Member[];
   rosterMentors: Member[];
   rosterStudents: Member[];
-  reassignTask: (task: Task, ownerId: string | null) => Promise<void>;
-  releaseTask: (task: Task) => Promise<void>;
   selectedMemberId: string | null;
   selectedSubsystem: Subsystem | null;
   setActiveTab: StateSetter<ViewTab>;
-  setActiveTaskSubteam: StateSetter<TaskSubteamTab>;
   setAttendanceStatusByMemberId: StateSetter<Record<string, AttendanceStatus>>;
   setManufacturingArchiveFilter: StateSetter<ArchiveFilterMode>;
   setManufacturingMaterialFilter: TextSetter;
@@ -245,10 +186,6 @@ export interface AppScreenProps {
   setMaterialsCategoryFilter: TextSetter;
   setMaterialsSearch: TextSetter;
   setMaterialsStockFilter: TextSetter;
-  setMilestoneSearch: TextSetter;
-  setMilestoneSortField: StateSetter<MilestoneSortField>;
-  setMilestoneSortOrder: StateSetter<"asc" | "desc">;
-  setMilestoneTypeFilter: TextSetter;
   setPartsSearch: TextSetter;
   setPartsStatusFilter: TextSetter;
   setPartsSubsystemFilter: TextSetter;
@@ -261,43 +198,19 @@ export interface AppScreenProps {
   setSelectedMemberId: StateSetter<string | null>;
   setSelectedSubsystemId: StateSetter<string>;
   setSubsystemSearch: TextSetter;
-  setTaskArchiveFilter: StateSetter<ArchiveFilterMode>;
-  setTaskBlockerFilter: StateSetter<BlockerFilterMode>;
-  setTaskOwnerFilter: TextSetter;
-  setTaskPriorityFilter: TextSetter;
-  setTaskSearch: TextSetter;
-  setTaskStatusFilter: TextSetter;
-  setTaskSubsystemFilter: TextSetter;
   setTaskView: StateSetter<TaskViewTab>;
-  setTimelineMilestoneFilter: TextSetter;
-  setTimelineSubsystemFilter: TextSetter;
   setWorkLogSearch: TextSetter;
   setWorkLogSortMode: StateSetter<WorkLogSortMode>;
   setWorkLogSubsystemFilter: TextSetter;
   shiftTaskDueDates: (tasksToShift: Task[], dayDelta: number) => Promise<void>;
-  signedInMember: Member | null;
   subsystemCountsById: Record<string, SubsystemCounts>;
   subsystemSearch: string;
   subsystems: Subsystem[];
   subsystemsById: Record<string, Subsystem>;
   syncFromBackend: () => Promise<void>;
-  taskArchiveFilter: ArchiveFilterMode;
-  taskBlockerFilter: BlockerFilterMode;
   taskById: Record<string, Task>;
-  taskOwnerFilter: string;
-  taskPriorityFilter: string;
-  taskQueueSections: TaskQueueSection[];
-  taskSearch: string;
-  taskStatusFilter: string;
-  taskSubsystemFilter: string;
-  taskLoggedHoursById: Record<string, number>;
-  taskSummary: SummaryChipData[];
-  taskView: TaskViewTab;
   tasks: Task[];
   themeColors: AppThemeColors;
-  timelineMilestoneFilter: string;
-  timelineSubsystemFilter: string;
-  timelineTasks: Task[];
   workLogSearch: string;
   workLogs: WorkLog[];
   workLogSortMode: WorkLogSortMode;

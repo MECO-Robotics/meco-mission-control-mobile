@@ -12,7 +12,7 @@ import { appThemes, type AppThemeName } from "../../theme";
 import type { Member } from "../../types/domain";
 import { capitalize } from "../../ui/helpers";
 import { styles } from "../../ui/styles";
-import type { AttendanceStatus } from "../appModel";
+import type { AttendanceStatus } from "../../screens/types";
 
 type AppThemeColors = (typeof appThemes)[AppThemeName];
 

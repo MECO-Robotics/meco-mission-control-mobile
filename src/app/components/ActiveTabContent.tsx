@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { AttendanceScreen } from "../../screens/dashboard/AttendanceScreen";
 import { HomeScreen } from "../../screens/dashboard/HomeScreen";
 import { InventoryScreen } from "../../screens/inventory/InventoryScreen";
@@ -6,7 +7,6 @@ import { ReportsScreen } from "../../screens/reports/ReportsScreen";
 import { RisksScreen } from "../../screens/robot/RisksScreen";
 import { SubsystemsScreen } from "../../screens/robot/SubsystemsScreen";
 import { RosterScreen } from "../../screens/roster/RosterScreen";
-import { TasksScreen } from "../../screens/tasks/TasksScreen";
 import { WorkLogsScreen } from "../../screens/worklogs/WorkLogsScreen";
 import type { AppScreenProps } from "../../screens/types";
 import type { ViewTab } from "../../ui/types";
@@ -14,16 +14,17 @@ import type { ViewTab } from "../../ui/types";
 type ActiveTabContentProps = {
   activeTab: ViewTab;
   screenProps: AppScreenProps;
+  taskContent: ReactNode;
 };
 
-export function ActiveTabContent({ activeTab, screenProps }: ActiveTabContentProps) {
+export function ActiveTabContent({ activeTab, screenProps, taskContent }: ActiveTabContentProps) {
   switch (activeTab) {
     case "home":
       return <HomeScreen {...screenProps} />;
     case "attendance":
       return <AttendanceScreen {...screenProps} />;
     case "tasks":
-      return <TasksScreen {...screenProps} />;
+      return taskContent;
     case "worklogs":
       return <WorkLogsScreen {...screenProps} />;
     case "manufacturing":
