@@ -235,3 +235,20 @@ describe("MobileSessionClient", () => {
     expect(client.getAccessToken()).toBe("new-access");
   });
 });
+
+test("does not replay an old account's mutation with a newly signed-in account token", async () => {
+  let session = buildSession({ accessTokenExpiresAt: "2099-01-01T00:00:00Z" });
+  let version = 0;
+  let respond!: (value: Response) => void;
+  fetchMock.mockReset().mockReturnValueOnce(new Promise<Response>((resolve) => { respond = resolve; }));
+  const client = new MobileSessionClient({
+    baseUrl: "https://api.example.test", getSession: () => session, getSessionVersion: () => version,
+    onSessionExpired: jest.fn(), saveSession: jest.fn(async () => true),
+  });
+  const pending = client.request("/api/tasks", { method: "POST", body: "{}" });
+  session = buildSession({ token: "other-account-token" });
+  version += 1;
+  respond(await jsonResponse({ message: "expired" }, 401));
+  await expect(pending).rejects.toMatchObject({ name: "SessionChangedError" });
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+});

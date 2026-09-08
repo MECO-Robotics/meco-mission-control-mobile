@@ -37,8 +37,8 @@ Command notes:
 
 - `npm run start`: starts Expo.
 - `npm run ios`: resets the iOS simulator first, then starts Expo on localhost port 8081.
-- `npm run android`: runs `script/build_and_run.sh --android`.
-- `npm run dev`: Android-focused alias for the same build/run script.
+- `npm run android`: invokes the installed Expo CLI directly on every host.
+- `npm run dev`: delegates to `npm run android`; additional Expo arguments are forwarded.
 - `npm run lint`: runs ESLint.
 - `npm run test:workflow-security`: verifies secretless PR jobs, trusted release sources, immutable Action pins, and release credential scoping.
 - `npm run typecheck`: runs TypeScript with `--noEmit`.
@@ -87,17 +87,21 @@ EXPO_PUBLIC_API_BASE_URL=https://mission-control-api.example
 Store these values in the protected GitHub `production` environment, not in a
 developer `.env` file or a pull-request workflow.
 
-## Windows Android Helper
+## Android Launching
 
-The repo includes `script/build_and_run.ps1` for Windows Android simulator workflows:
+Run `npm run android` on Windows, macOS, or Linux. The installed
+Expo CLI handles SDK/device discovery, emulator boot, and Metro forwarding.
+Set `ANDROID_HOME` for a nonstandard SDK location, or start a selected emulator
+in Android Studio before launching Expo.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File ./script/build_and_run.ps1 --android
-```
+After Expo loads dotenv, the app API URL defaults to `http://10.0.2.2:8080`; an explicit Android URL takes
+precedence over a shared API URL, and both take precedence over the default.
+For physical devices, configure a reachable API URL. Additional Expo arguments
+work with `npm run android -- --clear` or `npm run dev -- --clear`.
 
-The helper keeps `adb reverse tcp:8081 tcp:8081` refreshed and sets
-`EXPO_PUBLIC_ANDROID_API_BASE_URL=http://10.0.2.2:8080` by default for
-emulator-to-host backend access.
+Use `npm start -- --web`, `npm start -- --dev-client`, `npm start -- --tunnel`,
+`npx expo export --platform web`, or `npx expo-doctor` for other modes. The
+Bash/PowerShell launch scripts and their custom environment switches are removed.
 
 ## Adding Code
 

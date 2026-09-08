@@ -245,3 +245,10 @@ describe("mobile auth API fail-safe handling", () => {
     }
   });
 });
+
+test("emulator defaults are applied after parsed platform/shared configuration", () => {
+  expect(resolveApiBaseUrl("android", {}, true)).toBe("http://10.0.2.2:8080");
+  expect(resolveApiBaseUrl("ios", {}, true)).toBe("http://localhost:8080");
+  expect(resolveApiBaseUrl("android", { EXPO_PUBLIC_ANDROID_API_BASE_URL: "", EXPO_PUBLIC_API_BASE_URL: "https://shared.test" }, true)).toBe("https://shared.test");
+  expect(resolveApiBaseUrl("ios", { EXPO_PUBLIC_IOS_API_BASE_URL: "https://ios.test", EXPO_PUBLIC_API_BASE_URL: "https://shared.test" }, true)).toBe("https://ios.test");
+});

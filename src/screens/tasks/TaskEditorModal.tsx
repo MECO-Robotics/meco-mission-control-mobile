@@ -1,12 +1,12 @@
 import type { Dispatch, SetStateAction } from "react";
-import { View } from "react-native";
+import { View, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
 
 import { Text } from "../../i18n";
 import type { AppThemeColors } from "../../theme";
 import { TASK_PRIORITY_OPTIONS, TASK_STATUS_OPTIONS } from "../../ui/constants";
 import { isoToday } from "../../ui/helpers";
 import { styles } from "../../ui/styles";
-import type { EditorMode, Option, TaskDraft } from "../../ui/types";
+import type { EditorMode, Option } from "../../ui/types";
 import { AdvancedOptions, DropdownField, EditorModal, ModalField } from "../../ui/ui";
 import type {
   Discipline,
@@ -18,13 +18,13 @@ import type {
   TaskPriority,
   TaskStatus,
 } from "../../types/domain";
-import type { WorkspaceResponsiveStyles } from "../components/WorkspaceShell";
-import { EditorCallout } from "./EditorCallout";
+import { EditorCallout } from "../../app/editorModals/EditorCallout";
+import type { TaskDraft } from "./taskDraft";
 import { TaskDependenciesField } from "./TaskDependenciesField";
 
 type TaskEditorModalProps = {
   addTaskDependency: (dependencyId: string) => void;
-  appResponsiveStyles: Pick<WorkspaceResponsiveStyles, "calloutBody" | "calloutBox" | "calloutTitle">;
+  appResponsiveStyles: { calloutBody: StyleProp<TextStyle>; calloutBox: StyleProp<ViewStyle>; calloutTitle: StyleProp<TextStyle> };
   availableTaskDependencyOptions: Task[];
   deleteTaskDraft: () => void;
   disciplineOptions: Option[];

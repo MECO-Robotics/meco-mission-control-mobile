@@ -2,7 +2,6 @@ import type { Subsystem, Task } from "../../types/domain";
 import { timelineAccentColors, timelineDisciplineColors } from "../../theme";
 
 export const DAY_WIDTH = 46;
-export const VISIBLE_DAY_COUNT = 31;
 
 const LANE_MIN_HEIGHT = 52;
 const TASK_BAR_HEIGHT = 26;
@@ -111,28 +110,6 @@ export function getLaneTaskRange(task: Task, monthStart: Date, dayCount: number)
     left: visibleFirstIndex * DAY_WIDTH + 4,
     width: Math.max(DAY_WIDTH - 8, (visibleLastIndex - visibleFirstIndex + 1) * DAY_WIDTH - 8),
   };
-}
-
-export function getTimelineStartDate(tasks: Task[], fallbackStart: Date, dayCount: number) {
-  if (tasks.length === 0) {
-    return fallbackStart;
-  }
-
-  const fallbackEnd = addDays(fallbackStart, dayCount - 1);
-  const hasVisibleTask = tasks.some((task) => {
-    const { start: firstDate, end: lastDate } = getTaskDateRange(task);
-
-    return firstDate <= fallbackEnd && lastDate >= fallbackStart;
-  });
-
-  if (hasVisibleTask) {
-    return fallbackStart;
-  }
-
-  return tasks.reduce((earliest, task) => {
-    const taskStart = getTaskStartDate(task);
-    return taskStart < earliest ? taskStart : earliest;
-  }, getTaskStartDate(tasks[0]));
 }
 
 function getLaneHeight(trackCount: number) {

@@ -17,10 +17,10 @@ import {
 } from "../../ui/ui";
 import type { ArchiveFilterMode, BlockerFilterMode } from "../../ui/types";
 
-import type { AppScreenProps } from "../types";
+import type { TaskScreenProps } from "../tasks/taskScreenTypes";
 
 type TaskQueueFilterSheetProps = Pick<
-  AppScreenProps,
+  TaskScreenProps,
   | "activeTaskSubteam"
   | "appResponsiveStyles"
   | "members"

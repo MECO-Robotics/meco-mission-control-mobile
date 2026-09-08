@@ -5,9 +5,9 @@ import type { Member, Task } from "../../types/domain";
 import { styles } from "../../ui/styles";
 import { EditorModal } from "../../ui/ui";
 
-import type { AppScreenProps } from "../types";
+import type { TaskScreenProps } from "../tasks/taskScreenTypes";
 
-type TaskReassignModalProps = Pick<AppScreenProps, "appResponsiveStyles" | "membersById"> & {
+type TaskReassignModalProps = Pick<TaskScreenProps, "appResponsiveStyles" | "membersById"> & {
   onCancel: () => void;
   onChangeOwner: (ownerId: string | null) => void;
   onSave: () => void;

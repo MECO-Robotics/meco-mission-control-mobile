@@ -46,9 +46,9 @@ npm run typecheck
 npm test
 ```
 
-`npm run verify` runs lint, Jest, role-permission tests, TypeScript, and the bootstrap contract verifier. Use it before opening or updating a PR when practical.
+`npm run verify` runs lint, Jest, role-permission and workflow tests, TypeScript, and the bootstrap contract verifier. Use it before opening or updating a PR when practical.
 
-`npm run dev` and `npm run android` are Android-focused shortcuts that run `bash ./script/build_and_run.sh --android` on POSIX shells.
+`npm run dev` delegates to `npm run android` on every host. The Android command invokes the installed Expo CLI directly. No launcher injects API variables before Expo loads dotenv.
 
 Do not run Expo or npm scripts with `sudo`. If `node_modules` or `.expo` become owned by `root`, fix ownership from the repo root before starting the app:
 
@@ -56,19 +56,20 @@ Do not run Expo or npm scripts with `sudo`. If `node_modules` or `.expo` become 
 sudo chown -R "$USER":staff .expo node_modules
 ```
 
-For the Android simulator on Windows, this repo also has Codex actions wired through
-`script/build_and_run.ps1`. Use `Run Android` in Codex or run:
+Use the Codex `Run Android` action or `npm run android` on Windows, macOS, or Linux.
+Expo owns SDK discovery, emulator selection/boot, and Metro port forwarding.
+Set `ANDROID_HOME` if your SDK is outside its standard location. To choose a
+particular emulator, start it in Android Studio before running the command.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File ./script/build_and_run.ps1 --android
-```
+The app resolver defaults the API URL to `http://10.0.2.2:8080` for emulator-to-host
+access. An explicit `EXPO_PUBLIC_ANDROID_API_BASE_URL` or shared
+`EXPO_PUBLIC_API_BASE_URL` takes precedence. Physical devices require a reachable
+API URL. Metro uses Expo's host selection rather than a forced emulator hostname.
 
-The Android launcher uses `10.0.2.2` as the emulator route back to the Windows
-host and keeps `adb reverse tcp:8081 tcp:8081` refreshed before Expo opens.
-The local Android simulator launchers set
-`EXPO_PUBLIC_ANDROID_API_BASE_URL=http://10.0.2.2:8080` by default so they can
-reach a backend running on the host. Set `EXPO_PUBLIC_ANDROID_API_BASE_URL`
-yourself when testing against a physical Android device or another backend URL.
+Other modes use Expo directly: `npm start -- --web`, `npm start -- --dev-client`,
+`npm start -- --tunnel`, `npx expo export --platform web`, and `npx expo-doctor`.
+The old `build_and_run` scripts and custom `BASH_PATH`, `EXPO_CLI`, and
+`ANDROID_AVD_NAME` wrapper settings have been removed.
 
 ## Project map
 
