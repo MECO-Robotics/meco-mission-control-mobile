@@ -41,7 +41,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for validation and PR guidance and
 - `src/i18n/`: translations and RTL-aware localization setup.
 - `contracts/platform/bootstrap/v1/contract.json`: mobile-facing bootstrap payload contract.
 - `docs/`: deeper product, architecture, API, development, release, data-model, and contributor documentation.
-- `scripts/`: simulator reset, role-permission checks, contract verification, and optional shared-skill sync helpers.
+- `scripts/`: simulator reset, workflow security checks, contract verification, and optional shared-skill sync helpers.
 
 Start with `docs/overview.md`, `docs/development.md`, `docs/features.md`, and `docs/api-integration.md` when onboarding.
 

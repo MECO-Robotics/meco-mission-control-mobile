@@ -1,3 +1,4 @@
+import { getSessionPermissions } from "./src/data/sessionPermissions";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -1263,37 +1264,10 @@ export default function App() {
       members.map((member) => [member.id, member]),
     ) as Record<string, (typeof members)[number]>;
   }, [members]);
-  const sessionMember = useMemo(() => {
-    const sessionName = sessionUser?.name.trim().toLowerCase();
-    const sessionEmail = sessionUser?.email.trim().toLowerCase();
-    const sessionAccount = sessionUser?.accountId.trim().toLowerCase();
-    return members.find((member) => {
-      return (
-        member.id.toLowerCase() === sessionAccount ||
-        member.name.trim().toLowerCase() === sessionName ||
-        member.email?.trim().toLowerCase() === sessionEmail
-      );
-    }) ?? null;
-  }, [members, sessionUser]);
-
-  const signedInMember = useMemo(() => {
-    return sessionMember;
-  }, [sessionMember]);
-  const canUseSignedInMemberRoleFallback =
-    sessionMember !== null && signedInMember?.id === sessionMember.id;
-  const canMentorApprove =
-    sessionUser?.role === "mentor" ||
-    sessionUser?.role === "admin" ||
-    (canUseSignedInMemberRoleFallback &&
-      (signedInMember?.role === "mentor" || signedInMember?.role === "admin"));
-  const canReassignTasks =
-    sessionUser?.role === "lead" ||
-    sessionUser?.role === "mentor" ||
-    sessionUser?.role === "admin" ||
-    (canUseSignedInMemberRoleFallback &&
-      (signedInMember?.role === "lead" ||
-        signedInMember?.role === "mentor" ||
-        signedInMember?.role === "admin"));
+  const { signedInMember, canMentorApprove, canReassignTasks } = useMemo(
+    () => getSessionPermissions(sessionUser, members),
+    [sessionUser, members],
+  );
   const signedInEmailInitial =
     sessionUser?.email.trim().charAt(0).toUpperCase() || "M";
   const visiblePendingWorkLogDrafts = useMemo(
