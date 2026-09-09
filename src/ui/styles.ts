@@ -346,6 +346,8 @@ export const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   optionChip: {
+    minHeight: 48,
+    minWidth: 48,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.border,
@@ -366,7 +368,8 @@ export const styles = StyleSheet.create({
     color: colors.navyInk,
   },
   dropdownButton: {
-    minHeight: 42,
+    minHeight: 48,
+    minWidth: 48,
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -409,6 +412,8 @@ export const styles = StyleSheet.create({
     ...shadows.card,
   },
   dropdownOption: {
+    minHeight: 48,
+    minWidth: 48,
     borderRadius: 10,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
@@ -1134,6 +1139,8 @@ export const styles = StyleSheet.create({
     fontWeight: "700",
   },
   modalFieldInput: {
+    minHeight: 48,
+    minWidth: 48,
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -1141,7 +1148,6 @@ export const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
     color: colors.ink,
-    minHeight: 42,
   },
   modalFieldInputMultiline: {
     minHeight: 92,
@@ -1214,6 +1220,8 @@ export const styles = StyleSheet.create({
     fontWeight: "700",
   },
   toggleField: {
+    minHeight: 48,
+    minWidth: 48,
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -1258,6 +1266,8 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
   },
   modalDeleteButton: {
+    minHeight: 48,
+    minWidth: 48,
     borderRadius: 999,
     backgroundColor: colors.orangeSurface,
     borderWidth: 1,
@@ -1271,6 +1281,8 @@ export const styles = StyleSheet.create({
     fontWeight: "800",
   },
   modalCancelButton: {
+    minHeight: 48,
+    minWidth: 48,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.border,
@@ -1283,6 +1295,8 @@ export const styles = StyleSheet.create({
     fontWeight: "700",
   },
   modalSaveButton: {
+    minHeight: 48,
+    minWidth: 48,
     borderRadius: 999,
     backgroundColor: colors.blue,
     paddingHorizontal: spacing.md,

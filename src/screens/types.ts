@@ -86,6 +86,7 @@ export interface AppScreenProps {
   attendancePreview: AttendanceRow[];
   attendanceSummary: SummaryChipData[];
   canMentorApprove: boolean;
+  canSubmitQa: boolean;
   disciplinesById: Record<string, Discipline>;
   editTagStyle: StyleProp<TextStyle>;
   filteredManufacturing: ManufacturingItem[];

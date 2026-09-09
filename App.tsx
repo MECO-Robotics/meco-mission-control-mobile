@@ -585,6 +585,10 @@ export default function App() {
     setManufacturingItems(ensureArray(payload.manufacturingItems));
     setPurchaseItems(ensureArray(payload.purchaseItems));
     setQaRequests(ensureArray(payload.qaRequests));
+    setQaReviews(ensureArray(payload.qaReports).map((report) => ({ ...report,
+      subjectId: report.taskId, subjectType: "task",
+      subjectTitle: tasks.find((task) => task.id === report.taskId)?.title ?? report.taskId,
+    })));
     setHelpRequests(ensureArray(payload.helpRequests));
     setPartDefinitions(ensureArray(payload.partDefinitions));
     setPartInstances(ensureArray(payload.partInstances));
@@ -1122,7 +1126,7 @@ export default function App() {
       members.map((member) => [member.id, member]),
     ) as Record<string, (typeof members)[number]>;
   }, [members]);
-  const { signedInMember, canMentorApprove, canReassignTasks } = useMemo(
+  const { signedInMember, canMentorApprove, canReassignTasks, canSubmitQa } = useMemo(
     () => getSessionPermissions(sessionUser, members),
     [sessionUser, members],
   );
@@ -3132,9 +3136,10 @@ export default function App() {
   };
 
   const saveWorkLogDraft = async () => {
-    const participants = splitList(workLogDraft.participantIdsText).filter((participantId) =>
-      members.some((member) => member.id === participantId),
-    );
+    const participants = splitList(workLogDraft.participantIdsText);
+    if (participants.some((id) => !membersById[id])) {
+      setWorkLogError("Choose participants from the current roster."); return;
+    }
     const parsedHours = Number(workLogDraft.hours);
     const notes = workLogDraft.notes.trim();
 
@@ -3921,6 +3926,7 @@ export default function App() {
   };
 
   const openCreateQaReportEditor = (taskId = tasks[0]?.id ?? "", qaRequestId?: string) => {
+    if (!canSubmitQa) return;
     const request = qaRequestId ? qaRequests.find((candidate) => candidate.id === qaRequestId) : null;
 
     setQaReportDraft({
@@ -3985,10 +3991,12 @@ export default function App() {
   };
 
   const saveQaReportDraft = async () => {
+    if (!canSubmitQa) { setQaReportError("Only leads, mentors, and admins can submit QA reports."); return; }
     const task = taskById[qaReportDraft.taskId];
-    const participants = splitList(qaReportDraft.participantIdsText).filter(
-      (participantId) => membersById[participantId],
-    );
+    const participants = splitList(qaReportDraft.participantIdsText);
+    if (participants.some((id) => !membersById[id])) {
+      setQaReportError("Choose participants from the current roster."); return;
+    }
 
     const missingFields = [
       !task ? "task" : null,
@@ -4014,84 +4022,36 @@ export default function App() {
         ? qaRequests.find((request) => request.id === activeQaRequestId)
         : null) ??
       qaRequests.find((request) => request.taskId === task.id);
-    const nextQaReview: QaReview = {
-      id: `qa-local-${Date.now()}`,
-      taskId: task.id,
-      subjectId: task.id,
-      subjectType: "task",
-      subjectTitle: task.title,
-      participantIds: participants,
-      requestedById: linkedQaRequest?.requestedById ?? null,
-      mentorId: linkedQaRequest?.mentorId ?? task.mentorId,
-      result: qaReportDraft.result,
-      mentorApproved: qaReportDraft.mentorApproved,
-      notes: qaReportDraft.notes.trim(),
-      evidenceNotes: qaReportDraft.evidenceNotes.trim(),
-    };
-
-    if (qaReportDraft.result !== "pass") {
-      const followUpTitle =
-        qaReportDraft.followUpTaskTitle.trim() ||
-        (qaReportDraft.result === "iteration-worthy"
-          ? `Iterate after QA: ${task.title}`
-          : `Fix QA finding: ${task.title}`);
-      const followUpSummary = [
-        `Created from QA on "${task.title}".`,
-        `Result: ${qaReportDraft.result}.`,
-        qaReportDraft.notes.trim(),
-        qaReportDraft.evidenceNotes.trim() ? `Evidence: ${qaReportDraft.evidenceNotes.trim()}` : "",
-      ]
-        .filter(Boolean)
-        .join("\n");
-      const followUpTask = {
-        title: followUpTitle,
-        summary: followUpSummary,
-        subsystemId: task.subsystemId,
-        disciplineId: task.disciplineId,
-        mechanismId: task.mechanismId,
-        partInstanceId: task.partInstanceId,
-        targetEventId: task.targetEventId,
-        ownerId: task.ownerId,
-        mentorId: task.mentorId,
-        dueDate: isoToday(),
-        priority: qaReportDraft.result === "iteration-worthy" ? "high" : "medium",
-        status: "not-started",
-        checklistItems: [],
-
-        linkedManufacturingIds: task.linkedManufacturingIds,
-        linkedPurchaseIds: task.linkedPurchaseIds,
-        estimatedHours: 0,
-        actualHours: 0,
-      } satisfies Omit<Task, "id" | "isBlocked" | "isWaitingOnDependency" | "blockers">;
-      const created = await runMutation("/api/tasks", {
-        method: "POST", body: JSON.stringify(mapTaskPayloadToServer(followUpTask)),
+    const sessionVersion = authSessionVersionRef.current;
+    try {
+      const { item } = await authenticatedRequestJson<{ item: NonNullable<PlatformBootstrapPayload["qaReports"]>[number] }>("/api/qa-reports/submit", {
+        method: "POST", body: JSON.stringify({
+          taskId: task.id, participantIds: participants,
+          result: qaReportDraft.result, mentorApproved: qaReportDraft.mentorApproved,
+          notes: qaReportDraft.notes.trim(), evidenceNotes: qaReportDraft.evidenceNotes.trim(),
+          followUpTaskTitle: qaReportDraft.followUpTaskTitle.trim(),
+          qaRequestId: linkedQaRequest?.id ?? null, reviewedAt: isoToday(),
+        }),
       });
-      if (!created) { setQaReportError("The follow-up task could not be saved."); return; }
+      if (authSessionVersionRef.current !== sessionVersion) return;
+      setQaReviews((current) => [{ ...item, subjectTitle: task.title, subjectType: "task", subjectId: task.id },
+        ...current.filter((review) => review.id !== item.id)]);
+      closeQaReportEditor();
+    } catch (error) {
+      if (authSessionVersionRef.current !== sessionVersion) return;
+      if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
+        endSessionForAuthFailure(getMobileAuthErrorMessage("expired-session")); return;
+      }
+      setQaReportError(getClientErrorMessage(error));
+      return;
     }
-
-    if (qaReportDraft.result === "pass") {
-      const completed = await runMutation(`/api/tasks/${task.id}`, {
-        method: "PATCH", body: JSON.stringify({ status: "complete" }),
-      });
-      if (!completed) { setQaReportError("Task completion could not be saved."); return; }
+    // The command is acknowledged: refresh errors must not invite a duplicate submission.
+    try {
+      const payload = await authenticatedRequestJson<PlatformBootstrapPayload>("/api/bootstrap");
+      if (authSessionVersionRef.current === sessionVersion) applyBootstrapPayload(payload);
+    } catch (error) {
+      if (authSessionVersionRef.current === sessionVersion) setSyncError(getClientErrorMessage(error));
     }
-    if (qaReportDraft.result === "iteration-worthy") {
-      const blocked = await runMutation("/api/task-blockers", {
-        method: "POST", body: JSON.stringify({ blockedTaskId: task.id, blockerType: "external", blockerId: null,
-          description: "QA identified iteration-worthy follow-up.", issueType: "qa-failed", severity: "medium", status: "open" }),
-      });
-      if (!blocked) { setQaReportError("The QA blocker could not be saved."); return; }
-    }
-
-    setQaReviews((current) => [nextQaReview, ...current]);
-    setQaRequests((current) =>
-      current.filter(
-        (request) =>
-          request.id !== linkedQaRequest?.id &&
-          request.taskId !== task.id,
-      ),
-    );
-    closeQaReportEditor();
   };
 
   const resetWorkspaceData = () => {
@@ -4357,6 +4317,7 @@ export default function App() {
     attendanceSummary,
     approvePurchaseItem,
     canMentorApprove,
+    canSubmitQa,
     disciplinesById,
     editTagStyle,
     filteredManufacturing,
@@ -4565,6 +4526,7 @@ export default function App() {
         />
 
         <WorkLogEditorModal
+          memberOptions={memberOptions}
           appResponsiveStyles={appResponsiveStyles}
           deleteWorkLogDraft={deleteWorkLogDraft}
           onCancel={closeWorkLogEditor}
@@ -4654,6 +4616,8 @@ export default function App() {
         />
 
         <QaReportEditorModal
+          canMentorApprove={canMentorApprove}
+          memberOptions={memberOptions}
           appResponsiveStyles={appResponsiveStyles}
           onCancel={closeQaReportEditor}
           onSave={saveQaReportDraft}
