@@ -18,14 +18,14 @@ test.each([
 
 test("absent session cannot inherit a roster member's missing email", () => {
   expect(getSessionPermissions(null, [mentor])).toEqual({
-    signedInMember: null, canMentorApprove: false, canReassignTasks: false,
+    signedInMember: null, canMentorApprove: false, canReassignTasks: false, canSubmitQa: false,
   });
 });
 
 test.each(["lead", "mentor", "admin"] as const)("matched %s member remains a session fallback", (role) => {
   const member: Member = { id: user.accountId, name: user.name, role };
   expect(getSessionPermissions({ ...user, role: "student" }, [member])).toEqual({
-    signedInMember: member, canMentorApprove: role !== "lead", canReassignTasks: true,
+    signedInMember: member, canMentorApprove: role !== "lead", canReassignTasks: true, canSubmitQa: false,
   });
 });
 
@@ -44,4 +44,9 @@ test("selected person and roster filter do not grant privileges", () => {
       signedInMember: student, canMentorApprove: false, canReassignTasks: false,
     });
   }
+});
+
+test.each(["student", "lead", "mentor", "admin"] as const)("%s QA workflow permission matches task mutation authority", (role) => {
+  const session = { accountId: "actor", name: "Actor", email: "actor@example.com", authProvider: "email" as const, hostedDomain: "example.com", picture: null, role };
+  expect(getSessionPermissions(session, []).canSubmitQa).toBe(role !== "student");
 });

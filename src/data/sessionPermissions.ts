@@ -15,6 +15,7 @@ export function getSessionPermissions(user: SessionUser | null, members: Member[
   return {
     signedInMember,
     canMentorApprove,
+    canSubmitQa: ["lead", "mentor", "admin"].includes(user?.role ?? signedInMember?.role ?? ""),
     canReassignTasks: canMentorApprove || roles.includes("lead"),
   };
 }

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { createContext, useEffect, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Modal,
@@ -13,6 +13,8 @@ import {
 import { Text } from "../i18n";
 import { styles } from "./styles";
 import { useAppTheme } from "./themeContext";
+
+export const EditorPendingContext = createContext(false);
 
 export function InteractionNote({ steps }: { steps: string[] }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -164,11 +166,23 @@ export function EditorModal({
   visible: boolean;
   title: string;
   saveLabel: string;
-  onSave: () => void;
+  onSave: () => void | Promise<unknown>;
   onCancel: () => void;
-  onDelete?: () => void;
-  children: ReactNode;
+  onDelete?: () => void | Promise<unknown>;
+  children?: ReactNode;
 }) {
+  const savingRef = useRef(false);
+  const [pending, setPending] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  useEffect(() => { if (!visible) setActionError(null); }, [visible]);
+  const perform = async (action: () => void | Promise<unknown>) => {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setPending(true);
+    setActionError(null);
+    try { await action(); } catch { setActionError("Changes could not be saved. Your draft is still here. Try again."); } finally { savingRef.current = false; setPending(false); }
+  };
+  const cancel = () => { if (!savingRef.current) onCancel(); };
   const { height, width } = useWindowDimensions();
   const isCompactLayout = width < 430;
   const isLandscapeLayout = width > height;
@@ -177,7 +191,7 @@ export function EditorModal({
   return (
     <Modal
       animationType="fade"
-      onRequestClose={onCancel}
+      onRequestClose={cancel}
       supportedOrientations={["portrait", "landscape-left", "landscape-right"]}
       transparent
       visible={visible}
@@ -200,14 +214,24 @@ export function EditorModal({
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {children}
+            <EditorPendingContext.Provider value={pending}>
+              <View style={styles.taskEditorStack} pointerEvents={pending ? "none" : "auto"} accessibilityElementsHidden={pending}
+                importantForAccessibility={pending ? "no-hide-descendants" : "auto"}>
+                {children}
+              </View>
+            </EditorPendingContext.Provider>
+            {actionError ? <Text accessibilityRole="alert">{actionError}</Text> : null}
           </ScrollView>
           <View style={[styles.modalActions, isCompactLayout && styles.modalActionsCompact]}>
             {onDelete ? (
               <Pressable
-                onPress={onDelete}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: pending }}
+                disabled={pending}
+                onPress={() => void perform(onDelete)}
                 style={[
                   styles.modalDeleteButton,
+                  { opacity: pending ? 0.5 : 1 },
                   isCompactLayout && styles.modalActionButtonCompact,
                 ]}
               >
@@ -215,9 +239,13 @@ export function EditorModal({
               </Pressable>
             ) : null}
             <Pressable
-              onPress={onCancel}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: pending }}
+              disabled={pending}
+              onPress={cancel}
               style={[
                 styles.modalCancelButton,
+                { opacity: pending ? 0.5 : 1 },
                 { backgroundColor: themeColors.canvas, borderColor: themeColors.border },
                 isCompactLayout && styles.modalActionButtonCompact,
               ]}
@@ -227,10 +255,13 @@ export function EditorModal({
               </Text>
             </Pressable>
             <Pressable
-              onPress={onSave}
-              style={[styles.modalSaveButton, isCompactLayout && styles.modalActionButtonCompact]}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: pending, busy: pending }}
+              disabled={pending}
+              onPress={() => void perform(onSave)}
+              style={[styles.modalSaveButton, { opacity: pending ? 0.5 : 1 }, isCompactLayout && styles.modalActionButtonCompact]}
             >
-              <Text style={styles.modalSaveButtonLabel}>{saveLabel}</Text>
+              <Text style={styles.modalSaveButtonLabel}>{pending ? "Saving…" : saveLabel}</Text>
             </Pressable>
           </View>
         </View>

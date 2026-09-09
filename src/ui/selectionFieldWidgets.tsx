@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { EditorPendingContext } from "./editorWidgets";
+import { useContext, useState } from "react";
 import { Pressable, ScrollView, useWindowDimensions, View } from "react-native";
 
-import { Text } from "../i18n";
+import { Text, useTranslation } from "../i18n";
 import { getResponsiveMetrics, scaleFont } from "./responsive";
 import { statusToneLabelStyles, statusToneStyles, styles } from "./styles";
 import { explicitStatusPillTones } from "./statusPillTones";
@@ -24,7 +25,9 @@ export function DropdownField({
   placeholder?: string;
   clearLabel?: string;
 }) {
+  const pending = useContext(EditorPendingContext);
   const [isOpen, setIsOpen] = useState(false);
+  const { t } = useTranslation();
   const { colors: themeColors } = useAppTheme();
   const selectedOption = options.find((option) => option.id === value);
   const menuOptions = clearLabel ? [{ id: "", name: clearLabel }, ...options] : options;
@@ -40,7 +43,9 @@ export function DropdownField({
       <Text style={[styles.modalFieldLabel, { color: themeColors.subtleText }]}>{label}</Text>
       <Pressable
         accessibilityRole="button"
-        accessibilityState={{ expanded: isOpen }}
+        accessibilityState={{ expanded: isOpen, disabled: pending }}
+        disabled={pending}
+        accessibilityLabel={`${t(label)}: ${t(selectedLabel)}`}
         onPress={() => setIsOpen(true)}
         style={[
           styles.dropdownButton,
@@ -76,6 +81,9 @@ export function DropdownField({
               return (
                 <Pressable
                   key={option.id || "empty"}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isSelected, disabled: pending }}
+                  disabled={pending}
                   onPress={() => chooseOption(option.id)}
                   style={[
                     styles.dropdownOption,

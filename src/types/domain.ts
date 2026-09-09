@@ -334,6 +334,7 @@ export interface PlatformBootstrapPayload {
   manufacturingItems?: ManufacturingItem[];
   purchaseItems?: PurchaseItem[];
   qaRequests?: QaRequest[];
+  qaReports?: (Omit<QaReview, "subjectTitle"> & { taskId: string })[];
   helpRequests?: HelpRequest[];
   qaFindings?: QAFinding[];
   testFindings?: TestFinding[];

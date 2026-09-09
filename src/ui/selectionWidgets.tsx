@@ -38,12 +38,13 @@ export function SearchField({
         {
           backgroundColor: themeColors.canvas,
           borderColor: themeColors.border,
-          height: metrics.controlHeight,
+          minHeight: metrics.controlHeight,
           paddingHorizontal: metrics.chipPaddingHorizontal + 4,
         },
       ]}
     >
       <TextInput
+        accessibilityLabel={t(placeholder)}
         onChangeText={onChangeText}
         placeholder={t(placeholder)}
         placeholderTextColor={themeColors.subtleText}
@@ -79,6 +80,8 @@ export function OptionChipRow({
       contentContainerStyle={styles.optionChipRow}
     >
       <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ selected: value === "all" }}
         onPress={() => onChange("all")}
         style={[
           styles.optionChip,
@@ -111,6 +114,8 @@ export function OptionChipRow({
         return (
           <Pressable
             key={option.id}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isActive }}
             onPress={() => onChange(option.id)}
             style={[
               styles.optionChip,

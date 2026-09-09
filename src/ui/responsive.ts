@@ -23,7 +23,7 @@ export function getResponsiveMetrics(width: number): ResponsiveMetrics {
     scale,
     gutter: isVeryCompact ? 10 : isCompact ? 12 : 18,
     panelPadding: isVeryCompact ? 8 : isCompact ? 10 : 14,
-    controlHeight: Math.round(40 * scale),
+    controlHeight: Math.max(48, Math.round(48 * scale)),
     chipPaddingHorizontal: isVeryCompact ? 8 : 10,
     chipPaddingVertical: isVeryCompact ? 6 : 7,
     cardPadding: isVeryCompact ? 8 : 10,

@@ -35,6 +35,7 @@ const formatQaStatus = (value: string) =>
 export function ReportsScreen(props: AppScreenProps) {
   const {
     appResponsiveStyles,
+    canSubmitQa,
     createQaRequest,
     helpRequests,
     membersById,
@@ -298,15 +299,17 @@ const renderScreen = () => {
               </Text>
               <View style={styles.quickActionRow}>
                 <Pressable
-                  disabled={!linkedTask}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !linkedTask || !canSubmitQa }}
+                  disabled={!linkedTask || !canSubmitQa}
                   onPress={() => {
-                    if (linkedTask) {
+                    if (linkedTask && canSubmitQa) {
                       openCreateQaReportEditor(linkedTask.id, request.id);
                     }
                   }}
                   style={[
                     styles.quickActionButton,
-                    !linkedTask ? { opacity: 0.45 } : null,
+                    !linkedTask || !canSubmitQa ? { opacity: 0.45 } : null,
                     appResponsiveStyles.quickActionButton,
                   ]}
                 >
