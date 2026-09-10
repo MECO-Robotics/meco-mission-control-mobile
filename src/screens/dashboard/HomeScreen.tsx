@@ -119,7 +119,7 @@ const renderScreen = () => {
 
       <Pressable
         accessibilityRole="button"
-        onPress={() => setActiveTab("team-attendance")}
+        onPress={() => setActiveTab("team-people")}
         style={styles.homeSection}
       >
         <View style={styles.homeSectionHeader}>

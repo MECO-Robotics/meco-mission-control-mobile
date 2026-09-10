@@ -9,6 +9,7 @@ import type { Member } from "../../types/domain";
 import type { AppScreenProps } from "../types";
 import { RosterMemberDetail } from "./RosterMemberDetail";
 import { rosterMemberDetailStyles } from "./rosterMemberDetailStyles";
+import { AttendanceScreen } from "../dashboard/AttendanceScreen";
 
 function getInitials(name: string) {
   const initials = name
@@ -156,6 +157,8 @@ export function RosterScreen(props: AppScreenProps) {
       {renderRosterSection("Students", rosterStudents, "student")}
       {renderRosterSection("Mentors", rosterMentors, "mentor")}
       {renderRosterSection("External access", rosterExternal, "external")}
+
+      <AttendanceScreen {...props} />
 
       <Modal
         animationType="fade"
