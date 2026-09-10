@@ -5,7 +5,7 @@ import type { AppThemeColors } from "../../theme";
 import type { HelpRequestInput } from "../../data/helpRequests";
 import type { TaskQueueSection } from "../../data/taskQueueOrdering";
 import type { Discipline, Event, Mechanism, Member, PartInstance, QaReview, Subsystem, Task } from "../../types/domain";
-import type { ArchiveFilterMode, BlockerFilterMode, MilestoneSortField, Option, SummaryChipData, TaskSubteamTab, TaskViewTab, ViewTab } from "../../ui/types";
+import type { ArchiveFilterMode, BlockerFilterMode, MilestoneSortField, Option, SummaryChipData, TaskSubteamTab, TaskViewTab } from "../../ui/types";
 
 import type { ResponsiveScreenStyles } from "../types";
 
@@ -27,6 +27,9 @@ export interface TaskScreenProps {
   activeTaskSubteamLabel: string;
   appResponsiveStyles: ResponsiveScreenStyles;
   canReassignTasks: boolean;
+  canSubmitQa: boolean;
+  qaRequests: import("../../types/domain").QaRequest[];
+  openCreateQaReportEditor: (taskId?: string, qaRequestId?: string) => void;
   claimTask: (task: Task) => Promise<void>;
   clearTaskBlockers: (task: Task, resolutionNote: string) => Promise<void>;
   disciplinesById: Record<string, Discipline>;
@@ -53,7 +56,6 @@ export interface TaskScreenProps {
   setTaskSearch: TextSetter;
   setTaskStatusFilter: TextSetter;
   setTaskSubsystemFilter: TextSetter;
-  setActiveTab: StateSetter<ViewTab>;
   signedInMember: Member | null;
   startTask: (task: Task) => Promise<void>;
   subsystemsById: Record<string, Subsystem>;

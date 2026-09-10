@@ -2,6 +2,8 @@ import { createElement } from "react";
 import { fireEvent, render } from "@testing-library/react-native";
 import { ManufacturingScreen } from "../manufacturing/ManufacturingScreen";
 import { InventoryPurchasesScreen } from "../inventory/InventoryPurchasesScreen";
+import { QaActivity } from "../reports/QaActivity";
+import { mecoSnapshot } from "../../data/mockData";
 import { WorkLogsScreen } from "../worklogs/WorkLogsScreen";
 import { getSessionPermissions } from "../../data/sessionPermissions";
 import type { AppScreenProps } from "../types";
@@ -86,4 +88,29 @@ test.each(["student", "lead", "mentor", "admin"] as const)("%s synced work log e
     filteredWorkLogs: [{ ...workLog, syncStatus: "syncing" }] }));
   fireEvent.press(screen.getByText(workLog.notes));
   expect(input.openEditWorkLogEditor).not.toHaveBeenCalled();
+});
+
+test.each(["student", "lead", "mentor", "admin"] as const)("%s pending QA keeps reviewer permissions after consolidation", (role) => {
+  const task = mecoSnapshot.tasks[0];
+  const input = props(role, { tasks: [task], taskById: { [task.id]: task }, taskDependencies: [],
+    helpRequests: [], workLogs: [], rosterMentors: [], qaReviews: [],
+    qaRequests: [{ id: "request", taskId: task.id, subject: "Inspect bracket", mentorId: "mentor",
+      requestedById: "student", createdAt: "2026-09-10T12:00:00Z", status: "requested" }],
+    openCreateQaReportEditor: jest.fn(),
+  });
+  const screen = render(createElement(QaActivity, { ...input, mode: "pending" }));
+  const button = screen.getByRole("button", { name: "Write report" });
+  expect(button.props.accessibilityState.disabled).toBe(role === "student");
+  fireEvent.press(button);
+  if (role === "student") expect(input.openCreateQaReportEditor).not.toHaveBeenCalled();
+  else expect(input.openCreateQaReportEditor).toHaveBeenCalledWith(task.id, "request");
+  screen.rerender(createElement(QaActivity, { ...input, mode: "history", qaRequests: [], qaReviews: [{
+    id: "review", taskId: task.id, subjectTitle: "Bracket result", participantIds: [],
+    result: "pass", mentorApproved: true, notes: "Bearing inspection passed",
+  }] }));
+  expect(screen.queryByText("Inspect bracket")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Request QA" })).toBeNull();
+  fireEvent.press(screen.getByText("Bracket result"));
+  expect(screen.getByText("Mentor approval")).toBeTruthy();
+  expect(screen.getByText("Approved")).toBeTruthy();
 });

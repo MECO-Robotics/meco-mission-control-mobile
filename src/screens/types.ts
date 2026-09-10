@@ -4,7 +4,7 @@ import type { StyleProp, TextStyle, ViewStyle } from "react-native";
 import type { AppThemeColors } from "../theme";
 import type { WorkLogDraftSyncStatus } from "../services/workLogDraftSync";
 import type { Discipline, HelpRequest, ManufacturingItem, Mechanism, Member, PartDefinition, PartInstance, PurchaseItem, QaRequest, QaReview, Subsystem, Task, WorkLog } from "../types/domain";
-import type { ArchiveFilterMode, InventoryViewTab, ManufacturingViewTab, MaterialRollup, PartLifecycleStatus, SummaryChipData, TaskViewTab, ViewTab, WorkLogSortMode } from "../ui/types";
+import type { ArchiveFilterMode, ManufacturingViewTab, MaterialRollup, PartLifecycleStatus, SummaryChipData, ViewTab, WorkLogSortMode } from "../ui/types";
 
 export type AttendanceStatus = "yes" | "maybe" | "no";
 export type AttendanceRow = {
@@ -97,11 +97,8 @@ export interface AppScreenProps {
   filteredSubsystems: Subsystem[];
   filteredWorkLogs: WorkLogListItem[];
   helpRequests: HelpRequest[];
-  homeInventoryNeeds: PurchaseItem[];
   homeActionItems: HomeActionItem[];
-  homePriorityTasks: Task[];
   homeTaskSummary: SummaryChipData[];
-  inventoryView: InventoryViewTab;
   isLandscapeCardLayout: boolean;
   isSyncing: boolean;
   manufacturingItems: ManufacturingItem[];
@@ -140,7 +137,6 @@ export interface AppScreenProps {
   openEditTaskEditor: (task: Task) => void;
   openEditWorkLogEditor: (workLog: WorkLog) => void;
   openDuplicateTaskEditor: (task: Task) => void;
-  openInventoryPurchases: () => void;
   openMaterialRestockEditor: (row: MaterialRollup) => void;
   openTaskQueueFromTask: (task: Task) => void;
   partDefinitions: PartDefinition[];
@@ -167,7 +163,6 @@ export interface AppScreenProps {
   purchaseVendorOptions: { id: string; name: string }[];
   qaRequests: QaRequest[];
   qaReviews: QaReview[];
-  reportSummary: SummaryChipData[];
   riskRows: RiskRow[];
   riskSummary: SummaryChipData[];
   rosterAdmins: Member[];
@@ -199,7 +194,6 @@ export interface AppScreenProps {
   setSelectedMemberId: StateSetter<string | null>;
   setSelectedSubsystemId: StateSetter<string>;
   setSubsystemSearch: TextSetter;
-  setTaskView: StateSetter<TaskViewTab>;
   setWorkLogSearch: TextSetter;
   setWorkLogSortMode: StateSetter<WorkLogSortMode>;
   setWorkLogSubsystemFilter: TextSetter;

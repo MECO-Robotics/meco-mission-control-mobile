@@ -4,11 +4,11 @@ import type { Dispatch, SetStateAction } from "react";
 import { QA_RESULT_OPTIONS } from "../../ui/constants";
 import type { Option, QaReportDraft } from "../../ui/types";
 import { AdvancedOptions, DropdownField, EditorModal, ModalField, ToggleField } from "../../ui/ui";
-import type { WorkspaceResponsiveStyles } from "../components/WorkspaceShell";
+import type { ResponsiveScreenStyles } from "../../screens/types";
 import { EditorCallout } from "./EditorCallout";
 
 type QaReportEditorModalProps = {
-  appResponsiveStyles: Pick<WorkspaceResponsiveStyles, "calloutBody" | "calloutBox" | "calloutTitle">;
+  appResponsiveStyles: Pick<ResponsiveScreenStyles, "calloutBody" | "calloutBox" | "calloutTitle">;
   canMentorApprove: boolean;
   onCancel: () => void;
   onSave: () => void;

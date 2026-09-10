@@ -2,11 +2,11 @@ import type { Dispatch, SetStateAction } from "react";
 
 import type { EditorMode, Option, SubsystemDraft } from "../../ui/types";
 import { AdvancedOptions, DropdownField, EditorModal, ModalField } from "../../ui/ui";
-import type { WorkspaceResponsiveStyles } from "../components/WorkspaceShell";
+import type { ResponsiveScreenStyles } from "../../screens/types";
 import { EditorCallout } from "./EditorCallout";
 
 type SubsystemEditorModalProps = {
-  appResponsiveStyles: Pick<WorkspaceResponsiveStyles, "calloutBody" | "calloutBox" | "calloutTitle">;
+  appResponsiveStyles: Pick<ResponsiveScreenStyles, "calloutBody" | "calloutBox" | "calloutTitle">;
   deleteSubsystemDraft: () => void;
   memberOptions: Option[];
   onCancel: () => void;

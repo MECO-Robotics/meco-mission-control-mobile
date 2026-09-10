@@ -8,11 +8,11 @@ import { styles } from "../../ui/styles";
 import type { EditorMode, ManufacturingDraft, Option } from "../../ui/types";
 import { AdvancedOptions, DropdownField, EditorModal, ModalField } from "../../ui/ui";
 import type { ManufacturingItem } from "../../types/domain";
-import type { WorkspaceResponsiveStyles } from "../components/WorkspaceShell";
+import type { ResponsiveScreenStyles } from "../../screens/types";
 import { EditorCallout } from "./EditorCallout";
 
 type ManufacturingEditorModalProps = {
-  appResponsiveStyles: Pick<WorkspaceResponsiveStyles, "calloutBody" | "calloutBox" | "calloutTitle">;
+  appResponsiveStyles: Pick<ResponsiveScreenStyles, "calloutBody" | "calloutBox" | "calloutTitle">;
   canDelete: boolean;
   deleteManufacturingDraft: () => void;
   manufacturingDraft: ManufacturingDraft;
@@ -113,23 +113,23 @@ export function ManufacturingEditorModal({
             placeholder="Select requester"
             value={manufacturingDraft.requestedById}
           />
-          <DropdownField
-            label="Process"
-            onChange={(value) => {
-              setManufacturingError(null);
-              setManufacturingDraft((current) => ({
-                ...current,
-                process: value as ManufacturingItem["process"],
-              }));
-            }}
-            options={MANUFACTURING_VIEW_OPTIONS.map((option) => ({
-              id: option.value === "prints" ? "3d-print" : option.value,
-              name: option.label,
-            }))}
-            value={manufacturingDraft.process}
-          />
         </>
       )}
+      <DropdownField
+        label="Process"
+        onChange={(value) => {
+          setManufacturingError(null);
+          setManufacturingDraft((current) => ({
+            ...current,
+            process: value as ManufacturingItem["process"],
+          }));
+        }}
+        options={MANUFACTURING_VIEW_OPTIONS.filter((option) => option.value !== "all").map((option) => ({
+          id: option.value === "prints" ? "3d-print" : option.value,
+          name: option.label,
+        }))}
+        value={manufacturingDraft.process}
+      />
       <ModalField
         label="Material"
         onChangeText={(value) => {

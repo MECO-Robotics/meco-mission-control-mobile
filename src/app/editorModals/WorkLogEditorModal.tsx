@@ -7,12 +7,12 @@ import { WORKLOG_TEMPLATE_OPTIONS } from "../../ui/constants";
 import { styles } from "../../ui/styles";
 import type { EditorMode, Option, WorkLogDraft } from "../../ui/types";
 import { DropdownField, EditorModal, ModalField } from "../../ui/ui";
-import type { WorkspaceResponsiveStyles } from "../components/WorkspaceShell";
+import type { ResponsiveScreenStyles } from "../../screens/types";
 import { EditorCallout } from "./EditorCallout";
 
 type WorkLogEditorModalProps = {
   appResponsiveStyles: Pick<
-    WorkspaceResponsiveStyles,
+    ResponsiveScreenStyles,
     "calloutBody" | "calloutBox" | "calloutTitle" | "quickActionButton" | "quickActionButtonLabel"
   >;
   deleteWorkLogDraft: () => void;

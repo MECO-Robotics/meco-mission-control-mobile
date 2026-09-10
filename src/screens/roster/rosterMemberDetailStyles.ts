@@ -16,6 +16,7 @@ export const rosterMemberDetailStyles = StyleSheet.create({
   modalCard: {
     width: "100%",
     maxWidth: 440,
+    maxHeight: "90%",
   },
   panel: {
     borderRadius: radii.xl,

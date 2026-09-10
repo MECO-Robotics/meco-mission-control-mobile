@@ -13,7 +13,7 @@ jest.mock("../components/LoginScreen", () => ({ LoginScreen: jest.fn(() => null)
 jest.mock("../components/WorkspaceShell", () => ({ WorkspaceShell: jest.fn(({ editorModals }) => editorModals) }));
 jest.mock("@react-native-async-storage/async-storage", () => ({ getItem: jest.fn(async () => null), setItem: jest.fn(async () => undefined), removeItem: jest.fn(async () => undefined), getAllKeys: jest.fn(async () => []) }));
 jest.mock("../../services/authSessionStorage", () => ({ getOrCreateAuthDeviceNumber: jest.fn(async () => "test"), loadPersistedAuthSession: jest.fn(async () => null), clearPersistedAuthSession: jest.fn(async () => undefined) }));
-jest.mock("../../services/workLogTimerNotifications", () => ({ cancelWorkLogTimerReminders: jest.fn(async () => undefined), clearPersistedWorkLogTimerState: jest.fn(async () => undefined), restorePersistedWorkLogTimerReminder: jest.fn(async () => null) }));
+jest.mock("../../services/workLogTimerNotifications", () => ({ cancelWorkLogTimerReminders: jest.fn(async () => undefined), clearPersistedWorkLogTimerState: jest.fn(async () => undefined), restorePersistedWorkLogTimerReminder: jest.fn(async () => null), persistWorkLogTimerState: jest.fn(async () => undefined), schedulePersistedWorkLogTimerReminders: jest.fn(async () => []) }));
 
 const task = { ...mecoSnapshot.tasks[0], status: "waiting-for-qa", blockers: [], isBlocked: false, isWaitingOnDependency: false };
 let reports: object[];
@@ -67,4 +67,17 @@ test("QA uses one atomic command, survives bootstrap and retains a failed draft"
   render(createElement(App));
   await signIn();
   expect(screenProps().qaReviews[0].id).toBe("persisted-report");
+});
+
+test("refreshing the workspace retains the active timer and open editor draft", async () => {
+  const view = render(createElement(App));
+  await signIn();
+  await act(async () => { screenProps().startWorkLogTimer(); });
+  const timerId = screenProps().workLogTimer?.id;
+  expect(timerId).toBeTruthy();
+  act(() => screenProps().openCreateQaReportEditor(task.id));
+  fireEvent.changeText(view.getByLabelText("Notes"), "Inspection draft in progress");
+  await act(async () => { shell().onRefresh(); });
+  expect(screenProps().workLogTimer?.id).toBe(timerId);
+  expect(view.getByLabelText("Notes").props.value).toBe("Inspection draft in progress");
 });

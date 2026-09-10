@@ -3,22 +3,19 @@ import { Pressable, View } from "react-native";
 
 import { Text } from "../../i18n";
 import { buildHelpRequestDisplayRows } from "../../data/helpRequests";
-import { SUBVIEW_INTERACTION_GUIDANCE } from "../../ui/constants";
 import { formatDateTime } from "../../ui/helpers";
 import { styles } from "../../ui/styles";
 import {
   DropdownField,
   EmptyState,
   EditorModal,
-  InteractionNote,
   ModalField,
   StatusPill,
-  SummaryRow,
   WorkspacePanel,
 } from "../../ui/ui";
 
 import type { AppScreenProps } from "../types";
-import { QaDetailFields, type QaDetailRow } from "./QaDetailFields";
+import { QaReviewDetail } from "./QaReviewDetail";
 
 const QA_FIX_SIZE_RANK: Record<string, number> = {
   "iteration-worthy": 0,
@@ -32,7 +29,7 @@ const formatQaStatus = (value: string) =>
     .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
     .join(" ");
 
-export function ReportsScreen(props: AppScreenProps) {
+export function QaActivity(props: AppScreenProps & { mode: "pending" | "history" | "help" }) {
   const {
     appResponsiveStyles,
     canSubmitQa,
@@ -42,7 +39,6 @@ export function ReportsScreen(props: AppScreenProps) {
     openCreateQaReportEditor,
     qaRequests,
     qaReviews,
-    reportSummary,
     rosterMentors,
     taskById,
     taskDependencies,
@@ -98,41 +94,6 @@ export function ReportsScreen(props: AppScreenProps) {
       }),
     [qaReviews, taskById, taskDependencies],
   );
-  const selectedQaReviewPeople = selectedQaReview
-    ? selectedQaReview.participantIds
-        .map((participantId) => membersById[participantId]?.name)
-        .filter((name): name is string => Boolean(name))
-        .join(", ")
-    : "";
-  const selectedQaReviewRequester =
-    selectedQaReview?.requestedById && membersById[selectedQaReview.requestedById]
-      ? membersById[selectedQaReview.requestedById].name
-      : selectedQaReviewPeople || "No participants";
-  const selectedQaReviewMentor =
-    selectedQaReview?.mentorId && membersById[selectedQaReview.mentorId]
-      ? membersById[selectedQaReview.mentorId].name
-      : selectedQaReview?.mentorApproved
-        ? "Approved mentor"
-        : "Pending mentor";
-  const selectedQaReviewRows: QaDetailRow[] = selectedQaReview
-    ? [
-        { label: "QA item", value: selectedQaReview.subjectTitle },
-        {
-          label: "Student requested",
-          value: selectedQaReviewRequester,
-        },
-        {
-          label: "Mentor assigned",
-          value: selectedQaReviewMentor,
-        },
-        { label: "QA status", value: formatQaStatus(selectedQaReview.result) },
-        { label: "Notes", value: selectedQaReview.notes, multiline: true },
-        selectedQaReview.evidenceNotes
-          ? { label: "Evidence", value: selectedQaReview.evidenceNotes, multiline: true }
-          : null,
-      ].filter((row): row is QaDetailRow => Boolean(row))
-    : [];
-
   const submitQaRequest = () => {
     if (!canSubmitQaRequest) {
       return;
@@ -146,15 +107,14 @@ export function ReportsScreen(props: AppScreenProps) {
 const renderScreen = () => {
   return (
     <WorkspacePanel
-      title="QA reports"
-      subtitle="Capture task QA outcomes and iteration-worthy follow-up in one place."
-      actions={
+      title={props.mode === "pending" ? "Pending QA" : props.mode === "history" ? "QA results" : "Help requests"}
+      subtitle={props.mode === "pending" ? "Requests awaiting review." : props.mode === "history" ? "Review outcomes, evidence, and follow-up." : "Requests for mentor support."}
+      actions={props.mode === "pending" ?
         <Pressable onPress={() => setIsQaRequestOpen(true)} style={[styles.primaryAction, appResponsiveStyles.primaryAction]}>
           <Text style={[styles.primaryActionLabel, appResponsiveStyles.primaryActionLabel]}>Request QA</Text>
-        </Pressable>
+        </Pressable> : undefined
       }
     >
-      <SummaryRow chips={reportSummary} />
 
       <EditorModal
         onCancel={() => setIsQaRequestOpen(false)}
@@ -208,30 +168,9 @@ const renderScreen = () => {
         />
       </EditorModal>
 
-      <EditorModal
-        onCancel={() => setSelectedQaReviewId(null)}
-        onSave={() => setSelectedQaReviewId(null)}
-        saveLabel="Done"
-        title={selectedQaReview?.subjectTitle ?? "QA report"}
-        visible={Boolean(selectedQaReview)}
-      >
-        {selectedQaReview ? (
-          <>
-            <QaDetailFields rows={selectedQaReviewRows} />
-            {selectedQaReview.result === "iteration-worthy" ? (
-              <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-                <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                  Iteration
-                </Text>
-                <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                  This finding should create or anchor a design iteration.
-                </Text>
-              </View>
-            ) : null}
-          </>
-        ) : null}
-      </EditorModal>
+      <QaReviewDetail review={selectedQaReview ?? null} membersById={membersById} onClose={() => setSelectedQaReviewId(null)} />
 
+      {props.mode === "help" ? <>
       <Text style={[styles.subsectionLabel, appResponsiveStyles.subsectionLabel]}>Help requests</Text>
       <View style={styles.reportGrid}>
         {helpRequestRows.map((request) => (
@@ -264,6 +203,8 @@ const renderScreen = () => {
       </View>
       {helpRequestRows.length === 0 ? <EmptyState text="No help requests are waiting yet." /> : null}
 
+      </> : null}
+      {props.mode === "pending" ? <>
       <Text style={[styles.subsectionLabel, appResponsiveStyles.subsectionLabel]}>QA requests</Text>
       <View style={styles.reportGrid}>
         {qaRequests.map((request) => {
@@ -324,6 +265,8 @@ const renderScreen = () => {
       </View>
       {qaRequests.length === 0 ? <EmptyState text="No QA requests are waiting yet." /> : null}
 
+      </> : null}
+      {props.mode === "history" ? <>
       <Text style={[styles.subsectionLabel, appResponsiveStyles.subsectionLabel]}>QA reports</Text>
       <View style={styles.reportGrid}>
         {sortedQaReviews.map((review) => {
@@ -368,7 +311,8 @@ const renderScreen = () => {
           );
         })}
       </View>
-      <InteractionNote steps={SUBVIEW_INTERACTION_GUIDANCE.reports} />
+      {sortedQaReviews.length === 0 ? <EmptyState text="No QA results yet." /> : null}
+      </> : null}
     </WorkspacePanel>
   );
 };

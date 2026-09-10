@@ -25,6 +25,7 @@ import {
   SummaryRow,
   WorkspacePanel,
 } from "../../ui/ui";
+import { QaReviewDetail } from "../reports/QaReviewDetail";
 import type { Task } from "../../types/domain";
 
 import type { TaskScreenProps } from "./taskScreenTypes";
@@ -45,7 +46,7 @@ type TaskQueueScreenProps = Pick<TaskScreenProps,
   | "rosterStudents" | "setActiveTaskSubteam" | "setTaskArchiveFilter"
   | "setTaskBlockerFilter" | "setTaskOwnerFilter" | "setTaskPriorityFilter"
   | "setTaskSearch" | "setTaskStatusFilter" | "setTaskSubsystemFilter"
-  | "setActiveTab" | "signedInMember" | "startTask"
+  | "canSubmitQa" | "qaRequests" | "openCreateQaReportEditor" | "signedInMember" | "startTask"
   | "subsystems" | "subsystemsById" | "taskArchiveFilter"
   | "taskBlockerFilter" | "taskById" | "taskDependencies" | "taskOwnerFilter"
   | "taskPriorityFilter" | "taskQueueSections" | "taskSearch"
@@ -88,7 +89,9 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
     setTaskSearch,
     setTaskStatusFilter,
     setTaskSubsystemFilter,
-    setActiveTab,
+    canSubmitQa,
+    qaRequests,
+    openCreateQaReportEditor,
     signedInMember,
     startTask,
     subsystems,
@@ -108,6 +111,7 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
     themeColors,
     qaReviews,
   } = props;
+  const [selectedQaTaskId, setSelectedQaTaskId] = useState<string | null>(null);
   const [blockerResolutionTask, setBlockerResolutionTask] = useState<Task | null>(null);
   const [blockerResolutionNote, setBlockerResolutionNote] = useState("");
   const [blockerResolutionError, setBlockerResolutionError] = useState<string | null>(null);
@@ -240,6 +244,8 @@ const renderScreen = () => {
         </View>
       }
     >
+      <QaReviewDetail review={selectedQaTaskId ? qaReviews.find((review) => review.taskId === selectedQaTaskId) ?? null : null}
+        membersById={membersById} onClose={() => setSelectedQaTaskId(null)} />
       <SummaryRow chips={taskSummary} />
 
       {!isCompactLayout ? (
@@ -564,6 +570,12 @@ const renderScreen = () => {
                   </Text>
                 </Pressable>
               ) : null}
+              {canSubmitQa && task.status === "waiting-for-qa" ? (
+                <Pressable accessibilityRole="button" onPress={() => openCreateQaReportEditor(task.id, qaRequests.find((request) => request.taskId === task.id)?.id)}
+                  style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}>
+                  <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>Write QA report</Text>
+                </Pressable>
+              ) : null}
               {canRequestHelp ? (
                 <Pressable
                   onPress={() => setHelpRequestTask(task)}
@@ -576,7 +588,7 @@ const renderScreen = () => {
               ) : null}
               {hasQaReport ? (
                 <Pressable
-                  onPress={() => setActiveTab("reports")}
+                  onPress={() => setSelectedQaTaskId(task.id)}
                   style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
                 >
                   <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>

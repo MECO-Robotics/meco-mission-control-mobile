@@ -8,11 +8,11 @@ import { styles } from "../../ui/styles";
 import type { EditorMode, MemberDraft, Option } from "../../ui/types";
 import { DropdownField, EditorModal, ModalField } from "../../ui/ui";
 import type { MemberRole } from "../../types/domain";
-import type { WorkspaceResponsiveStyles } from "../components/WorkspaceShell";
+import type { ResponsiveScreenStyles } from "../../screens/types";
 import { EditorCallout } from "./EditorCallout";
 
 type MemberEditorModalProps = {
-  appResponsiveStyles: Pick<WorkspaceResponsiveStyles, "calloutBody" | "calloutBox" | "calloutTitle">;
+  appResponsiveStyles: Pick<ResponsiveScreenStyles, "calloutBody" | "calloutBox" | "calloutTitle">;
   deleteMemberDraft: () => void;
   disciplineOptions: Option[];
   memberDraft: MemberDraft;

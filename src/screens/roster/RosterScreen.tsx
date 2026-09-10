@@ -1,4 +1,4 @@
-import { Image, Modal, Pressable, View } from "react-native";
+import { Image, Modal, Pressable, ScrollView, View } from "react-native";
 
 import { Text } from "../../i18n";
 import { capitalize } from "../../ui/helpers";
@@ -38,6 +38,7 @@ export function RosterScreen(props: AppScreenProps) {
     selectedMemberId,
     setSelectedMemberId,
     themeColors,
+    tasks,
   } = props;
   const selectedMember = selectedMemberId
     ? [...rosterStudents, ...rosterMentors, ...rosterExternal].find(
@@ -98,7 +99,8 @@ export function RosterScreen(props: AppScreenProps) {
                 onPress={() =>
                   setSelectedMemberId(isSelected ? null : member.id)
                 }
-                onLongPress={canMentorApprove ? () => openEditMemberEditor(member.id) : undefined}
+                accessibilityRole="button"
+                accessibilityLabel={`View ${member.name}`}
                 style={[
                   styles.memberRow,
                   appResponsiveStyles.memberRow,
@@ -121,6 +123,9 @@ export function RosterScreen(props: AppScreenProps) {
                   <Text style={[styles.memberRole, { color: themeColors.subtleText }]}>
                     {member.email || disciplineName || formatRole(member.role)}
                   </Text>
+                  <Text style={[styles.memberRole, { color: themeColors.subtleText }]}>
+                    {tasks.filter((task) => task.ownerId === member.id && task.status !== "complete").length} open tasks · {member.plannedWeeklyAttendanceHours === undefined ? "Availability not set" : `${member.plannedWeeklyAttendanceHours}h/week availability`}
+                  </Text>
                 </View>
                 {member.role === "lead" || member.role === "admin" ? (
                   <View style={styles.memberRoleBadge}>
@@ -139,7 +144,7 @@ export function RosterScreen(props: AppScreenProps) {
   };
 
   return (
-    <WorkspacePanel title="Roster" subtitle="Manage team members, external access, and roles.">
+    <WorkspacePanel title="People" subtitle="Team availability, assigned work, and roles.">
       <SummaryRow
         chips={[
           { label: "Students", value: String(rosterStudents.length) },
@@ -167,16 +172,19 @@ export function RosterScreen(props: AppScreenProps) {
             onPress={() => undefined}
             style={rosterMemberDetailStyles.modalCard}
           >
-            {selectedMember ? (
-              <RosterMemberDetail
-                canMentorApprove={canMentorApprove}
-                disciplineName={selectedMemberDisciplineName}
-                member={selectedMember}
-                onClose={closeMemberDetails}
-                onEdit={openEditMemberEditor}
-                themeColors={themeColors}
-              />
-            ) : null}
+            <ScrollView>
+              {selectedMember ? (
+                <RosterMemberDetail
+                  canMentorApprove={canMentorApprove}
+                  disciplineName={selectedMemberDisciplineName}
+                  member={selectedMember}
+                  tasks={tasks.filter((task) => task.ownerId === selectedMember.id && task.status !== "complete")}
+                  onClose={closeMemberDetails}
+                  onEdit={openEditMemberEditor}
+                  themeColors={themeColors}
+                />
+              ) : null}
+            </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>

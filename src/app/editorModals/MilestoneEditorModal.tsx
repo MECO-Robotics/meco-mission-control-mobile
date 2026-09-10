@@ -5,11 +5,11 @@ import { localTodayDate } from "../../ui/helpers";
 import type { EditorMode, MilestoneDraft } from "../../ui/types";
 import { AdvancedOptions, DropdownField, EditorModal, ModalField, ToggleField } from "../../ui/ui";
 import type { EventType } from "../../types/domain";
-import type { WorkspaceResponsiveStyles } from "../components/WorkspaceShell";
+import type { ResponsiveScreenStyles } from "../../screens/types";
 import { EditorCallout } from "./EditorCallout";
 
 type MilestoneEditorModalProps = {
-  appResponsiveStyles: Pick<WorkspaceResponsiveStyles, "calloutBody" | "calloutBox" | "calloutTitle">;
+  appResponsiveStyles: Pick<ResponsiveScreenStyles, "calloutBody" | "calloutBox" | "calloutTitle">;
   deleteMilestoneDraft: () => void;
   milestoneDraft: MilestoneDraft;
   milestoneEditorMode: EditorMode | null;

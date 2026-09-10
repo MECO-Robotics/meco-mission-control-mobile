@@ -61,6 +61,23 @@ Do not put bearer tokens, API secrets, or third-party secret keys in
 
 Refer to `mobile-auth-smoke-tests.md` for the mobile-auth smoke checklist before shipping.
 
+## Navigation
+
+Four bottom tabs organize the workspace:
+
+- **Home:** a bounded attention list and shortcuts to tasks, schedule, activity, purchasing and session attendance.
+- **Work:** Tasks (queue or Pending QA), Schedule (Agenda or Timeline), Risks (including help requests), and Activity (work logs or QA results).
+- **Resources:** Materials, Parts, Purchases, Manufacturing, and Structure. Manufacturing uses a process filter; Structure owns subsystems and mechanisms.
+- **Team:** People (availability, assigned workload and role editing) and Attendance.
+
+All views use visible labeled controls; horizontal swipes are not required. Switching bottom tabs restores the last selected view. Task and record editors retain their own fields and permissions; QA details open in context. Work-log timers and offline drafts retain their existing owners.
+
+The old navigation drawer, project overlay, unused attendance modal, standalone QA destination and local-only season create/delete controls were removed. No development data reset or API migration is required. The mobile bootstrap currently has no project/document scope model or change-history feed, so the app does not invent Documents, project switching, or a Changes filter. Attendance controls remain session-only and say so; they are not server attendance writes.
+
+### Navigation verification
+
+`npm run verify` covers labeled navigation, domain/view restoration, portrait/landscape task routing, QA submission, roles, offline drafts and timers through the existing suites. Native bundle validation uses `npx expo export --platform android --output-dir /tmp/mission-control-mobile-export`. Device checks still need a running Android/iOS device: bottom tabs, scroll restoration, large text, dark mode, keyboard dismissal, back navigation, and offline/restart timer and draft flows.
+
 ## API and data contract
 
 The app reads public auth settings from `GET /api/auth/config`, exchanges email
