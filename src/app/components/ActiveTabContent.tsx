@@ -1,7 +1,6 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { View } from "react-native";
-import { AttendanceScreen } from "../../screens/dashboard/AttendanceScreen";
 import { HomeScreen } from "../../screens/dashboard/HomeScreen";
 import { InventoryMaterialsScreen } from "../../screens/inventory/InventoryMaterialsScreen";
 import { InventoryPartsScreen } from "../../screens/inventory/InventoryPartsScreen";
@@ -33,7 +32,6 @@ export function ActiveTabContent(props: Props) {
   const [activityKind, setActivityKind] = useState<"logs" | "qa">("logs");
   switch (activeTab) {
     case "home": return <HomeScreen {...screenProps} />;
-    case "team-attendance": return <AttendanceScreen {...screenProps} />;
     case "work-tasks": return <>
       <View style={{ paddingHorizontal: 20 }}><DropdownField label="Show" value={taskPreset}
         options={[{ id: "queue", name: "Task queue" }, { id: "qa", name: "Pending QA" }]}

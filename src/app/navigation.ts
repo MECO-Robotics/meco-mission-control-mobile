@@ -9,15 +9,12 @@ export const NAVIGATION = [
     { value: "work-activity", label: "Activity" },
   ] },
   { value: "resources", label: "Resources", views: [
+    { value: "team-people", label: "People" },
     { value: "resources-materials", label: "Materials" },
     { value: "resources-parts", label: "Parts" },
     { value: "resources-purchases", label: "Purchases" },
     { value: "resources-manufacturing", label: "Manufacturing" },
     { value: "resources-structure", label: "Structure" },
-  ] },
-  { value: "team", label: "Team", views: [
-    { value: "team-people", label: "People" },
-    { value: "team-attendance", label: "Attendance" },
   ] },
 ] satisfies { value: string; label: string; views: { value: ViewTab; label: string }[] }[];
 

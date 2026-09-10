@@ -4,7 +4,7 @@ export type ViewTab =
   | "work-tasks" | "work-schedule" | "work-risks" | "work-activity"
   | "resources-materials" | "resources-parts" | "resources-purchases"
   | "resources-manufacturing" | "resources-structure"
-  | "team-people" | "team-attendance";
+  | "team-people";
 
 export type TaskViewTab = "timeline" | "queue" | "milestones";
 export type TaskSubteamTab = "programming" | "mechanical" | "electrical";
