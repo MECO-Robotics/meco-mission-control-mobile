@@ -9,7 +9,6 @@ import { getSessionPermissions } from "./src/data/sessionPermissions";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
-  PanResponder,
   Platform,
   useColorScheme,
   useWindowDimensions,
@@ -17,11 +16,8 @@ import {
 
 import {
   EVENT_TYPE_STYLES,
-  INVENTORY_VIEW_OPTIONS,
-  MANUFACTURING_VIEW_OPTIONS,
   TASK_SUBTEAM_DISCIPLINE_IDS,
   TASK_SUBTEAM_OPTIONS,
-  TASK_VIEW_OPTIONS,
 } from "./src/ui/constants";
 import {
   buildDateTime,
@@ -50,14 +46,12 @@ import type {
   AcquisitionMethod,
   ArchiveFilterMode,
   EditorMode,
-  InventoryViewTab,
   ManufacturingDraft,
   ManufacturingViewTab,
   MaterialRollup,
   MemberDraft,
   MilestoneDraft,
   MilestoneSortField,
-  NavItem,
   PartDefinitionDraft,
   PurchaseDraft,
   QaReportDraft,
@@ -115,18 +109,12 @@ import type {
   SessionUser,
   Subsystem,
   Task,
-  TaskPriority,
   WorkLog,
 } from "./src/types/domain";
 import {
   ATTENDANCE_STATUS_BY_MEMBER_ID,
   AUTH_REQUEST_TIMEOUT_MS,
-  INITIAL_SEASONS,
   RISK_PRIORITY_RANK,
-  SUBTAB_SWIPE_ACTIVATION_DISTANCE,
-  SUBTAB_SWIPE_COMMIT_DISTANCE,
-  SWIPE_ACTIVATION_DISTANCE,
-  SWIPE_COMMIT_DISTANCE,
   applyMilestoneSubsystemLinks,
   backendReachabilityAfterError,
   buildSubsystemOptions,
@@ -153,7 +141,6 @@ import {
   shouldQueueWorkLogDraftAfterError,
   type BackendReachability,
   type MilestoneMutationResponse,
-  type SeasonOption,
   type StartTaskOptions,
   type WorkLogMutationResponse,
 } from "./src/app/appModel";
@@ -370,28 +357,22 @@ export default function App() {
   );
 
   const [activeTab, setActiveTab] = useState<ViewTab>("home");
-  const [taskView, setTaskView] = useState<TaskViewTab>("queue");
+  const [scheduleView, setScheduleView] = useState<"milestones" | "timeline">("milestones");
+  const taskView: TaskViewTab = activeTab === "work-schedule" ? scheduleView : "queue";
   const [activeTaskSubteam, setActiveTaskSubteam] =
     useState<TaskSubteamTab>("programming");
   const [manufacturingView, setManufacturingView] =
-    useState<ManufacturingViewTab>("cnc");
-  const [inventoryView, setInventoryView] = useState<InventoryViewTab>("purchases");
-  const [isNavMenuVisible, setIsNavMenuVisible] = useState(false);
-  const [isProjectOverlayVisible, setIsProjectOverlayVisible] = useState(false);
+    useState<ManufacturingViewTab>("all");
   const [isPersonMenuVisible, setIsPersonMenuVisible] = useState(false);
   const [isDeviceSessionsVisible, setIsDeviceSessionsVisible] = useState(false);
   const [deviceSessions, setDeviceSessions] = useState<MobileDeviceSessionSummary[]>([]);
   const [deviceSessionsError, setDeviceSessionsError] = useState<string | null>(null);
   const [isLoadingDeviceSessions, setIsLoadingDeviceSessions] = useState(false);
-  const [isSeasonMenuVisible, setIsSeasonMenuVisible] = useState(false);
-  const [isAttendanceModalVisible, setIsAttendanceModalVisible] = useState(false);
   const [attendanceStatusByMemberId, setAttendanceStatusByMemberId] =
     useState<Record<string, AttendanceStatus>>(ATTENDANCE_STATUS_BY_MEMBER_ID);
   const [themeOverride, setThemeOverride] = useState<AppThemeName | null>(null);
   const [languageOverride] = useState<LanguageCode | null>(null);
   const [activePersonFilter, setActivePersonFilter] = useState("all");
-  const [seasons, setSeasons] = useState<SeasonOption[]>(INITIAL_SEASONS);
-  const [activeSeasonId, setActiveSeasonId] = useState(INITIAL_SEASONS[0].id);
 
   const [members, setMembers] = useState(() => mecoSnapshot.members);
   const [subsystems, setSubsystems] = useState(() => normalizeTaskSubsystems(mecoSnapshot.subsystems));
@@ -442,8 +423,6 @@ export default function App() {
   const themeMode = themeOverride ?? systemThemeMode;
   const isDarkModeEnabled = themeMode === "dark";
   const themeColors = appThemes[themeMode];
-  const seasonModeLabel =
-    seasons.find((option) => option.id === activeSeasonId)?.label ?? "No Season";
 
   const [timelineSubsystemFilter, setTimelineSubsystemFilter] = useState("all");
   const [timelineMilestoneFilter, setTimelineMilestoneFilter] = useState("all");
@@ -585,6 +564,10 @@ export default function App() {
     setManufacturingItems(ensureArray(payload.manufacturingItems));
     setPurchaseItems(ensureArray(payload.purchaseItems));
     setQaRequests(ensureArray(payload.qaRequests));
+    setQaReviews(ensureArray(payload.qaReports).map((report) => ({ ...report,
+      subjectId: report.taskId, subjectType: "task",
+      subjectTitle: tasks.find((task) => task.id === report.taskId)?.title ?? report.taskId,
+    })));
     setHelpRequests(ensureArray(payload.helpRequests));
     setPartDefinitions(ensureArray(payload.partDefinitions));
     setPartInstances(ensureArray(payload.partInstances));
@@ -1122,7 +1105,7 @@ export default function App() {
       members.map((member) => [member.id, member]),
     ) as Record<string, (typeof members)[number]>;
   }, [members]);
-  const { signedInMember, canMentorApprove, canReassignTasks } = useMemo(
+  const { signedInMember, canMentorApprove, canReassignTasks, canSubmitQa } = useMemo(
     () => getSessionPermissions(sessionUser, members),
     [sessionUser, members],
   );
@@ -1206,97 +1189,6 @@ export default function App() {
   const activeTaskSubteamLabel =
     TASK_SUBTEAM_OPTIONS.find((option) => option.value === activeTaskSubteam)?.label ??
     "Programming";
-  const navigationItems = useMemo<NavItem[]>(() => {
-    const homeCount = tasks.filter((task) => task.status !== "complete").length;
-
-    return [
-      {
-        key: "home",
-        label: "Home",
-        shortLabel: "HM",
-        count: homeCount,
-      },
-      {
-        key: "attendance",
-        label: "Attendance",
-        shortLabel: "AT",
-        count: members.length,
-      },
-      {
-        key: "tasks",
-        label: "Tasks",
-        shortLabel: "TS",
-        count: tasks.length,
-      },
-      {
-        key: "worklogs",
-        label: "Logs",
-        shortLabel: "WL",
-        count: workLogsForDisplay.length,
-      },
-      {
-        key: "inventory",
-        label: "Inventory",
-        shortLabel: "IN",
-        count: partDefinitions.length + purchaseItems.length,
-      },
-      {
-        key: "reports",
-        label: "QA",
-        shortLabel: "QA",
-        count: helpRequests.length + qaRequests.length + qaReviews.length,
-      },
-      {
-        key: "roster",
-        label: "Roster",
-        shortLabel: "RO",
-        count: members.length,
-      },
-      {
-        key: "risks",
-        label: "Risks",
-        shortLabel: "RK",
-        count: subsystems.reduce((sum, subsystem) => sum + subsystem.risks.length, 0),
-      },
-    ];
-  }, [
-    tasks,
-    workLogsForDisplay.length,
-    partDefinitions,
-    purchaseItems,
-    subsystems,
-    members,
-    helpRequests.length,
-    qaRequests.length,
-    qaReviews,
-  ]);
-
-  const navigationSections = useMemo(
-    () => [
-      {
-        title: "Dashboard",
-        items: navigationItems.filter((item) =>
-          item.key === "home" || item.key === "attendance",
-        ),
-      },
-      {
-        title: "Work",
-        items: navigationItems.filter((item) =>
-          item.key === "tasks" ||
-          item.key === "worklogs" ||
-          item.key === "inventory" ||
-          item.key === "reports" ||
-          item.key === "risks",
-        ),
-      },
-      {
-        title: "Config",
-        items: navigationItems.filter((item) => item.key === "roster"),
-      },
-    ],
-    [navigationItems],
-  );
-
   const taskLoggedHoursById = useMemo(() => {
     return workLogsForDisplay.reduce<Record<string, number>>((hoursByTaskId, workLog) => {
       hoursByTaskId[workLog.taskId] = (hoursByTaskId[workLog.taskId] ?? 0) + workLog.hours;
@@ -1492,8 +1384,10 @@ export default function App() {
     return summary;
   }, [failedWorkLogDraftCount, filteredWorkLogs, visiblePendingWorkLogDrafts.length]);
 
-  const visibleManufacturingProcess: ManufacturingItem["process"] =
-    manufacturingView === "cnc"
+  const visibleManufacturingProcess: ManufacturingItem["process"] | null =
+    manufacturingView === "all"
+      ? null
+      : manufacturingView === "cnc"
       ? "cnc"
       : manufacturingView === "prints"
         ? "3d-print"
@@ -1511,7 +1405,7 @@ export default function App() {
     const search = manufacturingSearch.trim().toLowerCase();
 
     return manufacturingItems
-      .filter((item) => item.process === visibleManufacturingProcess)
+      .filter((item) => !visibleManufacturingProcess || item.process === visibleManufacturingProcess)
       .filter((item) => {
         if (activePersonFilter !== "all" && item.requestedById !== activePersonFilter) {
           return false;
@@ -1973,16 +1867,6 @@ export default function App() {
     });
   }, [qaReviews, subsystems, taskById, tasks]);
 
-  const reportSummary = useMemo(() => {
-    const iterationCount = qaReviews.filter((review) => review.result === "iteration-worthy").length;
-    return [
-      { label: "Help requests", value: String(helpRequests.length) },
-      { label: "QA requests", value: String(qaRequests.length) },
-      { label: "QA reports", value: String(qaReviews.length) },
-      { label: "Iterations", value: String(iterationCount) },
-    ] satisfies SummaryChipData[];
-  }, [helpRequests.length, qaRequests.length, qaReviews]);
-
   const riskSummary = useMemo(() => {
     const highCount = riskRows.filter((risk) => risk.priority === "high").length;
     return [
@@ -2104,48 +1988,6 @@ export default function App() {
       .sort((left, right) => priorityRank[left.priority] - priorityRank[right.priority])
       .slice(0, 8);
   }, [manufacturingItems, membersById, purchaseItems, subsystemsById, taskById, taskDependencies, tasks]);
-  const homeInventoryNeeds = useMemo(
-    () =>
-      [...purchaseItems]
-        .filter((item) => item.status === "requested" || item.status === "approved")
-        .sort((left, right) => {
-          const statusRank = { approved: 0, requested: 1 } as Record<string, number>;
-          const statusDelta = statusRank[left.status] - statusRank[right.status];
-          if (statusDelta !== 0) {
-            return statusDelta;
-          }
-
-          return right.estimatedCost - left.estimatedCost;
-        })
-        .slice(0, 5),
-    [purchaseItems],
-  );
-  const homePriorityTasks = useMemo(() => {
-    const priorityRank: Record<TaskPriority, number> = {
-      critical: 0,
-      high: 1,
-      medium: 2,
-      low: 3,
-    };
-
-    return [...tasks]
-      .filter((task) => task.status !== "complete")
-      .sort((left, right) => {
-        const blockerDelta =
-          Number(right.blockers.length > 0) - Number(left.blockers.length > 0);
-        if (blockerDelta !== 0) {
-          return blockerDelta;
-        }
-
-        const priorityDelta = priorityRank[left.priority] - priorityRank[right.priority];
-        if (priorityDelta !== 0) {
-          return priorityDelta;
-        }
-
-        return left.dueDate.localeCompare(right.dueDate);
-      })
-      .slice(0, 5);
-  }, [tasks]);
   const homeTaskSummary = useMemo(() => {
     const openTasks = tasks.filter((task) => task.status !== "complete");
     const blockedTasks = openTasks.filter((task) => task.blockers.length > 0);
@@ -2185,38 +2027,6 @@ export default function App() {
     .filter(({ status }) => status !== "no")
     .slice(0, 10);
 
-  const activeTabLabel =
-    activeTab === "home"
-      ? "Home"
-      : (navigationItems.find((item) => item.key === activeTab)?.label ?? "Home");
-  const activeSubtabOptions = useMemo(() => {
-    if (activeTab === "tasks") {
-      return TASK_VIEW_OPTIONS;
-    }
-
-    if (activeTab === "manufacturing") {
-      return MANUFACTURING_VIEW_OPTIONS;
-    }
-
-    if (activeTab === "inventory") {
-      return INVENTORY_VIEW_OPTIONS;
-    }
-
-    return [];
-  }, [activeTab]);
-  const activeSubtabValue =
-    activeTab === "tasks"
-      ? taskView
-      : activeTab === "manufacturing"
-        ? manufacturingView
-        : activeTab === "inventory"
-          ? inventoryView
-          : null;
-  const activeSubtabIndex =
-    activeSubtabValue === null
-      ? -1
-      : activeSubtabOptions.findIndex((option) => option.value === activeSubtabValue);
-  const hasSubtabPages = activeSubtabOptions.length > 1;
   const syncStatusLabel =
     backendStatus === "connected"
       ? isSyncing
@@ -2229,38 +2039,6 @@ export default function App() {
           : "Backend offline";
   const appResponsiveStyles = useMemo(
     () => ({
-      topbar: {
-        backgroundColor: themeColors.surface,
-        borderColor: themeColors.border,
-        marginHorizontal: responsiveMetrics.gutter,
-        paddingHorizontal: responsiveMetrics.panelPadding,
-        paddingVertical: responsiveMetrics.isVeryCompact ? 8 : 10,
-      },
-      iconButton: {
-        backgroundColor: themeColors.canvas,
-        borderColor: themeColors.border,
-        minHeight: responsiveMetrics.controlHeight,
-        paddingHorizontal: responsiveMetrics.chipPaddingHorizontal,
-      },
-      iconButtonLabel: {
-        color: themeColors.navyInk,
-        fontSize: scaleFont(12, responsiveMetrics),
-      },
-      brandEyebrow: {
-        color: themeColors.subtleText,
-        fontSize: scaleFont(11, responsiveMetrics),
-      },
-      brandTitle: {
-        color: themeColors.ink,
-        fontSize: scaleFont(isCompactLayout ? 16 : 18, responsiveMetrics),
-      },
-      userChipLabel: {
-        fontSize: scaleFont(12, responsiveMetrics),
-      },
-      shellIconLabel: {
-        color: themeColors.navyInk,
-        fontSize: scaleFont(14, responsiveMetrics),
-      },
       primaryAction: {
         minHeight: responsiveMetrics.controlHeight,
         paddingHorizontal: responsiveMetrics.chipPaddingHorizontal + 4,
@@ -2297,54 +2075,8 @@ export default function App() {
         borderColor: themeColors.border,
         color: themeColors.subtleText,
       },
-      navTab: {
-        backgroundColor: themeColors.surface,
-        borderColor: themeColors.border,
-      },
-      navTabActive: {
-        backgroundColor: themeColors.navySurface,
-        borderColor: themeColors.blue,
-      },
-      navLabel: {
-        color: themeColors.ink,
-      },
-      navLabelActive: {
-        color: themeColors.navyInk,
-      },
-      navBubble: {
-        backgroundColor: themeColors.canvas,
-      },
       navCount: {
         backgroundColor: themeColors.canvas,
-      },
-      overlayCard: {
-        backgroundColor: themeColors.surface,
-        borderColor: themeColors.border,
-      },
-      navDrawer: {
-        backgroundColor: themeColors.surface,
-        borderColor: themeColors.border,
-        padding: responsiveMetrics.isVeryCompact ? 12 : responsiveMetrics.panelPadding,
-        width: Math.min(width - responsiveMetrics.gutter * 2, 336),
-      },
-      settingsRow: {
-        backgroundColor: themeColors.canvas,
-        borderColor: themeColors.border,
-      },
-      settingsRowActive: {
-        backgroundColor: themeColors.navySurface,
-        borderColor: themeColors.blue,
-      },
-      settingsSubmenu: {
-        backgroundColor: themeColors.surface,
-        borderColor: themeColors.border,
-      },
-      settingsSubmenuRowActive: {
-        backgroundColor: themeColors.navySurface,
-      },
-      settingsIconButton: {
-        backgroundColor: themeColors.canvas,
-        borderColor: themeColors.border,
       },
       tableHeaderText: {
         color: themeColors.subtleText,
@@ -2386,120 +2118,9 @@ export default function App() {
         fontSize: scaleFont(12, responsiveMetrics),
       },
     }),
-    [isCompactLayout, responsiveMetrics, themeColors, width],
+    [responsiveMetrics, themeColors],
   );
   const editTagStyle = [styles.editTag, appResponsiveStyles.editTag];
-  const closeNavigationMenu = useCallback(() => setIsNavMenuVisible(false), []);
-  const openNavigationMenu = useCallback(() => setIsNavMenuVisible(true), []);
-  const selectNavigationTab = useCallback((tab: ViewTab) => {
-    setActiveTab(tab);
-    setIsNavMenuVisible(false);
-  }, []);
-  const selectSubtabByIndex = useCallback(
-    (nextIndex: number) => {
-      const nextOption = activeSubtabOptions[nextIndex];
-      if (!nextOption) {
-        return;
-      }
-
-      if (activeTab === "tasks") {
-        setTaskView(nextOption.value as TaskViewTab);
-        return;
-      }
-
-      if (activeTab === "manufacturing") {
-        setManufacturingView(nextOption.value as ManufacturingViewTab);
-        return;
-      }
-
-      if (activeTab === "inventory") {
-        setInventoryView(nextOption.value as InventoryViewTab);
-      }
-    },
-    [activeSubtabOptions, activeTab],
-  );
-  const subtabSwipeResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_event, gesture) => {
-          if (!hasSubtabPages) {
-            return false;
-          }
-
-          // Require a clearly horizontal gesture so scrolling lists do not
-          // accidentally move between subtabs.
-          const horizontalDistance = Math.abs(gesture.dx);
-          return (
-            horizontalDistance > SUBTAB_SWIPE_ACTIVATION_DISTANCE &&
-            horizontalDistance > Math.abs(gesture.dy) + 20
-          );
-        },
-        onPanResponderRelease: (_event, gesture) => {
-          if (!hasSubtabPages || Math.abs(gesture.dx) < SUBTAB_SWIPE_COMMIT_DISTANCE) {
-            return;
-          }
-
-          if (activeSubtabIndex < 0) {
-            return;
-          }
-
-          const direction = gesture.dx < 0 ? 1 : -1;
-          const nextIndex = Math.max(
-            0,
-            Math.min(activeSubtabOptions.length - 1, activeSubtabIndex + direction),
-          );
-
-          if (nextIndex !== activeSubtabIndex) {
-            selectSubtabByIndex(nextIndex);
-          }
-        },
-      }),
-    [
-      activeSubtabIndex,
-      activeSubtabOptions.length,
-      hasSubtabPages,
-      selectSubtabByIndex,
-    ],
-  );
-  const navigationOpenSwipeResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_event, gesture) => {
-          // Navigation swipes are intentionally looser than subtab swipes because
-          // they start from the page edge and should feel easy to discover.
-          const horizontalDistance = Math.abs(gesture.dx);
-          return (
-            horizontalDistance > SWIPE_ACTIVATION_DISTANCE &&
-            horizontalDistance > Math.abs(gesture.dy) + 8
-          );
-        },
-        onPanResponderRelease: (_event, gesture) => {
-          if (Math.abs(gesture.dx) >= SWIPE_COMMIT_DISTANCE) {
-            openNavigationMenu();
-          }
-        },
-      }),
-    [openNavigationMenu],
-  );
-  const navigationCloseSwipeResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_event, gesture) => {
-          const horizontalDistance = Math.abs(gesture.dx);
-          return (
-            horizontalDistance > SWIPE_ACTIVATION_DISTANCE &&
-            horizontalDistance > Math.abs(gesture.dy) + 8
-          );
-        },
-        onPanResponderRelease: (_event, gesture) => {
-          if (Math.abs(gesture.dx) >= SWIPE_COMMIT_DISTANCE) {
-            closeNavigationMenu();
-          }
-        },
-      }),
-    [closeNavigationMenu],
-  );
-
   useEffect(() => {
     void loadPublicAuthConfig();
   }, [loadPublicAuthConfig]);
@@ -2585,14 +2206,8 @@ export default function App() {
     const nextSubteam = getTaskSubteamForDisciplineId(task.disciplineId, activeTaskSubteam);
 
     setActiveTaskSubteam(nextSubteam);
-    setTaskView("queue");
     taskQueue.resetFilters();
-    setActiveTab("tasks");
-  };
-
-  const openInventoryPurchases = () => {
-    setInventoryView("purchases");
-    setActiveTab("inventory");
+    setActiveTab("work-tasks");
   };
 
   const shiftTaskDueDates = async (tasksToShift: Task[], dayDelta: number) => {
@@ -3132,9 +2747,10 @@ export default function App() {
   };
 
   const saveWorkLogDraft = async () => {
-    const participants = splitList(workLogDraft.participantIdsText).filter((participantId) =>
-      members.some((member) => member.id === participantId),
-    );
+    const participants = splitList(workLogDraft.participantIdsText);
+    if (participants.some((id) => !membersById[id])) {
+      setWorkLogError("Choose participants from the current roster."); return;
+    }
     const parsedHours = Number(workLogDraft.hours);
     const notes = workLogDraft.notes.trim();
 
@@ -3312,7 +2928,7 @@ export default function App() {
 
   const openCreateManufacturingEditor = () => {
     const process =
-      manufacturingView === "cnc"
+      manufacturingView === "cnc" || manufacturingView === "all"
         ? "cnc"
         : manufacturingView === "prints"
           ? "3d-print"
@@ -3921,6 +3537,7 @@ export default function App() {
   };
 
   const openCreateQaReportEditor = (taskId = tasks[0]?.id ?? "", qaRequestId?: string) => {
+    if (!canSubmitQa) return;
     const request = qaRequestId ? qaRequests.find((candidate) => candidate.id === qaRequestId) : null;
 
     setQaReportDraft({
@@ -3985,10 +3602,12 @@ export default function App() {
   };
 
   const saveQaReportDraft = async () => {
+    if (!canSubmitQa) { setQaReportError("Only leads, mentors, and admins can submit QA reports."); return; }
     const task = taskById[qaReportDraft.taskId];
-    const participants = splitList(qaReportDraft.participantIdsText).filter(
-      (participantId) => membersById[participantId],
-    );
+    const participants = splitList(qaReportDraft.participantIdsText);
+    if (participants.some((id) => !membersById[id])) {
+      setQaReportError("Choose participants from the current roster."); return;
+    }
 
     const missingFields = [
       !task ? "task" : null,
@@ -4014,102 +3633,36 @@ export default function App() {
         ? qaRequests.find((request) => request.id === activeQaRequestId)
         : null) ??
       qaRequests.find((request) => request.taskId === task.id);
-    const nextQaReview: QaReview = {
-      id: `qa-local-${Date.now()}`,
-      taskId: task.id,
-      subjectId: task.id,
-      subjectType: "task",
-      subjectTitle: task.title,
-      participantIds: participants,
-      requestedById: linkedQaRequest?.requestedById ?? null,
-      mentorId: linkedQaRequest?.mentorId ?? task.mentorId,
-      result: qaReportDraft.result,
-      mentorApproved: qaReportDraft.mentorApproved,
-      notes: qaReportDraft.notes.trim(),
-      evidenceNotes: qaReportDraft.evidenceNotes.trim(),
-    };
-
-    if (qaReportDraft.result !== "pass") {
-      const followUpTitle =
-        qaReportDraft.followUpTaskTitle.trim() ||
-        (qaReportDraft.result === "iteration-worthy"
-          ? `Iterate after QA: ${task.title}`
-          : `Fix QA finding: ${task.title}`);
-      const followUpSummary = [
-        `Created from QA on "${task.title}".`,
-        `Result: ${qaReportDraft.result}.`,
-        qaReportDraft.notes.trim(),
-        qaReportDraft.evidenceNotes.trim() ? `Evidence: ${qaReportDraft.evidenceNotes.trim()}` : "",
-      ]
-        .filter(Boolean)
-        .join("\n");
-      const followUpTask = {
-        title: followUpTitle,
-        summary: followUpSummary,
-        subsystemId: task.subsystemId,
-        disciplineId: task.disciplineId,
-        mechanismId: task.mechanismId,
-        partInstanceId: task.partInstanceId,
-        targetEventId: task.targetEventId,
-        ownerId: task.ownerId,
-        mentorId: task.mentorId,
-        dueDate: isoToday(),
-        priority: qaReportDraft.result === "iteration-worthy" ? "high" : "medium",
-        status: "not-started",
-        checklistItems: [],
-
-        linkedManufacturingIds: task.linkedManufacturingIds,
-        linkedPurchaseIds: task.linkedPurchaseIds,
-        estimatedHours: 0,
-        actualHours: 0,
-      } satisfies Omit<Task, "id" | "isBlocked" | "isWaitingOnDependency" | "blockers">;
-      const created = await runMutation("/api/tasks", {
-        method: "POST", body: JSON.stringify(mapTaskPayloadToServer(followUpTask)),
+    const sessionVersion = authSessionVersionRef.current;
+    try {
+      const { item } = await authenticatedRequestJson<{ item: NonNullable<PlatformBootstrapPayload["qaReports"]>[number] }>("/api/qa-reports/submit", {
+        method: "POST", body: JSON.stringify({
+          taskId: task.id, participantIds: participants,
+          result: qaReportDraft.result, mentorApproved: qaReportDraft.mentorApproved,
+          notes: qaReportDraft.notes.trim(), evidenceNotes: qaReportDraft.evidenceNotes.trim(),
+          followUpTaskTitle: qaReportDraft.followUpTaskTitle.trim(),
+          qaRequestId: linkedQaRequest?.id ?? null, reviewedAt: isoToday(),
+        }),
       });
-      if (!created) { setQaReportError("The follow-up task could not be saved."); return; }
+      if (authSessionVersionRef.current !== sessionVersion) return;
+      setQaReviews((current) => [{ ...item, subjectTitle: task.title, subjectType: "task", subjectId: task.id },
+        ...current.filter((review) => review.id !== item.id)]);
+      closeQaReportEditor();
+    } catch (error) {
+      if (authSessionVersionRef.current !== sessionVersion) return;
+      if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
+        endSessionForAuthFailure(getMobileAuthErrorMessage("expired-session")); return;
+      }
+      setQaReportError(getClientErrorMessage(error));
+      return;
     }
-
-    if (qaReportDraft.result === "pass") {
-      const completed = await runMutation(`/api/tasks/${task.id}`, {
-        method: "PATCH", body: JSON.stringify({ status: "complete" }),
-      });
-      if (!completed) { setQaReportError("Task completion could not be saved."); return; }
+    // The command is acknowledged: refresh errors must not invite a duplicate submission.
+    try {
+      const payload = await authenticatedRequestJson<PlatformBootstrapPayload>("/api/bootstrap");
+      if (authSessionVersionRef.current === sessionVersion) applyBootstrapPayload(payload);
+    } catch (error) {
+      if (authSessionVersionRef.current === sessionVersion) setSyncError(getClientErrorMessage(error));
     }
-    if (qaReportDraft.result === "iteration-worthy") {
-      const blocked = await runMutation("/api/task-blockers", {
-        method: "POST", body: JSON.stringify({ blockedTaskId: task.id, blockerType: "external", blockerId: null,
-          description: "QA identified iteration-worthy follow-up.", issueType: "qa-failed", severity: "medium", status: "open" }),
-      });
-      if (!blocked) { setQaReportError("The QA blocker could not be saved."); return; }
-    }
-
-    setQaReviews((current) => [nextQaReview, ...current]);
-    setQaRequests((current) =>
-      current.filter(
-        (request) =>
-          request.id !== linkedQaRequest?.id &&
-          request.taskId !== task.id,
-      ),
-    );
-    closeQaReportEditor();
-  };
-
-  const resetWorkspaceData = () => {
-    setActivePersonFilter("all");
-    setIsPersonMenuVisible(false);
-    setIsSeasonMenuVisible(false);
-    closeTaskEditor();
-    closeWorkLogEditor();
-    closeMilestoneEditor();
-    closeDeadlineEditor();
-    closeManufacturingEditor();
-    closePurchaseEditor();
-    closeMemberEditor();
-    closeSubsystemEditor();
-    closePartDefinitionEditor();
-    closeQaReportEditor();
-    clearWorkLogTimer();
-    void syncFromBackend();
   };
 
   const clearIdentityScopedState = () => {
@@ -4134,9 +3687,6 @@ export default function App() {
     setActivePersonFilter("all");
     setSelectedMemberId(null);
     setIsPersonMenuVisible(false);
-    setIsSeasonMenuVisible(false);
-    setIsNavMenuVisible(false);
-    setIsProjectOverlayVisible(false);
     closeTaskEditor();
     closeWorkLogEditor();
     closeMilestoneEditor();
@@ -4150,51 +3700,6 @@ export default function App() {
     clearWorkLogTimer();
   };
   clearIdentityScopedStateRef.current = clearIdentityScopedState;
-
-  const clearWorkspaceForNewSeason = () => {
-    setMembers((current) => current.filter((member) => member.role === "student"));
-    setSubsystems([]);
-    setDisciplines([]);
-    setMechanisms([]);
-    setTasks([]);
-    setTaskDependencies([]);
-    setTaskBlockers([]);
-    setEvents([]);
-    setWorkLogs([]);
-    setManufacturingItems([]);
-    setPurchaseItems([]);
-    setPartDefinitions([]);
-    setPartInstances([]);
-    setQaReviews([]);
-    setHelpRequests([]);
-    clearWorkLogTimer();
-    setActiveTab("home");
-    setActivePersonFilter("all");
-    setSelectedMemberId(null);
-  };
-
-  const createSeason = () => {
-    const nextSeasonNumber = seasons.length + 1;
-    const seasonId = `season-${Date.now()}`;
-    const seasonLabel = nextSeasonNumber === 1 ? "New Season" : `New Season ${nextSeasonNumber}`;
-
-    setSeasons((current) => [...current, { id: seasonId, label: seasonLabel }]);
-    setActiveSeasonId(seasonId);
-    setIsSeasonMenuVisible(false);
-    clearWorkspaceForNewSeason();
-  };
-
-  const deleteSeason = (seasonId: string) => {
-    setSeasons((current) => {
-      const nextSeasons = current.filter((season) => season.id !== seasonId);
-
-      if (activeSeasonId === seasonId) {
-        setActiveSeasonId(nextSeasons[0]?.id ?? "");
-      }
-
-      return nextSeasons;
-    });
-  };
 
   const finishLocalSignOut = async (serverSignOutConfirmed: boolean) => {
     authSessionVersionRef.current += 1;
@@ -4292,6 +3797,9 @@ export default function App() {
 
   const taskScreenProps: TaskScreenProps = {
     ...taskQueue,
+    canSubmitQa,
+    qaRequests,
+    openCreateQaReportEditor,
     activeTaskSubteam,
     events,
     isLandscapeTimelineLayout,
@@ -4324,7 +3832,6 @@ export default function App() {
     releaseTask,
     rosterMentors,
     rosterStudents,
-    setActiveTab,
     signedInMember,
     startTask,
     subsystemsById,
@@ -4357,6 +3864,7 @@ export default function App() {
     attendanceSummary,
     approvePurchaseItem,
     canMentorApprove,
+    canSubmitQa,
     disciplinesById,
     editTagStyle,
     filteredManufacturing,
@@ -4368,10 +3876,7 @@ export default function App() {
     filteredWorkLogs,
     helpRequests,
     homeActionItems,
-    homeInventoryNeeds,
-    homePriorityTasks,
     homeTaskSummary,
-    inventoryView,
     isLandscapeCardLayout,
     isSyncing,
     manufacturingItems,
@@ -4409,7 +3914,6 @@ export default function App() {
     openEditTaskEditor,
     openEditWorkLogEditor,
     openDuplicateTaskEditor,
-    openInventoryPurchases,
     openMaterialRestockEditor,
     openTaskQueueFromTask,
     partDefinitions,
@@ -4429,7 +3933,6 @@ export default function App() {
     purchaseVendorOptions,
     qaRequests,
     qaReviews,
-    reportSummary,
     riskRows,
     riskSummary,
     rosterAdmins,
@@ -4461,7 +3964,6 @@ export default function App() {
     setSelectedMemberId,
     setSelectedSubsystemId,
     setSubsystemSearch,
-    setTaskView,
     setWorkLogSearch,
     setWorkLogSortMode,
     setWorkLogSubsystemFilter,
@@ -4565,6 +4067,7 @@ export default function App() {
         />
 
         <WorkLogEditorModal
+          memberOptions={memberOptions}
           appResponsiveStyles={appResponsiveStyles}
           deleteWorkLogDraft={deleteWorkLogDraft}
           onCancel={closeWorkLogEditor}
@@ -4654,6 +4157,8 @@ export default function App() {
         />
 
         <QaReportEditorModal
+          canMentorApprove={canMentorApprove}
+          memberOptions={memberOptions}
           appResponsiveStyles={appResponsiveStyles}
           onCancel={closeQaReportEditor}
           onSave={saveQaReportDraft}
@@ -4697,74 +4202,28 @@ export default function App() {
       ) : (
         <AppThemeProvider value={{ colors: themeColors, mode: themeMode }}>
           <WorkspaceShell
-            activeSeasonId={activeSeasonId}
-            activeSubtabIndex={activeSubtabIndex}
-            activeSubtabOptions={activeSubtabOptions}
             activeTab={activeTab}
-            activeTabContent={<ActiveTabContent activeTab={activeTab} screenProps={screenProps} taskContent={<TasksScreen {...taskScreenProps} />} />}
-            activeTabLabel={activeTabLabel}
-            apiToken={apiToken}
-            createSeason={createSeason}
-            deleteSeason={deleteSeason}
+            activeTabContent={<ActiveTabContent activeTab={activeTab} screenProps={screenProps}
+              taskContent={<TasksScreen {...taskScreenProps} />}
+              scheduleView={scheduleView} onScheduleViewChange={setScheduleView}
+              manufacturingView={manufacturingView} onManufacturingViewChange={setManufacturingView} />}
             deviceSessions={deviceSessions}
             deviceSessionsError={deviceSessionsError}
             editorModals={renderEditorModals()}
-            hasSubtabPages={hasSubtabPages}
-            isAttendanceModalVisible={isAttendanceModalVisible}
-            isCompactLayout={isCompactLayout}
-            isDarkModeEnabled={isDarkModeEnabled}
             isDeviceSessionsVisible={isDeviceSessionsVisible}
             isLoadingDeviceSessions={isLoadingDeviceSessions}
-            isNavMenuVisible={isNavMenuVisible}
             isPersonMenuVisible={isPersonMenuVisible}
-            isProjectOverlayVisible={isProjectOverlayVisible}
-            isSeasonMenuVisible={isSeasonMenuVisible}
-            meetingAttendance={meetingAttendance}
-            navigationCloseHandlers={navigationCloseSwipeResponder.panHandlers}
-            navigationOpenHandlers={navigationOpenSwipeResponder.panHandlers}
-            navigationSections={navigationSections}
-            onCloseAttendance={() => setIsAttendanceModalVisible(false)}
             onCloseDeviceSessions={() => setIsDeviceSessionsVisible(false)}
-            onCloseNavigation={closeNavigationMenu}
-            onClosePersonMenu={() => {
-              setIsPersonMenuVisible(false);
-              setIsSeasonMenuVisible(false);
-            }}
-            onCloseProjectOverlay={() => setIsProjectOverlayVisible(false)}
-            onOpenNavigation={openNavigationMenu}
-            onOpenDeviceSessions={() => {
-              void openDeviceSessions();
-            }}
-            onOpenPersonMenu={() => {
-              setIsSeasonMenuVisible(false);
-              setIsPersonMenuVisible(true);
-            }}
-            onOpenProjectOverlay={() => setIsProjectOverlayVisible(true)}
-            onOpenSubsystems={() => {
-              setActiveTab("subsystems");
-              setIsProjectOverlayVisible(false);
-            }}
-            onResetWorkspaceData={resetWorkspaceData}
-            onRevokeAllDeviceSessions={() => {
-              void revokeAllDeviceSessions();
-            }}
-            onRevokeDeviceSession={(sessionId) => {
-              void revokeDeviceSession(sessionId);
-            }}
-            onSelectSeason={(seasonId) => {
-              setActiveSeasonId(seasonId);
-              setIsSeasonMenuVisible(false);
-            }}
-            onSelectTab={selectNavigationTab}
+            onClosePersonMenu={() => setIsPersonMenuVisible(false)}
+            onOpenDeviceSessions={() => { void openDeviceSessions(); }}
+            onOpenPersonMenu={() => setIsPersonMenuVisible(true)}
+            onRefresh={() => { void syncFromBackend(); }}
+            onRevokeAllDeviceSessions={() => { void revokeAllDeviceSessions(); }}
+            onRevokeDeviceSession={(sessionId) => { void revokeDeviceSession(sessionId); }}
+            onSelectTab={setActiveTab}
             onSignOut={signOut}
-            onToggleSeasonMenu={() => setIsSeasonMenuVisible((current) => !current)}
-            onUpdateThemePreference={updateThemePreference}
+            onToggleTheme={() => { void updateThemePreference(themeMode === "dark" ? "light" : "dark", apiToken); }}
             personInitial={signedInEmailInitial}
-            responsiveStyles={appResponsiveStyles}
-            seasonModeLabel={seasonModeLabel}
-            seasons={seasons}
-            signedInEmailInitial={signedInEmailInitial}
-            subtabSwipeHandlers={subtabSwipeResponder.panHandlers}
             syncError={syncError}
             syncStatusLabel={syncStatusLabel}
             themeColors={themeColors}

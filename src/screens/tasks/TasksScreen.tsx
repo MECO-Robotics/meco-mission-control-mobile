@@ -1,6 +1,7 @@
+import { View } from "react-native";
 import { TASK_SUBTEAM_OPTIONS } from "../../ui/constants";
 import { LandscapeSubsystemTimeline } from "../../ui/landscapeTimeline/LandscapeSubsystemTimeline";
-import { SectionTabs } from "../../ui/ui";
+import { DropdownField } from "../../ui/ui";
 
 import type { TaskScreenProps } from "./taskScreenTypes";
 import { TaskMilestonesScreen } from "./TaskMilestonesScreen";
@@ -22,7 +23,7 @@ export function TasksScreen(props: TaskScreenProps) {
     timelineTasks,
   } = props;
 
-  if (isLandscapeTimelineLayout) {
+  if (isLandscapeTimelineLayout && taskView === "timeline") {
     return (
       <LandscapeSubsystemTimeline
         colors={themeColors}
@@ -38,13 +39,11 @@ export function TasksScreen(props: TaskScreenProps) {
 
   return (
     <>
-      {taskView === "queue" ? null : (
-        <SectionTabs
-          activeValue={activeTaskSubteam}
-          onChange={setActiveTaskSubteam}
-          options={TASK_SUBTEAM_OPTIONS}
-        />
-      )}
+      {taskView !== "milestones" ? <View style={{ paddingHorizontal: 20 }}>
+        <DropdownField label="Discipline" value={activeTaskSubteam}
+          onChange={(value) => setActiveTaskSubteam(value as typeof activeTaskSubteam)}
+          options={TASK_SUBTEAM_OPTIONS.map(({ value, label }) => ({ id: value, name: label }))} />
+      </View> : null}
       {taskView === "timeline"
         ? <TaskTimelineScreen {...props} />
         : taskView === "queue"

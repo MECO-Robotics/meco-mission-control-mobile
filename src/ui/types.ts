@@ -1,20 +1,14 @@
 import type { EventType, ManufacturingItem, MemberRole, PurchaseItem } from "../types/domain";
 export type ViewTab =
   | "home"
-  | "attendance"
-  | "tasks"
-  | "worklogs"
-  | "manufacturing"
-  | "inventory"
-  | "subsystems"
-  | "reports"
-  | "risks"
-  | "roster";
+  | "work-tasks" | "work-schedule" | "work-risks" | "work-activity"
+  | "resources-materials" | "resources-parts" | "resources-purchases"
+  | "resources-manufacturing" | "resources-structure"
+  | "team-people" | "team-attendance";
 
 export type TaskViewTab = "timeline" | "queue" | "milestones";
 export type TaskSubteamTab = "programming" | "mechanical" | "electrical";
-export type ManufacturingViewTab = "cnc" | "prints" | "fabrication";
-export type InventoryViewTab = "materials" | "parts" | "purchases";
+export type ManufacturingViewTab = "all" | "cnc" | "prints" | "fabrication";
 
 export type StatusGroup = "success" | "info" | "warning" | "danger" | "neutral";
 
@@ -22,13 +16,6 @@ export type PartLifecycleStatus = "planned" | "needed" | "available" | "installe
 
 export type WorkLogSortMode = "recent" | "oldest" | "longest" | "shortest";
 export type AcquisitionMethod = "manufacture" | "purchase" | "stock";
-
-export type NavItem = {
-  key: ViewTab;
-  label: string;
-  shortLabel: string;
-  count: number;
-};
 
 export type Option = {
   id: string;

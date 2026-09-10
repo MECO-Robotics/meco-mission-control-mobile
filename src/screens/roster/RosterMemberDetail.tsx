@@ -2,7 +2,7 @@ import { Pressable, View } from "react-native";
 
 import { Text } from "../../i18n";
 import { capitalize } from "../../ui/helpers";
-import type { Member } from "../../types/domain";
+import type { Member, Task } from "../../types/domain";
 import type { AppThemeColors } from "../../theme";
 import { rosterMemberDetailStyles as styles } from "./rosterMemberDetailStyles";
 
@@ -20,6 +20,7 @@ type RosterMemberDetailProps = {
   canMentorApprove: boolean;
   disciplineName: string | null;
   member: Member;
+  tasks: Task[];
   onClose: () => void;
   onEdit: (memberId: string) => void;
   themeColors: AppThemeColors;
@@ -43,6 +44,7 @@ export function RosterMemberDetail({
   canMentorApprove,
   disciplineName,
   member,
+  tasks,
   onClose,
   onEdit,
   themeColors,
@@ -142,6 +144,14 @@ export function RosterMemberDetail({
             {formatPlannedAttendanceDays(member)}
           </Text>
         </View>
+      </View>
+
+      <View style={styles.field}>
+        <Text style={[styles.label, { color: themeColors.subtleText }]}>Weekly availability</Text>
+        <Text style={[styles.value, { color: themeColors.ink }]}>{member.plannedWeeklyAttendanceHours === undefined ? "Not set" : `${member.plannedWeeklyAttendanceHours} hours/week`}</Text>
+        <Text style={[styles.label, { color: themeColors.subtleText }]}>Assigned workload</Text>
+        <Text style={[styles.value, { color: themeColors.ink }]}>{tasks.length} open tasks · {tasks.reduce((total, task) => total + Math.max(0, task.estimatedHours - task.actualHours), 0).toFixed(1)} estimated hours remaining</Text>
+        {tasks.map((task) => <Text key={task.id} style={[styles.notes, { color: themeColors.ink }]}>{task.title}</Text>)}
       </View>
 
       {member.plannedAttendanceNotes ? (

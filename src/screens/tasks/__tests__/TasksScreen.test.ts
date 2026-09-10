@@ -7,7 +7,7 @@ import { TaskQueueScreen } from "../TaskQueueScreen";
 import { TaskTimelineScreen } from "../TaskTimelineScreen";
 import { TaskMilestonesScreen } from "../TaskMilestonesScreen";
 import { LandscapeSubsystemTimeline } from "../../../ui/landscapeTimeline/LandscapeSubsystemTimeline";
-import { SectionTabs } from "../../../ui/ui";
+import { DropdownField } from "../../../ui/ui";
 
 jest.mock("../TaskQueueScreen", () => ({ TaskQueueScreen: jest.fn(() => null) }));
 jest.mock("../TaskTimelineScreen", () => ({ TaskTimelineScreen: jest.fn(() => null) }));
@@ -15,7 +15,7 @@ jest.mock("../TaskMilestonesScreen", () => ({ TaskMilestonesScreen: jest.fn(() =
 jest.mock("../../../ui/landscapeTimeline/LandscapeSubsystemTimeline", () => ({
   LandscapeSubsystemTimeline: jest.fn(() => null),
 }));
-jest.mock("../../../ui/ui", () => ({ SectionTabs: jest.fn(() => null) }));
+jest.mock("../../../ui/ui", () => ({ DropdownField: jest.fn(() => null) }));
 
 // Child screens are mocked: this fixture intentionally supplies only the router's inputs.
 function routerProps(taskView: TaskScreenProps["taskView"], landscape = false) {
@@ -37,13 +37,13 @@ function routerProps(taskView: TaskScreenProps["taskView"], landscape = false) {
 beforeEach(() => jest.clearAllMocks());
 
 test.each([
-  ["queue", TaskQueueScreen, false],
+  ["queue", TaskQueueScreen, true],
   ["timeline", TaskTimelineScreen, true],
-  ["milestones", TaskMilestonesScreen, true],
-] as const)("routes %s and preserves subteam tab visibility", (view, child, tabsVisible) => {
+  ["milestones", TaskMilestonesScreen, false],
+] as const)("routes %s and shows discipline as a filter", (view, child, tabsVisible) => {
   render(createElement(TasksScreen, routerProps(view)));
   expect(child).toHaveBeenCalledTimes(1);
-  expect(SectionTabs).toHaveBeenCalledTimes(tabsVisible ? 1 : 0);
+  expect(DropdownField).toHaveBeenCalledTimes(tabsVisible ? 1 : 0);
   expect(LandscapeSubsystemTimeline).not.toHaveBeenCalled();
   for (const other of [TaskQueueScreen, TaskTimelineScreen, TaskMilestonesScreen]) {
     if (other !== child) expect(other).not.toHaveBeenCalled();
@@ -51,7 +51,7 @@ test.each([
 });
 
 test("landscape routes to planner with the original task and deadline commands", () => {
-  const props = routerProps("queue", true);
+  const props = routerProps("timeline", true);
   render(createElement(TasksScreen, props));
   expect(LandscapeSubsystemTimeline).toHaveBeenCalledWith(expect.objectContaining({
     tasks: props.timelineTasks,
@@ -60,5 +60,17 @@ test("landscape routes to planner with the original task and deadline commands",
     onTaskPress: props.openEditTaskEditor,
   }), undefined);
   expect(TaskQueueScreen).not.toHaveBeenCalled();
-  expect(SectionTabs).not.toHaveBeenCalled();
+  expect(DropdownField).not.toHaveBeenCalled();
+});
+
+test("rotating the task queue keeps execution actions on the queue", () => {
+  render(createElement(TasksScreen, routerProps("queue", true)));
+  expect(TaskQueueScreen).toHaveBeenCalledTimes(1);
+  expect(LandscapeSubsystemTimeline).not.toHaveBeenCalled();
+});
+
+test("rotating the agenda does not replace events with the task timeline", () => {
+  render(createElement(TasksScreen, routerProps("milestones", true)));
+  expect(TaskMilestonesScreen).toHaveBeenCalledTimes(1);
+  expect(LandscapeSubsystemTimeline).not.toHaveBeenCalled();
 });

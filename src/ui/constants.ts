@@ -4,20 +4,12 @@ import type {
   ArchiveFilterMode,
   BlockerFilterMode,
   EventStyle,
-  InventoryViewTab,
   ManufacturingViewTab,
   Option,
   StatusGroup,
   TaskSubteamTab,
-  TaskViewTab,
   WorkLogSortMode,
 } from "./types";
-export const TASK_VIEW_OPTIONS: { value: TaskViewTab; label: string }[] = [
-  { value: "timeline", label: "Timeline" },
-  { value: "queue", label: "Queue" },
-  { value: "milestones", label: "Milestones" },
-];
-
 export const TASK_SUBTEAM_OPTIONS: { value: TaskSubteamTab; label: string }[] = [
   { value: "programming", label: "Programming" },
   { value: "mechanical", label: "Mechanical" },
@@ -31,15 +23,10 @@ export const TASK_SUBTEAM_DISCIPLINE_IDS: Record<TaskSubteamTab, string[]> = {
 };
 
 export const MANUFACTURING_VIEW_OPTIONS: { value: ManufacturingViewTab; label: string }[] = [
+  { value: "all", label: "All processes" },
   { value: "cnc", label: "CNC" },
   { value: "prints", label: "3D print" },
   { value: "fabrication", label: "Fabrication" },
-];
-
-export const INVENTORY_VIEW_OPTIONS: { value: InventoryViewTab; label: string }[] = [
-  { value: "materials", label: "Materials" },
-  { value: "parts", label: "Parts" },
-  { value: "purchases", label: "Purchases" },
 ];
 
 export const TASK_STATUS_OPTIONS: Option[] = [

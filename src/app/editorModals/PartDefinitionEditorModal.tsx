@@ -3,11 +3,11 @@ import type { Dispatch, SetStateAction } from "react";
 import { ACQUISITION_METHOD_OPTIONS, PART_SOURCE_OPTIONS } from "../../ui/constants";
 import type { AcquisitionMethod, EditorMode, PartDefinitionDraft } from "../../ui/types";
 import { DropdownField, EditorModal, ModalField } from "../../ui/ui";
-import type { WorkspaceResponsiveStyles } from "../components/WorkspaceShell";
+import type { ResponsiveScreenStyles } from "../../screens/types";
 import { EditorCallout } from "./EditorCallout";
 
 type PartDefinitionEditorModalProps = {
-  appResponsiveStyles: Pick<WorkspaceResponsiveStyles, "calloutBody" | "calloutBox" | "calloutTitle">;
+  appResponsiveStyles: Pick<ResponsiveScreenStyles, "calloutBody" | "calloutBox" | "calloutTitle">;
   deletePartDefinitionDraft: () => void;
   onCancel: () => void;
   onSave: () => void;

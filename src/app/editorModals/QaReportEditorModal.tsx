@@ -1,13 +1,15 @@
+import { ParticipantField } from "../../ui/editorFieldWidgets";
 import type { Dispatch, SetStateAction } from "react";
 
 import { QA_RESULT_OPTIONS } from "../../ui/constants";
 import type { Option, QaReportDraft } from "../../ui/types";
 import { AdvancedOptions, DropdownField, EditorModal, ModalField, ToggleField } from "../../ui/ui";
-import type { WorkspaceResponsiveStyles } from "../components/WorkspaceShell";
+import type { ResponsiveScreenStyles } from "../../screens/types";
 import { EditorCallout } from "./EditorCallout";
 
 type QaReportEditorModalProps = {
-  appResponsiveStyles: Pick<WorkspaceResponsiveStyles, "calloutBody" | "calloutBox" | "calloutTitle">;
+  appResponsiveStyles: Pick<ResponsiveScreenStyles, "calloutBody" | "calloutBox" | "calloutTitle">;
+  canMentorApprove: boolean;
   onCancel: () => void;
   onSave: () => void;
   qaReportDraft: QaReportDraft;
@@ -17,10 +19,12 @@ type QaReportEditorModalProps = {
   setQaReportDraft: Dispatch<SetStateAction<QaReportDraft>>;
   setQaReportError: (value: string | null) => void;
   taskOptions: Option[];
+  memberOptions: Option[];
 };
 
 export function QaReportEditorModal({
   appResponsiveStyles,
+  canMentorApprove,
   onCancel,
   onSave,
   qaReportDraft,
@@ -30,6 +34,7 @@ export function QaReportEditorModal({
   setQaReportDraft,
   setQaReportError,
   taskOptions,
+  memberOptions,
 }: QaReportEditorModalProps) {
   return (
     <EditorModal
@@ -69,14 +74,13 @@ export function QaReportEditorModal({
         options={QA_RESULT_OPTIONS}
         value={qaReportDraft.result}
       />
-      <ModalField
-        label="Participants (member IDs, comma separated)"
-        onChangeText={(value) => {
+      <ParticipantField
+        options={memberOptions}
+        value={qaReportDraft.participantIdsText}
+        onChange={(value) => {
           setQaReportDraft((current) => ({ ...current, participantIdsText: value }));
           setQaReportError(null);
         }}
-        placeholder="ava,jordan"
-        value={qaReportDraft.participantIdsText}
       />
       <ModalField
         label="Notes"
@@ -108,14 +112,14 @@ export function QaReportEditorModal({
           placeholder="Leave blank to create one automatically"
           value={qaReportDraft.followUpTaskTitle}
         />
-        <ToggleField
+        {canMentorApprove ? <ToggleField
           label="Mentor approved"
           onToggle={(value) => {
             setQaReportError(null);
             setQaReportDraft((current) => ({ ...current, mentorApproved: value }));
           }}
           value={qaReportDraft.mentorApproved}
-        />
+        /> : null}
       </AdvancedOptions>
     </EditorModal>
   );

@@ -53,7 +53,9 @@ export function ManufacturingScreen(props: AppScreenProps) {
   } = props;
 
   const title =
-    manufacturingView === "cnc"
+    manufacturingView === "all"
+      ? "Manufacturing"
+      : manufacturingView === "cnc"
       ? "CNC"
       : manufacturingView === "prints"
         ? "3D print queue"

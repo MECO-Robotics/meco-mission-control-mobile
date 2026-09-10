@@ -1,234 +1,42 @@
-import type { StyleProp, ViewStyle } from "react-native";
-import {
-  Modal,
-  Pressable,
-  View,
-} from "react-native";
-
+import { Modal, Pressable, ScrollView, View } from "react-native";
 import { Text } from "../../i18n";
-import { appThemes, type AppThemeName } from "../../theme";
+import type { AppThemeColors, AppThemeName } from "../../theme";
 import { styles } from "../../ui/styles";
-import type { SeasonOption } from "../appModel";
 
-type AppThemeColors = (typeof appThemes)[AppThemeName];
-
-type PersonMenuProps = {
-  activeSeasonId: string;
-  apiToken: string | null;
-  cardStyle: StyleProp<ViewStyle>;
-  createSeason: () => void;
-  deleteSeason: (seasonId: string) => void;
-  iconButtonStyle: StyleProp<ViewStyle>;
-  isDarkModeEnabled: boolean;
-  isSeasonMenuVisible: boolean;
-  onClose: () => void;
-  onResetWorkspaceData: () => void;
-  onOpenDeviceSessions: () => void;
-  onSelectSeason: (seasonId: string) => void;
-  onSignOut: () => void;
-  onToggleSeasonMenu: () => void;
-  onUpdateThemePreference: (
-    nextThemeMode: AppThemeName,
-    token: string | null,
-  ) => Promise<void>;
-  rowActiveStyle: StyleProp<ViewStyle>;
-  rowStyle: StyleProp<ViewStyle>;
-  seasonModeLabel: string;
-  seasons: SeasonOption[];
-  signedInEmailInitial: string;
-  submenuRowActiveStyle: StyleProp<ViewStyle>;
-  submenuStyle: StyleProp<ViewStyle>;
-  syncStatusLabel: string;
-  themeColors: AppThemeColors;
-  themeMode: AppThemeName;
+type Props = {
   visible: boolean;
+  onClose: () => void;
+  onOpenDeviceSessions: () => void;
+  onRefresh: () => void;
+  onSignOut: () => void;
+  onToggleTheme: () => void;
+  themeMode: AppThemeName;
+  themeColors: AppThemeColors;
+  syncStatusLabel: string;
 };
 
-export function PersonMenu({
-  activeSeasonId,
-  apiToken,
-  cardStyle,
-  createSeason,
-  deleteSeason,
-  iconButtonStyle,
-  isDarkModeEnabled,
-  isSeasonMenuVisible,
-  onClose,
-  onResetWorkspaceData,
-  onOpenDeviceSessions,
-  onSelectSeason,
-  onSignOut,
-  onToggleSeasonMenu,
-  onUpdateThemePreference,
-  rowActiveStyle,
-  rowStyle,
-  seasonModeLabel,
-  seasons,
-  signedInEmailInitial,
-  submenuRowActiveStyle,
-  submenuStyle,
-  syncStatusLabel,
-  themeColors,
-  themeMode,
-  visible,
-}: PersonMenuProps) {
-  return (
-    <Modal
-      animationType="fade"
-      onRequestClose={onClose}
-      supportedOrientations={["portrait", "landscape-left", "landscape-right"]}
-      transparent
-      visible={visible}
-    >
-      <Pressable onPress={onClose} style={styles.overlayScrim}>
-        <Pressable onPress={() => undefined} style={[styles.overlayCard, cardStyle]}>
-          <View style={styles.overlayHeader}>
-            <View style={[styles.personMark, { backgroundColor: themeColors.navySurface }]}>
-              <Text style={[styles.personMarkLabel, { color: themeColors.navyInk }]}>
-                {signedInEmailInitial}
-              </Text>
-            </View>
-            <View style={styles.overlayHeaderCopy}>
-              <Text style={[styles.overlayTitle, { color: themeColors.ink }]}>Personal settings</Text>
-              <Text style={[styles.overlaySubtitle, { color: themeColors.subtleText }]}>{syncStatusLabel}</Text>
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              onPress={onSignOut}
-              style={styles.overlayHeaderAction}
-            >
-              <Text style={[styles.overlayHeaderActionLabel, { color: themeColors.ink }]}>
-                Sign out
-              </Text>
-            </Pressable>
-          </View>
-
-          <Pressable
-            onPress={() => {
-              void onUpdateThemePreference(
-                themeMode === "dark" ? "light" : "dark",
-                apiToken,
-              );
-            }}
-            style={[
-              styles.settingsRow,
-              rowStyle,
-              isDarkModeEnabled && [styles.settingsRowActive, rowActiveStyle],
-            ]}
-          >
-            <View>
-              <Text style={[styles.settingsRowTitle, { color: themeColors.ink }]}>Theme</Text>
-            </View>
-            <Text style={[styles.settingsRowValue, { color: themeColors.navyInk }]}>
-              {themeMode === "dark" ? "Dark" : "Light"}
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={onToggleSeasonMenu}
-            style={[
-              styles.settingsRow,
-              rowStyle,
-              isSeasonMenuVisible && [styles.settingsRowActive, rowActiveStyle],
-            ]}
-          >
-            <View>
-              <Text style={[styles.settingsRowTitle, { color: themeColors.ink }]}>Season</Text>
-            </View>
-            {isSeasonMenuVisible ? (
-              <Pressable
-                accessibilityLabel="Add new season"
-                accessibilityRole="button"
-                onPress={(event) => {
-                  event.stopPropagation();
-                  createSeason();
-                }}
-                style={[styles.settingsIconButton, iconButtonStyle]}
-              >
-                <Text style={[styles.settingsIconButtonLabel, { color: themeColors.navyInk }]}>
-                  +
-                </Text>
-              </Pressable>
-            ) : (
-              <Text style={[styles.settingsRowValue, { color: themeColors.navyInk }]}>
-                {seasonModeLabel}
-              </Text>
-            )}
-          </Pressable>
-
-          {isSeasonMenuVisible ? (
-            <View style={[styles.settingsSubmenu, submenuStyle]}>
-              {seasons.map((option) => {
-                const isSelected = activeSeasonId === option.id;
-
-                return (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: isSelected }}
-                    key={option.id}
-                    onPress={() => onSelectSeason(option.id)}
-                    style={[
-                      styles.settingsSubmenuRow,
-                      isSelected && [
-                        styles.settingsSubmenuRowActive,
-                        submenuRowActiveStyle,
-                      ],
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.settingsSubmenuLabel,
-                        { color: themeColors.ink },
-                        isSelected && { color: themeColors.navyInk },
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                    <Pressable
-                      accessibilityLabel={`Delete ${option.label}`}
-                      accessibilityRole="button"
-                      onPress={(event) => {
-                        event.stopPropagation();
-                        deleteSeason(option.id);
-                      }}
-                      style={[styles.settingsIconButton, iconButtonStyle]}
-                    >
-                      <Text
-                        style={[
-                          styles.settingsIconButtonLabel,
-                          { color: themeColors.navyInk },
-                        ]}
-                      >
-                        -
-                      </Text>
-                    </Pressable>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : null}
-
-          <Pressable
-            onPress={onOpenDeviceSessions}
-            style={[styles.settingsRow, rowStyle]}
-          >
-            <View>
-              <Text style={[styles.settingsRowTitle, { color: themeColors.ink }]}>Signed-in devices</Text>
-            </View>
-            <Text style={[styles.settingsRowValue, { color: themeColors.navyInk }]}>Manage</Text>
-          </Pressable>
-
-          <Pressable
-            onPress={onResetWorkspaceData}
-            style={[styles.settingsRow, rowStyle]}
-          >
-            <View>
-              <Text style={[styles.settingsRowTitle, { color: themeColors.ink }]}>Refresh data</Text>
-            </View>
-            <Text style={[styles.settingsRowValue, { color: themeColors.navyInk }]}>Run</Text>
-          </Pressable>
-        </Pressable>
+export function PersonMenu(props: Props) {
+  const { themeColors: colors } = props;
+  const actions = [
+    { label: `Theme: ${props.themeMode === "dark" ? "Dark" : "Light"}`, onPress: props.onToggleTheme },
+    { label: "Signed-in devices", onPress: () => { props.onClose(); props.onOpenDeviceSessions(); } },
+    { label: "Refresh data", onPress: () => { props.onClose(); props.onRefresh(); } },
+    { label: "Sign out", onPress: props.onSignOut },
+    { label: "Close", onPress: props.onClose },
+  ];
+  return <Modal animationType="slide" onRequestClose={props.onClose} visible={props.visible}
+    supportedOrientations={["portrait", "landscape-left", "landscape-right"]} transparent>
+    <Pressable onPress={props.onClose} style={styles.overlayScrim}>
+      <Pressable onPress={() => undefined} style={[styles.overlayCard, { backgroundColor: colors.surface, maxHeight: "90%" }]}>
+        <ScrollView>
+          <Text accessibilityRole="header" style={[styles.overlayTitle, { color: colors.ink }]}>Account</Text>
+          <Text style={[styles.overlaySubtitle, { color: colors.subtleText }]}>{props.syncStatusLabel}</Text>
+          <View>{actions.map((action) => <Pressable key={action.label} accessibilityRole="button" onPress={action.onPress}
+            style={[styles.settingsRow, { minHeight: 48, borderColor: colors.border }]}>
+            <Text style={{ color: colors.ink }}>{action.label}</Text>
+          </Pressable>)}</View>
+        </ScrollView>
       </Pressable>
-    </Modal>
-  );
+    </Pressable>
+  </Modal>;
 }

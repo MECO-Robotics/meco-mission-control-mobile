@@ -1,3 +1,4 @@
+import { ParticipantField } from "../../ui/editorFieldWidgets";
 import type { Dispatch, SetStateAction } from "react";
 import { Pressable, View } from "react-native";
 
@@ -6,12 +7,12 @@ import { WORKLOG_TEMPLATE_OPTIONS } from "../../ui/constants";
 import { styles } from "../../ui/styles";
 import type { EditorMode, Option, WorkLogDraft } from "../../ui/types";
 import { DropdownField, EditorModal, ModalField } from "../../ui/ui";
-import type { WorkspaceResponsiveStyles } from "../components/WorkspaceShell";
+import type { ResponsiveScreenStyles } from "../../screens/types";
 import { EditorCallout } from "./EditorCallout";
 
 type WorkLogEditorModalProps = {
   appResponsiveStyles: Pick<
-    WorkspaceResponsiveStyles,
+    ResponsiveScreenStyles,
     "calloutBody" | "calloutBox" | "calloutTitle" | "quickActionButton" | "quickActionButtonLabel"
   >;
   deleteWorkLogDraft: () => void;
@@ -20,6 +21,7 @@ type WorkLogEditorModalProps = {
   setWorkLogDraft: Dispatch<SetStateAction<WorkLogDraft>>;
   setWorkLogError: (value: string | null) => void;
   taskOptions: Option[];
+  memberOptions: Option[];
   workLogDraft: WorkLogDraft;
   workLogEditorMode: EditorMode | null;
   workLogError: string | null;
@@ -33,6 +35,7 @@ export function WorkLogEditorModal({
   setWorkLogDraft,
   setWorkLogError,
   taskOptions,
+  memberOptions,
   workLogDraft,
   workLogEditorMode,
   workLogError,
@@ -85,14 +88,13 @@ export function WorkLogEditorModal({
         placeholder="2.5"
         value={workLogDraft.hours}
       />
-      <ModalField
-        label="Participants (member IDs, comma separated)"
-        onChangeText={(value) => {
-          setWorkLogError(null);
-          setWorkLogDraft((current) => ({ ...current, participantIdsText: value }));
-        }}
-        placeholder="ava,jordan"
+      <ParticipantField
+        options={memberOptions}
         value={workLogDraft.participantIdsText}
+        onChange={(value) => {
+          setWorkLogDraft((current) => ({ ...current, participantIdsText: value }));
+          setWorkLogError(null);
+        }}
       />
       <View style={styles.quickActionRow}>
         {WORKLOG_TEMPLATE_OPTIONS.map((template) => (

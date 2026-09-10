@@ -20,17 +20,9 @@ import type {
 } from "../types/domain";
 import type { AttendanceStatus, RiskPriority, WorkLogListItem } from "../screens/types";
 
-export const SWIPE_ACTIVATION_DISTANCE = 18;
-export const SWIPE_COMMIT_DISTANCE = 52;
-export const SUBTAB_SWIPE_ACTIVATION_DISTANCE = 24;
-export const SUBTAB_SWIPE_COMMIT_DISTANCE = 72;
 export const REQUIRED_EMAIL_DOMAIN = "mecorobotics.org";
 export const AUTH_REQUEST_TIMEOUT_MS = 15000;
 
-export type SeasonOption = {
-  id: string;
-  label: string;
-};
 export type StartTaskOptions = {
   openWorkLog?: boolean;
 };
@@ -64,11 +56,6 @@ export const ATTENDANCE_STATUS_BY_MEMBER_ID: Record<string, AttendanceStatus> = 
   caleb: "maybe",
   nina: "yes",
 };
-
-export const INITIAL_SEASONS: SeasonOption[] = [
-  { id: "2026-offseason", label: "2026 FRC Offseason" },
-  { id: "2027-preseason", label: "2027 FRC Preseason" },
-];
 
 export const PLANNED_ATTENDANCE_DAY_OPTIONS = [
   { id: "monday", label: "Mon" },

@@ -25,6 +25,7 @@ import {
   SummaryRow,
   WorkspacePanel,
 } from "../../ui/ui";
+import { QaReviewDetail } from "../reports/QaReviewDetail";
 import type { Task } from "../../types/domain";
 
 import type { TaskScreenProps } from "./taskScreenTypes";
@@ -45,7 +46,7 @@ type TaskQueueScreenProps = Pick<TaskScreenProps,
   | "rosterStudents" | "setActiveTaskSubteam" | "setTaskArchiveFilter"
   | "setTaskBlockerFilter" | "setTaskOwnerFilter" | "setTaskPriorityFilter"
   | "setTaskSearch" | "setTaskStatusFilter" | "setTaskSubsystemFilter"
-  | "setActiveTab" | "signedInMember" | "startTask"
+  | "canSubmitQa" | "qaRequests" | "openCreateQaReportEditor" | "signedInMember" | "startTask"
   | "subsystems" | "subsystemsById" | "taskArchiveFilter"
   | "taskBlockerFilter" | "taskById" | "taskDependencies" | "taskOwnerFilter"
   | "taskPriorityFilter" | "taskQueueSections" | "taskSearch"
@@ -88,7 +89,9 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
     setTaskSearch,
     setTaskStatusFilter,
     setTaskSubsystemFilter,
-    setActiveTab,
+    canSubmitQa,
+    qaRequests,
+    openCreateQaReportEditor,
     signedInMember,
     startTask,
     subsystems,
@@ -108,11 +111,26 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
     themeColors,
     qaReviews,
   } = props;
+  const [selectedQaTaskId, setSelectedQaTaskId] = useState<string | null>(null);
   const [blockerResolutionTask, setBlockerResolutionTask] = useState<Task | null>(null);
   const [blockerResolutionNote, setBlockerResolutionNote] = useState("");
   const [blockerResolutionError, setBlockerResolutionError] = useState<string | null>(null);
   const [helpRequestTask, setHelpRequestTask] = useState<Task | null>(null);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const filterKey = JSON.stringify([activeTaskSubteam, taskArchiveFilter, taskBlockerFilter,
+    taskOwnerFilter, taskPriorityFilter, taskSearch, taskStatusFilter, taskSubsystemFilter]);
+  const [pagination, setPagination] = useState({ filterKey, page: 0 });
+  const taskCount = taskQueueSections.reduce((count, section) => count + section.tasks.length, 0);
+  const pageCount = Math.max(1, Math.ceil(taskCount / 30));
+  const page = pagination.filterKey === filterKey ? Math.min(pagination.page, pageCount - 1) : 0;
+  if (pagination.filterKey !== filterKey || pagination.page !== page) setPagination({ filterKey, page });
+  let sectionOffset = 0;
+  const visibleSections = taskQueueSections.map((section) => {
+    const start = sectionOffset;
+    sectionOffset += section.tasks.length;
+    return { ...section, totalTasks: section.tasks.length, tasks: section.tasks.slice(Math.max(0, page * 30 - start), Math.max(0, (page + 1) * 30 - start)) };
+  });
+
   const taskReassignModal = useTaskReassignModal({ reassignTask });
   const mentorOptions = rosterMentors.map((mentor) => ({ id: mentor.id, name: mentor.name }));
   const defaultHelpMentorId = getDefaultHelpMentorId(helpRequestTask, rosterMentors);
@@ -226,6 +244,8 @@ const renderScreen = () => {
         </View>
       }
     >
+      <QaReviewDetail review={selectedQaTaskId ? qaReviews.find((review) => review.taskId === selectedQaTaskId) ?? null : null}
+        membersById={membersById} onClose={() => setSelectedQaTaskId(null)} />
       <SummaryRow chips={taskSummary} />
 
       {!isCompactLayout ? (
@@ -245,7 +265,7 @@ const renderScreen = () => {
         </View>
       ) : null}
 
-      {taskQueueSections.map((section) => (
+      {visibleSections.map((section) => (
         <View key={section.id}>
           {section.tasks.length > 0 ? (
             <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
@@ -253,10 +273,10 @@ const renderScreen = () => {
                 {section.title}
               </Text>
               <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {section.tasks.length} task{section.tasks.length === 1 ? "" : "s"}
+                {section.totalTasks} task{section.totalTasks === 1 ? "" : "s"}
               </Text>
             </View>
-          ) : section.emptyTitle ? (
+          ) : section.totalTasks === 0 && section.emptyTitle ? (
             <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
               <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
                 {section.emptyTitle}
@@ -550,6 +570,12 @@ const renderScreen = () => {
                   </Text>
                 </Pressable>
               ) : null}
+              {canSubmitQa && task.status === "waiting-for-qa" ? (
+                <Pressable accessibilityRole="button" onPress={() => openCreateQaReportEditor(task.id, qaRequests.find((request) => request.taskId === task.id)?.id)}
+                  style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}>
+                  <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>Write QA report</Text>
+                </Pressable>
+              ) : null}
               {canRequestHelp ? (
                 <Pressable
                   onPress={() => setHelpRequestTask(task)}
@@ -562,7 +588,7 @@ const renderScreen = () => {
               ) : null}
               {hasQaReport ? (
                 <Pressable
-                  onPress={() => setActiveTab("reports")}
+                  onPress={() => setSelectedQaTaskId(task.id)}
                   style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
                 >
                   <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
@@ -606,6 +632,19 @@ const renderScreen = () => {
         </View>
       ) : null}
 
+      {pageCount > 1 ? <View style={styles.quickActionRow}>
+        <Pressable accessibilityRole="button" accessibilityState={{ disabled: page === 0 }}
+          disabled={page === 0} style={[styles.quickActionButton, { minHeight: 48, justifyContent: "center" }]}
+          onPress={() => setPagination({ filterKey, page: page - 1 })}>
+          <Text>Previous page</Text>
+        </Pressable>
+        <Text accessibilityLiveRegion="polite">Page {page + 1} of {pageCount} · {taskCount} tasks</Text>
+        <Pressable accessibilityRole="button" accessibilityState={{ disabled: page === pageCount - 1 }}
+          disabled={page === pageCount - 1} style={[styles.quickActionButton, { minHeight: 48, justifyContent: "center" }]}
+          onPress={() => setPagination({ filterKey, page: page + 1 })}>
+          <Text>Next page</Text>
+        </Pressable>
+      </View> : null}
       <InteractionNote steps={SUBVIEW_INTERACTION_GUIDANCE.queue} />
       <NeedHelpModal
         appResponsiveStyles={appResponsiveStyles}

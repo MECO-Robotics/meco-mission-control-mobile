@@ -30,7 +30,6 @@ export function AttendanceScreen(props: AppScreenProps) {
     attendanceSummary,
     isSyncing,
     meetingAttendance,
-    members,
     setAttendanceStatusByMemberId,
     syncFromBackend,
     themeColors,
@@ -49,7 +48,7 @@ const renderScreen = () => {
   return (
     <WorkspacePanel
       title="Attendance"
-      subtitle={`${members.length} people loaded from the workspace server.`}
+      subtitle="Session attendance. Changes stay on this device until the app closes."
       actions={
         <Pressable onPress={syncFromBackend} style={[styles.primaryAction, appResponsiveStyles.primaryAction]}>
           <Text style={[styles.primaryActionLabel, appResponsiveStyles.primaryActionLabel]}>
@@ -66,7 +65,7 @@ const renderScreen = () => {
             People
           </Text>
           <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
-            Synced from the server and sorted alphabetically.
+            People from the team roster. Coming first, then name.
           </Text>
         </View>
         {sortedMeetingAttendance.map(({ member, status }) => (

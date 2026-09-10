@@ -1,14 +1,10 @@
 import type { ReactNode } from "react";
-import { useMemo } from "react";
-import { PanResponder, Pressable, ScrollView, useWindowDimensions, View } from "react-native";
+import { Pressable, ScrollView, useWindowDimensions, View } from "react-native";
 
 import { Text } from "../i18n";
 import { getResponsiveMetrics, scaleFont } from "./responsive";
 import { styles } from "./styles";
 import { useAppTheme } from "./themeContext";
-
-const SUBTAB_SWIPE_ACTIVATION_DISTANCE = 18;
-const SUBTAB_SWIPE_COMMIT_DISTANCE = 48;
 
 export function WorkspacePanel({
   title,
@@ -103,40 +99,8 @@ export function SectionTabs<T extends string>({
   const { width } = useWindowDimensions();
   const metrics = getResponsiveMetrics(width);
   const { colors: themeColors } = useAppTheme();
-  const activeIndex = options.findIndex((option) => option.value === activeValue);
-  const swipeResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_event, gesture) => {
-          const horizontalDistance = Math.abs(gesture.dx);
-          return (
-            options.length > 1 &&
-            horizontalDistance > SUBTAB_SWIPE_ACTIVATION_DISTANCE &&
-            horizontalDistance > Math.abs(gesture.dy) + 8
-          );
-        },
-        onPanResponderRelease: (_event, gesture) => {
-          if (Math.abs(gesture.dx) < SUBTAB_SWIPE_COMMIT_DISTANCE) {
-            return;
-          }
-
-          const currentIndex = activeIndex >= 0 ? activeIndex : 0;
-          const nextIndex =
-            gesture.dx < 0
-              ? Math.min(options.length - 1, currentIndex + 1)
-              : Math.max(0, currentIndex - 1);
-          const nextValue = options[nextIndex]?.value;
-
-          if (nextValue && nextValue !== activeValue) {
-            onChange(nextValue);
-          }
-        },
-      }),
-    [activeIndex, activeValue, onChange, options],
-  );
-
   return (
-    <View {...swipeResponder.panHandlers}>
+    <View accessibilityRole="tablist">
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -148,6 +112,8 @@ export function SectionTabs<T extends string>({
           return (
             <Pressable
               key={option.value}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isActive }}
               onPress={() => onChange(option.value)}
               style={[
                 styles.sectionTab,
@@ -156,6 +122,8 @@ export function SectionTabs<T extends string>({
                   borderColor: themeColors.border,
                   paddingHorizontal: metrics.chipPaddingHorizontal + 4,
                   paddingVertical: metrics.chipPaddingVertical,
+                  minHeight: 44,
+                  justifyContent: "center",
                 },
                 isActive && [styles.sectionTabActive, { backgroundColor: themeColors.navySurface }],
               ]}

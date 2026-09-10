@@ -1,8 +1,7 @@
 import { Pressable, View } from "react-native";
 
 import { Text } from "../../i18n";
-import { STATUS_LABELS } from "../../ui/constants";
-import { capitalize, formatDate } from "../../ui/helpers";
+import { capitalize } from "../../ui/helpers";
 import { styles } from "../../ui/styles";
 import {
   EmptyState,
@@ -19,19 +18,14 @@ export function HomeScreen(props: AppScreenProps) {
     appResponsiveStyles,
     attendancePreview,
     homeActionItems,
-    homeInventoryNeeds,
-    homePriorityTasks,
     homeTaskSummary,
     isSyncing,
     manufacturingItems,
-    membersById,
     openEditTaskEditor,
     openEditManufacturingEditor,
     openEditPurchaseEditor,
-    openInventoryPurchases,
     purchaseItems,
     setActiveTab,
-    subsystemsById,
     syncFromBackend,
     tasks,
   } = props;
@@ -77,11 +71,11 @@ const renderScreen = () => {
       <View style={styles.homeSection}>
         <Pressable
           accessibilityRole="button"
-          onPress={() => setActiveTab("tasks")}
+          onPress={() => setActiveTab("work-tasks")}
           style={styles.homeSectionHeader}
         >
           <Text style={[styles.subsectionLabel, appResponsiveStyles.subsectionLabel]}>
-            Tasks
+            Needs attention
           </Text>
           <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
             The highest-risk work across tasks, manufacturing, and purchases.
@@ -112,110 +106,28 @@ const renderScreen = () => {
         ) : null}
       </View>
 
-      <View style={styles.homeSection}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={openInventoryPurchases}
-          style={styles.homeSectionHeader}
-        >
-          <Text style={[styles.subsectionLabel, appResponsiveStyles.subsectionLabel]}>
-            Inventory to buy
-          </Text>
-          <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
-            Top {homeInventoryNeeds.length} purchase items still waiting.
-          </Text>
-        </Pressable>
-        {homeInventoryNeeds.map((item) => {
-          const requesterName = item.requestedById
-            ? (membersById[item.requestedById]?.name ?? "Unassigned")
-            : "Unassigned";
-
-          return (
-            <Pressable
-              key={item.id}
-              onPress={() => openEditPurchaseEditor(item)}
-              style={[styles.inventoryAlertRow, appResponsiveStyles.rowCard]}
-            >
-              <View style={styles.queueRowHeader}>
-                <View style={styles.queueRowPrimaryText}>
-                  <Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>
-                    {item.title}
-                  </Text>
-                  <Text style={[styles.queueRowSubtitle, appResponsiveStyles.rowSubtitle]}>
-                    {item.vendor} - Qty {item.quantity} - requester {requesterName}
-                  </Text>
-                </View>
-                <StatusPill label={item.status} value={item.status} />
-              </View>
-              <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
-                Estimated ${item.estimatedCost.toFixed(0)}
-              </Text>
-            </Pressable>
-          );
-        })}
-        {homeInventoryNeeds.length === 0 ? (
-          <EmptyState text="No purchase items need buying right now." />
-        ) : null}
+      <SummaryRow chips={homeTaskSummary} />
+      <View style={styles.quickActionRow}>
+        {([
+          ["work-tasks", "Open task queue"], ["work-schedule", "View schedule"],
+          ["work-activity", "Activity"], ["resources-purchases", "Purchasing"],
+        ] as const).map(([destination, label]) => <Pressable key={destination} accessibilityRole="button"
+          onPress={() => setActiveTab(destination)} style={[styles.quickActionButton, appResponsiveStyles.quickActionButton, { minHeight: 44 }]}>
+          <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>{label}</Text>
+        </Pressable>)}
       </View>
-
-      <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-        <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-          Tasks for this meeting
-        </Text>
-        <SummaryRow chips={homeTaskSummary} />
-      </View>
-
-      {homePriorityTasks.map((task) => {
-        const subsystemName = subsystemsById[task.subsystemId]?.name ?? "Unknown";
-        const ownerName = task.ownerId
-          ? (membersById[task.ownerId]?.name ?? "Unassigned")
-          : "Unassigned";
-
-        return (
-          <Pressable
-            key={task.id}
-            onPress={() => openEditTaskEditor(task)}
-            style={[styles.queueRowCard, appResponsiveStyles.rowCard]}
-          >
-            <View style={styles.queueRowHeader}>
-              <View style={styles.queueRowPrimaryText}>
-                <Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>
-                  {task.title}
-                </Text>
-                <Text style={[styles.queueRowSubtitle, appResponsiveStyles.rowSubtitle]}>
-                  {subsystemName} - {ownerName} - due {formatDate(task.dueDate)}
-                </Text>
-              </View>
-              <StatusPill label={task.priority} value={task.priority} />
-            </View>
-            <Text numberOfLines={2} style={[styles.queueRowBody, appResponsiveStyles.rowBody]}>
-              {task.summary}
-            </Text>
-            <View style={styles.queuePillRow}>
-              <StatusPill label={STATUS_LABELS[task.status]} value={task.status} />
-              {task.blockers.length > 0 ? (
-                <StatusPill label="Blocked" value="critical" />
-              ) : null}
-            </View>
-          </Pressable>
-        );
-      })}
-
-      {homePriorityTasks.length === 0 ? (
-        <EmptyState text="No open tasks need attention right now." />
-      ) : null}
 
       <Pressable
         accessibilityRole="button"
-        onPress={() => setActiveTab("attendance")}
+        onPress={() => setActiveTab("team-attendance")}
         style={styles.homeSection}
       >
         <View style={styles.homeSectionHeader}>
           <Text style={[styles.subsectionLabel, appResponsiveStyles.subsectionLabel]}>
-            Meeting attendance
+            Session attendance
           </Text>
           <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
-            Top {attendancePreview.length} coming to the meeting - tap for everyone.
+            {attendancePreview.length} people in this local session preview — tap for everyone.
           </Text>
         </View>
         {attendancePreview.map(({ member, status }) => (
