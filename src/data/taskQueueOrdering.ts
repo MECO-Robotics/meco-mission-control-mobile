@@ -47,14 +47,6 @@ export function getTaskSubteamForDisciplineId(
   );
 }
 
-function isAvailableTask(task: Task) {
-  return task.status !== "complete" && task.status !== "waiting-for-qa" && !isTaskBlocked(task);
-}
-
-function getTaskSubteam(task: Task, fallback: TaskSubteamTab) {
-  return getTaskSubteamForDisciplineId(task.disciplineId, fallback);
-}
-
 export function buildTaskQueueSections({
   activeTaskSubteam,
   canViewAllQueues,
@@ -62,38 +54,23 @@ export function buildTaskQueueSections({
 }: BuildTaskQueueSectionsInput): TaskQueueSection[] {
   const primarySubteam = activeTaskSubteam;
   const primarySubteamLabel = getSubteamLabel(primarySubteam);
-  const scopedTasks = tasks.filter((task) => {
-    if (canViewAllQueues) {
-      return true;
+  const primaryAvailable: Task[] = [];
+  const otherAvailable: Task[] = [];
+  const blocked: Task[] = [];
+  const waitingQa: Task[] = [];
+  const completed: Task[] = [];
+
+  for (const task of [...tasks].sort(compareTasksByDueDate)) {
+    const isPrimary = getTaskSubteamForDisciplineId(task.disciplineId, primarySubteam) === primarySubteam;
+    const restrictedQueue = task.status === "complete" ? completed
+      : task.status === "waiting-for-qa" ? waitingQa
+        : isTaskBlocked(task) ? blocked : null;
+    if (restrictedQueue) {
+      if (canViewAllQueues || isPrimary) restrictedQueue.push(task);
+    } else {
+      (isPrimary ? primaryAvailable : otherAvailable).push(task);
     }
-
-    // Students should still see ready work from other subteams so they can pick
-    // up unblocked tasks when their primary queue is empty.
-    return (
-      getTaskSubteam(task, primarySubteam) === primarySubteam ||
-      isAvailableTask(task)
-    );
-  });
-
-  const primaryAvailable = scopedTasks
-    .filter((task) => getTaskSubteam(task, primarySubteam) === primarySubteam)
-    .filter((task) => isAvailableTask(task))
-    .sort(compareTasksByDueDate);
-  const otherAvailable = scopedTasks
-    .filter((task) => getTaskSubteam(task, primarySubteam) !== primarySubteam)
-    .filter((task) => isAvailableTask(task))
-    .sort(compareTasksByDueDate);
-  const blocked = scopedTasks
-    .filter((task) => task.status !== "waiting-for-qa")
-    .filter((task) => task.status !== "complete")
-    .filter((task) => isTaskBlocked(task))
-    .sort(compareTasksByDueDate);
-  const waitingQa = scopedTasks
-    .filter((task) => task.status === "waiting-for-qa")
-    .sort(compareTasksByDueDate);
-  const completed = scopedTasks
-    .filter((task) => task.status === "complete")
-    .sort(compareTasksByDueDate);
+  }
 
   return [
     {
