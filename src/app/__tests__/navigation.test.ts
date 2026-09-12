@@ -25,7 +25,7 @@ function Workspace() {
 
 test("all supported destinations are reachable using labeled controls without gestures", () => {
   const view = render(createElement(Workspace));
-  expect(view.getAllByRole("tab")).toHaveLength(4);
+  expect(view.getAllByRole("tab")).toHaveLength(NAVIGATION.length);
   for (const section of NAVIGATION) {
     fireEvent.press(view.getByRole("tab", { name: section.label }));
     for (const child of section.views) {
@@ -40,7 +40,7 @@ test("switching domains returns to the last view and new Work starts on Tasks", 
   fireEvent.press(view.getByRole("tab", { name: "Work" }));
   expect(view.getByText("Current: work-tasks")).toBeTruthy();
   fireEvent.press(view.getByRole("tab", { name: "Schedule" }));
-  fireEvent.press(view.getByRole("tab", { name: "Team" }));
+  fireEvent.press(view.getByRole("tab", { name: "Resources" }));
   fireEvent.press(view.getByRole("tab", { name: "Work" }));
   expect(view.getByRole("tab", { name: "Schedule" }).props.accessibilityState.selected).toBe(true);
   expect(view.getByText("Current: work-schedule")).toBeTruthy();
