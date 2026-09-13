@@ -6,6 +6,7 @@
     "node": ">=22.13 <23"
   },
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks",
     "verify": "npm run verify:core && npm run verify:bootstrap-contract",
     "verify:core": "npm run lint && npm run test && npm run test:workflow-security && npm run typecheck",
     "dev": "npm run android --",
