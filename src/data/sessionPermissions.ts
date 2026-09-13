@@ -9,7 +9,6 @@ export function getSessionPermissions(user: SessionUser | null, members: Member[
         member.email?.trim().toLowerCase() === user.email.trim().toLowerCase(),
       ) ?? null
     : null;
-  // Preserve the matched session member fallback used by development sessions.
   const roles = user ? [user.role, signedInMember?.role] : [];
   const canMentorApprove = roles.some((role) => role === "mentor" || role === "admin");
   return {
