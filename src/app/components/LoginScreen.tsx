@@ -94,6 +94,10 @@ export function LoginScreen({
   const scaleLogin = (value: number) => Math.round(value * loginScale);
   const loginCardHeight = Math.min(height - 8, scaleLogin(722));
   const loginCardWidth = Math.min(width - 48, scaleLogin(334));
+  const emailInputStyle = {
+    fontSize: scaleLogin(13),
+    paddingVertical: scaleLogin(12),
+  };
 
   return (
     <View
@@ -181,7 +185,7 @@ export function LoginScreen({
                   returnKeyType="next"
                   style={[
                     styles.emailInput,
-                    { fontSize: scaleLogin(13), paddingVertical: scaleLogin(12) },
+                    emailInputStyle,
                   ]}
                   textContentType="emailAddress"
                   value={authEmail}
@@ -231,7 +235,7 @@ export function LoginScreen({
                     returnKeyType="go"
                     style={[
                       styles.emailInput,
-                      { fontSize: scaleLogin(13), paddingVertical: scaleLogin(12) },
+                      emailInputStyle,
                     ]}
                     textContentType="oneTimeCode"
                     value={authCode}
