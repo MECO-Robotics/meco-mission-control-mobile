@@ -7,7 +7,9 @@ import { TASK_PRIORITY_OPTIONS, TASK_STATUS_OPTIONS } from "../../ui/constants";
 import { isoToday } from "../../ui/helpers";
 import { styles } from "../../ui/styles";
 import type { Option } from "../../ui/types";
-import { AdvancedOptions, DropdownField, EditorModal, ModalField } from "../../ui/ui";
+import { AdvancedOptions, EditorModal } from "../../ui/editorWidgets";
+import { ModalField } from "../../ui/editorFieldWidgets";
+import { DropdownField } from "../../ui/selectionFieldWidgets";
 import type {
   Discipline,
   Event,

@@ -36,6 +36,34 @@ type LoginScreenProps = {
   width: number;
 };
 
+type LoginActionButtonProps = {
+  disabled: boolean;
+  label: string;
+  onPress: () => void;
+  scaleLogin: (value: number) => number;
+};
+
+function LoginActionButton({ disabled, label, onPress, scaleLogin }: LoginActionButtonProps) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      disabled={disabled}
+      onPress={onPress}
+      style={[
+        styles.sendButton,
+        styles.inlineSendButton,
+        {
+          minHeight: scaleLogin(36),
+          minWidth: scaleLogin(78),
+          paddingHorizontal: scaleLogin(10),
+        },
+      ]}
+    >
+      <Text style={[styles.sendButtonText, { fontSize: scaleLogin(12) }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
 export function LoginScreen({
   authCode,
   authConfig,
@@ -66,6 +94,10 @@ export function LoginScreen({
   const scaleLogin = (value: number) => Math.round(value * loginScale);
   const loginCardHeight = Math.min(height - 8, scaleLogin(722));
   const loginCardWidth = Math.min(width - 48, scaleLogin(334));
+  const emailInputStyle = {
+    fontSize: scaleLogin(13),
+    paddingVertical: scaleLogin(12),
+  };
 
   return (
     <View
@@ -153,14 +185,14 @@ export function LoginScreen({
                   returnKeyType="next"
                   style={[
                     styles.emailInput,
-                    { fontSize: scaleLogin(13), paddingVertical: scaleLogin(12) },
+                    emailInputStyle,
                   ]}
                   textContentType="emailAddress"
                   value={authEmail}
                 />
-                <Pressable
-                  accessibilityRole="button"
+                <LoginActionButton
                   disabled={isAuthenticating}
+                  label={hasRequestedEmailCode ? "Change" : isAuthenticating ? "Sending" : "Send Code"}
                   onPress={() => {
                     if (hasRequestedEmailCode) {
                       setAuthCode("");
@@ -173,20 +205,8 @@ export function LoginScreen({
 
                     void signInWithEmail();
                   }}
-                  style={[
-                    styles.sendButton,
-                    styles.inlineSendButton,
-                    {
-                      minHeight: scaleLogin(36),
-                      minWidth: scaleLogin(78),
-                      paddingHorizontal: scaleLogin(10),
-                    },
-                  ]}
-                >
-                  <Text style={[styles.sendButtonText, { fontSize: scaleLogin(12) }]}>
-                    {hasRequestedEmailCode ? "Change" : isAuthenticating ? "Sending" : "Send Code"}
-                  </Text>
-                </Pressable>
+                  scaleLogin={scaleLogin}
+                />
               </View>
 
               {hasRequestedEmailCode ? (
@@ -215,29 +235,17 @@ export function LoginScreen({
                     returnKeyType="go"
                     style={[
                       styles.emailInput,
-                      { fontSize: scaleLogin(13), paddingVertical: scaleLogin(12) },
+                      emailInputStyle,
                     ]}
                     textContentType="oneTimeCode"
                     value={authCode}
                   />
-                  <Pressable
-                    accessibilityRole="button"
+                  <LoginActionButton
                     disabled={isAuthenticating}
+                    label={isAuthenticating ? "Checking" : "Verify"}
                     onPress={signInWithEmail}
-                    style={[
-                      styles.sendButton,
-                      styles.inlineSendButton,
-                      {
-                        minHeight: scaleLogin(36),
-                        minWidth: scaleLogin(78),
-                        paddingHorizontal: scaleLogin(10),
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.sendButtonText, { fontSize: scaleLogin(12) }]}>
-                      {isAuthenticating ? "Checking" : "Verify"}
-                    </Text>
-                  </Pressable>
+                    scaleLogin={scaleLogin}
+                  />
                 </View>
               ) : null}
             </>

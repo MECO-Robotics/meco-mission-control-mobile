@@ -18,7 +18,8 @@ import type {
   TaskPriority,
   WorkLog,
 } from "../types/domain";
-import type { AttendanceStatus, RiskPriority, WorkLogListItem } from "../screens/types";
+import type { AttendanceStatus, RiskPriority } from "../types/status";
+import type { WorkLogListItem } from "../screens/types";
 
 export const REQUIRED_EMAIL_DOMAIN = "mecorobotics.org";
 export const AUTH_REQUEST_TIMEOUT_MS = 15000;

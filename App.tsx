@@ -987,6 +987,18 @@ export default function App() {
     syncPendingWorkLogDrafts,
   ]);
 
+  const completeMutation = useCallback(async () => {
+    const payload = await refreshWorkspaceFromServer(apiToken);
+    const draftSyncError = await syncPendingWorkLogDrafts(
+      apiToken,
+      ensureArray(payload.workLogs),
+      activeWorkLogDraftOwnerKey,
+    );
+    setBackendStatus(draftSyncError ? "offline" : "connected");
+    setBackendReachability("reachable");
+    setSyncError(draftSyncError);
+  }, [activeWorkLogDraftOwnerKey, apiToken, refreshWorkspaceFromServer, syncPendingWorkLogDrafts]);
+
   const runMutation = useCallback(
     async (path: string, init: RequestInit) => {
       setIsSyncing(true);
@@ -994,17 +1006,7 @@ export default function App() {
 
       try {
         await authenticatedRequestJson(path, init);
-        // Mutations refresh the full bootstrap snapshot so cross-feature derived
-        // data stays consistent after backend-side cascades.
-        const payload = await refreshWorkspaceFromServer(apiToken);
-        const draftSyncError = await syncPendingWorkLogDrafts(
-          apiToken,
-          ensureArray(payload.workLogs),
-          activeWorkLogDraftOwnerKey,
-        );
-        setBackendStatus(draftSyncError ? "offline" : "connected");
-        setBackendReachability("reachable");
-        setSyncError(draftSyncError);
+        await completeMutation();
         return true;
       } catch (error) {
         if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
@@ -1021,12 +1023,10 @@ export default function App() {
       }
     },
     [
-      apiToken,
-      activeWorkLogDraftOwnerKey,
       authenticatedRequestJson,
+      completeMutation,
       endSessionForAuthFailure,
-      refreshWorkspaceFromServer,
-      syncPendingWorkLogDrafts,
+      
     ],
   );
 
@@ -1037,15 +1037,7 @@ export default function App() {
 
       try {
         await mutation();
-        const payload = await refreshWorkspaceFromServer(apiToken);
-        const draftSyncError = await syncPendingWorkLogDrafts(
-          apiToken,
-          ensureArray(payload.workLogs),
-          activeWorkLogDraftOwnerKey,
-        );
-        setBackendStatus(draftSyncError ? "offline" : "connected");
-        setBackendReachability("reachable");
-        setSyncError(draftSyncError);
+        await completeMutation();
         return true;
       } catch (error) {
         if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
@@ -1091,12 +1083,11 @@ export default function App() {
       }
     },
     [
-      activeWorkLogDraftOwnerKey,
       apiToken,
+      completeMutation,
       endSessionForAuthFailure,
       members,
       refreshWorkspaceFromServer,
-      syncPendingWorkLogDrafts,
     ],
   );
 

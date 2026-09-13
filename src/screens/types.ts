@@ -5,8 +5,9 @@ import type { AppThemeColors } from "../theme";
 import type { WorkLogDraftSyncStatus } from "../services/workLogDraftSync";
 import type { Discipline, HelpRequest, ManufacturingItem, Mechanism, Member, PartDefinition, PartInstance, PurchaseItem, QaRequest, QaReview, Subsystem, Task, WorkLog } from "../types/domain";
 import type { ArchiveFilterMode, ManufacturingViewTab, MaterialRollup, PartLifecycleStatus, SummaryChipData, ViewTab, WorkLogSortMode } from "../ui/types";
+import type { AttendanceStatus, RiskPriority } from "../types/status";
+export type { AttendanceStatus, RiskPriority } from "../types/status";
 
-export type AttendanceStatus = "yes" | "maybe" | "no";
 export type AttendanceRow = {
   member: Member;
   status: AttendanceStatus;
@@ -17,7 +18,6 @@ export type PartInstanceStatusRow = {
   status: PartLifecycleStatus;
 };
 
-export type RiskPriority = "high" | "medium" | "low";
 export type RiskRow = {
   detail: string;
   id: string;
