@@ -41,6 +41,41 @@ function DependencyMeta({
   );
 }
 
+function DependencyChip({
+  onPress,
+  subsystemsById,
+  task,
+  themeColors,
+  variant,
+}: {
+  onPress?: () => void;
+  subsystemsById: Record<string, Subsystem | undefined>;
+  task: Task;
+  themeColors: AppThemeColors;
+  variant: "selected" | "available" | "downstream";
+}) {
+  const Chip = onPress ? Pressable : View;
+  const selected = variant === "selected";
+  const downstream = variant === "downstream";
+  return (
+    <Chip
+      {...(onPress ? { onPress } : {})}
+      style={[styles.quickActionButton, {
+        alignItems: "flex-start",
+        backgroundColor: selected || downstream ? (selected ? themeColors.navySurface : themeColors.canvas) : themeColors.surface,
+        borderColor: selected ? themeColors.navySurface : themeColors.border,
+        gap: 2,
+        maxWidth: "100%",
+      }]}
+    >
+      <Text numberOfLines={2} style={[styles.quickActionButtonLabel, { color: selected ? themeColors.navyInk : themeColors.ink }]}>
+        {task.title}
+      </Text>
+      <DependencyMeta showRemove={selected} subsystemsById={subsystemsById} task={task} themeColors={themeColors} />
+    </Chip>
+  );
+}
+
 export function TaskDependenciesField({
   addTaskDependency,
   availableTaskDependencyOptions,
@@ -66,33 +101,14 @@ export function TaskDependenciesField({
         {selectedTaskDependencies.length > 0 ? (
           <View style={styles.quickActionRow}>
             {selectedTaskDependencies.map((dependency) => (
-              <Pressable
+              <DependencyChip
                 key={dependency.id}
                 onPress={() => removeTaskDependency(dependency.id)}
-                style={[
-                  styles.quickActionButton,
-                  {
-                    alignItems: "flex-start",
-                    backgroundColor: themeColors.navySurface,
-                    borderColor: themeColors.navySurface,
-                    gap: 2,
-                    maxWidth: "100%",
-                  },
-                ]}
-              >
-                <Text
-                  numberOfLines={2}
-                  style={[styles.quickActionButtonLabel, { color: themeColors.navyInk }]}
-                >
-                  {dependency.title}
-                </Text>
-                <DependencyMeta
-                  showRemove
-                  subsystemsById={subsystemsById}
-                  task={dependency}
-                  themeColors={themeColors}
-                />
-              </Pressable>
+                subsystemsById={subsystemsById}
+                task={dependency}
+                themeColors={themeColors}
+                variant="selected"
+              />
             ))}
           </View>
         ) : (
@@ -116,31 +132,7 @@ export function TaskDependenciesField({
           </Text>
           <View style={styles.quickActionRow}>
             {downstreamTaskDependencies.map((dependentTask) => (
-              <View
-                key={dependentTask.id}
-                style={[
-                  styles.quickActionButton,
-                  {
-                    alignItems: "flex-start",
-                    backgroundColor: themeColors.canvas,
-                    borderColor: themeColors.border,
-                    gap: 2,
-                    maxWidth: "100%",
-                  },
-                ]}
-              >
-                <Text
-                  numberOfLines={2}
-                  style={[styles.quickActionButtonLabel, { color: themeColors.ink }]}
-                >
-                  {dependentTask.title}
-                </Text>
-                <DependencyMeta
-                  subsystemsById={subsystemsById}
-                  task={dependentTask}
-                  themeColors={themeColors}
-                />
-              </View>
+              <DependencyChip key={dependentTask.id} subsystemsById={subsystemsById} task={dependentTask} themeColors={themeColors} variant="downstream" />
             ))}
           </View>
         </View>
@@ -152,34 +144,9 @@ export function TaskDependenciesField({
       />
       {availableTaskDependencyOptions.length > 0 ? (
         <View style={styles.quickActionRow}>
-          {availableTaskDependencyOptions.map((dependency) => (
-            <Pressable
-              key={dependency.id}
-              onPress={() => addTaskDependency(dependency.id)}
-              style={[
-                styles.quickActionButton,
-                {
-                  alignItems: "flex-start",
-                  backgroundColor: themeColors.surface,
-                  borderColor: themeColors.border,
-                  gap: 2,
-                  maxWidth: "100%",
-                },
-              ]}
-            >
-              <Text
-                numberOfLines={2}
-                style={[styles.quickActionButtonLabel, { color: themeColors.ink }]}
-              >
-                {dependency.title}
-              </Text>
-              <DependencyMeta
-                subsystemsById={subsystemsById}
-                task={dependency}
-                themeColors={themeColors}
-              />
-            </Pressable>
-          ))}
+            {availableTaskDependencyOptions.map((dependency) => (
+              <DependencyChip key={dependency.id} onPress={() => addTaskDependency(dependency.id)} subsystemsById={subsystemsById} task={dependency} themeColors={themeColors} variant="available" />
+            ))}
         </View>
       ) : null}
     </View>
