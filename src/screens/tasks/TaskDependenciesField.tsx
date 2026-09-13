@@ -5,7 +5,7 @@ import type { AppThemeColors } from "../../theme";
 import { STATUS_LABELS } from "../../ui/constants";
 import { formatDate } from "../../ui/helpers";
 import { styles } from "../../ui/styles";
-import { SearchField } from "../../ui/ui";
+import { SearchField } from "../../ui/selectionWidgets";
 import type { Subsystem, Task } from "../../types/domain";
 
 type TaskDependenciesFieldProps = {
