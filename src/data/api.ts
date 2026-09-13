@@ -187,8 +187,8 @@ export function resolveApiBaseUrl(
   const privateLanAllowed =
     env.EXPO_PUBLIC_ALLOW_INSECURE_PRIVATE_LAN?.trim().toLowerCase() === "true";
   const isPrivateLan =
-    /^10\./.test(host) ||
-    /^192\.168\./.test(host) ||
+    host.startsWith("10.") ||
+    host.startsWith("192.168.") ||
     /^172\.(1[6-9]|2\d|3[01])\./.test(host);
 
   if (privateLanAllowed && isPrivateLan) {

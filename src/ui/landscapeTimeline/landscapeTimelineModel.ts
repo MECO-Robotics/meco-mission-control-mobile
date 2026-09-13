@@ -88,7 +88,7 @@ export function getCalendarDays(monthStart: Date) {
   return Array.from({ length: 42 }, (_value, index) => addDays(gridStart, index));
 }
 
-function getTaskDateIndexes(task: Task, monthStart: Date, dayCount: number) {
+function getTaskDateIndexes(task: Task, monthStart: Date) {
   const startIndex = daysBetween(monthStart, getTaskStartDate(task));
   const endIndex = daysBetween(monthStart, parseDate(task.dueDate));
   const firstIndex = Math.min(startIndex, endIndex);
@@ -98,7 +98,7 @@ function getTaskDateIndexes(task: Task, monthStart: Date, dayCount: number) {
 }
 
 export function getLaneTaskRange(task: Task, monthStart: Date, dayCount: number) {
-  const { firstIndex, lastIndex } = getTaskDateIndexes(task, monthStart, dayCount);
+  const { firstIndex, lastIndex } = getTaskDateIndexes(task, monthStart);
   if (lastIndex < 0 || firstIndex >= dayCount) {
     return null;
   }
@@ -161,7 +161,7 @@ export function buildLanes(tasks: Task[], subsystems: Subsystem[], monthStart: D
     const taskColorOffset = getStableColorIndex(subsystemId, TASK_COLORS.length);
     const visibleTasks = lane.tasks.filter((task) => getLaneTaskRange(task, monthStart, dayCount) !== null);
     const packedTasks = visibleTasks.map((task, taskIndex) => {
-      const dateIndexes = getTaskDateIndexes(task, monthStart, dayCount);
+      const dateIndexes = getTaskDateIndexes(task, monthStart);
       const trackIndex = trackEndIndexes.findIndex((endIndex) => endIndex < dateIndexes.firstIndex);
       const nextTrackIndex = trackIndex >= 0 ? trackIndex : trackEndIndexes.length;
       trackEndIndexes[nextTrackIndex] = dateIndexes.lastIndex;

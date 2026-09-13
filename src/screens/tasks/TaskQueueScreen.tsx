@@ -33,6 +33,10 @@ import { NeedHelpModal } from "../help/NeedHelpModal";
 import { TaskQueueFilterSheet } from "../taskQueue/TaskQueueFilterSheet";
 import { TaskReassignModal } from "../taskQueue/TaskReassignModal";
 import { useTaskReassignModal } from "../taskQueue/useTaskReassignModal";
+import {
+  getVisibleTaskQueueSections,
+  TASK_QUEUE_PAGE_SIZE,
+} from "./taskQueuePagination";
 
 type TaskQueueScreenProps = Pick<TaskScreenProps,
   | "activeTaskSubteam" | "activeTaskSubteamLabel" | "appResponsiveStyles"
@@ -121,15 +125,10 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
     taskOwnerFilter, taskPriorityFilter, taskSearch, taskStatusFilter, taskSubsystemFilter]);
   const [pagination, setPagination] = useState({ filterKey, page: 0 });
   const taskCount = taskQueueSections.reduce((count, section) => count + section.tasks.length, 0);
-  const pageCount = Math.max(1, Math.ceil(taskCount / 30));
+  const pageCount = Math.max(1, Math.ceil(taskCount / TASK_QUEUE_PAGE_SIZE));
   const page = pagination.filterKey === filterKey ? Math.min(pagination.page, pageCount - 1) : 0;
   if (pagination.filterKey !== filterKey || pagination.page !== page) setPagination({ filterKey, page });
-  let sectionOffset = 0;
-  const visibleSections = taskQueueSections.map((section) => {
-    const start = sectionOffset;
-    sectionOffset += section.tasks.length;
-    return { ...section, totalTasks: section.tasks.length, tasks: section.tasks.slice(Math.max(0, page * 30 - start), Math.max(0, (page + 1) * 30 - start)) };
-  });
+  const visibleSections = getVisibleTaskQueueSections(taskQueueSections, page);
 
   const taskReassignModal = useTaskReassignModal({ reassignTask });
   const mentorOptions = rosterMentors.map((mentor) => ({ id: mentor.id, name: mentor.name }));
