@@ -55,4 +55,4 @@ yarn-error.*
 .codex_*.json
 
 # Graphify semantic extraction cache
-/graphify-out/cache/
+/graphify-out/
