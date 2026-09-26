@@ -1,3 +1,4 @@
+import { Callout } from "../../ui/Callout";
 import { ParticipantField } from "../../ui/editorFieldWidgets";
 import type { Dispatch, SetStateAction } from "react";
 
@@ -5,7 +6,6 @@ import { QA_RESULT_OPTIONS } from "../../ui/constants";
 import type { Option, QaReportDraft } from "../../ui/types";
 import { AdvancedOptions, DropdownField, EditorModal, ModalField, ToggleField } from "../../ui/ui";
 import type { ResponsiveScreenStyles } from "../../screens/types";
-import { EditorCallout } from "./EditorCallout";
 
 type QaReportEditorModalProps = {
   appResponsiveStyles: Pick<ResponsiveScreenStyles, "calloutBody" | "calloutBox" | "calloutTitle">;
@@ -45,12 +45,10 @@ export function QaReportEditorModal({
       visible={Boolean(qaReportEditorMode)}
     >
       {qaReportError ? (
-        <EditorCallout
+        <Callout
           body={qaReportError}
-          bodyStyle={appResponsiveStyles.calloutBody}
-          boxStyle={appResponsiveStyles.calloutBox}
           title="Missing QA details"
-          titleStyle={appResponsiveStyles.calloutTitle}
+          responsiveStyles={appResponsiveStyles}
         />
       ) : null}
       <DropdownField

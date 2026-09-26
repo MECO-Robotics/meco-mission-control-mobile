@@ -1,3 +1,4 @@
+import { ActionButton } from "../../ui/ActionButton";
 import { Pressable, View } from "react-native";
 
 import { Text } from "../../i18n";
@@ -54,9 +55,7 @@ export function TaskTimelineScreen(props: TaskTimelineScreenProps) {
       title={`${activeTaskSubteamLabel} timeline`}
       subtitle="Calendar-ordered milestones and ownership cues for the selected subteam."
       actions={
-        <Pressable onPress={openCreateTaskEditor} style={[styles.primaryAction, appResponsiveStyles.primaryAction]}>
-          <Text style={[styles.primaryActionLabel, appResponsiveStyles.primaryActionLabel]}>Add task</Text>
-        </Pressable>
+        <ActionButton onPress={openCreateTaskEditor} variant="primary" responsiveStyles={appResponsiveStyles}>Add task</ActionButton>
       }
     >
       <FilterToolbar>

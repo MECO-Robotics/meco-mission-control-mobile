@@ -1,3 +1,4 @@
+import { ActionButton } from "../../ui/ActionButton";
 import { Pressable, View } from "react-native";
 
 import { Text } from "../../i18n";
@@ -38,9 +39,7 @@ export function InventoryPartsScreen(props: AppScreenProps) {
       title="Part manager"
       subtitle="Definition catalog on top with subsystem part instances and lifecycle state below."
       actions={
-        <Pressable onPress={openCreatePartDefinitionEditor} style={[styles.primaryAction, appResponsiveStyles.primaryAction]}>
-          <Text style={[styles.primaryActionLabel, appResponsiveStyles.primaryActionLabel]}>Add</Text>
-        </Pressable>
+        <ActionButton onPress={openCreatePartDefinitionEditor} variant="primary" responsiveStyles={appResponsiveStyles}>Add</ActionButton>
       }
     >
       <FilterToolbar>

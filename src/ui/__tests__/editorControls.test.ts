@@ -1,3 +1,6 @@
+import { ResolvedLocalizationProvider } from "../../i18n";
+import { ActionButton } from "../ActionButton";
+import { Callout } from "../Callout";
 import { createElement } from "react";
 import { act, fireEvent, render } from "@testing-library/react-native";
 import { EditorModal } from "../editorWidgets";
@@ -87,4 +90,34 @@ test("pending editors freeze field edits and reopening clears prior action error
   view.rerender(createElement(EditorModal, props, input));
   expect(view.queryByRole("alert")).toBeNull();
   expect(view.getByLabelText("Notes").props.editable).toBe(true);
+});
+
+function Spanish({ children }: { children?: React.ReactNode }) {
+  const props = { language: "es" as const, locale: "es-ES", children };
+  return createElement(ResolvedLocalizationProvider, props);
+}
+
+test("shared actions preserve localized labels and disabled command boundaries", () => {
+  const onPress = jest.fn();
+  const control = (disabled: boolean) => {
+    const props = {
+      variant: "quick" as const, responsiveStyles: {}, accessibilityRole: "button" as const,
+      accessibilityState: { disabled }, disabled, onPress, children: "Unassigned",
+    };
+    return createElement(ActionButton, props);
+  };
+  const view = render(control(true), { wrapper: Spanish });
+  fireEvent.press(view.getByRole("button", { name: "Sin asignar" }));
+  expect(onPress).not.toHaveBeenCalled();
+  view.rerender(control(false));
+  fireEvent.press(view.getByRole("button", { name: "Sin asignar" }));
+  expect(onPress).toHaveBeenCalledTimes(1);
+});
+
+test("shared callouts translate both plain and composed text", () => {
+  const view = render(createElement(Callout, {
+    responsiveStyles: { calloutTitle: {}, calloutBody: {}, calloutBox: {} },
+    title: "Unassigned", body: ["Un", "assigned"],
+  }), { wrapper: Spanish });
+  expect(view.getAllByText("Sin asignar")).toHaveLength(2);
 });

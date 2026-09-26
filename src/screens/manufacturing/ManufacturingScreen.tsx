@@ -1,3 +1,4 @@
+import { ActionButton } from "../../ui/ActionButton";
 import { Pressable, View } from "react-native";
 
 import { Text } from "../../i18n";
@@ -60,9 +61,7 @@ export function ManufacturingScreen(props: AppScreenProps) {
         title={title}
         subtitle="Unified manufacturing rows for part, material, quantity, due date, status, and mentor review."
         actions={
-          <Pressable onPress={openCreateManufacturingEditor} style={[styles.primaryAction, appResponsiveStyles.primaryAction]}>
-            <Text style={[styles.primaryActionLabel, appResponsiveStyles.primaryActionLabel]}>Add</Text>
-          </Pressable>
+          <ActionButton onPress={openCreateManufacturingEditor} variant="primary" responsiveStyles={appResponsiveStyles}>Add</ActionButton>
         }
       >
         <FilterToolbar>
@@ -176,40 +175,19 @@ export function ManufacturingScreen(props: AppScreenProps) {
                 ) : null}
 
                 {canStartItem ? (
-                  <Pressable
-                    onPress={() =>
+                  <ActionButton onPress={() =>
                       patchManufacturingItem(item, { status: "in-progress" })
-                    }
-                    style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
-                  >
-                    <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                      Start
-                    </Text>
-                  </Pressable>
+                    } variant="quick" responsiveStyles={appResponsiveStyles}>Start</ActionButton>
                 ) : null}
 
                 {item.status === "in-progress" ? (
-                  <Pressable
-                    onPress={() => patchManufacturingItem(item, { status: "qa" })}
-                    style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
-                  >
-                    <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                      QA
-                    </Text>
-                  </Pressable>
+                  <ActionButton onPress={() => patchManufacturingItem(item, { status: "qa" })} variant="quick" responsiveStyles={appResponsiveStyles}>QA</ActionButton>
                 ) : null}
 
                 {canCompleteItem ? (
-                  <Pressable
-                    onPress={() =>
+                  <ActionButton onPress={() =>
                       patchManufacturingItem(item, { status: "complete" })
-                    }
-                    style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
-                  >
-                    <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                      Complete
-                    </Text>
-                  </Pressable>
+                    } variant="quick" responsiveStyles={appResponsiveStyles}>Complete</ActionButton>
                 ) : null}
               </View>
             </Pressable>

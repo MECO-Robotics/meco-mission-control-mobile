@@ -1,3 +1,4 @@
+import { ActionButton } from "../../ui/ActionButton";
 import { WorkLogTimerDisplay } from "./WorkLogTimerDisplay";
 import { Modal, Pressable, View } from "react-native";
 import { useState } from "react";
@@ -85,12 +86,8 @@ const renderScreen = () => {
       subtitle="Search by task or notes, then verify hours, participants, and linked subsystem impact."
       actions={
         <View style={styles.taskQueueHeaderActions}>
-          <Pressable onPress={() => setIsFiltersVisible(true)} style={[styles.primaryAction, appResponsiveStyles.primaryAction]}>
-            <Text style={[styles.primaryActionLabel, appResponsiveStyles.primaryActionLabel]}>Filters</Text>
-          </Pressable>
-          <Pressable onPress={() => setIsAddMenuVisible(true)} style={[styles.primaryAction, appResponsiveStyles.primaryAction]}>
-            <Text style={[styles.primaryActionLabel, appResponsiveStyles.primaryActionLabel]}>Add</Text>
-          </Pressable>
+          <ActionButton onPress={() => setIsFiltersVisible(true)} variant="primary" responsiveStyles={appResponsiveStyles}>Filters</ActionButton>
+          <ActionButton onPress={() => setIsAddMenuVisible(true)} variant="primary" responsiveStyles={appResponsiveStyles}>Add</ActionButton>
         </View>
       }
     >

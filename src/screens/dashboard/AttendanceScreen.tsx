@@ -1,3 +1,4 @@
+import { ActionButton } from "../../ui/ActionButton";
 import { Pressable, View } from "react-native";
 
 import { Text } from "../../i18n";
@@ -50,11 +51,7 @@ const renderScreen = () => {
       title="Attendance"
       subtitle="Session attendance. Changes stay on this device until the app closes."
       actions={
-        <Pressable onPress={syncFromBackend} style={[styles.primaryAction, appResponsiveStyles.primaryAction]}>
-          <Text style={[styles.primaryActionLabel, appResponsiveStyles.primaryActionLabel]}>
-            {isSyncing ? "Refreshing" : "Refresh"}
-          </Text>
-        </Pressable>
+        <ActionButton onPress={syncFromBackend} variant="primary" responsiveStyles={appResponsiveStyles}>{isSyncing ? "Refreshing" : "Refresh"}</ActionButton>
       }
     >
       <SummaryRow chips={attendanceSummary} />

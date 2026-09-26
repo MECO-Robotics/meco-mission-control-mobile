@@ -1,3 +1,4 @@
+import { Callout } from "../../ui/Callout";
 import type { useManufacturingEditor } from "./useManufacturingEditor";
 import { View } from "react-native";
 
@@ -9,7 +10,6 @@ import type { Option } from "../../ui/types";
 import { AdvancedOptions, DropdownField, EditorModal, ModalField } from "../../ui/ui";
 import type { ManufacturingItem } from "../../types/domain";
 import type { ResponsiveScreenStyles } from "../../screens/types";
-import { EditorCallout } from "./EditorCallout";
 
 type ManufacturingEditorModalProps = {
   editor: ReturnType<typeof useManufacturingEditor>;
@@ -37,12 +37,10 @@ export function ManufacturingEditorModal({
       visible={visible}
     >
       {error ? (
-        <EditorCallout
+        <Callout
           body={error}
-          bodyStyle={appResponsiveStyles.calloutBody}
-          boxStyle={appResponsiveStyles.calloutBox}
           title="Manufacturing item needs attention"
-          titleStyle={appResponsiveStyles.calloutTitle}
+          responsiveStyles={appResponsiveStyles}
         />
       ) : null}
       <ModalField

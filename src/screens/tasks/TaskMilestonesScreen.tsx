@@ -1,3 +1,4 @@
+import { ActionButton } from "../../ui/ActionButton";
 import { Pressable, View } from "react-native";
 
 import { Text } from "../../i18n";
@@ -76,9 +77,7 @@ export function TaskMilestonesScreen(props: TaskMilestonesScreenProps) {
       title="Milestones"
       subtitle="Search, filter, and edit timeline events with subsystem context and linked task impact."
       actions={
-        <Pressable onPress={openCreateMilestoneEditor} style={[styles.primaryAction, appResponsiveStyles.primaryAction]}>
-          <Text style={[styles.primaryActionLabel, appResponsiveStyles.primaryActionLabel]}>Add</Text>
-        </Pressable>
+        <ActionButton onPress={openCreateMilestoneEditor} variant="primary" responsiveStyles={appResponsiveStyles}>Add</ActionButton>
       }
     >
       <FilterToolbar>
