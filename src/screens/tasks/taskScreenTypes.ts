@@ -3,9 +3,9 @@ import type { StyleProp, TextStyle } from "react-native";
 
 import type { AppThemeColors } from "../../theme";
 import type { HelpRequestInput } from "../../data/helpRequests";
-import type { TaskQueueSection } from "../../data/taskQueueOrdering";
+import type { useTaskQueue } from "./useTaskQueue";
 import type { Discipline, Event, Mechanism, Member, PartInstance, QaReview, Subsystem, Task } from "../../types/domain";
-import type { ArchiveFilterMode, BlockerFilterMode, MilestoneSortField, Option, SummaryChipData, TaskSubteamTab, TaskViewTab } from "../../ui/types";
+import type { MilestoneSortField, Option, SummaryChipData, TaskSubteamTab, TaskViewTab } from "../../ui/types";
 
 import type { ResponsiveScreenStyles } from "../types";
 
@@ -13,6 +13,7 @@ type StateSetter<T> = Dispatch<SetStateAction<T>>;
 type TextSetter = StateSetter<string>;
 
 export interface TaskScreenProps {
+  queue: ReturnType<typeof useTaskQueue>;
   activeTaskSubteam: TaskSubteamTab;
   events: Event[];
   isLandscapeTimelineLayout: boolean;
@@ -35,7 +36,6 @@ export interface TaskScreenProps {
   disciplinesById: Record<string, Discipline>;
   editTagStyle: StyleProp<TextStyle>;
   eventsById: Record<string, Event>;
-  filteredTaskQueue: Task[];
   isCompactLayout: boolean;
   isLandscapeCardLayout: boolean;
   mechanismsById: Record<string, Mechanism>;
@@ -49,28 +49,12 @@ export interface TaskScreenProps {
   releaseTask: (task: Task) => Promise<void>;
   rosterMentors: Member[];
   rosterStudents: Member[];
-  setTaskArchiveFilter: StateSetter<ArchiveFilterMode>;
-  setTaskBlockerFilter: StateSetter<BlockerFilterMode>;
-  setTaskOwnerFilter: TextSetter;
-  setTaskPriorityFilter: TextSetter;
-  setTaskSearch: TextSetter;
-  setTaskStatusFilter: TextSetter;
-  setTaskSubsystemFilter: TextSetter;
   signedInMember: Member | null;
   startTask: (task: Task) => Promise<void>;
   subsystemsById: Record<string, Subsystem>;
-  taskArchiveFilter: ArchiveFilterMode;
-  taskBlockerFilter: BlockerFilterMode;
   taskById: Record<string, Task>;
   taskDependencies: import("../../types/domain").TaskDependency[];
-  taskOwnerFilter: string;
-  taskPriorityFilter: string;
-  taskQueueSections: TaskQueueSection[];
-  taskSearch: string;
-  taskStatusFilter: string;
-  taskSubsystemFilter: string;
   taskLoggedHoursById: Record<string, number>;
-  taskSummary: SummaryChipData[];
   qaReviews: QaReview[];
   eventOptions: Option[];
   setTimelineMilestoneFilter: TextSetter;

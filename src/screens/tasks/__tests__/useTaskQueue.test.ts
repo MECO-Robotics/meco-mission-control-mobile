@@ -23,24 +23,24 @@ test("filter changes compose and queue navigation resets the entire selection", 
   const { result } = renderHook(() => useTaskQueue(inputs));
   expect(result.current.filteredTaskQueue.map((task) => task.id)).not.toContain("complete");
   act(() => {
-    result.current.setTaskSearch("Ada");
-    result.current.setTaskBlockerFilter("over-estimate");
+    result.current.setFilter("taskSearch", "Ada");
+    result.current.setFilter("taskBlockerFilter", "over-estimate");
   });
   expect(result.current.filteredTaskQueue.map((task) => task.id)).toEqual(["ready"]);
   expect(result.current.taskSummary).toContainEqual({ label: "Logged", value: "3.0h" });
-  act(() => result.current.setTaskPriorityFilter("high"));
+  act(() => result.current.setFilter("taskPriorityFilter", "high"));
   expect(result.current.filteredTaskQueue).toEqual([]);
   act(() => result.current.resetFilters());
   expect(result.current.filteredTaskQueue).toHaveLength(3);
-  expect(result.current.taskSearch).toBe("");
-  expect(result.current.taskPriorityFilter).toBe("all");
+  expect(result.current.filters.taskSearch).toBe("");
+  expect(result.current.filters.taskPriorityFilter).toBe("all");
 });
 
 test.each([
   ["blocked", ["blocked"]], ["dependency-wait", ["waiting"]], ["ready-now", ["ready"]],
 ] as const)("%s selection preserves dependency and readiness behavior", (filter, ids) => {
   const { result } = renderHook(() => useTaskQueue(inputs));
-  act(() => result.current.setTaskBlockerFilter(filter));
+  act(() => result.current.setFilter("taskBlockerFilter", filter));
   expect(result.current.filteredTaskQueue.map((task) => task.id)).toEqual(ids);
 });
 
@@ -48,7 +48,7 @@ test("archive and active-person changes recompute selection from current input",
   const { result, rerender } = renderHook((activePersonFilter: string) => useTaskQueue({ ...inputs, activePersonFilter }), {
     initialProps: "mentor",
   });
-  act(() => result.current.setTaskArchiveFilter(() => "archived"));
+  act(() => result.current.setFilter("taskArchiveFilter", () => "archived"));
   expect(result.current.filteredTaskQueue.map((task) => task.id)).toEqual(["complete"]);
   rerender("other-person");
   expect(result.current.filteredTaskQueue).toEqual([]);
@@ -69,9 +69,9 @@ test("summary counts and readiness selection agree for owned, unassigned, QA and
     { label: "Waiting QA", value: "2" },
     { label: "Over est.", value: "1" },
   ]));
-  act(() => result.current.setTaskBlockerFilter("ready-to-qa"));
+  act(() => result.current.setFilter("taskBlockerFilter", "ready-to-qa"));
   expect(result.current.filteredTaskQueue.map((task) => task.id)).toEqual(["qa"]);
-  act(() => result.current.setTaskBlockerFilter("unassigned"));
+  act(() => result.current.setFilter("taskBlockerFilter", "unassigned"));
   expect(result.current.filteredTaskQueue.map((task) => task.id)).toEqual(["unassigned"]);
 });
 
@@ -87,11 +87,11 @@ test("due-soon includes today and seven days away, excluding completed and overd
     ];
     const { result } = renderHook(() => useTaskQueue({ ...inputs, tasks: candidates }));
     act(() => {
-      result.current.setTaskArchiveFilter("all");
-      result.current.setTaskBlockerFilter("due-soon");
+      result.current.setFilter("taskArchiveFilter", "all");
+      result.current.setFilter("taskBlockerFilter", "due-soon");
     });
     expect(result.current.filteredTaskQueue.map((task) => task.id)).toEqual(["today", "week"]);
-    act(() => result.current.setTaskBlockerFilter("overdue"));
+    act(() => result.current.setFilter("taskBlockerFilter", "overdue"));
     expect(result.current.filteredTaskQueue.map((task) => task.id)).toEqual(["yesterday"]);
   } finally {
     jest.useRealTimers();

@@ -39,27 +39,25 @@ import {
 } from "./taskQueuePagination";
 
 type TaskQueueScreenProps = Pick<TaskScreenProps,
-  | "activeTaskSubteam" | "activeTaskSubteamLabel" | "appResponsiveStyles"
+  | "queue" | "activeTaskSubteam" | "activeTaskSubteamLabel" | "appResponsiveStyles"
   | "canReassignTasks" | "claimTask" | "clearTaskBlockers"
   | "disciplinesById" | "editTagStyle" | "eventsById"
-  | "filteredTaskQueue" | "isCompactLayout" | "isLandscapeCardLayout"
+  | "isCompactLayout" | "isLandscapeCardLayout"
   | "mechanismsById" | "members" | "membersById"
   | "openCreateTaskEditor" | "openCreateWorkLogEditor" | "openEditTaskEditor"
   | "partInstancesById" | "requestHelp" | "requestTaskQa"
   | "reassignTask" | "releaseTask" | "rosterMentors"
-  | "rosterStudents" | "setActiveTaskSubteam" | "setTaskArchiveFilter"
-  | "setTaskBlockerFilter" | "setTaskOwnerFilter" | "setTaskPriorityFilter"
-  | "setTaskSearch" | "setTaskStatusFilter" | "setTaskSubsystemFilter"
+  | "rosterStudents" | "setActiveTaskSubteam"
   | "canSubmitQa" | "qaRequests" | "openCreateQaReportEditor" | "signedInMember" | "startTask"
-  | "subsystems" | "subsystemsById" | "taskArchiveFilter"
-  | "taskBlockerFilter" | "taskById" | "taskDependencies" | "taskOwnerFilter"
-  | "taskPriorityFilter" | "taskQueueSections" | "taskSearch"
-  | "taskStatusFilter" | "taskSubsystemFilter" | "taskLoggedHoursById"
-  | "taskSummary" | "themeColors" | "qaReviews"
+  | "subsystems" | "subsystemsById"
+  | "taskById" | "taskDependencies"
+  | "taskLoggedHoursById"
+  | "themeColors" | "qaReviews"
 >;
 
 export function TaskQueueScreen(props: TaskQueueScreenProps) {
   const {
+    queue,
     activeTaskSubteam,
     activeTaskSubteamLabel,
     appResponsiveStyles,
@@ -69,7 +67,6 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
     disciplinesById,
     editTagStyle,
     eventsById,
-    filteredTaskQueue,
     isCompactLayout,
     isLandscapeCardLayout,
     mechanismsById,
@@ -86,13 +83,6 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
     rosterMentors,
     rosterStudents,
     setActiveTaskSubteam,
-    setTaskArchiveFilter,
-    setTaskBlockerFilter,
-    setTaskOwnerFilter,
-    setTaskPriorityFilter,
-    setTaskSearch,
-    setTaskStatusFilter,
-    setTaskSubsystemFilter,
     canSubmitQa,
     qaRequests,
     openCreateQaReportEditor,
@@ -100,18 +90,9 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
     startTask,
     subsystems,
     subsystemsById,
-    taskArchiveFilter,
-    taskBlockerFilter,
     taskById,
     taskDependencies,
-    taskOwnerFilter,
-    taskPriorityFilter,
-    taskQueueSections,
-    taskSearch,
-    taskStatusFilter,
-    taskSubsystemFilter,
     taskLoggedHoursById,
-    taskSummary,
     themeColors,
     qaReviews,
   } = props;
@@ -121,8 +102,8 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
   const [blockerResolutionError, setBlockerResolutionError] = useState<string | null>(null);
   const [helpRequestTask, setHelpRequestTask] = useState<Task | null>(null);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-  const filterKey = JSON.stringify([activeTaskSubteam, taskArchiveFilter, taskBlockerFilter,
-    taskOwnerFilter, taskPriorityFilter, taskSearch, taskStatusFilter, taskSubsystemFilter]);
+  const { filteredTaskQueue, taskQueueSections, taskSummary, resetFilters } = queue;
+  const filterKey = JSON.stringify([activeTaskSubteam, queue.filters]);
   const [pagination, setPagination] = useState({ filterKey, page: 0 });
   const taskCount = taskQueueSections.reduce((count, section) => count + section.tasks.length, 0);
   const pageCount = Math.max(1, Math.ceil(taskCount / TASK_QUEUE_PAGE_SIZE));
@@ -193,16 +174,6 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
       await clearTaskBlockers(blockerResolutionTask, blockerResolutionNote);
       closeBlockerResolution();
     } catch (error) { setBlockerResolutionError(error instanceof Error ? error.message : String(error)); }
-  };
-
-  const resetTaskQueueFilters = () => {
-    setTaskSearch("");
-    setTaskSubsystemFilter("all");
-    setTaskOwnerFilter("all");
-    setTaskStatusFilter("all");
-    setTaskPriorityFilter("all");
-    setTaskBlockerFilter("all");
-    setTaskArchiveFilter("active");
   };
 
   const renderTaskMetaItem = (label: string, value: string) => (
@@ -612,7 +583,7 @@ const renderScreen = () => {
           </Text>
           <View style={styles.quickActionRow}>
             <Pressable
-              onPress={resetTaskQueueFilters}
+              onPress={resetFilters}
               style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
             >
               <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
@@ -655,27 +626,13 @@ const renderScreen = () => {
         visible={Boolean(helpRequestTask)}
       />
       <TaskQueueFilterSheet
+        queue={queue}
         activeTaskSubteam={activeTaskSubteam}
         appResponsiveStyles={appResponsiveStyles}
         members={members}
         onClose={() => setIsFiltersOpen(false)}
-        onReset={resetTaskQueueFilters}
         setActiveTaskSubteam={setActiveTaskSubteam}
-        setTaskArchiveFilter={setTaskArchiveFilter}
-        setTaskBlockerFilter={setTaskBlockerFilter}
-        setTaskOwnerFilter={setTaskOwnerFilter}
-        setTaskPriorityFilter={setTaskPriorityFilter}
-        setTaskSearch={setTaskSearch}
-        setTaskStatusFilter={setTaskStatusFilter}
-        setTaskSubsystemFilter={setTaskSubsystemFilter}
         subsystems={subsystems}
-        taskArchiveFilter={taskArchiveFilter}
-        taskBlockerFilter={taskBlockerFilter}
-        taskOwnerFilter={taskOwnerFilter}
-        taskPriorityFilter={taskPriorityFilter}
-        taskSearch={taskSearch}
-        taskStatusFilter={taskStatusFilter}
-        taskSubsystemFilter={taskSubsystemFilter}
         themeColors={themeColors}
         visible={isFiltersOpen}
       />
