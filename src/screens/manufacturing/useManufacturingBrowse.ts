@@ -20,7 +20,7 @@ type Inputs = {
 };
 
 export function useManufacturingBrowse({ items, activePersonFilter, membersById, subsystemsById }: Inputs) {
-  const [filters, setFilters] = useState<Filters>({
+  const [filters, setFilters] = useState<Readonly<Filters>>({
     search: "", subsystemId: "all", requesterId: "all", status: "all",
     material: "all", archive: "active", view: "all",
   });

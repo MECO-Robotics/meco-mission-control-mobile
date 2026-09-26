@@ -21,7 +21,7 @@ type Inputs = {
 const statusRank = { requested: 0, approved: 1, purchased: 2, shipped: 3, delivered: 4 };
 
 export function usePurchaseBrowse({ items, activePersonFilter, membersById, subsystemsById }: Inputs) {
-  const [filters, setFilters] = useState<Filters>({
+  const [filters, setFilters] = useState<Readonly<Filters>>({
     search: "", requesterId: "all", status: "all", vendor: "all", approval: "all", archive: "active",
   });
   const updateFilters = (patch: Partial<Filters>) => setFilters((current) => ({ ...current, ...patch }));
