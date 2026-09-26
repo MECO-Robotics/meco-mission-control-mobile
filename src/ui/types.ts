@@ -1,4 +1,4 @@
-import type { EventType, ManufacturingItem, MemberRole, PurchaseItem } from "../types/domain";
+import type { ManufacturingItem, MemberRole, PurchaseItem } from "../types/domain";
 export type ViewTab =
   | "home"
   | "work-tasks" | "work-schedule" | "work-risks" | "work-activity"
@@ -104,14 +104,6 @@ export type PartDefinitionDraft = {
   revision: string;
   source: string;
   acquisitionMethod: AcquisitionMethod;
-};
-
-export type MilestoneDraft = {
-  title: string;
-  type: EventType;
-  isExternal: boolean;
-  description: string;
-  relatedSubsystemIdsText: string;
 };
 
 export type MilestoneSortField = "startDateTime" | "title" | "type";
