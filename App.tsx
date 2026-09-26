@@ -2802,7 +2802,7 @@ export default function App() {
   const subsystemEditor = useSubsystemEditor({ members, mutate: runMutation });
   const partDefinitionEditor = usePartDefinitionEditor({
     members, subsystems, disciplines, partDefinitions,
-    canCreateAcquisition: ["lead", "mentor", "admin"].includes(sessionUser?.role ?? ""),
+    canCreateParts: ["lead", "mentor", "admin"].includes(sessionUser?.role ?? ""),
     mutate: runMutation,
   });
 

@@ -47,8 +47,8 @@ test("subsystem defaults and validation use current roster; failures retain draf
   expect(mutate.mock.calls[1]).toEqual([`/api/subsystems/${mecoSnapshot.subsystems[0].id}`, { method: "DELETE" }]);
 });
 
-function partSetup(mutate = mutation(), canCreateAcquisition = true) {
-  return { mutate, ...renderHook(() => usePartDefinitionEditor({ ...mecoSnapshot, canCreateAcquisition, mutate })) };
+function partSetup(mutate = mutation(), canCreateParts = true) {
+  return { mutate, ...renderHook(() => usePartDefinitionEditor({ ...mecoSnapshot, canCreateParts, mutate })) };
 }
 const partDraft = { name: " Plate ", partNumber: " PL-1 ", source: "Onshape", revision: " B " };
 
@@ -125,6 +125,20 @@ test("part edit does not recreate acquisition and deletion reports its outcome",
   await act(async () => { await result.current.remove(); });
   expect(result.current.error).toContain("deleted");
   expect(result.current.visible).toBe(true);
+});
+
+test("editing a web-authored definition preserves its custom source and omits unedited fields", async () => {
+  const part = { ...mecoSnapshot.partDefinitions[0], source: "Local machine shop", description: "Keep web-authored notes", type: "custom" as const };
+  const mutate = mutation();
+  const { result } = renderHook(() => usePartDefinitionEditor({ ...mecoSnapshot, partDefinitions: [part], canCreateParts: true, mutate }));
+  act(() => result.current.edit(part.id));
+  expect(result.current.draft.source).toBe(part.source);
+  expect(result.current.sourceOptions).toContainEqual({ id: part.source, name: part.source });
+  act(() => result.current.updateDraft({ name: "Renamed bracket", revision: "C" }));
+  await act(async () => { await result.current.save(); });
+  expect(body(mutate)).toEqual({ name: "Renamed bracket", revision: "C", source: part.source, partNumber: part.partNumber });
+  expect(body(mutate)).not.toHaveProperty("description");
+  expect(body(mutate)).not.toHaveProperty("type");
 });
 
 test("late part completion leaves a newly opened draft unchanged and unlocked", async () => {

@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { useEditorDraft } from "./useEditorDraft";
 import { isoToday } from "../../ui/helpers";
+import { PART_SOURCE_OPTIONS } from "../../ui/constants";
 import type { Member, Subsystem, Discipline, PartDefinition } from "../../types/domain";
 import type { AcquisitionMethod } from "../../ui/types";
 import { isValidDateInput } from "../appModel";
@@ -10,7 +11,7 @@ function buildDraft(seed?: PartDefinition) {
     name: seed?.name ?? "",
     partNumber: seed?.partNumber ?? "",
     revision: seed?.revision ?? "A",
-    source: seed && ["Onshape", "FRC Supplier", "COTS"].includes(seed.source) ? seed.source : "Onshape",
+    source: seed?.source ?? "Onshape",
     acquisitionMethod: "stock" as AcquisitionMethod,
     subsystemId: "",
     disciplineId: "",
@@ -25,11 +26,11 @@ type Inputs = {
   subsystems: Subsystem[];
   disciplines: Discipline[];
   partDefinitions: PartDefinition[];
-  canCreateAcquisition: boolean;
+  canCreateParts: boolean;
   mutate: (path: string, init: RequestInit) => Promise<boolean>;
 };
 
-export function usePartDefinitionEditor({ members, subsystems, disciplines, partDefinitions, canCreateAcquisition, mutate }: Inputs) {
+export function usePartDefinitionEditor({ members, subsystems, disciplines, partDefinitions, canCreateParts, mutate }: Inputs) {
   const { view: editor, open: openDraft, setError, complete } = useEditorDraft(buildDraft);
   const creation = useRef({ attempted: false });
   const open = () => {
@@ -57,8 +58,8 @@ export function usePartDefinitionEditor({ members, subsystems, disciplines, part
     const revision = draft.revision.trim();
     const source = draft.source.trim();
     const createsWork = !editor.id && draft.acquisitionMethod !== "stock";
-    if (createsWork && !canCreateAcquisition) {
-      setError("Only leads, mentors and admins can create acquisition work. Choose Already stocked or ask a team lead.");
+    if (!editor.id && !canCreateParts) {
+      setError("Only leads, mentors and admins can add part definitions. Ask a team lead to add this part.");
       return;
     }
     const missingFields = [
@@ -78,9 +79,10 @@ export function usePartDefinitionEditor({ members, subsystems, disciplines, part
     }
     const payload = {
       name, partNumber, revision, source,
-      type: source === "Onshape" ? "custom" : "cots",
-      description: "",
-      ...(!editor.id ? { acquisition: createsWork ? {
+      ...(!editor.id ? {
+        type: source === "Onshape" ? "custom" : "cots",
+        description: "",
+        acquisition: createsWork ? {
         method: draft.acquisitionMethod,
         subsystemId: draft.subsystemId,
         disciplineId: draft.disciplineId,
@@ -102,11 +104,14 @@ export function usePartDefinitionEditor({ members, subsystems, disciplines, part
     complete(ok, "Could not confirm the part definition was deleted.");
   };
   return {
-    ...editor, open, edit, save, remove,
+    ...editor, open, edit, save, remove, canCreateParts,
     acquisitionOptions: [
       { id: "stock", name: "Already stocked" },
-      ...(canCreateAcquisition ? [{ id: "manufacture", name: "Manufacture" }, { id: "purchase", name: "Purchase" }] : []),
+      ...(canCreateParts ? [{ id: "manufacture", name: "Manufacture" }, { id: "purchase", name: "Purchase" }] : []),
     ],
+    sourceOptions: PART_SOURCE_OPTIONS.some(({ id }) => id === editor.draft.source)
+      ? PART_SOURCE_OPTIONS
+      : [...PART_SOURCE_OPTIONS, { id: editor.draft.source, name: editor.draft.source }],
     subsystems, disciplines, owners, mentors,
   };
 }

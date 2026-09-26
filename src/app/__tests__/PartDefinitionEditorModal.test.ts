@@ -3,12 +3,13 @@ import { Button } from "react-native";
 import { act, fireEvent, render } from "@testing-library/react-native";
 import { PartDefinitionEditorModal } from "../editorModals/PartDefinitionEditorModal";
 import { usePartDefinitionEditor } from "../editorModals/usePartDefinitionEditor";
+import type { PartDefinition } from "../../types/domain";
 import { mecoSnapshot } from "../../data/mockData";
 
-function Editor({ allowed, mutate }: { allowed: boolean; mutate: () => Promise<boolean> }) {
-  const editor = usePartDefinitionEditor({ ...mecoSnapshot, canCreateAcquisition: allowed, mutate });
+function Editor({ allowed, mutate, seed }: { allowed: boolean; mutate: () => Promise<boolean>; seed?: PartDefinition }) {
+  const editor = usePartDefinitionEditor({ ...mecoSnapshot, partDefinitions: seed ? [seed] : mecoSnapshot.partDefinitions, canCreateParts: allowed, mutate });
   return createElement(Fragment, null,
-    createElement(Button, { title: "Open part", onPress: editor.open }),
+    createElement(Button, { title: "Open part", onPress: () => seed ? editor.edit(seed.id) : editor.open() }),
     createElement(PartDefinitionEditorModal, {
       editor, appResponsiveStyles: { calloutBody: {}, calloutBox: {}, calloutTitle: {} },
     }),
@@ -33,14 +34,10 @@ test("acquisition fields appear only for authorized nonstock choices and require
   expect(mutate).not.toHaveBeenCalled();
 });
 
-test("permission-limited stocked creation reports uncertainty locally without duplicating requests", async () => {
+test("stocked creation reports uncertainty locally without duplicating requests", async () => {
   const mutate = jest.fn(async () => false);
-  const view = render(createElement(Editor, { allowed: false, mutate }));
+  const view = render(createElement(Editor, { allowed: true, mutate }));
   fireEvent.press(view.getByRole("button", { name: "Open part" }));
-  fireEvent.press(view.getByRole("button", { name: "Acquisition method: Already stocked" }));
-  expect(view.queryByRole("button", { name: "Manufacture" })).toBeNull();
-  expect(view.queryByRole("button", { name: "Purchase" })).toBeNull();
-  fireEvent.press(view.getAllByRole("button", { name: "Already stocked" })[0]);
   fireEvent.changeText(view.getByLabelText("Name"), "Bracket");
   fireEvent.changeText(view.getByLabelText("Part number"), "BR-1");
   await act(async () => fireEvent.press(view.getByRole("button", { name: "Create part definition" })));
@@ -48,4 +45,22 @@ test("permission-limited stocked creation reports uncertainty locally without du
   await act(async () => fireEvent.press(view.getByRole("button", { name: "Create part definition" })));
   expect(mutate).toHaveBeenCalledTimes(1);
   expect(view.getByText(/Creation was already submitted/)).toBeTruthy();
+});
+
+test("editing shows a nonstandard saved source instead of replacing it", () => {
+  const seed = { ...mecoSnapshot.partDefinitions[0], source: "Local machine shop" };
+  const view = render(createElement(Editor, { allowed: true, mutate: jest.fn(async () => true), seed }));
+  fireEvent.press(view.getByRole("button", { name: "Open part" }));
+  expect(view.getByRole("button", { name: "Source: Local machine shop" })).toBeTruthy();
+  expect(view.queryByRole("button", { name: /Acquisition method:/ })).toBeNull();
+});
+
+test("sessions without create permission see an accurate notice and cannot submit stocked parts", async () => {
+  const mutate = jest.fn(async () => true);
+  const view = render(createElement(Editor, { allowed: false, mutate }));
+  fireEvent.press(view.getByRole("button", { name: "Open part" }));
+  expect(view.getByText("Team permission required")).toBeTruthy();
+  expect(view.queryByRole("button", { name: /Acquisition method:/ })).toBeNull();
+  await act(async () => fireEvent.press(view.getByRole("button", { name: "Create part definition" })));
+  expect(mutate).not.toHaveBeenCalled();
 });

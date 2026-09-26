@@ -1,6 +1,5 @@
 import type { usePartDefinitionEditor } from "./usePartDefinitionEditor";
 
-import { PART_SOURCE_OPTIONS } from "../../ui/constants";
 import type { AcquisitionMethod } from "../../ui/types";
 import { DropdownField, EditorModal, ModalField } from "../../ui/ui";
 import type { ResponsiveScreenStyles } from "../../screens/types";
@@ -24,6 +23,15 @@ export function PartDefinitionEditorModal({
       title={editor.id ? "Edit part definition" : "Create part definition"}
       visible={editor.visible}
     >
+      {!editor.id && !editor.canCreateParts ? (
+        <EditorCallout
+          title="Team permission required"
+          body="Only leads, mentors and admins can add part definitions. Ask a team lead to add this part."
+          bodyStyle={appResponsiveStyles.calloutBody}
+          boxStyle={appResponsiveStyles.calloutBox}
+          titleStyle={appResponsiveStyles.calloutTitle}
+        />
+      ) : null}
       {editor.error ? (
         <EditorCallout
           body={editor.error}
@@ -54,10 +62,10 @@ export function PartDefinitionEditorModal({
       <DropdownField
         label="Source"
         onChange={(value) => editor.updateDraft({ source: value })}
-        options={PART_SOURCE_OPTIONS}
+        options={editor.sourceOptions}
         value={editor.draft.source || "Onshape"}
       />
-      {!editor.id ? (
+      {!editor.id && editor.canCreateParts ? (
         <DropdownField
           label="Acquisition method"
           onChange={(value) => editor.updateDraft({ acquisitionMethod: value as AcquisitionMethod })}
@@ -65,7 +73,7 @@ export function PartDefinitionEditorModal({
           value={editor.draft.acquisitionMethod}
         />
       ) : null}
-      {!editor.id && editor.draft.acquisitionMethod !== "stock" ? (
+      {!editor.id && editor.canCreateParts && editor.draft.acquisitionMethod !== "stock" ? (
         <>
           <DropdownField
             label="Subsystem"
