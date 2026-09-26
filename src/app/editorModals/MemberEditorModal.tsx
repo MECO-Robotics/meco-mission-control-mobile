@@ -1,62 +1,46 @@
-import type { Dispatch, SetStateAction } from "react";
+import type { useMemberEditor } from "./useMemberEditor";
 import { Pressable, View } from "react-native";
 
 import { Text } from "../../i18n";
 import type { AppThemeColors } from "../../theme";
 import { PLANNED_ATTENDANCE_DAY_OPTIONS, getPhotoFileName } from "../appModel";
 import { styles } from "../../ui/styles";
-import type { EditorMode, MemberDraft, Option } from "../../ui/types";
+import type { Option } from "../../ui/types";
 import { DropdownField, EditorModal, ModalField } from "../../ui/ui";
 import type { MemberRole } from "../../types/domain";
 import type { ResponsiveScreenStyles } from "../../screens/types";
 import { EditorCallout } from "./EditorCallout";
 
 type MemberEditorModalProps = {
+  editor: ReturnType<typeof useMemberEditor>;
   appResponsiveStyles: Pick<ResponsiveScreenStyles, "calloutBody" | "calloutBox" | "calloutTitle">;
-  deleteMemberDraft: () => void;
   disciplineOptions: Option[];
-  memberDraft: MemberDraft;
-  memberEditorMode: EditorMode | null;
-  memberError: string | null;
-  onCancel: () => void;
-  onSave: () => void;
-  setMemberDraft: Dispatch<SetStateAction<MemberDraft>>;
-  setMemberError: (value: string | null) => void;
-  showProfilePhotoUrlOnlyMessage: () => void;
   themeColors: AppThemeColors;
 };
 
 export function MemberEditorModal({
+  editor,
   appResponsiveStyles,
-  deleteMemberDraft,
   disciplineOptions,
-  memberDraft,
-  memberEditorMode,
-  memberError,
-  onCancel,
-  onSave,
-  setMemberDraft,
-  setMemberError,
-  showProfilePhotoUrlOnlyMessage,
   themeColors,
 }: MemberEditorModalProps) {
   return (
     <EditorModal
-      onCancel={onCancel}
-      onDelete={memberEditorMode === "edit" ? deleteMemberDraft : undefined}
-      onSave={onSave}
-      saveLabel={memberEditorMode === "edit" ? "Update person" : "Add person"}
-      title={memberEditorMode === "edit" ? "Edit selected person" : "Add person"}
-      visible={Boolean(memberEditorMode)}
+      onCancel={editor.close}
+      onDelete={editor.id ? editor.remove : undefined}
+      onSave={editor.save}
+      saveLabel={editor.id ? "Update person" : "Add person"}
+      title={editor.id ? "Edit selected person" : "Add person"}
+      visible={editor.visible}
     >
-      {memberEditorMode === "create" ? (
+      {!editor.id ? (
         <Text style={[styles.modalDescription, { color: themeColors.subtleText }]}>
           Create a new roster entry for this workspace.
         </Text>
       ) : null}
-      {memberError ? (
+      {editor.error ? (
         <EditorCallout
-          body={memberError}
+          body={editor.error}
           bodyStyle={appResponsiveStyles.calloutBody}
           boxStyle={appResponsiveStyles.calloutBox}
           title="Missing roster details"
@@ -70,27 +54,24 @@ export function MemberEditorModal({
         <View style={[styles.profilePhotoPicker, { borderColor: themeColors.border }]}>
           <Pressable
             accessibilityRole="button"
-            onPress={showProfilePhotoUrlOnlyMessage}
+            onPress={editor.showPhotoNotice}
             style={styles.profilePhotoChooseButton}
           >
             <Text style={styles.profilePhotoChooseButtonLabel}>Use URL</Text>
           </Pressable>
           <Text style={[styles.profilePhotoFileName, { color: themeColors.ink }]}>
-            {getPhotoFileName(memberDraft.photoUrl)}
+            {getPhotoFileName(editor.draft.photoUrl)}
           </Text>
         </View>
         <ModalField
           label="Profile photo URL"
-          onChangeText={(value) => {
-            setMemberError(null);
-            setMemberDraft((current) => ({ ...current, photoUrl: value }));
-          }}
+          onChangeText={(value) => editor.updateDraft({ photoUrl: value })}
           placeholder="https://example.com/photo.jpg"
-          value={memberDraft.photoUrl}
+          value={editor.draft.photoUrl}
         />
         <Pressable
           accessibilityRole="button"
-          onPress={() => setMemberDraft((current) => ({ ...current, photoUrl: "" }))}
+          onPress={() => editor.updateDraft({ photoUrl: "" })}
           style={styles.profilePhotoClearButton}
         >
           <Text style={[styles.profilePhotoClearButtonLabel, { color: themeColors.ink }]}>
@@ -100,44 +81,33 @@ export function MemberEditorModal({
       </View>
       <ModalField
         label="Name"
-        onChangeText={(value) => {
-          setMemberError(null);
-          setMemberDraft((current) => ({ ...current, name: value }));
-        }}
+        onChangeText={(value) => editor.updateDraft({ name: value })}
         placeholder="Person name"
-        value={memberDraft.name}
+        value={editor.draft.name}
       />
       <ModalField
         keyboardType="email-address"
         label="Email"
-        onChangeText={(value) => {
-          setMemberError(null);
-          setMemberDraft((current) => ({ ...current, email: value }));
-        }}
+        onChangeText={(value) => editor.updateDraft({ email: value })}
         placeholder="person@mecorobotics.org"
-        value={memberDraft.email}
+        value={editor.draft.email}
       />
       <DropdownField
         clearLabel="None"
         label="Discipline"
-        onChange={(value) => {
-          setMemberError(null);
-          setMemberDraft((current) => ({ ...current, disciplineId: value }));
-        }}
+        onChange={(value) => editor.updateDraft({ disciplineId: value })}
         options={disciplineOptions}
         placeholder="None"
-        value={memberDraft.disciplineId}
+        value={editor.draft.disciplineId}
       />
       <DropdownField
         label="Role"
         onChange={(value) => {
           const role = value as MemberRole;
-          setMemberError(null);
-          setMemberDraft((current) => ({
-            ...current,
+          editor.updateDraft({
             role,
             elevated: role === "lead" || role === "admin",
-          }));
+          });
         }}
         options={[
           { id: "student", name: "Student" },
@@ -146,20 +116,14 @@ export function MemberEditorModal({
           { id: "admin", name: "Admin" },
           { id: "external", name: "External access" },
         ]}
-        value={memberDraft.role}
+        value={editor.draft.role}
       />
       <ModalField
         keyboardType="numeric"
         label="Planned weekly attendance"
-        onChangeText={(value) => {
-          setMemberError(null);
-          setMemberDraft((current) => ({
-            ...current,
-            plannedWeeklyAttendanceHours: value,
-          }));
-        }}
+        onChangeText={(value) => editor.updateDraft({ plannedWeeklyAttendanceHours: value })}
         placeholder="0"
-        value={memberDraft.plannedWeeklyAttendanceHours}
+        value={editor.draft.plannedWeeklyAttendanceHours}
       />
       <View style={styles.plannedDaysField}>
         <Text style={[styles.modalFieldLabel, { color: themeColors.ink }]}>
@@ -167,7 +131,7 @@ export function MemberEditorModal({
         </Text>
         <View style={styles.plannedDaysRow}>
           {PLANNED_ATTENDANCE_DAY_OPTIONS.map((day) => {
-            const isSelected = memberDraft.plannedAttendanceDays.includes(day.id);
+            const isSelected = editor.draft.plannedAttendanceDays.includes(day.id);
 
             return (
               <Pressable
@@ -175,13 +139,11 @@ export function MemberEditorModal({
                 accessibilityState={{ checked: isSelected }}
                 key={day.id}
                 onPress={() => {
-                  setMemberError(null);
-                  setMemberDraft((current) => ({
-                    ...current,
-                    plannedAttendanceDays: current.plannedAttendanceDays.includes(day.id)
-                      ? current.plannedAttendanceDays.filter((value) => value !== day.id)
-                      : [...current.plannedAttendanceDays, day.id],
-                  }));
+                  editor.updateDraft({
+                    plannedAttendanceDays: editor.draft.plannedAttendanceDays.includes(day.id)
+                      ? editor.draft.plannedAttendanceDays.filter((value) => value !== day.id)
+                      : [...editor.draft.plannedAttendanceDays, day.id],
+                  });
                 }}
                 style={styles.plannedDayOption}
               >
@@ -205,15 +167,9 @@ export function MemberEditorModal({
       <ModalField
         label="Attendance notes"
         multiline
-        onChangeText={(value) => {
-          setMemberError(null);
-          setMemberDraft((current) => ({
-            ...current,
-            plannedAttendanceNotes: value,
-          }));
-        }}
+        onChangeText={(value) => editor.updateDraft({ plannedAttendanceNotes: value })}
         placeholder=""
-        value={memberDraft.plannedAttendanceNotes}
+        value={editor.draft.plannedAttendanceNotes}
       />
     </EditorModal>
   );
