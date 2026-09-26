@@ -131,3 +131,32 @@ test("materials and parts filters survive screen unmounts and refreshed collecti
     workspace.mockImplementation(({ editorModals }) => createElement(Fragment, null, editorModals));
   }
 });
+
+test("subsystem search and expansion survive rendered tab navigation and refresh", async () => {
+  const workspace = jest.mocked(WorkspaceShell);
+  workspace.mockImplementation(({ activeTabContent, editorModals }) => createElement(Fragment, null, activeTabContent, editorModals));
+  try {
+    const view = render(createElement(App));
+    await signIn();
+    act(() => screenProps().setActiveTab("resources-structure"));
+    const selected = screenProps().subsystemBrowse.rows.find((row) => row.isExpanded)!.subsystem;
+    fireEvent.changeText(view.getByLabelText("Search subsystems"), selected.name);
+    expect(view.getByText("HIDE")).toBeTruthy();
+    fireEvent.press(view.getByText(selected.name));
+    expect(view.queryByText("HIDE")).toBeNull();
+    act(() => screenProps().setActiveTab("resources-parts"));
+    act(() => screenProps().setActiveTab("resources-structure"));
+    expect(view.getByLabelText("Search subsystems").props.value).toBe(selected.name);
+    await act(async () => { shell().onRefresh(); });
+    expect(view.queryByText("HIDE")).toBeNull();
+    fireEvent.press(view.getByText(selected.name));
+    fireEvent.changeText(view.getByLabelText("Search subsystems"), "no matching subsystem");
+    expect(view.getByText("No subsystems match the current search.")).toBeTruthy();
+    fireEvent.changeText(view.getByLabelText("Search subsystems"), selected.name);
+    expect(view.getByText("HIDE")).toBeTruthy();
+    await act(async () => { shell().onRefresh(); });
+    expect(view.getByText("HIDE")).toBeTruthy();
+  } finally {
+    workspace.mockImplementation(({ editorModals }) => createElement(Fragment, null, editorModals));
+  }
+});

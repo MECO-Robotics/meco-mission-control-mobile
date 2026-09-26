@@ -1,3 +1,4 @@
+import type { useSubsystemBrowse } from "./robot/useSubsystemBrowse";
 import type { useMaterialsBrowse } from "./inventory/useMaterialsBrowse";
 import type { usePartsBrowse } from "./inventory/usePartsBrowse";
 import type { useManufacturingBrowse } from "./manufacturing/useManufacturingBrowse";
@@ -36,19 +37,6 @@ export type HomeActionItem = {
   title: string;
 };
 
-export type SubsystemCounts = {
-  blockedTasks: number;
-  health: "good" | "watch" | "risk";
-  mechanisms: number;
-  openTasks: number;
-  openPurchases: number;
-  overdueTasks: number;
-  qaFindings: number;
-  waitingQa: number;
-  risks: number;
-  tasks: number;
-};
-
 export type WorkLogListItem = WorkLog & {
   localDraftId?: string;
   syncError?: string;
@@ -83,6 +71,7 @@ export type ResponsiveScreenStyles = {
 export interface AppScreenProps {
   manufacturingBrowse: ReturnType<typeof useManufacturingBrowse>;
   materialsBrowse: ReturnType<typeof useMaterialsBrowse>;
+  subsystemBrowse: ReturnType<typeof useSubsystemBrowse>;
   partsBrowse: ReturnType<typeof usePartsBrowse>;
   purchaseBrowse: ReturnType<typeof usePurchaseBrowse>;
   appResponsiveStyles: ResponsiveScreenStyles;
@@ -92,7 +81,6 @@ export interface AppScreenProps {
   canSubmitQa: boolean;
   disciplinesById: Record<string, Discipline>;
   editTagStyle: StyleProp<TextStyle>;
-  filteredSubsystems: Subsystem[];
   filteredWorkLogs: WorkLogListItem[];
   helpRequests: HelpRequest[];
   homeActionItems: HomeActionItem[];
@@ -100,7 +88,6 @@ export interface AppScreenProps {
   isLandscapeCardLayout: boolean;
   isSyncing: boolean;
   manufacturingItems: ManufacturingItem[];
-  mechanisms: Mechanism[];
   mechanismsById: Record<string, Mechanism>;
   meetingAttendance: AttendanceRow[];
   members: Member[];
@@ -144,18 +131,13 @@ export interface AppScreenProps {
   rosterMentors: Member[];
   rosterStudents: Member[];
   selectedMemberId: string | null;
-  selectedSubsystem: Subsystem | null;
   setActiveTab: StateSetter<ViewTab>;
   setAttendanceStatusByMemberId: StateSetter<Record<string, AttendanceStatus>>;
   setSelectedMemberId: StateSetter<string | null>;
-  setSelectedSubsystemId: StateSetter<string>;
-  setSubsystemSearch: TextSetter;
   setWorkLogSearch: TextSetter;
   setWorkLogSortMode: StateSetter<WorkLogSortMode>;
   setWorkLogSubsystemFilter: TextSetter;
   shiftTaskDueDates: (tasksToShift: Task[], dayDelta: number) => Promise<void>;
-  subsystemCountsById: Record<string, SubsystemCounts>;
-  subsystemSearch: string;
   subsystems: Subsystem[];
   subsystemsById: Record<string, Subsystem>;
   syncFromBackend: () => Promise<void>;
