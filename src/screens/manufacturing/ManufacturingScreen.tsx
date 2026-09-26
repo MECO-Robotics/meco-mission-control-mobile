@@ -24,47 +24,33 @@ import type { AppScreenProps } from "../types";
 
 export function ManufacturingScreen(props: AppScreenProps) {
   const {
+    manufacturingBrowse,
     appResponsiveStyles,
     canMentorApprove,
     editTagStyle,
-    filteredManufacturing,
-    manufacturingArchiveFilter,
-    manufacturingMaterialFilter,
-    manufacturingMaterialOptions,
-    manufacturingRequesterFilter,
-    manufacturingSearch,
-    manufacturingStatusFilter,
-    manufacturingSubsystemFilter,
-    manufacturingSummary,
-    manufacturingView,
     members,
     membersById,
     openCreateManufacturingEditor,
     openEditManufacturingEditor,
     patchManufacturingItem,
-    setManufacturingArchiveFilter,
-    setManufacturingMaterialFilter,
-    setManufacturingRequesterFilter,
-    setManufacturingSearch,
-    setManufacturingStatusFilter,
-    setManufacturingSubsystemFilter,
     subsystems,
     subsystemsById,
   } = props;
+  const { filters, updateFilters, rows, summary, materialOptions } = manufacturingBrowse;
 
   const title =
-    manufacturingView === "all"
+    filters.view === "all"
       ? "Manufacturing"
-      : manufacturingView === "cnc"
+      : filters.view === "cnc"
       ? "CNC"
-      : manufacturingView === "prints"
+      : filters.view === "prints"
         ? "3D print queue"
         : "Fabrication queue";
 
   const guidanceKey =
-    manufacturingView === "cnc"
+    filters.view === "cnc"
       ? "cnc"
-      : manufacturingView === "prints"
+      : filters.view === "prints"
         ? "prints"
         : "fabrication";
 
@@ -81,55 +67,55 @@ export function ManufacturingScreen(props: AppScreenProps) {
       >
         <FilterToolbar>
           <SearchField
-            onChangeText={setManufacturingSearch}
+            onChangeText={(value) => updateFilters({ search: value })}
             placeholder="Search queue"
-            value={manufacturingSearch}
+            value={filters.search}
           />
           <OptionChipRow
             allLabel="All subsystems"
-            onChange={setManufacturingSubsystemFilter}
+            onChange={(value) => updateFilters({ subsystemId: value })}
             options={subsystems.map((subsystem) => ({
               id: subsystem.id,
               name: subsystem.name,
             }))}
-            value={manufacturingSubsystemFilter}
+            value={filters.subsystemId}
           />
 
           <OptionChipRow
             allLabel="All requesters"
-            onChange={setManufacturingRequesterFilter}
+            onChange={(value) => updateFilters({ requesterId: value })}
             options={members.map((member) => ({
               id: member.id,
               name: member.name,
             }))}
-            value={manufacturingRequesterFilter}
+            value={filters.requesterId}
           />
 
           <OptionChipRow
             allLabel="All materials"
-            onChange={setManufacturingMaterialFilter}
-            options={manufacturingMaterialOptions}
-            value={manufacturingMaterialFilter}
+            onChange={(value) => updateFilters({ material: value })}
+            options={materialOptions}
+            value={filters.material}
           />
 
           <OptionChipRow
             allLabel="All statuses"
-            onChange={setManufacturingStatusFilter}
+            onChange={(value) => updateFilters({ status: value })}
             options={MANUFACTURING_STATUS_OPTIONS}
-            value={manufacturingStatusFilter}
+            value={filters.status}
           />
 
           <OptionChipRow
             allLabel="Any archive"
-            onChange={(value) => setManufacturingArchiveFilter(value as ArchiveFilterMode)}
+            onChange={(value) => updateFilters({ archive: value as ArchiveFilterMode })}
             options={ARCHIVE_FILTER_OPTIONS}
-            value={manufacturingArchiveFilter}
+            value={filters.archive}
           />
         </FilterToolbar>
 
-        <SummaryRow chips={manufacturingSummary} />
+        <SummaryRow chips={summary} />
 
-        {filteredManufacturing.map((item) => {
+        {rows.map((item) => {
           const subsystemName = subsystemsById[item.subsystemId]?.name ?? "Unknown";
           const requesterName = item.requestedById
             ? (membersById[item.requestedById]?.name ?? "Unassigned")
@@ -230,7 +216,7 @@ export function ManufacturingScreen(props: AppScreenProps) {
           );
         })}
 
-        {filteredManufacturing.length === 0 ? (
+        {rows.length === 0 ? (
           <EmptyState text="No manufacturing items match the current filters." />
         ) : null}
 

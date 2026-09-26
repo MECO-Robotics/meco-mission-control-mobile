@@ -1,10 +1,12 @@
+import type { useManufacturingBrowse } from "./manufacturing/useManufacturingBrowse";
+import type { usePurchaseBrowse } from "./inventory/usePurchaseBrowse";
 import type { Dispatch, SetStateAction } from "react";
 import type { StyleProp, TextStyle, ViewStyle } from "react-native";
 
 import type { AppThemeColors } from "../theme";
 import type { WorkLogDraftSyncStatus } from "../services/workLogDraftSync";
 import type { Discipline, HelpRequest, ManufacturingItem, Mechanism, Member, PartDefinition, PartInstance, PurchaseItem, QaRequest, QaReview, Subsystem, Task, WorkLog } from "../types/domain";
-import type { ArchiveFilterMode, ManufacturingViewTab, MaterialRollup, PartLifecycleStatus, SummaryChipData, ViewTab, WorkLogSortMode } from "../ui/types";
+import type { MaterialRollup, PartLifecycleStatus, SummaryChipData, ViewTab, WorkLogSortMode } from "../ui/types";
 import type { AttendanceStatus, RiskPriority } from "../types/status";
 export type { AttendanceStatus, RiskPriority } from "../types/status";
 
@@ -82,6 +84,8 @@ export type ResponsiveScreenStyles = {
 };
 
 export interface AppScreenProps {
+  manufacturingBrowse: ReturnType<typeof useManufacturingBrowse>;
+  purchaseBrowse: ReturnType<typeof usePurchaseBrowse>;
   appResponsiveStyles: ResponsiveScreenStyles;
   attendancePreview: AttendanceRow[];
   attendanceSummary: SummaryChipData[];
@@ -89,11 +93,9 @@ export interface AppScreenProps {
   canSubmitQa: boolean;
   disciplinesById: Record<string, Discipline>;
   editTagStyle: StyleProp<TextStyle>;
-  filteredManufacturing: ManufacturingItem[];
   filteredMaterialRollups: MaterialRollup[];
   filteredPartDefinitions: PartDefinition[];
   filteredPartInstances: PartInstanceStatusRow[];
-  filteredPurchases: PurchaseItem[];
   filteredSubsystems: Subsystem[];
   filteredWorkLogs: WorkLogListItem[];
   helpRequests: HelpRequest[];
@@ -102,15 +104,6 @@ export interface AppScreenProps {
   isLandscapeCardLayout: boolean;
   isSyncing: boolean;
   manufacturingItems: ManufacturingItem[];
-  manufacturingArchiveFilter: ArchiveFilterMode;
-  manufacturingMaterialFilter: string;
-  manufacturingMaterialOptions: { id: string; name: string }[];
-  manufacturingRequesterFilter: string;
-  manufacturingSearch: string;
-  manufacturingStatusFilter: string;
-  manufacturingSubsystemFilter: string;
-  manufacturingSummary: SummaryChipData[];
-  manufacturingView: ManufacturingViewTab;
   materialsCategoryFilter: string;
   materialsSearch: string;
   materialsStockFilter: string;
@@ -153,14 +146,7 @@ export interface AppScreenProps {
     item: PurchaseItem,
     status: PurchaseItem["status"],
   ) => Promise<void>;
-  purchaseApprovalFilter: string;
   purchaseItems: PurchaseItem[];
-  purchaseArchiveFilter: ArchiveFilterMode;
-  purchaseRequesterFilter: string;
-  purchaseSearch: string;
-  purchaseStatusFilter: string;
-  purchaseVendorFilter: string;
-  purchaseVendorOptions: { id: string; name: string }[];
   qaRequests: QaRequest[];
   qaReviews: QaReview[];
   riskRows: RiskRow[];
@@ -173,24 +159,12 @@ export interface AppScreenProps {
   selectedSubsystem: Subsystem | null;
   setActiveTab: StateSetter<ViewTab>;
   setAttendanceStatusByMemberId: StateSetter<Record<string, AttendanceStatus>>;
-  setManufacturingArchiveFilter: StateSetter<ArchiveFilterMode>;
-  setManufacturingMaterialFilter: TextSetter;
-  setManufacturingRequesterFilter: TextSetter;
-  setManufacturingSearch: TextSetter;
-  setManufacturingStatusFilter: TextSetter;
-  setManufacturingSubsystemFilter: TextSetter;
   setMaterialsCategoryFilter: TextSetter;
   setMaterialsSearch: TextSetter;
   setMaterialsStockFilter: TextSetter;
   setPartsSearch: TextSetter;
   setPartsStatusFilter: TextSetter;
   setPartsSubsystemFilter: TextSetter;
-  setPurchaseApprovalFilter: TextSetter;
-  setPurchaseArchiveFilter: StateSetter<ArchiveFilterMode>;
-  setPurchaseRequesterFilter: TextSetter;
-  setPurchaseSearch: TextSetter;
-  setPurchaseStatusFilter: TextSetter;
-  setPurchaseVendorFilter: TextSetter;
   setSelectedMemberId: StateSetter<string | null>;
   setSelectedSubsystemId: StateSetter<string>;
   setSubsystemSearch: TextSetter;

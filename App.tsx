@@ -37,9 +37,7 @@ import {
 import { getResponsiveMetrics, scaleFont } from "./src/ui/responsive";
 import { styles } from "./src/ui/styles";
 import type {
-  ArchiveFilterMode,
   EditorMode,
-  ManufacturingViewTab,
   MaterialRollup,
   MilestoneSortField,
   QaReportDraft,
@@ -106,7 +104,6 @@ import {
   ensureArray,
   getClientErrorMessage,
   getEmailCodeVerificationErrorMessage,
-  getOptionalCreatedAt,
   getQaReviewTaskId,
   getWorkLogDraftOwnerKey,
   hasRequiredEmailDomain,
@@ -139,6 +136,8 @@ import { LoginScreen } from "./src/app/components/LoginScreen";
 import { WorkspaceShell } from "./src/app/components/WorkspaceShell";
 import { DeadlineEditorModal } from "./src/app/editorModals/DeadlineEditorModal";
 import { ManufacturingEditorModal } from "./src/app/editorModals/ManufacturingEditorModal";
+import { useManufacturingBrowse } from "./src/screens/manufacturing/useManufacturingBrowse";
+import { usePurchaseBrowse } from "./src/screens/inventory/usePurchaseBrowse";
 import { usePartDefinitionEditor } from "./src/app/editorModals/usePartDefinitionEditor";
 import { useSubsystemEditor } from "./src/app/editorModals/useSubsystemEditor";
 import { useMemberEditor } from "./src/app/editorModals/useMemberEditor";
@@ -344,8 +343,6 @@ export default function App() {
   const taskView: TaskViewTab = activeTab === "work-schedule" ? scheduleView : "queue";
   const [activeTaskSubteam, setActiveTaskSubteam] =
     useState<TaskSubteamTab>("programming");
-  const [manufacturingView, setManufacturingView] =
-    useState<ManufacturingViewTab>("all");
   const [isPersonMenuVisible, setIsPersonMenuVisible] = useState(false);
   const [isDeviceSessionsVisible, setIsDeviceSessionsVisible] = useState(false);
   const [deviceSessions, setDeviceSessions] = useState<MobileDeviceSessionSummary[]>([]);
@@ -421,18 +418,6 @@ export default function App() {
   const [workLogSortMode, setWorkLogSortMode] =
     useState<WorkLogSortMode>("recent");
 
-  const [manufacturingSearch, setManufacturingSearch] = useState("");
-  const [manufacturingSubsystemFilter, setManufacturingSubsystemFilter] =
-    useState("all");
-  const [manufacturingRequesterFilter, setManufacturingRequesterFilter] =
-    useState("all");
-  const [manufacturingStatusFilter, setManufacturingStatusFilter] =
-    useState("all");
-  const [manufacturingMaterialFilter, setManufacturingMaterialFilter] =
-    useState("all");
-  const [manufacturingArchiveFilter, setManufacturingArchiveFilter] =
-    useState<ArchiveFilterMode>("active");
-
   const [materialsSearch, setMaterialsSearch] = useState("");
   const [materialsCategoryFilter, setMaterialsCategoryFilter] = useState("all");
   const [materialsStockFilter, setMaterialsStockFilter] = useState("all");
@@ -440,14 +425,6 @@ export default function App() {
   const [partsSearch, setPartsSearch] = useState("");
   const [partsSubsystemFilter, setPartsSubsystemFilter] = useState("all");
   const [partsStatusFilter, setPartsStatusFilter] = useState("all");
-
-  const [purchaseSearch, setPurchaseSearch] = useState("");
-  const [purchaseRequesterFilter, setPurchaseRequesterFilter] = useState("all");
-  const [purchaseStatusFilter, setPurchaseStatusFilter] = useState("all");
-  const [purchaseVendorFilter, setPurchaseVendorFilter] = useState("all");
-  const [purchaseApprovalFilter, setPurchaseApprovalFilter] = useState("all");
-  const [purchaseArchiveFilter, setPurchaseArchiveFilter] =
-    useState<ArchiveFilterMode>("active");
 
   const [subsystemSearch, setSubsystemSearch] = useState("");
   const [selectedSubsystemId, setSelectedSubsystemId] = useState<string>(
@@ -1314,120 +1291,17 @@ export default function App() {
     return summary;
   }, [failedWorkLogDraftCount, filteredWorkLogs, visiblePendingWorkLogDrafts.length]);
 
-  const visibleManufacturingProcess: ManufacturingItem["process"] | null =
-    manufacturingView === "all"
-      ? null
-      : manufacturingView === "cnc"
-      ? "cnc"
-      : manufacturingView === "prints"
-        ? "3d-print"
-        : "fabrication";
-
-  const manufacturingMaterialOptions = useMemo(() => {
-    const uniqueMaterials = Array.from(
-      new Set(manufacturingItems.map((item) => item.material)),
-    ).sort((left, right) => left.localeCompare(right));
-
-    return uniqueMaterials.map((material) => ({ id: material, name: material }));
-  }, [manufacturingItems]);
-
-  const filteredManufacturing = useMemo(() => {
-    const search = manufacturingSearch.trim().toLowerCase();
-
-    return manufacturingItems
-      .filter((item) => !visibleManufacturingProcess || item.process === visibleManufacturingProcess)
-      .filter((item) => {
-        if (activePersonFilter !== "all" && item.requestedById !== activePersonFilter) {
-          return false;
-        }
-
-        if (
-          manufacturingSubsystemFilter !== "all" &&
-          item.subsystemId !== manufacturingSubsystemFilter
-        ) {
-          return false;
-        }
-
-        if (
-          manufacturingRequesterFilter !== "all" &&
-          item.requestedById !== manufacturingRequesterFilter
-        ) {
-          return false;
-        }
-
-        if (manufacturingStatusFilter !== "all" && item.status !== manufacturingStatusFilter) {
-          return false;
-        }
-
-        if (manufacturingArchiveFilter === "active" && item.status === "complete") {
-          return false;
-        }
-
-        if (manufacturingArchiveFilter === "archived" && item.status !== "complete") {
-          return false;
-        }
-
-        if (manufacturingMaterialFilter !== "all" && item.material !== manufacturingMaterialFilter) {
-          return false;
-        }
-
-        if (!search) {
-          return true;
-        }
-
-        const subsystemName = subsystemsById[item.subsystemId]?.name ?? "";
-        const requesterName = item.requestedById
-          ? (membersById[item.requestedById]?.name ?? "")
-          : "";
-
-        return `${item.title} ${item.material} ${subsystemName} ${requesterName}`
-          .toLowerCase()
-          .includes(search);
-      })
-      .sort((left, right) => left.dueDate.localeCompare(right.dueDate));
-  }, [
-    activePersonFilter,
-    manufacturingItems,
-    manufacturingMaterialFilter,
-    manufacturingArchiveFilter,
-    manufacturingRequesterFilter,
-    manufacturingSearch,
-    manufacturingStatusFilter,
-    manufacturingSubsystemFilter,
-    membersById,
-    subsystemsById,
-    visibleManufacturingProcess,
-  ]);
-
-  const manufacturingSummary = useMemo(() => {
-    const completeCount = filteredManufacturing.filter(
-      (item) => item.status === "complete",
-    ).length;
-    const qaCount = filteredManufacturing.filter((item) => item.status === "qa").length;
-    const reviewedCount = filteredManufacturing.filter(
-      (item) => item.mentorReviewed,
-    ).length;
-
-    return [
-      { label: "Queue", value: String(filteredManufacturing.length) },
-      { label: "In QA", value: String(qaCount) },
-      { label: "Mentor reviewed", value: String(reviewedCount) },
-      { label: "Complete", value: String(completeCount) },
-    ] satisfies SummaryChipData[];
-  }, [filteredManufacturing]);
-
-  const purchaseVendorOptions = useMemo(() => {
-    const vendors = Array.from(
-      new Set(purchaseItems.map((item) => item.vendor)),
-    ).sort((left, right) => left.localeCompare(right));
-
-    return vendors.map((vendor) => ({ id: vendor, name: vendor }));
-  }, [purchaseItems]);
+  const manufacturingBrowse = useManufacturingBrowse({
+    items: manufacturingItems, activePersonFilter, membersById, subsystemsById,
+  });
+  const purchaseBrowse = usePurchaseBrowse({
+    items: purchaseItems, activePersonFilter, membersById, subsystemsById,
+  });
 
   const materialRollups = useMemo(() => {
     const rows: MaterialRollup[] = [];
 
-    for (const materialName of manufacturingMaterialOptions.map((option) => option.id)) {
+    for (const materialName of manufacturingBrowse.materialOptions.map((option) => option.id)) {
       const relatedManufacturing = manufacturingItems.filter(
         (item) => item.material === materialName,
       );
@@ -1474,7 +1348,7 @@ export default function App() {
     }
 
     return rows.sort((left, right) => left.name.localeCompare(right.name));
-  }, [manufacturingMaterialOptions, manufacturingItems, purchaseItems]);
+  }, [manufacturingBrowse.materialOptions, manufacturingItems, purchaseItems]);
 
   const filteredMaterialRollups = useMemo(() => {
     const search = materialsSearch.trim().toLowerCase();
@@ -1549,89 +1423,6 @@ export default function App() {
     partsSearch,
     partsStatusFilter,
     partsSubsystemFilter,
-  ]);
-
-  const filteredPurchases = useMemo(() => {
-    const search = purchaseSearch.trim().toLowerCase();
-
-    const statusRank: Record<string, number> = {
-      requested: 0,
-      approved: 1,
-      purchased: 2,
-      shipped: 3,
-      delivered: 4,
-    };
-
-    return purchaseItems.filter((item) => {
-      if (activePersonFilter !== "all" && item.requestedById !== activePersonFilter) {
-        return false;
-      }
-
-      if (purchaseRequesterFilter !== "all" && item.requestedById !== purchaseRequesterFilter) {
-        return false;
-      }
-
-      if (purchaseStatusFilter !== "all" && item.status !== purchaseStatusFilter) {
-        return false;
-      }
-
-      if (purchaseArchiveFilter === "active" && item.status === "delivered") {
-        return false;
-      }
-
-      if (purchaseArchiveFilter === "archived" && item.status !== "delivered") {
-        return false;
-      }
-
-      if (purchaseVendorFilter !== "all" && item.vendor !== purchaseVendorFilter) {
-        return false;
-      }
-
-      if (
-        purchaseApprovalFilter !== "all" &&
-        (purchaseApprovalFilter === "approved"
-          ? !item.approvedByMentor
-          : item.approvedByMentor)
-      ) {
-        return false;
-      }
-
-      if (!search) {
-        return true;
-      }
-
-      const requesterName = item.requestedById
-        ? (membersById[item.requestedById]?.name ?? "")
-        : "";
-      const subsystemName = subsystemsById[item.subsystemId]?.name ?? "";
-
-      return `${item.title} ${item.vendor} ${requesterName} ${subsystemName}`
-        .toLowerCase()
-        .includes(search);
-    }).sort((left, right) => {
-      const createdDelta = getOptionalCreatedAt(right).localeCompare(getOptionalCreatedAt(left));
-      if (createdDelta !== 0) {
-        return createdDelta;
-      }
-
-      const statusDelta = statusRank[left.status] - statusRank[right.status];
-      if (statusDelta !== 0) {
-        return statusDelta;
-      }
-
-      return left.title.localeCompare(right.title);
-    });
-  }, [
-    activePersonFilter,
-    membersById,
-    purchaseItems,
-    purchaseArchiveFilter,
-    purchaseApprovalFilter,
-    purchaseRequesterFilter,
-    purchaseSearch,
-    purchaseStatusFilter,
-    purchaseVendorFilter,
-    subsystemsById,
   ]);
 
   const subsystemCountsById = useMemo(() => {
@@ -2752,7 +2543,7 @@ export default function App() {
   };
 
   const manufacturingEditor = useManufacturingEditor({
-    manufacturingView, subsystems, members, signedInMember,
+    manufacturingView: manufacturingBrowse.filters.view, subsystems, members, signedInMember,
     canMentorApprove, mutate: runMutation,
   });
 
@@ -3129,6 +2920,8 @@ export default function App() {
   };
 
   const screenProps = {
+    manufacturingBrowse,
+    purchaseBrowse,
     appResponsiveStyles,
     attendancePreview,
     attendanceSummary,
@@ -3137,11 +2930,9 @@ export default function App() {
     canSubmitQa,
     disciplinesById,
     editTagStyle,
-    filteredManufacturing,
     filteredMaterialRollups,
     filteredPartDefinitions,
     filteredPartInstances,
-    filteredPurchases,
     filteredSubsystems,
     filteredWorkLogs,
     helpRequests,
@@ -3150,15 +2941,6 @@ export default function App() {
     isLandscapeCardLayout,
     isSyncing,
     manufacturingItems,
-    manufacturingArchiveFilter,
-    manufacturingMaterialFilter,
-    manufacturingMaterialOptions,
-    manufacturingRequesterFilter,
-    manufacturingSearch,
-    manufacturingStatusFilter,
-    manufacturingSubsystemFilter,
-    manufacturingSummary,
-    manufacturingView,
     materialsCategoryFilter,
     materialsSearch,
     materialsStockFilter,
@@ -3193,14 +2975,7 @@ export default function App() {
     partsStatusFilter,
     partsSubsystemFilter,
     patchManufacturingItem,
-    purchaseApprovalFilter,
-    purchaseArchiveFilter,
     purchaseItems,
-    purchaseRequesterFilter,
-    purchaseSearch,
-    purchaseStatusFilter,
-    purchaseVendorFilter,
-    purchaseVendorOptions,
     qaRequests,
     qaReviews,
     riskRows,
@@ -3213,24 +2988,12 @@ export default function App() {
     selectedSubsystem,
     setActiveTab,
     setAttendanceStatusByMemberId,
-    setManufacturingArchiveFilter,
-    setManufacturingMaterialFilter,
-    setManufacturingRequesterFilter,
-    setManufacturingSearch,
-    setManufacturingStatusFilter,
-    setManufacturingSubsystemFilter,
     setMaterialsCategoryFilter,
     setMaterialsSearch,
     setMaterialsStockFilter,
     setPartsSearch,
     setPartsStatusFilter,
     setPartsSubsystemFilter,
-    setPurchaseApprovalFilter,
-    setPurchaseArchiveFilter,
-    setPurchaseRequesterFilter,
-    setPurchaseSearch,
-    setPurchaseStatusFilter,
-    setPurchaseVendorFilter,
     setSelectedMemberId,
     setSelectedSubsystemId,
     setSubsystemSearch,
@@ -3402,8 +3165,7 @@ export default function App() {
             activeTab={activeTab}
             activeTabContent={<ActiveTabContent activeTab={activeTab} screenProps={screenProps}
               taskContent={<TasksScreen {...taskScreenProps} />}
-              scheduleView={scheduleView} onScheduleViewChange={setScheduleView}
-              manufacturingView={manufacturingView} onManufacturingViewChange={setManufacturingView} />}
+              scheduleView={scheduleView} onScheduleViewChange={setScheduleView} />}
             deviceSessions={deviceSessions}
             deviceSessionsError={deviceSessionsError}
             editorModals={renderEditorModals()}

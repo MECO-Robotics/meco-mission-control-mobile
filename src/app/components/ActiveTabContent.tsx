@@ -22,8 +22,6 @@ type Props = {
   taskContent: ReactNode;
   scheduleView: "milestones" | "timeline";
   onScheduleViewChange: (view: "milestones" | "timeline") => void;
-  manufacturingView: ManufacturingViewTab;
-  onManufacturingViewChange: (view: ManufacturingViewTab) => void;
 };
 
 export function ActiveTabContent(props: Props) {
@@ -53,9 +51,9 @@ export function ActiveTabContent(props: Props) {
     case "resources-parts": return <InventoryPartsScreen {...screenProps} />;
     case "resources-purchases": return <InventoryPurchasesScreen {...screenProps} />;
     case "resources-manufacturing": return <>
-      <View style={{ paddingHorizontal: 20 }}><DropdownField label="Process" value={props.manufacturingView}
+      <View style={{ paddingHorizontal: 20 }}><DropdownField label="Process" value={screenProps.manufacturingBrowse.filters.view}
         options={MANUFACTURING_VIEW_OPTIONS.map(({ value, label }) => ({ id: value, name: label }))}
-        onChange={(value) => props.onManufacturingViewChange(value as ManufacturingViewTab)} /></View>
+        onChange={(value) => screenProps.manufacturingBrowse.updateFilters({ view: value as ManufacturingViewTab })} /></View>
       <ManufacturingScreen {...screenProps} />
     </>;
     case "resources-structure": return <SubsystemsScreen {...screenProps} />;

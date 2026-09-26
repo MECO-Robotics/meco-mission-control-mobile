@@ -22,27 +22,19 @@ import type { AppScreenProps } from "../types";
 
 export function InventoryPurchasesScreen(props: AppScreenProps) {
   const {
+    purchaseBrowse,
     appResponsiveStyles,
     approvePurchaseItem,
     canMentorApprove,
     editTagStyle,
-    filteredPurchases,
     membersById,
     openCreatePurchaseEditor,
     openEditPurchaseEditor,
-    purchaseApprovalFilter,
-    purchaseSearch,
-    purchaseStatusFilter,
-    purchaseVendorFilter,
-    purchaseVendorOptions,
-    setPurchaseApprovalFilter,
-    setPurchaseSearch,
-    setPurchaseStatusFilter,
-    setPurchaseVendorFilter,
     subsystemsById,
     themeColors,
     transitionPurchaseItem,
   } = props;
+  const { filters, updateFilters, rows, vendorOptions } = purchaseBrowse;
   const [isFiltersVisible, setIsFiltersVisible] = useState(false);
 
   return (
@@ -60,7 +52,7 @@ export function InventoryPurchasesScreen(props: AppScreenProps) {
         </View>
       }
     >
-      {filteredPurchases.map((item) => {
+      {rows.map((item) => {
         const subsystemName = subsystemsById[item.subsystemId]?.name ?? "Unknown";
         const requesterName = item.requestedById
           ? (membersById[item.requestedById]?.name ?? "Unassigned")
@@ -138,7 +130,7 @@ export function InventoryPurchasesScreen(props: AppScreenProps) {
         );
       })}
 
-      {filteredPurchases.length === 0 ? (
+      {rows.length === 0 ? (
         <EmptyState text="No purchase items match the current filters." />
       ) : null}
 
@@ -159,30 +151,30 @@ export function InventoryPurchasesScreen(props: AppScreenProps) {
             <Text style={[styles.modalTitle, { color: themeColors.ink }]}>Filters</Text>
             <FilterToolbar>
               <SearchField
-                onChangeText={setPurchaseSearch}
+                onChangeText={(value) => updateFilters({ search: value })}
                 placeholder="Search purchases"
-                value={purchaseSearch}
+                value={filters.search}
               />
 
               <OptionChipRow
                 allLabel="All statuses"
-                onChange={setPurchaseStatusFilter}
+                onChange={(value) => updateFilters({ status: value })}
                 options={PURCHASE_STATUS_OPTIONS}
-                value={purchaseStatusFilter}
+                value={filters.status}
               />
 
               <OptionChipRow
                 allLabel="All vendors"
-                onChange={setPurchaseVendorFilter}
-                options={purchaseVendorOptions}
-                value={purchaseVendorFilter}
+                onChange={(value) => updateFilters({ vendor: value })}
+                options={vendorOptions}
+                value={filters.vendor}
               />
 
               <OptionChipRow
                 allLabel="All approvals"
-                onChange={setPurchaseApprovalFilter}
+                onChange={(value) => updateFilters({ approval: value })}
                 options={PURCHASE_APPROVAL_OPTIONS}
-                value={purchaseApprovalFilter}
+                value={filters.approval}
               />
             </FilterToolbar>
           </Pressable>
