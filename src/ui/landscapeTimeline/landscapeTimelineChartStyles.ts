@@ -37,9 +37,6 @@ export const landscapeTimelineChartStyles = StyleSheet.create({
     borderRightWidth: 1,
     borderColor: planner.border,
   },
-  weekendHeaderCell: {
-    backgroundColor: planner.stripe,
-  },
   weekday: {
     color: planner.muted,
     fontSize: 8,
@@ -68,9 +65,6 @@ export const landscapeTimelineChartStyles = StyleSheet.create({
     borderRightWidth: 1,
     borderColor: planner.border,
     backgroundColor: planner.chart,
-  },
-  weekendCell: {
-    backgroundColor: planner.stripe,
   },
   taskBar: {
     position: "absolute",

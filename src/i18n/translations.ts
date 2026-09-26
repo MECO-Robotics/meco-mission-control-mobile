@@ -19,19 +19,6 @@ import { zh } from "./zh";
 
 export type LanguageCode = "en" | "tr" | "he" | "fr" | "zh" | "es" | "pt" | "nl" | "de" | "ar";
 
-export const languageNames: Record<LanguageCode, string> = {
-  ar: "العربية",
-  de: "Deutsch",
-  en: "English",
-  es: "Español",
-  fr: "Français",
-  he: "עברית",
-  nl: "Nederlands",
-  pt: "Português",
-  tr: "Türkçe",
-  zh: "中文",
-};
-
 export const translations: Record<Exclude<LanguageCode, "en">, Record<string, string>> = {
   ar: { ...ar, ...arDemo },
   de: { ...de, ...deDemo },
