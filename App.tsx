@@ -2801,7 +2801,9 @@ export default function App() {
   const memberEditor = useMemberEditor({ members, canMentorApprove, mutate: runMutation });
   const subsystemEditor = useSubsystemEditor({ members, mutate: runMutation });
   const partDefinitionEditor = usePartDefinitionEditor({
-    members, subsystems, disciplines, partDefinitions, signedInMember, mutate: runMutation,
+    members, subsystems, disciplines, partDefinitions,
+    canCreateAcquisition: ["lead", "mentor", "admin"].includes(sessionUser?.role ?? ""),
+    mutate: runMutation,
   });
 
   const openCreateQaReportEditor = (taskId = tasks[0]?.id ?? "", qaRequestId?: string) => {

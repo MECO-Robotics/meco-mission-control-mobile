@@ -71,14 +71,6 @@ export type SubsystemDraft = {
   risksText: string;
 };
 
-export type PartDefinitionDraft = {
-  name: string;
-  partNumber: string;
-  revision: string;
-  source: string;
-  acquisitionMethod: AcquisitionMethod;
-};
-
 export type MilestoneSortField = "startDateTime" | "title" | "type";
 
 export type ArchiveFilterMode = "active" | "archived" | "all";

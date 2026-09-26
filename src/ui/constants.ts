@@ -88,12 +88,6 @@ export const PART_SOURCE_OPTIONS: Option[] = [
   { id: "COTS", name: "COTS" },
 ];
 
-export const ACQUISITION_METHOD_OPTIONS: Option[] = [
-  { id: "manufacture", name: "Manufacture" },
-  { id: "purchase", name: "Purchase" },
-  { id: "stock", name: "Already stocked" },
-];
-
 export const WORKLOG_SORT_OPTIONS: { id: WorkLogSortMode; name: string }[] = [
   { id: "recent", name: "Newest first" },
   { id: "oldest", name: "Oldest first" },
