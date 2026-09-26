@@ -34,7 +34,9 @@ additional seeded tasks from `src/data/tasks`. Bootstrap responses replace those
 workspace arrays when a backend is available. Task seed modules declare distinct records and nondefault values; `src/data/tasks/index.ts` fills missing task defaults before deriving blocker/dependency readiness. Empty collection defaults are allocated separately for each task, and optional documentation flags remain absent unless declared.
 
 `useManufacturingBrowse`, `usePurchaseBrowse`, `useMaterialsBrowse`, and
-`usePartsBrowse` own their feature filters and derived browse data. App mounts
+`usePartsBrowse` own their feature filters and derived browse data.
+`useSubsystemBrowse` also owns expansion, grouped mechanisms and subsystem health;
+search hiding a card retains its expansion, while explicit collapse survives refresh. App mounts
 these hooks above tab switching, so filters survive screen unmounts and bootstrap
 refreshes. Screens receive readonly filters and explicit `updateFilters` commands;
 canonical workspace collections remain in App for other consumers.
@@ -45,7 +47,7 @@ status filters. Definition totals use all instances; the visible instance summar
 uses filtered quantities. Keep these distinct scopes when changing browse logic.
 
 App retains shared projections such as ID maps, current member/session resolution,
-subsystem counts, timeline data and home priority lists. Screens consume prepared
+timeline data and home priority lists. Screens consume prepared
 values through `AppScreenProps` rather than duplicating cross-domain calculations.
 
 Mutations use the shared `runMutation` helper in `App.tsx`. After a successful

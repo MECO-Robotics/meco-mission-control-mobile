@@ -1,3 +1,4 @@
+import { useSubsystemBrowse } from "./src/screens/robot/useSubsystemBrowse";
 import { useMaterialsBrowse } from "./src/screens/inventory/useMaterialsBrowse";
 import { usePartsBrowse } from "./src/screens/inventory/usePartsBrowse";
 import { useManufacturingEditor } from "./src/app/editorModals/useManufacturingEditor";
@@ -150,7 +151,7 @@ import { TaskEditorModal } from "./src/screens/tasks/TaskEditorModal";
 import { WorkLogEditorModal } from "./src/app/editorModals/WorkLogEditorModal";
 
 import { appThemes, type AppThemeName } from "./src/theme";
-import type { AttendanceStatus, SubsystemCounts, WorkLogListItem } from "./src/screens/types";
+import type { AttendanceStatus, WorkLogListItem } from "./src/screens/types";
 import {
   buildWorkLogDraftFingerprint,
   enqueuePendingWorkLogDraft,
@@ -416,11 +417,6 @@ export default function App() {
   const [workLogSubsystemFilter, setWorkLogSubsystemFilter] = useState("all");
   const [workLogSortMode, setWorkLogSortMode] =
     useState<WorkLogSortMode>("recent");
-
-  const [subsystemSearch, setSubsystemSearch] = useState("");
-  const [selectedSubsystemId, setSelectedSubsystemId] = useState<string>(
-    subsystems[0]?.id ?? "",
-  );
 
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
 
@@ -1292,116 +1288,9 @@ export default function App() {
   const materialsBrowse = useMaterialsBrowse({ manufacturingItems, purchaseItems });
   const partsBrowse = usePartsBrowse({ partDefinitions, partInstances, tasks, partDefinitionsById, mechanismsById });
 
-  const subsystemCountsById = useMemo(() => {
-    const counts = Object.fromEntries(
-      subsystems.map((subsystem) => [
-        subsystem.id,
-        {
-          blockedTasks: 0,
-          health: "good" as const,
-          mechanisms: 0,
-          openPurchases: 0,
-          openTasks: 0,
-          overdueTasks: 0,
-          qaFindings: 0,
-          waitingQa: 0,
-          risks: subsystem.risks.length,
-          tasks: 0,
-        },
-      ]),
-    ) as Record<string, SubsystemCounts>;
-    const today = localTodayDate();
-
-    for (const mechanism of mechanisms) {
-      if (counts[mechanism.subsystemId]) {
-        counts[mechanism.subsystemId].mechanisms += 1;
-      }
-    }
-
-    for (const task of tasks) {
-      const bucket = counts[task.subsystemId];
-      if (!bucket) {
-        continue;
-      }
-
-      bucket.tasks += 1;
-      if (task.status !== "complete") {
-        bucket.openTasks += 1;
-      }
-      if (task.status !== "complete" && task.blockers.length > 0) {
-        bucket.blockedTasks += 1;
-      }
-      if (task.status !== "complete" && task.dueDate < today) {
-        bucket.overdueTasks += 1;
-      }
-      if (task.status === "waiting-for-qa") {
-        bucket.waitingQa += 1;
-      }
-    }
-
-    for (const purchase of purchaseItems) {
-      const bucket = counts[purchase.subsystemId];
-      if (bucket && purchase.status !== "delivered") {
-        bucket.openPurchases += 1;
-      }
-    }
-
-    for (const review of qaReviews) {
-      if (review.result === "pass") {
-        continue;
-      }
-
-      const taskId = getQaReviewTaskId(review);
-      const task = taskId ? taskById[taskId] : null;
-      const bucket = task ? counts[task.subsystemId] : null;
-      if (bucket) {
-        bucket.qaFindings += 1;
-      }
-    }
-
-    for (const bucket of Object.values(counts)) {
-      if (
-        bucket.blockedTasks > 0 ||
-        bucket.overdueTasks > 0 ||
-        bucket.qaFindings > 0 ||
-        bucket.risks > 1
-      ) {
-        bucket.health = "risk";
-      } else if (bucket.waitingQa > 0 || bucket.openPurchases > 0 || bucket.risks > 0) {
-        bucket.health = "watch";
-      }
-    }
-
-    return counts;
-  }, [mechanisms, purchaseItems, qaReviews, subsystems, taskById, tasks]);
-
-  const filteredSubsystems = useMemo(() => {
-    const search = subsystemSearch.trim().toLowerCase();
-
-    return subsystems.filter((subsystem) => {
-      if (!search) {
-        return true;
-      }
-
-      const leadName = subsystem.responsibleEngineerId
-        ? (membersById[subsystem.responsibleEngineerId]?.name ?? "")
-        : "";
-      const mentorNames = subsystem.mentorIds
-        .map((mentorId) => membersById[mentorId]?.name ?? "")
-        .join(" ");
-      const mechanismNames = mechanisms
-        .filter((mechanism) => mechanism.subsystemId === subsystem.id)
-        .map((mechanism) => mechanism.name)
-        .join(" ");
-
-      return `${subsystem.name} ${subsystem.description} ${leadName} ${mentorNames} ${mechanismNames} ${subsystem.risks.join(" ")}`
-        .toLowerCase()
-        .includes(search);
-    });
-  }, [mechanisms, membersById, subsystemSearch, subsystems]);
-
-  const selectedSubsystem =
-    filteredSubsystems.find((subsystem) => subsystem.id === selectedSubsystemId) ?? null;
+  const subsystemBrowse = useSubsystemBrowse({
+    subsystems, mechanisms, tasks, purchaseItems, qaReviews, membersById, taskById,
+  });
 
   const riskRows = useMemo(() => {
     const subsystemRisks = subsystems.flatMap((subsystem) =>
@@ -1783,12 +1672,6 @@ export default function App() {
       setSelectedMemberId(null);
     }
   }, [members, selectedMemberId]);
-
-  useEffect(() => {
-    if (selectedSubsystemId && !subsystems.some((subsystem) => subsystem.id === selectedSubsystemId)) {
-      setSelectedSubsystemId(subsystems[0]?.id ?? "");
-    }
-  }, [selectedSubsystemId, subsystems]);
 
   const openTaskQueueFromTask = (task: Task) => {
     const nextSubteam = getTaskSubteamForDisciplineId(task.disciplineId, activeTaskSubteam);
@@ -2791,6 +2674,7 @@ export default function App() {
     purchaseBrowse,
     materialsBrowse,
     partsBrowse,
+    subsystemBrowse,
     appResponsiveStyles,
     attendancePreview,
     attendanceSummary,
@@ -2799,7 +2683,6 @@ export default function App() {
     canSubmitQa,
     disciplinesById,
     editTagStyle,
-    filteredSubsystems,
     filteredWorkLogs,
     helpRequests,
     homeActionItems,
@@ -2807,7 +2690,6 @@ export default function App() {
     isLandscapeCardLayout,
     isSyncing,
     manufacturingItems,
-    mechanisms,
     mechanismsById,
     meetingAttendance,
     members,
@@ -2843,19 +2725,14 @@ export default function App() {
     rosterMentors,
     rosterStudents,
     selectedMemberId,
-    selectedSubsystem,
     setActiveTab,
     setAttendanceStatusByMemberId,
     setSelectedMemberId,
-    setSelectedSubsystemId,
-    setSubsystemSearch,
     setWorkLogSearch,
     setWorkLogSortMode,
     setWorkLogSubsystemFilter,
     shiftTaskDueDates,
     startWorkLogTimer,
-    subsystemCountsById,
-    subsystemSearch,
     subsystems,
     subsystemsById,
     syncFromBackend,
