@@ -222,10 +222,6 @@ export function getQaReviewTaskId(review: QaReview) {
   return review.subjectType === "task" && review.subjectId ? review.subjectId : null;
 }
 
-export function getOptionalCreatedAt(item: { id: string; createdAt?: string }) {
-  return item.createdAt ?? item.id;
-}
-
 export function ensureArray<T>(value: T[] | undefined | null): T[] {
   return Array.isArray(value) ? value : [];
 }

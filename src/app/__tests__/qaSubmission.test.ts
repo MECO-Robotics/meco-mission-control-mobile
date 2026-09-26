@@ -81,3 +81,29 @@ test("refreshing the workspace retains the active timer and open editor draft", 
   expect(screenProps().workLogTimer?.id).toBe(timerId);
   expect(view.getByLabelText("Notes").props.value).toBe("Inspection draft in progress");
 });
+
+test("manufacturing and purchase filters survive real tab unmounts and workspace refresh", async () => {
+  const workspace = jest.mocked(WorkspaceShell);
+  workspace.mockImplementation(({ activeTabContent, editorModals }) => createElement(Fragment, null, activeTabContent, editorModals));
+  try {
+    const view = render(createElement(App));
+    await signIn();
+    act(() => screenProps().setActiveTab("resources-manufacturing"));
+    fireEvent.changeText(view.getByLabelText("Search queue"), "Steel");
+    fireEvent.press(view.getByRole("button", { name: "Process: All processes" }));
+    fireEvent.press(view.getByRole("button", { name: "CNC" }));
+    act(() => screenProps().setActiveTab("resources-purchases"));
+    fireEvent.press(view.getByText("Filters"));
+    fireEvent.changeText(view.getByLabelText("Search purchases"), "Bolts");
+    act(() => screenProps().setActiveTab("resources-manufacturing"));
+    expect(view.getByLabelText("Search queue").props.value).toBe("Steel");
+    expect(view.getByRole("button", { name: "Process: CNC" })).toBeTruthy();
+    await act(async () => { shell().onRefresh(); });
+    expect(view.getByLabelText("Search queue").props.value).toBe("Steel");
+    act(() => screenProps().setActiveTab("resources-purchases"));
+    fireEvent.press(view.getByText("Filters"));
+    expect(view.getByLabelText("Search purchases").props.value).toBe("Bolts");
+  } finally {
+    workspace.mockImplementation(({ editorModals }) => createElement(Fragment, null, editorModals));
+  }
+});

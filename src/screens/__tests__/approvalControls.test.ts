@@ -15,9 +15,11 @@ function props(role: MemberRole, overrides: Partial<AppScreenProps> = {}) {
     ...getSessionPermissions({ accountId: "account", name: "User", email: "user@example.com",
       authProvider: "email", picture: null, hostedDomain: "example.com", role }, []),
     appResponsiveStyles: {}, themeColors: {}, members: [], membersById: {},
-    subsystems: [], subsystemsById: {}, taskById: {}, manufacturingMaterialOptions: [],
-    manufacturingSummary: [], workLogSummary: [], purchaseVendorOptions: [],
-    manufacturingSearch: "", purchaseSearch: "", workLogSearch: "",
+    subsystems: [], subsystemsById: {}, taskById: {}, workLogSummary: [], workLogSearch: "",
+    manufacturingBrowse: { filters: { search: "", archive: "active", view: "all" }, rows: [],
+      summary: [], materialOptions: [], updateFilters: jest.fn() },
+    purchaseBrowse: { filters: { search: "", archive: "active" }, rows: [],
+      vendorOptions: [], updateFilters: jest.fn() },
     patchManufacturingItem: jest.fn(), approvePurchaseItem: jest.fn(),
     transitionPurchaseItem: jest.fn(), openEditPurchaseEditor: jest.fn(),
     openEditWorkLogEditor: jest.fn(), ...overrides,
@@ -27,18 +29,19 @@ function props(role: MemberRole, overrides: Partial<AppScreenProps> = {}) {
 const manufacturing = {
   id: "manufacturing", title: "Bracket", subsystemId: "drive", material: "Steel",
   quantity: 1, dueDate: "2026-09-08", status: "requested", process: "cnc", mentorReviewed: false,
-} as AppScreenProps["filteredManufacturing"][number];
+} as AppScreenProps["manufacturingBrowse"]["rows"][number];
 const purchase = {
   id: "purchase", title: "Bolts", subsystemId: "drive", quantity: 1,
   estimatedCost: 10, vendor: "Vendor", status: "requested", approvedByMentor: false,
-} as AppScreenProps["filteredPurchases"][number];
+} as AppScreenProps["purchaseBrowse"]["rows"][number];
 const workLog = {
   id: "log", taskId: "task", date: "2026-09-08", hours: 1,
   participantIds: [], notes: "Wired controls",
 } as AppScreenProps["filteredWorkLogs"][number];
 
 test.each(["student", "lead", "mentor", "admin"] as const)("%s manufacturing approval controls execute only permitted review", (role) => {
-  const input = props(role, { filteredManufacturing: [manufacturing] });
+  const input = props(role);
+  input.manufacturingBrowse.rows = [manufacturing];
   const screen = render(createElement(ManufacturingScreen, input));
   if (role === "mentor" || role === "admin") {
     fireEvent.press(screen.getByText("Approve"));
@@ -48,12 +51,13 @@ test.each(["student", "lead", "mentor", "admin"] as const)("%s manufacturing app
     expect(input.patchManufacturingItem).not.toHaveBeenCalled();
   }
   screen.rerender(createElement(ManufacturingScreen, { ...input,
-    filteredManufacturing: [{ ...manufacturing, mentorReviewed: true, status: "qa" }] }));
+    manufacturingBrowse: { ...input.manufacturingBrowse, rows: [{ ...manufacturing, mentorReviewed: true, status: "qa" }] } }));
   expect(screen.queryByText("Approve")).toBeNull();
 });
 
 test.each(["student", "lead", "mentor", "admin"] as const)("%s purchasing approval and transition controls", (role) => {
-  const input = props(role, { filteredPurchases: [purchase] });
+  const input = props(role);
+  input.purchaseBrowse.rows = [purchase];
   const screen = render(createElement(InventoryPurchasesScreen, input));
   const privileged = role === "mentor" || role === "admin";
   if (privileged) {
@@ -61,7 +65,7 @@ test.each(["student", "lead", "mentor", "admin"] as const)("%s purchasing approv
     expect(input.approvePurchaseItem).toHaveBeenCalledWith(purchase, true);
   } else expect(screen.queryByText("Approve")).toBeNull();
   const approved = { ...purchase, status: "approved" as const };
-  screen.rerender(createElement(InventoryPurchasesScreen, { ...input, filteredPurchases: [approved] }));
+  screen.rerender(createElement(InventoryPurchasesScreen, { ...input, purchaseBrowse: { ...input.purchaseBrowse, rows: [approved] } }));
   fireEvent.press(screen.getByText("Bolts"));
   if (privileged) {
     fireEvent.press(screen.getByText("Mark purchased"));
