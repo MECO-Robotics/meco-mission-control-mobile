@@ -37,7 +37,7 @@ export function PurchaseEditorModal({
           body={error}
           bodyStyle={appResponsiveStyles.calloutBody}
           boxStyle={appResponsiveStyles.calloutBox}
-          title="Missing purchase details"
+          title="Purchase needs attention"
           titleStyle={appResponsiveStyles.calloutTitle}
         />
       ) : null}

@@ -37,11 +37,11 @@ export function useManufacturingEditor({
   canMentorApprove,
   mutate,
 }: Inputs) {
-  const editor = useEditorDraft(buildDraft);
+  const { view: editor, open: openDraft, setError, complete } = useEditorDraft(buildDraft);
   const open = (item?: ManufacturingItem) => {
     const process = manufacturingView === "prints" ? "3d-print"
       : manufacturingView === "fabrication" ? "fabrication" : "cnc";
-    editor.open(buildDraft(process, item ?? {
+    openDraft(buildDraft(process, item ?? {
       subsystemId: subsystems[0]?.id ?? "",
       requestedById: signedInMember?.id ?? members[0]?.id ?? "",
     }), item?.id ?? null);
@@ -61,7 +61,7 @@ export function useManufacturingEditor({
     ].filter((field): field is string => Boolean(field));
 
     if (missingFields.length > 0) {
-      editor.setError(`Add ${missingFields.join(", ")} before saving this manufacturing item.`);
+      setError(`Add ${missingFields.join(", ")} before saving this manufacturing item.`);
       return;
     }
 
@@ -88,7 +88,7 @@ export function useManufacturingEditor({
       },
     );
 
-    if (ok) editor.closeIfCurrent();
+    complete(ok, "Could not confirm the manufacturing item was saved. Your draft is still here.");
   };
 
   const deleteManufacturing = async () => {
@@ -100,7 +100,7 @@ export function useManufacturingEditor({
       method: "DELETE",
     });
 
-    if (ok) editor.closeIfCurrent();
+    complete(ok, "Could not confirm the manufacturing item was deleted.");
   };
 
   return {

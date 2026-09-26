@@ -45,7 +45,7 @@ test("invalid dates block persistence; field edits clear errors and create reset
     draft: { title: "", startTime: "18:00", endDate: "", endTime: "" } });
 });
 
-test("failed save/delete retain the draft; completion cannot close a newer editor", async () => {
+test.each([true, false])("failed save/delete retain the draft; stale completion (%s) cannot change a newer editor", async (succeeds) => {
   let complete!: (ok: boolean) => void;
   const persist = jest.fn(() => new Promise<boolean>((resolve) => { complete = resolve; }));
   const { result, remove } = setup(persist, jest.fn(async () => false));
@@ -62,6 +62,6 @@ test("failed save/delete retain the draft; completion cannot close a newer edito
   expect(result.current.draft.title).toBe(event.title);
   act(() => { pending = result.current.save(); });
   act(() => result.current.open());
-  await act(async () => { complete(true); await pending; });
-  expect(result.current).toMatchObject({ visible: true, id: null, draft: { title: "" } });
+  await act(async () => { complete(succeeds); await pending; });
+  expect(result.current).toMatchObject({ visible: true, id: null, error: null, draft: { title: "" } });
 });

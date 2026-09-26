@@ -25,18 +25,20 @@ export function useEditorDraft<Draft>(buildDraft: () => Draft) {
   const setError = (error: string) => {
     setState((current) => ({ ...current, error }));
   };
-  const closeIfCurrent = () => {
-    setState((current) => current === state
-      ? { ...current, id: null, visible: false, error: null }
-      : current);
+  const complete = (ok: boolean, failureMessage: string) => {
+    setState((current) => {
+      if (current !== state) return current;
+      return ok
+        ? { ...current, id: null, visible: false, error: null }
+        : { ...current, error: failureMessage };
+    });
   };
 
+  const draft: Readonly<Draft> = state.draft;
   return {
-    ...state,
+    view: { ...state, draft, close, updateDraft } as const,
     open,
-    close,
-    updateDraft,
     setError,
-    closeIfCurrent,
+    complete,
   };
 }

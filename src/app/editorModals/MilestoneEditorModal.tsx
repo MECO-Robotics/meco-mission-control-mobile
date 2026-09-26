@@ -31,7 +31,7 @@ export function MilestoneEditorModal({
           body={error}
           bodyStyle={appResponsiveStyles.calloutBody}
           boxStyle={appResponsiveStyles.calloutBox}
-          title="Missing milestone details"
+          title="Milestone needs attention"
           titleStyle={appResponsiveStyles.calloutTitle}
         />
       ) : null}

@@ -41,7 +41,7 @@ export function ManufacturingEditorModal({
           body={error}
           bodyStyle={appResponsiveStyles.calloutBody}
           boxStyle={appResponsiveStyles.calloutBox}
-          title="Missing manufacturing details"
+          title="Manufacturing item needs attention"
           titleStyle={appResponsiveStyles.calloutTitle}
         />
       ) : null}
