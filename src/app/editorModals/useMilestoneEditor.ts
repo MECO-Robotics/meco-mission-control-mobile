@@ -35,9 +35,9 @@ type Inputs = {
 };
 
 export function useMilestoneEditor({ subsystemsById, persist, remove }: Inputs) {
-  const editor = useEditorDraft(buildDraft);
+  const { view: editor, open: openDraft, setError, complete } = useEditorDraft(buildDraft);
   const open = (event?: Event) => {
-    editor.open(buildDraft(event), event?.id ?? null);
+    openDraft(buildDraft(event), event?.id ?? null);
   };
   const save = async () => {
     const { draft, id } = editor;
@@ -57,13 +57,13 @@ export function useMilestoneEditor({ subsystemsById, persist, remove }: Inputs) 
       hasEnd && !isValidTimeInput(resolvedEndTime) ? "end time" : null,
     ].filter((field): field is string => Boolean(field));
     if (missingFields.length > 0) {
-      editor.setError(`Add valid ${missingFields.join(", ")} before saving this milestone.`);
+      setError(`Add valid ${missingFields.join(", ")} before saving this milestone.`);
       return;
     }
     const startDateTime = buildDateTime(startDate, startTime);
     const endDateTime = hasEnd ? buildDateTime(resolvedEndDate, resolvedEndTime) : null;
     if (endDateTime && compareDateTimes(endDateTime, startDateTime) < 0) {
-      editor.setError("End date/time must be after start date/time.");
+      setError("End date/time must be after start date/time.");
       return;
     }
     const relatedSubsystemIds = splitList(draft.relatedSubsystemIdsText)
@@ -81,10 +81,12 @@ export function useMilestoneEditor({ subsystemsById, persist, remove }: Inputs) 
       relatedSubsystemIds,
       projectIds,
     });
-    if (ok) editor.closeIfCurrent();
+    complete(ok, "Could not confirm the milestone was saved. Your draft is still here.");
   };
   const deleteMilestone = async () => {
-    if (editor.id && await remove(editor.id)) editor.closeIfCurrent();
+    if (!editor.id) return;
+    const ok = await remove(editor.id);
+    complete(ok, "Could not confirm the milestone was deleted.");
   };
   return { ...editor, open, save, deleteMilestone };
 }

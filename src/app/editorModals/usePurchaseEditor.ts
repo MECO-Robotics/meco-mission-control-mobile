@@ -35,14 +35,14 @@ export function usePurchaseEditor({
   canMentorApprove,
   mutate,
 }: Inputs) {
-  const editor = useEditorDraft(buildDraft);
+  const { view: editor, open: openDraft, setError, complete } = useEditorDraft(buildDraft);
   const open = (seed: Partial<PurchaseItem> = {}) => {
     const draft = buildDraft({
       subsystemId: subsystems[0]?.id ?? "",
       requestedById: members[0]?.id ?? "",
       ...seed,
     });
-    editor.open(draft, seed.id ?? null);
+    openDraft(draft, seed.id ?? null);
   };
   const restock = (row: MaterialRollup) => {
     const relatedManufacturingItem = manufacturingItems.find(
@@ -87,7 +87,7 @@ export function usePurchaseEditor({
     ].filter((field): field is string => Boolean(field));
 
     if (missingFields.length > 0) {
-      editor.setError(`Add ${missingFields.join(", ")} before saving this purchase.`);
+      setError(`Add ${missingFields.join(", ")} before saving this purchase.`);
       return;
     }
 
@@ -116,7 +116,7 @@ export function usePurchaseEditor({
       },
     );
 
-    if (ok) editor.closeIfCurrent();
+    complete(ok, "Could not confirm the purchase was saved. Your draft is still here.");
   };
 
   const deletePurchase = async () => {
@@ -128,7 +128,7 @@ export function usePurchaseEditor({
       method: "DELETE",
     });
 
-    if (ok) editor.closeIfCurrent();
+    complete(ok, "Could not confirm the purchase was deleted.");
   };
 
   return {
