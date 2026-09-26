@@ -130,58 +130,6 @@ export const riskSeverityColors = {
   },
 } as const;
 
-export const destructiveColors = {
-  lightText: "#b42318",
-  darkText: "#fca5a5",
-  lightSurface: "#fff1f2",
-  actionAccent: "#fda29b",
-  gradientStart: "#b81d2c",
-  gradientMiddle: "#f02c3d",
-  gradientEnd: "#8f1320",
-} as const;
-
-export const operationalAccentColors = {
-  cadWarningSurface: "rgba(245, 158, 11, 0.12)",
-  cadWarningBorder: "rgba(245, 158, 11, 0.28)",
-  cadWarningInk: statusToneColors.warning.ink,
-  cadInfoSurface: "rgba(37, 99, 235, 0.1)",
-  cadInfoBorder: "rgba(37, 99, 235, 0.22)",
-  activeWorklogHelpSurface: "rgba(202, 138, 4, 0.13)",
-  activeWorklogHelpInk: "#854d0e",
-  activeWorklogBlockerInk: statusToneColors.danger.ink,
-  boardDropSurface: "rgba(22, 71, 142, 0.08)",
-  boardFocusRing: "rgba(22, 71, 142, 0.38)",
-  boardDropRing: "rgba(22, 71, 142, 0.44)",
-} as const;
-
-export const supportBlueColors = {
-  label: "#93c5fd",
-  labelStrong: "#bfdbfe",
-  soft: "#dbeafe",
-  action: "#2563eb",
-  sky: "#0ea5e9",
-  progress: "#60a5fa",
-  bright: "#38bdf8",
-  pale: "#deebff",
-  surface: "#eef2f8",
-} as const;
-
-export const neutralColors = {
-  deep: "#21304a",
-  secondary: "#58667d",
-  muted: surfaceColors.subtleText,
-  darkMuted: "#94a3b8",
-  coolBorder: "#cbd5e1",
-  grey: "#d1d1d1",
-  softBorder: "#d6dbe6",
-  border: surfaceColors.border,
-  lavenderBorder: "#e6e7f3",
-  track: surfaceColors.track,
-  row: "#f8fafc",
-  authLight: "#f8fbff",
-  authLower: "#eef4fb",
-} as const;
-
 export const eventTypeColors = {
   practice: {
     columnSurface: "rgba(22, 71, 142, 0.1)",
