@@ -47,7 +47,7 @@ Screens are mostly presentational. They receive:
 - action callbacks for create/edit/status transitions,
 - shared responsive styles and theme colors.
 
-Task queue filters belong to `useTaskQueue`; the task editor owns draft state, relationship commands and save errors. The root passes the editor owner directly to its modal rather than forwarding individual setters.
+Task queue filters belong to `useTaskQueue`; the task editor owns draft state, relationship commands and save errors. The root passes editor owners directly to their modals rather than forwarding individual setters. Milestone draft fields, dates, validation and open/close commands belong to `useMilestoneEditor`; its workspace persistence callback retains authenticated writes, bootstrap refresh and subsystem-link reconciliation. A failed write or refresh leaves the editor open.
 
 ## Navigation
 

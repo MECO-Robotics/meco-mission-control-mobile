@@ -1,3 +1,4 @@
+import { useMilestoneEditor, type MilestonePayload } from "./src/app/editorModals/useMilestoneEditor";
 import { formatHoursFromTimer, getWorkLogTimerElapsedMs, type WorkLogTimerState } from "./src/screens/worklogs/workLogTimer";
 import { taskBlockers as seededTaskBlockers } from "./src/data/tasks/blockers";
 import { taskDependencies as seededTaskDependencies } from "./src/data/tasks/dependencies";
@@ -23,13 +24,10 @@ import {
   buildDateTime,
   buildManufacturingDraft,
   buildMemberDraft,
-  buildMilestoneDraft,
   buildPartDefinitionDraft,
   buildPurchaseDraft,
   buildSubsystemDraft,
   buildWorkLogDraft,
-  compareDateTimes,
-  datePortion,
   derivePartLifecycleStatus,
   formatDate,
   formatDateTime,
@@ -38,7 +36,6 @@ import {
   localTodayDate,
   splitList,
   shiftDateByDays,
-  timePortion,
 } from "./src/ui/helpers";
 import { getResponsiveMetrics, scaleFont } from "./src/ui/responsive";
 import { styles } from "./src/ui/styles";
@@ -50,7 +47,6 @@ import type {
   ManufacturingViewTab,
   MaterialRollup,
   MemberDraft,
-  MilestoneDraft,
   MilestoneSortField,
   PartDefinitionDraft,
   PurchaseDraft,
@@ -94,7 +90,6 @@ import {
 } from "./src/data/taskQueueOrdering";
 import { mecoSnapshot } from "./src/data/mockData";
 import type {
-  Event,
   MemberRole,
   ManufacturingItem,
   MobileDeviceSessionSummary,
@@ -126,10 +121,7 @@ import {
   getQaReviewTaskId,
   getWorkLogDraftOwnerKey,
   hasRequiredEmailDomain,
-  isValidDateInput,
-  isValidTimeInput,
   isWorkLogDraftOwnedBy,
-  mapEventTypeToMilestoneType,
   mapMilestonesToEvents,
   mapPendingWorkLogDraftToWorkLog,
   mapTaskPayloadToServer,
@@ -473,16 +465,6 @@ export default function App() {
 
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
 
-  const [milestoneEditorMode, setMilestoneEditorMode] = useState<EditorMode | null>(null);
-  const [activeMilestoneId, setActiveMilestoneId] = useState<string | null>(null);
-  const [milestoneDraft, setMilestoneDraft] = useState<MilestoneDraft>(
-    buildMilestoneDraft(),
-  );
-  const [milestoneStartDate, setMilestoneStartDate] = useState("");
-  const [milestoneStartTime, setMilestoneStartTime] = useState("18:00");
-  const [milestoneEndDate, setMilestoneEndDate] = useState("");
-  const [milestoneEndTime, setMilestoneEndTime] = useState("");
-  const [milestoneError, setMilestoneError] = useState<string | null>(null);
   const [deadlineEditorVisible, setDeadlineEditorVisible] = useState(false);
   const [deadlineTitle, setDeadlineTitle] = useState("");
   const [deadlineDate, setDeadlineDate] = useState("");
@@ -2249,45 +2231,11 @@ export default function App() {
     }
   };
 
-  const openCreateMilestoneEditor = () => {
-    setMilestoneEditorMode("create");
-    setActiveMilestoneId(null);
-    setMilestoneDraft(buildMilestoneDraft());
-    setMilestoneStartDate(localTodayDate());
-    setMilestoneStartTime("18:00");
-    setMilestoneEndDate("");
-    setMilestoneEndTime("");
-    setMilestoneError(null);
-  };
-
   const openCreateDeadlineEditor = () => {
     setDeadlineTitle("");
     setDeadlineDate(localTodayDate());
     setDeadlineError(null);
     setDeadlineEditorVisible(true);
-  };
-
-  const openEditMilestoneEditor = (event: Event) => {
-    setMilestoneEditorMode("edit");
-    setActiveMilestoneId(event.id);
-    setMilestoneDraft({
-      title: event.title,
-      type: event.type,
-      isExternal: event.isExternal,
-      description: event.description,
-      relatedSubsystemIdsText: event.relatedSubsystemIds.join(", "),
-    });
-    setMilestoneStartDate(datePortion(event.startDateTime));
-    setMilestoneStartTime(timePortion(event.startDateTime));
-    setMilestoneEndDate(event.endDateTime ? datePortion(event.endDateTime) : "");
-    setMilestoneEndTime(event.endDateTime ? timePortion(event.endDateTime) : "");
-    setMilestoneError(null);
-  };
-
-  const closeMilestoneEditor = () => {
-    setMilestoneEditorMode(null);
-    setActiveMilestoneId(null);
-    setMilestoneError(null);
   };
 
   const closeDeadlineEditor = () => {
@@ -2297,79 +2245,15 @@ export default function App() {
     setDeadlineError(null);
   };
 
-  const saveMilestoneDraft = async () => {
-    const title = milestoneDraft.title.trim();
-    const startDate = milestoneStartDate.trim();
-    const startTime = milestoneStartTime.trim() || "12:00";
-    const endDate = milestoneEndDate.trim();
-    const endTime = milestoneEndTime.trim();
-    const hasEnd = endDate.length > 0 || endTime.length > 0;
-    const resolvedEndDate = endDate || startDate;
-    const resolvedEndTime = endTime || startTime;
-    const missingFields = [
-      !title ? "title" : null,
-      !isValidDateInput(startDate) ? "start date" : null,
-      !isValidTimeInput(startTime) ? "start time" : null,
-      hasEnd && !isValidDateInput(resolvedEndDate) ? "end date" : null,
-      hasEnd && !isValidTimeInput(resolvedEndTime) ? "end time" : null,
-    ].filter((field): field is string => Boolean(field));
-
-    if (missingFields.length > 0) {
-      setMilestoneError(`Add valid ${missingFields.join(", ")} before saving this milestone.`);
-      return;
-    }
-
-    const parsedSubsystemIds = splitList(milestoneDraft.relatedSubsystemIdsText)
-      .filter((subsystemId) => subsystemsById[subsystemId]);
-    const projectIds = Array.from(
-      new Set(
-        parsedSubsystemIds
-          .map((subsystemId) => subsystemsById[subsystemId]?.projectId)
-          .filter((projectId): projectId is string => Boolean(projectId)),
-      ),
-    );
-
-    const startDateTime = buildDateTime(startDate, startTime);
-    const endDateTime = hasEnd
-      ? buildDateTime(resolvedEndDate, resolvedEndTime)
-      : null;
-
-    if (endDateTime && compareDateTimes(endDateTime, startDateTime) < 0) {
-      setMilestoneError("End date/time must be after start date/time.");
-      return;
-    }
-
-    setMilestoneError(null);
-
-    const isEdit = milestoneEditorMode === "edit" && activeMilestoneId;
-    const payload: {
-      title: string;
-      type: ReturnType<typeof mapEventTypeToMilestoneType>;
-      startDateTime: string;
-      endDateTime: string | null;
-      isExternal: boolean;
-      description: string;
-      relatedSubsystemIds: string[];
-      projectIds: string[];
-    } = {
-      title,
-      type: mapEventTypeToMilestoneType(milestoneDraft.type),
-      startDateTime,
-      endDateTime,
-      isExternal: milestoneDraft.isExternal,
-      description: milestoneDraft.description.trim(),
-      relatedSubsystemIds: parsedSubsystemIds,
-      projectIds,
-    };
-
+  const persistMilestone = async (id: string | null, payload: MilestonePayload) => {
     setIsSyncing(true);
     setSyncError(null);
 
     try {
       const response = await authenticatedRequestJson<MilestoneMutationResponse>(
-        isEdit ? `/api/milestones/${activeMilestoneId}` : "/api/milestones",
+        id ? `/api/milestones/${id}` : "/api/milestones",
         {
-          method: isEdit ? "PATCH" : "POST",
+          method: id ? "PATCH" : "POST",
           body: JSON.stringify(payload),
         },
       );
@@ -2379,22 +2263,23 @@ export default function App() {
         applyMilestoneSubsystemLinks(
           currentEvents,
           response.item,
-          isEdit ? activeMilestoneId : null,
-          parsedSubsystemIds,
+          id,
+          payload.relatedSubsystemIds,
         ),
       );
       setBackendStatus("connected");
       setBackendReachability("reachable");
-      closeMilestoneEditor();
+      return true;
     } catch (error) {
       if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
         endSessionForAuthFailure(getMobileAuthErrorMessage("expired-session"));
-        return;
+        return false;
       }
 
       setBackendStatus("offline");
       setBackendReachability(backendReachabilityAfterError(error));
       setSyncError(getClientErrorMessage(error));
+      return false;
     } finally {
       setIsSyncing(false);
     }
@@ -2426,19 +2311,11 @@ export default function App() {
     }
   };
 
-  const deleteMilestoneDraft = async () => {
-    if (!activeMilestoneId) {
-      return;
-    }
-
-    const ok = await runMutation(`/api/milestones/${activeMilestoneId}`, {
-      method: "DELETE",
-    });
-
-    if (ok) {
-      closeMilestoneEditor();
-    }
-  };
+  const milestoneEditor = useMilestoneEditor({
+    subsystemsById,
+    persist: persistMilestone,
+    remove: (id) => runMutation(`/api/milestones/${id}`, { method: "DELETE" }),
+  });
 
   const clearTaskBlockers = async (task: Task, resolutionNote: string) => {
     const trimmedNote = resolutionNote.trim();
@@ -3680,7 +3557,7 @@ export default function App() {
     setIsPersonMenuVisible(false);
     closeTaskEditor();
     closeWorkLogEditor();
-    closeMilestoneEditor();
+    milestoneEditor.close();
     closeDeadlineEditor();
     closeManufacturingEditor();
     closePurchaseEditor();
@@ -3841,8 +3718,8 @@ export default function App() {
     milestoneSortOrder,
     milestoneSummary,
     milestoneTypeFilter,
-    openCreateMilestoneEditor,
-    openEditMilestoneEditor,
+    openCreateMilestoneEditor: () => milestoneEditor.open(),
+    openEditMilestoneEditor: milestoneEditor.open,
     setMilestoneSearch,
     setMilestoneSortField,
     setMilestoneSortOrder,
@@ -4024,22 +3901,7 @@ export default function App() {
 
         <MilestoneEditorModal
           appResponsiveStyles={appResponsiveStyles}
-          deleteMilestoneDraft={deleteMilestoneDraft}
-          milestoneDraft={milestoneDraft}
-          milestoneEditorMode={milestoneEditorMode}
-          milestoneEndDate={milestoneEndDate}
-          milestoneEndTime={milestoneEndTime}
-          milestoneError={milestoneError}
-          milestoneStartDate={milestoneStartDate}
-          milestoneStartTime={milestoneStartTime}
-          onCancel={closeMilestoneEditor}
-          onSave={saveMilestoneDraft}
-          setMilestoneDraft={setMilestoneDraft}
-          setMilestoneEndDate={setMilestoneEndDate}
-          setMilestoneEndTime={setMilestoneEndTime}
-          setMilestoneError={setMilestoneError}
-          setMilestoneStartDate={setMilestoneStartDate}
-          setMilestoneStartTime={setMilestoneStartTime}
+          editor={milestoneEditor}
         />
 
         <WorkLogEditorModal

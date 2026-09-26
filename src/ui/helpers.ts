@@ -1,7 +1,6 @@
 import * as Localization from "expo-localization";
 
 import type {
-  Event,
   ManufacturingItem,
   MemberRole,
   PartInstance,
@@ -16,7 +15,6 @@ import { STATUS_GROUPS } from "./constants";
 import type {
   ManufacturingDraft,
   MemberDraft,
-  MilestoneDraft,
   PartDefinitionDraft,
   PartLifecycleStatus,
   PurchaseDraft,
@@ -24,16 +22,6 @@ import type {
   SubsystemDraft,
   WorkLogDraft,
 } from "./types";
-export function buildMilestoneDraft(seed?: Partial<Event>): MilestoneDraft {
-  return {
-    title: seed?.title ?? "",
-    type: seed?.type ?? "internal-review",
-    isExternal: seed?.isExternal ?? false,
-    description: seed?.description ?? "",
-    relatedSubsystemIdsText: seed?.relatedSubsystemIds?.join(", ") ?? "",
-  };
-}
-
 export function buildWorkLogDraft(seed?: Partial<WorkLog>): WorkLogDraft {
   return {
     taskId: seed?.taskId ?? "",
