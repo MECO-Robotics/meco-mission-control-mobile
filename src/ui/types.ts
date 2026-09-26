@@ -1,4 +1,4 @@
-import type { ManufacturingItem, MemberRole } from "../types/domain";
+import type { MemberRole } from "../types/domain";
 export type ViewTab =
   | "home"
   | "work-tasks" | "work-schedule" | "work-risks" | "work-activity"
@@ -49,20 +49,6 @@ export type WorkLogDraft = {
   hours: string;
   participantIdsText: string;
   notes: string;
-};
-
-export type ManufacturingDraft = {
-  title: string;
-  subsystemId: string;
-  requestedById: string;
-  process: ManufacturingItem["process"];
-  dueDate: string;
-  material: string;
-  quantity: string;
-  status: ManufacturingItem["status"];
-  mentorReviewed: boolean;
-  batchLabel: string;
-  qaReviewCount: string;
 };
 
 export type MemberDraft = {

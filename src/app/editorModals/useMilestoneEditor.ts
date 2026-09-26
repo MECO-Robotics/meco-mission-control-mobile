@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEditorDraft } from "./useEditorDraft";
 import type { Event, Subsystem } from "../../types/domain";
 import { buildDateTime, compareDateTimes, datePortion, localTodayDate, splitList, timePortion } from "../../ui/helpers";
 import { isValidDateInput, isValidTimeInput, mapEventTypeToMilestoneType } from "../appModel";
@@ -35,23 +35,9 @@ type Inputs = {
 };
 
 export function useMilestoneEditor({ subsystemsById, persist, remove }: Inputs) {
-  const [editor, setEditor] = useState<{
-    draft: ReturnType<typeof buildDraft>;
-    id: string | null;
-    visible: boolean;
-    error: string | null;
-  }>(() => ({ draft: buildDraft(), id: null, visible: false, error: null }));
+  const editor = useEditorDraft(buildDraft);
   const open = (event?: Event) => {
-    setEditor({ draft: buildDraft(event), id: event?.id ?? null, visible: true, error: null });
-  };
-  const close = () => {
-    setEditor((current) => ({ ...current, id: null, visible: false, error: null }));
-  };
-  const updateDraft = (patch: Partial<typeof editor.draft>) => {
-    setEditor((current) => ({ ...current, draft: { ...current.draft, ...patch }, error: null }));
-  };
-  const closeIfCurrent = () => {
-    setEditor((current) => current === editor ? { ...current, id: null, visible: false, error: null } : current);
+    editor.open(buildDraft(event), event?.id ?? null);
   };
   const save = async () => {
     const { draft, id } = editor;
@@ -71,13 +57,13 @@ export function useMilestoneEditor({ subsystemsById, persist, remove }: Inputs) 
       hasEnd && !isValidTimeInput(resolvedEndTime) ? "end time" : null,
     ].filter((field): field is string => Boolean(field));
     if (missingFields.length > 0) {
-      setEditor((current) => ({ ...current, error: `Add valid ${missingFields.join(", ")} before saving this milestone.` }));
+      editor.setError(`Add valid ${missingFields.join(", ")} before saving this milestone.`);
       return;
     }
     const startDateTime = buildDateTime(startDate, startTime);
     const endDateTime = hasEnd ? buildDateTime(resolvedEndDate, resolvedEndTime) : null;
     if (endDateTime && compareDateTimes(endDateTime, startDateTime) < 0) {
-      setEditor((current) => ({ ...current, error: "End date/time must be after start date/time." }));
+      editor.setError("End date/time must be after start date/time.");
       return;
     }
     const relatedSubsystemIds = splitList(draft.relatedSubsystemIdsText)
@@ -95,10 +81,10 @@ export function useMilestoneEditor({ subsystemsById, persist, remove }: Inputs) 
       relatedSubsystemIds,
       projectIds,
     });
-    if (ok) closeIfCurrent();
+    if (ok) editor.closeIfCurrent();
   };
   const deleteMilestone = async () => {
-    if (editor.id && await remove(editor.id)) closeIfCurrent();
+    if (editor.id && await remove(editor.id)) editor.closeIfCurrent();
   };
-  return { ...editor, open, close, updateDraft, save, deleteMilestone };
+  return { ...editor, open, save, deleteMilestone };
 }

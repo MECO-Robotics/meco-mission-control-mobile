@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEditorDraft } from "./useEditorDraft";
 import type { ManufacturingItem, Member, PurchaseItem, Subsystem } from "../../types/domain";
 import type { MaterialRollup } from "../../ui/types";
 
@@ -35,35 +35,14 @@ export function usePurchaseEditor({
   canMentorApprove,
   mutate,
 }: Inputs) {
-  const [editor, setEditor] = useState<{
-    draft: ReturnType<typeof buildDraft>;
-    id: string | null;
-    visible: boolean;
-    error: string | null;
-  }>(() => ({
-    draft: buildDraft(),
-    id: null,
-    visible: false,
-    error: null,
-  }));
+  const editor = useEditorDraft(buildDraft);
   const open = (seed: Partial<PurchaseItem> = {}) => {
     const draft = buildDraft({
       subsystemId: subsystems[0]?.id ?? "",
       requestedById: members[0]?.id ?? "",
       ...seed,
     });
-    setEditor({ draft, id: seed.id ?? null, visible: true, error: null });
-  };
-  const close = () => {
-    setEditor((current) => ({ ...current, id: null, visible: false, error: null }));
-  };
-  const updateDraft = (patch: Partial<typeof editor.draft>) => {
-    setEditor((current) => ({ ...current, draft: { ...current.draft, ...patch }, error: null }));
-  };
-  const closeIfCurrent = () => {
-    setEditor((current) => current === editor
-      ? { ...current, id: null, visible: false, error: null }
-      : current);
+    editor.open(draft, seed.id ?? null);
   };
   const restock = (row: MaterialRollup) => {
     const relatedManufacturingItem = manufacturingItems.find(
@@ -108,7 +87,7 @@ export function usePurchaseEditor({
     ].filter((field): field is string => Boolean(field));
 
     if (missingFields.length > 0) {
-      setEditor((current) => ({ ...current, error: `Add ${missingFields.join(", ")} before saving this purchase.` }));
+      editor.setError(`Add ${missingFields.join(", ")} before saving this purchase.`);
       return;
     }
 
@@ -137,7 +116,7 @@ export function usePurchaseEditor({
       },
     );
 
-    if (ok) closeIfCurrent();
+    if (ok) editor.closeIfCurrent();
   };
 
   const deletePurchase = async () => {
@@ -149,7 +128,7 @@ export function usePurchaseEditor({
       method: "DELETE",
     });
 
-    if (ok) closeIfCurrent();
+    if (ok) editor.closeIfCurrent();
   };
 
   return {
@@ -157,8 +136,6 @@ export function usePurchaseEditor({
     canManageProtectedFields: canMentorApprove,
     open,
     restock,
-    close,
-    updateDraft,
     save,
     deletePurchase,
   };
