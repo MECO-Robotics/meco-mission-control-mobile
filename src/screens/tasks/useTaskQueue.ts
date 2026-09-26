@@ -23,6 +23,30 @@ const initialFilters = {
   taskBlockerFilter: "all" as BlockerFilterMode,
 };
 
+// Keep queue selection and its summary chips on the same readiness rules.
+function matchesBlockerFilter(task: Task, filter: BlockerFilterMode, loggedHours: number): boolean {
+  switch (filter) {
+    case "blocked": return task.blockers.length > 0;
+    case "clear": return task.blockers.length === 0;
+    case "over-estimate": return task.estimatedHours > 0 && loggedHours > task.estimatedHours;
+    case "overdue": return task.status !== "complete" && task.dueDate < localTodayDate();
+    case "due-soon": {
+      const today = localTodayDate();
+      return task.status !== "complete" && task.dueDate >= today && task.dueDate <= shiftDateByDays(today, 7);
+    }
+    case "dependency-wait": return hasOpenTaskDependency(task);
+    case "ready-now":
+      return task.status !== "complete" && task.status !== "waiting-for-qa" &&
+        !isTaskBlocked(task) && !hasOpenTaskDependency(task) && Boolean(task.ownerId);
+    case "ready-to-qa":
+      return task.status === "waiting-for-qa" && !isTaskBlocked(task) && !hasOpenTaskDependency(task);
+    case "needs-fabrication": return task.linkedManufacturingIds.length > 0;
+    case "needs-purchase": return task.linkedPurchaseIds.length > 0;
+    case "unassigned": return !task.ownerId;
+    case "all": return true;
+  }
+}
+
 export function useTaskQueue({ tasks, taskLoggedHoursById, activeTaskSubteam,
   canMentorApprove, activePersonFilter, membersById, mechanismsById, subsystemsById }: QueueInputs) {
   const [filters, setFilters] = useState(initialFilters);
@@ -36,7 +60,7 @@ export function useTaskQueue({ tasks, taskLoggedHoursById, activeTaskSubteam,
   const filteredTaskQueueCandidates = useMemo(() => {
     const search = taskSearch.trim().toLowerCase();
 
-    return [...tasks]
+    return tasks
       .filter((task) => {
         if (
           activePersonFilter !== "all" &&
@@ -58,80 +82,7 @@ export function useTaskQueue({ tasks, taskLoggedHoursById, activeTaskSubteam,
           return false;
         }
 
-        if (taskBlockerFilter === "blocked" && task.blockers.length === 0) {
-          return false;
-        }
-
-        if (taskBlockerFilter === "clear" && task.blockers.length > 0) {
-          return false;
-        }
-
-        if (taskBlockerFilter === "over-estimate") {
-          const loggedHours = taskLoggedHoursById[task.id] ?? task.actualHours;
-          if (task.estimatedHours <= 0 || loggedHours <= task.estimatedHours) {
-            return false;
-          }
-        }
-
-        if (
-          taskBlockerFilter === "overdue" &&
-          (task.status === "complete" || task.dueDate >= localTodayDate())
-        ) {
-          return false;
-        }
-
-        if (taskBlockerFilter === "due-soon") {
-          const today = localTodayDate();
-          const soonDate = shiftDateByDays(today, 7);
-
-          if (task.status === "complete" || task.dueDate < today || task.dueDate > soonDate) {
-            return false;
-          }
-        }
-
-        if (taskBlockerFilter === "dependency-wait") {
-          const hasOpenDependency = hasOpenTaskDependency(task);
-
-          if (!hasOpenDependency) {
-            return false;
-          }
-        }
-
-        if (taskBlockerFilter === "ready-now") {
-          const hasOpenDependency = hasOpenTaskDependency(task);
-
-          if (
-            task.status === "complete" ||
-            task.status === "waiting-for-qa" ||
-            isTaskBlocked(task) ||
-            hasOpenDependency ||
-            !task.ownerId
-          ) {
-            return false;
-          }
-        }
-
-        if (taskBlockerFilter === "ready-to-qa") {
-          const hasOpenDependency = hasOpenTaskDependency(task);
-
-          if (
-            task.status !== "waiting-for-qa" ||
-            isTaskBlocked(task) ||
-            hasOpenDependency
-          ) {
-            return false;
-          }
-        }
-
-        if (taskBlockerFilter === "needs-fabrication" && task.linkedManufacturingIds.length === 0) {
-          return false;
-        }
-
-        if (taskBlockerFilter === "needs-purchase" && task.linkedPurchaseIds.length === 0) {
-          return false;
-        }
-
-        if (taskBlockerFilter === "unassigned" && task.ownerId) {
+        if (!matchesBlockerFilter(task, taskBlockerFilter, taskLoggedHoursById[task.id] ?? task.actualHours)) {
           return false;
         }
 
@@ -180,7 +131,7 @@ export function useTaskQueue({ tasks, taskLoggedHoursById, activeTaskSubteam,
     return buildTaskQueueSections({
       activeTaskSubteam,
       canViewAllQueues: canMentorApprove,
-        tasks: filteredTaskQueueCandidates,
+      tasks: filteredTaskQueueCandidates,
     });
   }, [activeTaskSubteam, canMentorApprove, filteredTaskQueueCandidates]);
 
@@ -189,7 +140,9 @@ export function useTaskQueue({ tasks, taskLoggedHoursById, activeTaskSubteam,
   }, [taskQueueSections]);
 
   const taskSummary = useMemo(() => {
-    const blocked = filteredTaskQueue.filter((task) => task.blockers.length > 0).length;
+    const countMatching = (filter: BlockerFilterMode) => filteredTaskQueue.filter((task) =>
+      matchesBlockerFilter(task, filter, taskLoggedHoursById[task.id] ?? task.actualHours),
+    ).length;
     const waiting = filteredTaskQueue.filter(
       (task) => task.status === "waiting-for-qa",
     ).length;
@@ -198,39 +151,15 @@ export function useTaskQueue({ tasks, taskLoggedHoursById, activeTaskSubteam,
       (sum, task) => sum + (taskLoggedHoursById[task.id] ?? task.actualHours),
       0,
     );
-    const overEstimate = filteredTaskQueue.filter((task) => {
-      const taskLoggedHours = taskLoggedHoursById[task.id] ?? task.actualHours;
-      return task.estimatedHours > 0 && taskLoggedHours > task.estimatedHours;
-    }).length;
-    const readyNow = filteredTaskQueue.filter((task) => {
-      const hasOpenDependency = hasOpenTaskDependency(task);
-
-      return (
-        task.status !== "complete" &&
-        task.status !== "waiting-for-qa" &&
-        !isTaskBlocked(task) &&
-        !hasOpenDependency &&
-        Boolean(task.ownerId)
-      );
-    }).length;
-    const readyForQa = filteredTaskQueue.filter((task) => {
-      const hasOpenDependency = hasOpenTaskDependency(task);
-
-      return (
-        task.status === "waiting-for-qa" &&
-        !isTaskBlocked(task) &&
-        !hasOpenDependency
-      );
-    }).length;
 
     return [
       { label: "Visible tasks", value: String(filteredTaskQueue.length) },
-      { label: "Ready now", value: String(readyNow) },
-      { label: "Ready QA", value: String(readyForQa) },
-      { label: "Blocked", value: String(blocked) },
+      { label: "Ready now", value: String(countMatching("ready-now")) },
+      { label: "Ready QA", value: String(countMatching("ready-to-qa")) },
+      { label: "Blocked", value: String(countMatching("blocked")) },
       { label: "Waiting QA", value: String(waiting) },
       { label: "Logged", value: `${loggedHours.toFixed(1)}h` },
-      { label: "Over est.", value: String(overEstimate) },
+      { label: "Over est.", value: String(countMatching("over-estimate")) },
       { label: "Complete", value: String(complete) },
     ] satisfies SummaryChipData[];
   }, [filteredTaskQueue, taskLoggedHoursById]);

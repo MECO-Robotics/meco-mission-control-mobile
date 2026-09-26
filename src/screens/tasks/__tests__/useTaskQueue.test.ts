@@ -53,3 +53,47 @@ test("archive and active-person changes recompute selection from current input",
   rerender("other-person");
   expect(result.current.filteredTaskQueue).toEqual([]);
 });
+
+test("summary counts and readiness selection agree for owned, unassigned, QA and blocked tasks", () => {
+  const candidates: Task[] = [
+    ready, blocked, waiting, complete,
+    { ...ready, id: "unassigned", ownerId: null },
+    { ...ready, id: "qa", status: "waiting-for-qa" },
+    { ...blocked, id: "blocked-qa", status: "waiting-for-qa" },
+  ];
+  const { result } = renderHook(() => useTaskQueue({ ...inputs, tasks: candidates }));
+  expect(result.current.taskSummary).toEqual(expect.arrayContaining([
+    { label: "Ready now", value: "1" },
+    { label: "Ready QA", value: "1" },
+    { label: "Blocked", value: "2" },
+    { label: "Waiting QA", value: "2" },
+    { label: "Over est.", value: "1" },
+  ]));
+  act(() => result.current.setTaskBlockerFilter("ready-to-qa"));
+  expect(result.current.filteredTaskQueue.map((task) => task.id)).toEqual(["qa"]);
+  act(() => result.current.setTaskBlockerFilter("unassigned"));
+  expect(result.current.filteredTaskQueue.map((task) => task.id)).toEqual(["unassigned"]);
+});
+
+test("due-soon includes today and seven days away, excluding completed and overdue tasks", () => {
+  jest.useFakeTimers().setSystemTime(new Date(2026, 8, 26, 12));
+  try {
+    const candidates: Task[] = [
+      { ...ready, id: "yesterday", dueDate: "2026-09-25" },
+      { ...ready, id: "today", dueDate: "2026-09-26" },
+      { ...ready, id: "week", dueDate: "2026-10-03" },
+      { ...ready, id: "later", dueDate: "2026-10-04" },
+      { ...complete, dueDate: "2026-09-26" },
+    ];
+    const { result } = renderHook(() => useTaskQueue({ ...inputs, tasks: candidates }));
+    act(() => {
+      result.current.setTaskArchiveFilter("all");
+      result.current.setTaskBlockerFilter("due-soon");
+    });
+    expect(result.current.filteredTaskQueue.map((task) => task.id)).toEqual(["today", "week"]);
+    act(() => result.current.setTaskBlockerFilter("overdue"));
+    expect(result.current.filteredTaskQueue.map((task) => task.id)).toEqual(["yesterday"]);
+  } finally {
+    jest.useRealTimers();
+  }
+});
