@@ -86,7 +86,7 @@ export function useTaskQueue({ tasks, taskLoggedHoursById, activeTaskSubteam,
           return false;
         }
 
-        if (taskSubsystemFilter !== "all" && task.subsystemId !== taskSubsystemFilter) {
+        if (taskSubsystemFilter !== "all" && !task.subsystemIds.includes(taskSubsystemFilter)) {
           return false;
         }
 
@@ -102,9 +102,9 @@ export function useTaskQueue({ tasks, taskLoggedHoursById, activeTaskSubteam,
           return true;
         }
 
-        const subsystemName = subsystemsById[task.subsystemId]?.name ?? "";
+        const subsystemName = task.subsystemIds.map((id) => subsystemsById[id]?.name ?? "").join(" ");
         const ownerName = task.ownerId ? (membersById[task.ownerId]?.name ?? "") : "";
-        const mechanismName = task.mechanismId ? (mechanismsById[task.mechanismId]?.name ?? "") : "";
+        const mechanismName = task.mechanismIds.map((id) => mechanismsById[id]?.name ?? "").join(" ");
 
         return `${task.title} ${task.summary} ${subsystemName} ${ownerName} ${mechanismName}`
           .toLowerCase()

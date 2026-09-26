@@ -258,16 +258,16 @@ const renderScreen = () => {
           ) : null}
 
           {section.tasks.map((task) => {
-        const subsystemName = subsystemsById[task.subsystemId]?.name ?? "Unknown";
+        const subsystemName = subsystemsById[(task.subsystemIds[0] ?? "")]?.name ?? "Unknown";
         const ownerName = task.ownerId
           ? (membersById[task.ownerId]?.name ?? "Unassigned")
           : "Unassigned";
         const disciplineName = disciplinesById[task.disciplineId]?.name ?? "Unknown discipline";
-        const mechanismName = task.mechanismId
-          ? (mechanismsById[task.mechanismId]?.name ?? "Unknown mechanism")
+        const mechanismName = task.mechanismIds[0]
+          ? (mechanismsById[task.mechanismIds[0]]?.name ?? "Unknown mechanism")
           : "No mechanism";
-        const linkedPart = task.partInstanceId
-          ? (partInstancesById[task.partInstanceId]?.name ?? "Unknown part")
+        const linkedPart = task.partInstanceIds[0]
+          ? (partInstancesById[task.partInstanceIds[0]]?.name ?? "Unknown part")
           : "No part";
         const targetEvent = task.targetEventId
           ? (eventsById[task.targetEventId]?.title ?? "Event")
@@ -431,7 +431,7 @@ const renderScreen = () => {
                         ? (membersById[dependency.ownerId]?.name ?? "Unassigned")
                         : "Unassigned";
                       const dependencySubsystem =
-                        subsystemsById[dependency.subsystemId]?.name ?? "Unknown subsystem";
+                        subsystemsById[(dependency.subsystemIds[0] ?? "")]?.name ?? "Unknown subsystem";
 
                       return (
                         <Pressable

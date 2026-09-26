@@ -137,7 +137,7 @@ export function buildLanes(tasks: Task[], subsystems: Subsystem[], monthStart: D
 
   [...tasks]
     .sort((left, right) => {
-      const subsystemDelta = left.subsystemId.localeCompare(right.subsystemId);
+      const subsystemDelta = (left.subsystemIds[0] ?? "").localeCompare((right.subsystemIds[0] ?? ""));
       if (subsystemDelta !== 0) {
         return subsystemDelta;
       }
@@ -148,12 +148,14 @@ export function buildLanes(tasks: Task[], subsystems: Subsystem[], monthStart: D
       );
     })
     .forEach((task) => {
-      const lane = lanesBySubsystem.get(task.subsystemId) ?? {
-        subsystem: subsystemsById[task.subsystemId] ?? null,
-        tasks: [],
-      };
-      lane.tasks.push(task);
-      lanesBySubsystem.set(task.subsystemId, lane);
+      for (const subsystemId of new Set(task.subsystemIds.length ? task.subsystemIds : [""])) {
+        const lane = lanesBySubsystem.get(subsystemId) ?? {
+          subsystem: subsystemsById[subsystemId] ?? null,
+          tasks: [],
+        };
+        lane.tasks.push(task);
+        lanesBySubsystem.set(subsystemId, lane);
+      }
     });
 
   return Array.from(lanesBySubsystem.entries()).map(([subsystemId, lane]) => {

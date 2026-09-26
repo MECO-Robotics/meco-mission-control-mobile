@@ -8,7 +8,7 @@ const subsystem = (id: string, risks: string[] = []): Subsystem => ({
   responsibleEngineerId: null, mentorIds: [],
 });
 const task = (id: string, subsystemId: string, status: Task["status"] = "not-started"): Task => ({
-  ...mecoSnapshot.tasks[0], id, subsystemId, status, dueDate: "9999-01-01", blockers: [],
+  ...mecoSnapshot.tasks[0], id, subsystemIds: [subsystemId], status, dueDate: "9999-01-01", blockers: [],
 });
 const empty = { mechanisms: [] as Mechanism[], tasks: [] as Task[], purchaseItems: [] as PurchaseItem[], qaReviews: [] as QaReview[], membersById: {}, taskById: {} };
 
@@ -84,4 +84,15 @@ test("expansion survives hidden search and refresh, preserves explicit collapse 
   rerender({ items: [] });
   rerender({ items: subsystems });
   expect(result.current.rows.every((row) => !row.isExpanded)).toBe(true);
+});
+
+test("multi-target tasks and QA findings count once in each selected subsystem", () => {
+  const multi = { ...task("multi", "a", "waiting-for-qa"), subsystemIds: ["a", "b", "b"] };
+  const review = { ...mecoSnapshot.qaReviews[0], id: "finding", taskId: multi.id, result: "minor-fix" as const };
+  const { result } = renderHook(() => useSubsystemBrowse({
+    ...empty, subsystems: [subsystem("a"), subsystem("b")], tasks: [multi], taskById: { multi }, qaReviews: [review],
+  }));
+  for (const row of result.current.rows) {
+    expect(row.counts).toMatchObject({ tasks: 1, waitingQa: 1, qaFindings: 1 });
+  }
 });

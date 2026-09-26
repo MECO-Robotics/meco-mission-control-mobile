@@ -1,12 +1,14 @@
 import type { Task } from "../../types/domain";
 
 type DefaultedTaskField =
+  | "workstreamIds"
+  | "artifactIds"
   | "checklistItems"
   | "linkedManufacturingIds"
   | "linkedPurchaseIds"
-  | "partInstanceId"
+  | "partInstanceIds"
   | "requirementId"
-  | "mechanismId"
+  | "mechanismIds"
   | "actualHours"
   | "status";
 

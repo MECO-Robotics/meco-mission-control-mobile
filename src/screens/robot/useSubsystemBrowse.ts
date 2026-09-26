@@ -66,23 +66,25 @@ export function useSubsystemBrowse({ subsystems, mechanisms, tasks, purchaseItem
     const today = localTodayDate();
 
     for (const task of tasks) {
-      const bucket = counts[task.subsystemId];
-      if (!bucket) {
-        continue;
-      }
+      for (const subsystemId of new Set(task.subsystemIds)) {
+        const bucket = counts[subsystemId];
+        if (!bucket) {
+          continue;
+        }
 
-      bucket.tasks += 1;
-      if (task.status !== "complete") {
-        bucket.openTasks += 1;
-      }
-      if (task.status !== "complete" && task.blockers.length > 0) {
-        bucket.blockedTasks += 1;
-      }
-      if (task.status !== "complete" && task.dueDate < today) {
-        bucket.overdueTasks += 1;
-      }
-      if (task.status === "waiting-for-qa") {
-        bucket.waitingQa += 1;
+        bucket.tasks += 1;
+        if (task.status !== "complete") {
+          bucket.openTasks += 1;
+        }
+        if (task.status !== "complete" && task.blockers.length > 0) {
+          bucket.blockedTasks += 1;
+        }
+        if (task.status !== "complete" && task.dueDate < today) {
+          bucket.overdueTasks += 1;
+        }
+        if (task.status === "waiting-for-qa") {
+          bucket.waitingQa += 1;
+        }
       }
     }
 
@@ -100,9 +102,9 @@ export function useSubsystemBrowse({ subsystems, mechanisms, tasks, purchaseItem
 
       const taskId = getQaReviewTaskId(review);
       const task = taskId ? taskById[taskId] : null;
-      const bucket = task ? counts[task.subsystemId] : null;
-      if (bucket) {
-        bucket.qaFindings += 1;
+      for (const subsystemId of new Set(task?.subsystemIds ?? [])) {
+        const bucket = counts[subsystemId];
+        if (bucket) bucket.qaFindings += 1;
       }
     }
 

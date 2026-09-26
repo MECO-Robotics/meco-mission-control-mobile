@@ -3,10 +3,10 @@ import type { Task } from "../../../types/domain";
 import { useTaskQueue } from "../useTaskQueue";
 
 const ready: Task = {
-  id: "ready", title: "Build drive", summary: "", disciplineId: "software", subsystemId: "drive",
+  id: "ready", title: "Build drive", summary: "", disciplineId: "software", workstreamIds: [], artifactIds: [], subsystemIds: ["drive"],
   ownerId: "student", mentorId: "mentor", dueDate: "2099-01-01", priority: "medium",
   status: "not-started", actualHours: 1, estimatedHours: 2, blockers: [], linkedManufacturingIds: [], linkedPurchaseIds: [], isBlocked: false, isWaitingOnDependency: false, checklistItems: [],
-  mechanismId: null, partInstanceId: null, targetEventId: null,
+  mechanismIds: [], partInstanceIds: [], targetEventId: null,
 };
 const blocked: Task = { ...ready, id: "blocked", title: "Blocked", blockers: ["Supply"], isBlocked: true };
 const waiting: Task = { ...ready, id: "waiting", title: "Wait", isBlocked: true, isWaitingOnDependency: true, };
@@ -96,4 +96,17 @@ test("due-soon includes today and seven days away, excluding completed and overd
   } finally {
     jest.useRealTimers();
   }
+});
+
+test("queue filters and search include secondary subsystem and mechanism targets once", () => {
+  const multi = { ...ready, subsystemIds: ["drive", "arm", "arm"], mechanismIds: ["wheel", "wrist"] };
+  const { result } = renderHook(() => useTaskQueue({
+    ...inputs, tasks: [multi], mechanismsById: {
+      wrist: { id: "wrist", name: "Secondary wrist", subsystemId: "arm", description: "" },
+    },
+  }));
+  act(() => result.current.setFilter("taskSubsystemFilter", "arm"));
+  expect(result.current.filteredTaskQueue.map((task) => task.id)).toEqual(["ready"]);
+  act(() => result.current.setFilter("taskSearch", "Secondary wrist"));
+  expect(result.current.filteredTaskQueue.map((task) => task.id)).toEqual(["ready"]);
 });

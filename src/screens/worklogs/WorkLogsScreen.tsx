@@ -137,7 +137,7 @@ const renderScreen = () => {
 
       {filteredWorkLogs.map((workLog) => {
         const task = taskById[workLog.taskId];
-        const subsystemName = task ? (subsystemsById[task.subsystemId]?.name ?? "Unknown") : "Unknown";
+        const subsystemName = task ? (subsystemsById[(task.subsystemIds[0] ?? "")]?.name ?? "Unknown") : "Unknown";
         const isLocalDraft = Boolean(workLog.syncStatus);
         const canEditWorkLog = isLocalDraft
           ? workLog.syncStatus !== "syncing"

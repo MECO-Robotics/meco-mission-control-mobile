@@ -137,17 +137,16 @@ export interface TaskBlocker {
 export interface Task {
   id: string;
   projectId?: string;
-  workstreamId?: string | null;
+  workstreamIds: string[];
   title: string;
   summary: string;
-  subsystemId: string;
+  subsystemIds: string[];
   disciplineId: string;
   requirementId?: string | null;
-  mechanismId: string | null;
-  partInstanceId: string | null;
+  mechanismIds: string[];
+  partInstanceIds: string[];
   targetEventId: string | null;
-  artifactId?: string | null;
-  artifactIds?: string[];
+  artifactIds: string[];
   ownerId: string | null;
   assigneeIds?: string[];
   mentorId: string | null;

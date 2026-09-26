@@ -16,6 +16,7 @@ function setup(failRelation = false, deletion?: Promise<void>) {
     return { item: task } as T;
   };
   const inputs = {
+    mechanisms: mecoSnapshot.mechanisms, partInstances: mecoSnapshot.partInstances,
     tasks: mecoSnapshot.tasks, taskById: Object.fromEntries(mecoSnapshot.tasks.map((row) => [row.id, row])), taskDependencies: [relation],
     members: mecoSnapshot.members, membersById: Object.fromEntries(mecoSnapshot.members.map((row) => [row.id, row])), disciplines: mecoSnapshot.disciplines,
     subsystemsById: Object.fromEntries(mecoSnapshot.subsystems.map((row) => [row.id, row])), taskSubsystemOptions: mecoSnapshot.subsystems.map((row) => ({ id: row.id, name: row.name })),
