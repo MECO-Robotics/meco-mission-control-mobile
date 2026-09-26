@@ -1,3 +1,4 @@
+import { usePurchaseEditor } from "./src/app/editorModals/usePurchaseEditor";
 import { useMilestoneEditor, type MilestonePayload } from "./src/app/editorModals/useMilestoneEditor";
 import { formatHoursFromTimer, getWorkLogTimerElapsedMs, type WorkLogTimerState } from "./src/screens/worklogs/workLogTimer";
 import { taskBlockers as seededTaskBlockers } from "./src/data/tasks/blockers";
@@ -25,7 +26,6 @@ import {
   buildManufacturingDraft,
   buildMemberDraft,
   buildPartDefinitionDraft,
-  buildPurchaseDraft,
   buildSubsystemDraft,
   buildWorkLogDraft,
   derivePartLifecycleStatus,
@@ -49,7 +49,6 @@ import type {
   MemberDraft,
   MilestoneSortField,
   PartDefinitionDraft,
-  PurchaseDraft,
   QaReportDraft,
   SummaryChipData,
   SubsystemDraft,
@@ -487,11 +486,6 @@ export default function App() {
     buildManufacturingDraft("cnc"),
   );
   const [manufacturingError, setManufacturingError] = useState<string | null>(null);
-
-  const [purchaseEditorMode, setPurchaseEditorMode] = useState<EditorMode | null>(null);
-  const [activePurchaseId, setActivePurchaseId] = useState<string | null>(null);
-  const [purchaseDraft, setPurchaseDraft] = useState<PurchaseDraft>(buildPurchaseDraft());
-  const [purchaseError, setPurchaseError] = useState<string | null>(null);
 
   const [memberEditorMode, setMemberEditorMode] = useState<EditorMode | null>(null);
   const [activeMemberId, setActiveMemberId] = useState<string | null>(null);
@@ -2912,130 +2906,10 @@ export default function App() {
     }
   };
 
-  const openCreatePurchaseEditor = () => {
-    setActivePurchaseId(null);
-    setPurchaseError(null);
-    setPurchaseDraft(
-      buildPurchaseDraft({
-        subsystemId: subsystems[0]?.id ?? "",
-        requestedById: members[0]?.id ?? "",
-      }),
-    );
-    setPurchaseEditorMode("create");
-  };
-
-  const openMaterialRestockEditor = (row: MaterialRollup) => {
-    const relatedManufacturingItem = manufacturingItems.find(
-      (item) => item.material === row.name && item.status !== "complete",
-    );
-    const relatedPurchase = purchaseItems.find((item) => {
-      const text = `${item.title} ${item.vendor} ${item.linkLabel}`.toLowerCase();
-      return row.name
-        .toLowerCase()
-        .split(" ")
-        .some((token) => token.length > 3 && text.includes(token));
-    });
-
-    setActivePurchaseId(null);
-    setPurchaseError(null);
-    setPurchaseDraft(
-      buildPurchaseDraft({
-        title: `Restock ${row.name}`,
-        subsystemId: relatedManufacturingItem?.subsystemId ?? subsystems[0]?.id ?? "",
-        requestedById: signedInMember?.id ?? members[0]?.id ?? "",
-        quantity: Math.max(row.suggestedOrderQuantity, row.reorderPoint),
-        vendor: row.vendor === "Mixed" ? "" : row.vendor,
-        linkLabel: relatedPurchase?.linkLabel ?? "",
-        status: "requested",
-      }),
-    );
-    setPurchaseEditorMode("create");
-  };
-
-  const openEditPurchaseEditor = (item: PurchaseItem) => {
-    setActivePurchaseId(item.id);
-    setPurchaseDraft(buildPurchaseDraft(item));
-    setPurchaseError(null);
-    setPurchaseEditorMode("edit");
-  };
-
-  const closePurchaseEditor = () => {
-    setPurchaseEditorMode(null);
-    setActivePurchaseId(null);
-    setPurchaseError(null);
-  };
-
-  const savePurchaseDraft = async () => {
-    const parsedQty = Number(purchaseDraft.quantity);
-    const parsedEstimate = Number(purchaseDraft.estimatedCost);
-    const parsedFinal = purchaseDraft.finalCost.trim() ? Number(purchaseDraft.finalCost) : undefined;
-    const title = purchaseDraft.title.trim();
-    const vendor = purchaseDraft.vendor.trim();
-    const linkLabel = purchaseDraft.linkLabel.trim();
-    const invalidFinalCost =
-      purchaseDraft.finalCost.trim() &&
-      (typeof parsedFinal !== "number" || Number.isNaN(parsedFinal) || parsedFinal < 0);
-    const missingFields = [
-      !title ? "title" : null,
-      !purchaseDraft.subsystemId ? "subsystem" : null,
-      !purchaseDraft.requestedById ? "requester" : null,
-      !vendor ? "vendor" : null,
-      Number.isNaN(parsedQty) || parsedQty <= 0 ? "quantity" : null,
-      Number.isNaN(parsedEstimate) || parsedEstimate < 0 ? "estimated cost" : null,
-      invalidFinalCost ? "final cost" : null,
-    ].filter((field): field is string => Boolean(field));
-
-    if (missingFields.length > 0) {
-      setPurchaseError(`Add ${missingFields.join(", ")} before saving this purchase.`);
-      return;
-    }
-
-    setPurchaseError(null);
-
-    const payload = {
-      title,
-      subsystemId: purchaseDraft.subsystemId,
-      requestedById: purchaseDraft.requestedById,
-      quantity: parsedQty,
-      vendor,
-      linkLabel: linkLabel || "n/a",
-      estimatedCost: parsedEstimate,
-      finalCost:
-        canMentorApprove && typeof parsedFinal === "number" && !Number.isNaN(parsedFinal)
-          ? parsedFinal
-          : undefined,
-      ...(purchaseEditorMode === "create"
-        ? { approvedByMentor: false, status: "requested" }
-        : {}),
-    };
-
-    const isEdit = purchaseEditorMode === "edit" && activePurchaseId;
-    const ok = await runMutation(
-      isEdit ? `/api/purchases/${activePurchaseId}` : "/api/purchases",
-      {
-        method: isEdit ? "PATCH" : "POST",
-        body: JSON.stringify(payload),
-      },
-    );
-
-    if (ok) {
-      closePurchaseEditor();
-    }
-  };
-
-  const deletePurchaseDraft = async () => {
-    if (!activePurchaseId || !canMentorApprove) {
-      return;
-    }
-
-    const ok = await runMutation(`/api/purchases/${activePurchaseId}`, {
-      method: "DELETE",
-    });
-
-    if (ok) {
-      closePurchaseEditor();
-    }
-  };
+  const purchaseEditor = usePurchaseEditor({
+    subsystems, members, signedInMember, manufacturingItems, purchaseItems,
+    canMentorApprove, mutate: runMutation,
+  });
 
   const approvePurchaseItem = async (item: PurchaseItem, approved: boolean) => {
     await runMutation(`/api/purchases/${item.id}/approval`, {
@@ -3560,7 +3434,7 @@ export default function App() {
     milestoneEditor.close();
     closeDeadlineEditor();
     closeManufacturingEditor();
-    closePurchaseEditor();
+    purchaseEditor.close();
     closeMemberEditor();
     closeSubsystemEditor();
     closePartDefinitionEditor();
@@ -3769,7 +3643,7 @@ export default function App() {
     openCreateManufacturingEditor,
     openCreateMemberEditor,
     openCreatePartDefinitionEditor,
-    openCreatePurchaseEditor,
+    openCreatePurchaseEditor: () => purchaseEditor.open(),
     openCreateQaReportEditor,
     openCreateSubsystemEditor,
     openCreateWorkLogEditor,
@@ -3777,12 +3651,12 @@ export default function App() {
     openEditManufacturingEditor,
     openEditMemberEditor,
     openEditPartDefinitionEditor,
-    openEditPurchaseEditor,
+    openEditPurchaseEditor: purchaseEditor.open,
     openEditSubsystemEditor,
     openEditTaskEditor,
     openEditWorkLogEditor,
     openDuplicateTaskEditor,
-    openMaterialRestockEditor,
+    openMaterialRestockEditor: purchaseEditor.restock,
     openTaskQueueFromTask,
     partDefinitions,
     partDefinitionsById,
@@ -3940,17 +3814,9 @@ export default function App() {
         />
 
         <PurchaseEditorModal
+          editor={purchaseEditor}
           appResponsiveStyles={appResponsiveStyles}
-          canManageProtectedFields={canMentorApprove}
-          deletePurchaseDraft={deletePurchaseDraft}
           memberOptions={memberOptions}
-          onCancel={closePurchaseEditor}
-          onSave={savePurchaseDraft}
-          purchaseDraft={purchaseDraft}
-          purchaseEditorMode={purchaseEditorMode}
-          purchaseError={purchaseError}
-          setPurchaseDraft={setPurchaseDraft}
-          setPurchaseError={setPurchaseError}
           subsystemOptions={subsystemOptions}
         />
 
