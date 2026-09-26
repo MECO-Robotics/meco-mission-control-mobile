@@ -1154,7 +1154,7 @@ export default function App() {
     subsystemsById, taskSubsystemOptions, activeTaskSubteam, setActiveTaskSubteam,
     request: authenticatedRequestJson, refresh: () => refreshWorkspaceFromServer(apiToken),
   });
-  const { taskDraft, openCreateTaskEditor, openEditTaskEditor, openDuplicateTaskEditor, closeTaskEditor } = taskEditor;
+  const { openCreateTaskEditor, openEditTaskEditor, openDuplicateTaskEditor, closeTaskEditor } = taskEditor;
   const workLogsForDisplay = useMemo<WorkLogListItem[]>(() => {
     const serverFingerprints = new Set(
       workLogs.map((workLog) => buildWorkLogDraftFingerprint(workLog)),
@@ -3988,20 +3988,6 @@ export default function App() {
       id: discipline.id,
       name: discipline.name,
     }));
-    const mechanismOptions = mechanisms
-      .filter((mechanism) => mechanism.subsystemId === taskDraft.subsystemId)
-      .map((mechanism) => ({
-        id: mechanism.id,
-        name: mechanism.name,
-      }));
-    const mechanismAndTaskPartOptions = taskDraft.mechanismId
-      ? partInstances
-          .filter((partInstance) => partInstance.mechanismId === taskDraft.mechanismId)
-          .map((partInstance) => ({
-            id: partInstance.id,
-            name: `${partInstance.name} (${partDefinitionsById[partInstance.partDefinitionId]?.name ?? "part"})`,
-          }))
-      : [];
 
     return (
       <>
@@ -4013,13 +3999,12 @@ export default function App() {
           eventOptions={eventOptions}
           eventsById={eventsById}
           isLandscapeCardLayout={isLandscapeCardLayout}
-          mechanismAndTaskPartOptions={mechanismAndTaskPartOptions}
-          mechanismOptions={mechanismOptions}
           mechanisms={mechanisms}
           mechanismsById={mechanismsById}
           memberOptions={memberOptions}
           partInstances={partInstances}
           partInstancesById={partInstancesById}
+          partDefinitionsById={partDefinitionsById}
           subsystemsById={subsystemsById}
           taskSubsystemOptions={taskSubsystemOptions}
           themeColors={themeColors}

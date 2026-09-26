@@ -15,6 +15,7 @@ import type {
   Event,
   Mechanism,
   PartInstance,
+  PartDefinition,
   Subsystem,
   TaskPriority,
   TaskStatus,
@@ -30,12 +31,11 @@ type TaskEditorModalProps = {
   eventOptions: Option[];
   eventsById: Record<string, Event | undefined>;
   isLandscapeCardLayout: boolean;
-  mechanismAndTaskPartOptions: Option[];
-  mechanismOptions: Option[];
   mechanisms: Mechanism[];
   mechanismsById: Record<string, Mechanism | undefined>;
   memberOptions: Option[];
   partInstances: PartInstance[];
+  partDefinitionsById: Record<string, PartDefinition | undefined>;
   partInstancesById: Record<string, PartInstance | undefined>;
   subsystemsById: Record<string, Subsystem | undefined>;
   taskSubsystemOptions: Option[];
@@ -50,18 +50,29 @@ export function TaskEditorModal({
   eventOptions,
   eventsById,
   isLandscapeCardLayout,
-  mechanismAndTaskPartOptions,
-  mechanismOptions,
   mechanisms,
   mechanismsById,
   memberOptions,
   partInstances,
   partInstancesById,
+  partDefinitionsById,
   subsystemsById,
   taskSubsystemOptions,
   themeColors,
 }: TaskEditorModalProps) {
   const { addTaskDependency, availableTaskDependencyOptions, deleteTaskDraft, downstreamTaskDependencies, removeTaskDependency, selectedTaskDependencies, setTaskDependencySearch, setTaskDraft, taskDependencyReadinessMessage, taskDependencySearch, taskDraft, taskEditorError, taskEditorMode, closeTaskEditor: onCancel, saveTaskDraft: onSave } = editor;
+
+  const mechanismOptions = mechanisms
+    .filter((mechanism) => mechanism.subsystemId === taskDraft.subsystemId)
+    .map(({ id, name }) => ({ id, name }));
+  const mechanismAndTaskPartOptions = taskDraft.mechanismId
+    ? partInstances
+        .filter((part) => part.mechanismId === taskDraft.mechanismId)
+        .map((part) => ({
+          id: part.id,
+          name: `${part.name} (${partDefinitionsById[part.partDefinitionId]?.name ?? "part"})`,
+        }))
+    : [];
 
   return (
     <EditorModal
