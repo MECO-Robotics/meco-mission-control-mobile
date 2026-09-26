@@ -1189,7 +1189,7 @@ export default function App() {
 
   const taskQueue = useTaskQueue({ tasks, taskLoggedHoursById, activeTaskSubteam,
     canMentorApprove, activePersonFilter, membersById, mechanismsById, subsystemsById });
-  const { taskArchiveFilter } = taskQueue;
+  const { taskArchiveFilter } = taskQueue.filters;
 
   const filteredMilestones = useMemo(() => {
     const search = milestoneSearch.trim().toLowerCase();
@@ -3787,7 +3787,7 @@ export default function App() {
   };
 
   const taskScreenProps: TaskScreenProps = {
-    ...taskQueue,
+    queue: taskQueue,
     canSubmitQa,
     qaRequests,
     openCreateQaReportEditor,

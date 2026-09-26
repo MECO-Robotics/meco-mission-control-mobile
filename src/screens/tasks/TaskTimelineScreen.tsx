@@ -24,9 +24,9 @@ import type { TaskScreenProps } from "./taskScreenTypes";
 type TaskTimelineScreenProps = Pick<TaskScreenProps,
   | "activeTaskSubteamLabel" | "appResponsiveStyles" | "eventOptions"
   | "eventsById" | "membersById" | "openCreateTaskEditor"
-  | "openEditTaskEditor" | "setTaskArchiveFilter" | "setTimelineMilestoneFilter"
+  | "openEditTaskEditor" | "setTimelineMilestoneFilter"
   | "setTimelineSubsystemFilter" | "subsystems" | "subsystemsById"
-  | "taskArchiveFilter" | "taskSummary" | "timelineMilestoneFilter"
+  | "queue" | "timelineMilestoneFilter"
   | "timelineSubsystemFilter" | "timelineTasks"
 >;
 
@@ -39,13 +39,11 @@ export function TaskTimelineScreen(props: TaskTimelineScreenProps) {
     membersById,
     openCreateTaskEditor,
     openEditTaskEditor,
-    setTaskArchiveFilter,
     setTimelineMilestoneFilter,
     setTimelineSubsystemFilter,
     subsystems,
     subsystemsById,
-    taskArchiveFilter,
-    taskSummary,
+    queue,
     timelineMilestoneFilter,
     timelineSubsystemFilter,
     timelineTasks,
@@ -79,12 +77,12 @@ export function TaskTimelineScreen(props: TaskTimelineScreenProps) {
         />
         <OptionChipRow
           allLabel="Any archive"
-          onChange={(value) => setTaskArchiveFilter(value as ArchiveFilterMode)}
+          onChange={(value) => queue.setFilter("taskArchiveFilter", value as ArchiveFilterMode)}
           options={ARCHIVE_FILTER_OPTIONS}
-          value={taskArchiveFilter}
+          value={queue.filters.taskArchiveFilter}
         />
       </FilterToolbar>
-      <SummaryRow chips={taskSummary} />
+      <SummaryRow chips={queue.taskSummary} />
 
       {timelineTasks.map((task) => {
         const progress = timelineProgress(task.status);

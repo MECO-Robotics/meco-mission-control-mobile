@@ -165,14 +165,7 @@ export function useTaskQueue({ tasks, taskLoggedHoursById, activeTaskSubteam,
   }, [filteredTaskQueue, taskLoggedHoursById]);
 
   return {
-    ...filters, filteredTaskQueue, taskQueueSections, taskSummary,
+    filters, setFilter, filteredTaskQueue, taskQueueSections, taskSummary,
     resetFilters: () => setFilters(initialFilters),
-    setTaskSearch: (value: SetStateAction<typeof filters.taskSearch>) => setFilter("taskSearch", value),
-    setTaskStatusFilter: (value: SetStateAction<typeof filters.taskStatusFilter>) => setFilter("taskStatusFilter", value),
-    setTaskSubsystemFilter: (value: SetStateAction<typeof filters.taskSubsystemFilter>) => setFilter("taskSubsystemFilter", value),
-    setTaskOwnerFilter: (value: SetStateAction<typeof filters.taskOwnerFilter>) => setFilter("taskOwnerFilter", value),
-    setTaskPriorityFilter: (value: SetStateAction<typeof filters.taskPriorityFilter>) => setFilter("taskPriorityFilter", value),
-    setTaskArchiveFilter: (value: SetStateAction<typeof filters.taskArchiveFilter>) => setFilter("taskArchiveFilter", value),
-    setTaskBlockerFilter: (value: SetStateAction<typeof filters.taskBlockerFilter>) => setFilter("taskBlockerFilter", value),
   };
 }
