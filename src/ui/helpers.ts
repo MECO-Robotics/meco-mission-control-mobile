@@ -12,7 +12,6 @@ import type {
 import { STATUS_GROUPS } from "./constants";
 import type {
   MemberDraft,
-  PartDefinitionDraft,
   PartLifecycleStatus,
   StatusGroup,
   SubsystemDraft,
@@ -65,29 +64,6 @@ export function buildSubsystemDraft(seed?: Partial<Subsystem>): SubsystemDraft {
     responsibleEngineerId: seed?.responsibleEngineerId ?? "",
     mentorIdsText: seed?.mentorIds?.join(",") ?? "",
     risksText: seed?.risks?.join(", ") ?? "",
-  };
-}
-
-export function buildPartDefinitionDraft(
-  seed?: Partial<{
-    name: string;
-    partNumber: string;
-    revision: string;
-    source: string;
-    acquisitionMethod: PartDefinitionDraft["acquisitionMethod"];
-}>,
-): PartDefinitionDraft {
-  const source =
-    seed?.source === "Onshape" || seed?.source === "FRC Supplier" || seed?.source === "COTS"
-      ? seed.source
-      : "Onshape";
-
-  return {
-    name: seed?.name ?? "",
-    partNumber: seed?.partNumber ?? "",
-    revision: seed?.revision ?? "A",
-    source,
-    acquisitionMethod: seed?.acquisitionMethod ?? "manufacture",
   };
 }
 

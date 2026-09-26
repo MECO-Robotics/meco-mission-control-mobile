@@ -1,6 +1,5 @@
 import type { usePartDefinitionEditor } from "./usePartDefinitionEditor";
 
-import { ACQUISITION_METHOD_OPTIONS, PART_SOURCE_OPTIONS } from "../../ui/constants";
 import type { AcquisitionMethod } from "../../ui/types";
 import { DropdownField, EditorModal, ModalField } from "../../ui/ui";
 import type { ResponsiveScreenStyles } from "../../screens/types";
@@ -24,12 +23,21 @@ export function PartDefinitionEditorModal({
       title={editor.id ? "Edit part definition" : "Create part definition"}
       visible={editor.visible}
     >
+      {!editor.id && !editor.canCreateParts ? (
+        <EditorCallout
+          title="Team permission required"
+          body="Only leads, mentors and admins can add part definitions. Ask a team lead to add this part."
+          bodyStyle={appResponsiveStyles.calloutBody}
+          boxStyle={appResponsiveStyles.calloutBox}
+          titleStyle={appResponsiveStyles.calloutTitle}
+        />
+      ) : null}
       {editor.error ? (
         <EditorCallout
           body={editor.error}
           bodyStyle={appResponsiveStyles.calloutBody}
           boxStyle={appResponsiveStyles.calloutBox}
-          title="Missing part details"
+          title="Part definition"
           titleStyle={appResponsiveStyles.calloutTitle}
         />
       ) : null}
@@ -53,21 +61,51 @@ export function PartDefinitionEditorModal({
       />
       <DropdownField
         label="Source"
-        onChange={(value) => editor.updateDraft({
-            source: value,
-            acquisitionMethod:
-              value === "FRC Supplier" || value === "COTS" ? "purchase" : editor.draft.acquisitionMethod,
-          })}
-        options={PART_SOURCE_OPTIONS}
+        onChange={(value) => editor.updateDraft({ source: value })}
+        options={editor.sourceOptions}
         value={editor.draft.source || "Onshape"}
       />
-      {!editor.id ? (
+      {!editor.id && editor.canCreateParts ? (
         <DropdownField
           label="Acquisition method"
           onChange={(value) => editor.updateDraft({ acquisitionMethod: value as AcquisitionMethod })}
-          options={ACQUISITION_METHOD_OPTIONS}
+          options={editor.acquisitionOptions}
           value={editor.draft.acquisitionMethod}
         />
+      ) : null}
+      {!editor.id && editor.canCreateParts && editor.draft.acquisitionMethod !== "stock" ? (
+        <>
+          <DropdownField
+            label="Subsystem"
+            options={editor.subsystems.map(({ id, name }) => ({ id, name }))}
+            value={editor.draft.subsystemId}
+            onChange={(subsystemId) => editor.updateDraft({ subsystemId })}
+          />
+          <DropdownField
+            label="Discipline"
+            options={editor.disciplines.map(({ id, name }) => ({ id, name }))}
+            value={editor.draft.disciplineId}
+            onChange={(disciplineId) => editor.updateDraft({ disciplineId })}
+          />
+          <DropdownField
+            label="Task owner"
+            options={editor.owners.map(({ id, name }) => ({ id, name }))}
+            value={editor.draft.ownerId}
+            onChange={(ownerId) => editor.updateDraft({ ownerId })}
+          />
+          <DropdownField
+            label="QA mentor"
+            options={editor.mentors.map(({ id, name }) => ({ id, name }))}
+            value={editor.draft.mentorId}
+            onChange={(mentorId) => editor.updateDraft({ mentorId })}
+          />
+          <ModalField
+            label="Due date (YYYY-MM-DD)"
+            placeholder="YYYY-MM-DD"
+            value={editor.draft.dueDate}
+            onChangeText={(dueDate) => editor.updateDraft({ dueDate })}
+          />
+        </>
       ) : null}
     </EditorModal>
   );

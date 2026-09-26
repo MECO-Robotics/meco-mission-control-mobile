@@ -47,43 +47,69 @@ test("subsystem defaults and validation use current roster; failures retain draf
   expect(mutate.mock.calls[1]).toEqual([`/api/subsystems/${mecoSnapshot.subsystems[0].id}`, { method: "DELETE" }]);
 });
 
-function partSetup(mutate = mutation()) {
-  return { mutate, ...renderHook(() => usePartDefinitionEditor({ ...mecoSnapshot, signedInMember: mecoSnapshot.members[1], mutate })) };
+function partSetup(mutate = mutation(), canCreateParts = true) {
+  return { mutate, ...renderHook(() => usePartDefinitionEditor({ ...mecoSnapshot, canCreateParts, mutate })) };
 }
 const partDraft = { name: " Plate ", partNumber: " PL-1 ", source: "Onshape", revision: " B " };
 
-test.each<AcquisitionMethod>(["stock", "manufacture", "purchase"])("part %s acquisition preserves command sequence and defaults", async (acquisitionMethod) => {
+const acquisitionContext = {
+  subsystemId: mecoSnapshot.subsystems[1].id,
+  disciplineId: mecoSnapshot.disciplines[1].id,
+  ownerId: mecoSnapshot.members.find((member) => member.role === "student")!.id,
+  mentorId: mecoSnapshot.members.find((member) => member.role === "mentor")!.id,
+  dueDate: "2026-12-10",
+};
+
+test.each<AcquisitionMethod>(["stock", "manufacture", "purchase"])("part %s acquisition uses one atomic command with explicit context", async (acquisitionMethod) => {
   const { result, mutate } = partSetup();
   act(() => result.current.open());
-  act(() => result.current.updateDraft({ ...partDraft, acquisitionMethod }));
+  expect(result.current.draft).toMatchObject({ acquisitionMethod: "stock", subsystemId: "", disciplineId: "", ownerId: "", mentorId: "" });
+  act(() => result.current.updateDraft({ ...partDraft, ...acquisitionContext, acquisitionMethod }));
   await act(async () => { await result.current.save(); });
-  expect(mutate.mock.calls.map(([path]) => path)).toEqual(acquisitionMethod === "stock" ? ["/api/part-definitions"] : ["/api/part-definitions", acquisitionMethod === "manufacture" ? "/api/manufacturing" : "/api/purchases", "/api/tasks"]);
-  expect(body(mutate)).toMatchObject({ name: "Plate", partNumber: "PL-1", revision: "B", source: "Onshape", type: "custom" });
-  if (acquisitionMethod !== "stock") {
-    expect(body(mutate, 1)).toMatchObject({ requestedById: mecoSnapshot.members[1].id, subsystemId: mecoSnapshot.subsystems[0].id, quantity: 1 });
-    expect(body(mutate, 2)).toMatchObject({ title: "Acquire Plate", linkedManufacturingIds: [], linkedPurchaseIds: [] });
-  }
+  expect(mutate.mock.calls.map(([path]) => path)).toEqual(["/api/part-definitions"]);
+  expect(body(mutate)).toEqual({ name: "Plate", partNumber: "PL-1", revision: "B", source: "Onshape", type: "custom", description: "",
+    acquisition: acquisitionMethod === "stock" ? { method: "stock" } : { method: acquisitionMethod, ...acquisitionContext } });
   expect(result.current.visible).toBe(false);
 });
 
-test.each([0, 1, 2])("unconfirmed write %i reports failure and prevents duplicate creation until reopened", async (failedIndex) => {
-  const mutate = mutation();
-  for (let index = 0; index <= failedIndex; index++) mutate.mockResolvedValueOnce(index !== failedIndex);
+test("nonstock creation requires permission and current explicit task context", async () => {
+  const forbidden = partSetup(mutation(), false);
+  act(() => forbidden.result.current.open());
+  expect(forbidden.result.current.acquisitionOptions.map(({ id }) => id)).toEqual(["stock"]);
+  act(() => forbidden.result.current.updateDraft({ ...partDraft, ...acquisitionContext, acquisitionMethod: "purchase" }));
+  await act(async () => { await forbidden.result.current.save(); });
+  expect(forbidden.mutate).not.toHaveBeenCalled();
+  expect(forbidden.result.current.error).toContain("Only leads");
+  const { result, mutate } = partSetup();
+  act(() => result.current.open());
+  act(() => result.current.updateDraft({ ...partDraft, acquisitionMethod: "manufacture" }));
+  await act(async () => { await result.current.save(); });
+  expect(mutate).not.toHaveBeenCalled();
+  expect(result.current.error).toContain("subsystem, discipline, task owner, QA mentor");
+  act(() => result.current.updateDraft({ ...acquisitionContext, mentorId: acquisitionContext.ownerId, dueDate: "2026-02-30" }));
+  await act(async () => { await result.current.save(); });
+  expect(result.current.error).toContain("QA mentor, valid due date");
+  expect(mutate).not.toHaveBeenCalled();
+  act(() => result.current.updateDraft(acquisitionContext));
+  await act(async () => { await result.current.save(); });
+  expect(mutate).toHaveBeenCalledTimes(1);
+});
+
+test.each<AcquisitionMethod>(["stock", "manufacture", "purchase"])("unconfirmed %s creation prevents duplicate submission until reopened", async (acquisitionMethod) => {
+  const mutate = mutation().mockResolvedValueOnce(false);
   const { result } = partSetup(mutate);
   act(() => result.current.open());
-  act(() => result.current.updateDraft(partDraft));
+  act(() => result.current.updateDraft({ ...partDraft, ...acquisitionContext, acquisitionMethod }));
   await act(async () => { await result.current.save(); });
   expect(result.current.visible).toBe(true);
-  expect(result.current.error).toContain(failedIndex === 0 ? "Could not confirm" : "Part definition saved");
-  const writes = mutate.mock.calls.length;
-  expect(writes).toBe(failedIndex === 0 ? 1 : 3);
+  expect(result.current.error).toContain("Could not confirm");
   act(() => result.current.updateDraft({ name: "Changed" }));
   await act(async () => { await result.current.save(); });
-  expect(mutate).toHaveBeenCalledTimes(writes);
+  expect(mutate).toHaveBeenCalledTimes(1);
   act(() => { result.current.close(); result.current.open(); });
-  act(() => result.current.updateDraft({ ...partDraft, acquisitionMethod: "stock" }));
+  act(() => result.current.updateDraft(partDraft));
   await act(async () => { await result.current.save(); });
-  expect(mutate).toHaveBeenCalledTimes(writes + 1);
+  expect(mutate).toHaveBeenCalledTimes(2);
   expect(result.current.visible).toBe(false);
 });
 
@@ -92,12 +118,27 @@ test("part edit does not recreate acquisition and deletion reports its outcome",
   act(() => result.current.edit(mecoSnapshot.partDefinitions[0].id));
   await act(async () => { await result.current.save(); });
   expect(mutate.mock.calls[0][1].method).toBe("PATCH");
+  expect(body(mutate)).not.toHaveProperty("acquisition");
   expect(mutate).toHaveBeenCalledTimes(1);
   act(() => result.current.edit(mecoSnapshot.partDefinitions[0].id));
   mutate.mockResolvedValueOnce(false);
   await act(async () => { await result.current.remove(); });
   expect(result.current.error).toContain("deleted");
   expect(result.current.visible).toBe(true);
+});
+
+test("editing a web-authored definition preserves its custom source and omits unedited fields", async () => {
+  const part = { ...mecoSnapshot.partDefinitions[0], source: "Local machine shop", description: "Keep web-authored notes", type: "custom" as const };
+  const mutate = mutation();
+  const { result } = renderHook(() => usePartDefinitionEditor({ ...mecoSnapshot, partDefinitions: [part], canCreateParts: true, mutate }));
+  act(() => result.current.edit(part.id));
+  expect(result.current.draft.source).toBe(part.source);
+  expect(result.current.sourceOptions).toContainEqual({ id: part.source, name: part.source });
+  act(() => result.current.updateDraft({ name: "Renamed bracket", revision: "C" }));
+  await act(async () => { await result.current.save(); });
+  expect(body(mutate)).toEqual({ name: "Renamed bracket", revision: "C", source: part.source, partNumber: part.partNumber });
+  expect(body(mutate)).not.toHaveProperty("description");
+  expect(body(mutate)).not.toHaveProperty("type");
 });
 
 test("late part completion leaves a newly opened draft unchanged and unlocked", async () => {
