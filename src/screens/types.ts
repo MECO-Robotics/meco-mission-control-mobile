@@ -1,3 +1,5 @@
+import type { useMaterialsBrowse } from "./inventory/useMaterialsBrowse";
+import type { usePartsBrowse } from "./inventory/usePartsBrowse";
 import type { useManufacturingBrowse } from "./manufacturing/useManufacturingBrowse";
 import type { usePurchaseBrowse } from "./inventory/usePurchaseBrowse";
 import type { Dispatch, SetStateAction } from "react";
@@ -5,19 +7,14 @@ import type { StyleProp, TextStyle, ViewStyle } from "react-native";
 
 import type { AppThemeColors } from "../theme";
 import type { WorkLogDraftSyncStatus } from "../services/workLogDraftSync";
-import type { Discipline, HelpRequest, ManufacturingItem, Mechanism, Member, PartDefinition, PartInstance, PurchaseItem, QaRequest, QaReview, Subsystem, Task, WorkLog } from "../types/domain";
-import type { MaterialRollup, PartLifecycleStatus, SummaryChipData, ViewTab, WorkLogSortMode } from "../ui/types";
+import type { Discipline, HelpRequest, ManufacturingItem, Mechanism, Member, PartDefinition, PurchaseItem, QaRequest, QaReview, Subsystem, Task, WorkLog } from "../types/domain";
+import type { MaterialRollup, SummaryChipData, ViewTab, WorkLogSortMode } from "../ui/types";
 import type { AttendanceStatus, RiskPriority } from "../types/status";
 export type { AttendanceStatus, RiskPriority } from "../types/status";
 
 export type AttendanceRow = {
   member: Member;
   status: AttendanceStatus;
-};
-
-export type PartInstanceStatusRow = {
-  partInstance: PartInstance;
-  status: PartLifecycleStatus;
 };
 
 export type RiskRow = {
@@ -85,6 +82,8 @@ export type ResponsiveScreenStyles = {
 
 export interface AppScreenProps {
   manufacturingBrowse: ReturnType<typeof useManufacturingBrowse>;
+  materialsBrowse: ReturnType<typeof useMaterialsBrowse>;
+  partsBrowse: ReturnType<typeof usePartsBrowse>;
   purchaseBrowse: ReturnType<typeof usePurchaseBrowse>;
   appResponsiveStyles: ResponsiveScreenStyles;
   attendancePreview: AttendanceRow[];
@@ -93,9 +92,6 @@ export interface AppScreenProps {
   canSubmitQa: boolean;
   disciplinesById: Record<string, Discipline>;
   editTagStyle: StyleProp<TextStyle>;
-  filteredMaterialRollups: MaterialRollup[];
-  filteredPartDefinitions: PartDefinition[];
-  filteredPartInstances: PartInstanceStatusRow[];
   filteredSubsystems: Subsystem[];
   filteredWorkLogs: WorkLogListItem[];
   helpRequests: HelpRequest[];
@@ -104,9 +100,6 @@ export interface AppScreenProps {
   isLandscapeCardLayout: boolean;
   isSyncing: boolean;
   manufacturingItems: ManufacturingItem[];
-  materialsCategoryFilter: string;
-  materialsSearch: string;
-  materialsStockFilter: string;
   mechanisms: Mechanism[];
   mechanismsById: Record<string, Mechanism>;
   meetingAttendance: AttendanceRow[];
@@ -132,12 +125,7 @@ export interface AppScreenProps {
   openDuplicateTaskEditor: (task: Task) => void;
   openMaterialRestockEditor: (row: MaterialRollup) => void;
   openTaskQueueFromTask: (task: Task) => void;
-  partDefinitions: PartDefinition[];
   partDefinitionsById: Record<string, PartDefinition>;
-  partInstancesWithStatus: PartInstanceStatusRow[];
-  partsSearch: string;
-  partsStatusFilter: string;
-  partsSubsystemFilter: string;
   patchManufacturingItem: (
     item: ManufacturingItem,
     patch: Partial<Pick<ManufacturingItem, "mentorReviewed" | "status">>,
@@ -159,12 +147,6 @@ export interface AppScreenProps {
   selectedSubsystem: Subsystem | null;
   setActiveTab: StateSetter<ViewTab>;
   setAttendanceStatusByMemberId: StateSetter<Record<string, AttendanceStatus>>;
-  setMaterialsCategoryFilter: TextSetter;
-  setMaterialsSearch: TextSetter;
-  setMaterialsStockFilter: TextSetter;
-  setPartsSearch: TextSetter;
-  setPartsStatusFilter: TextSetter;
-  setPartsSubsystemFilter: TextSetter;
   setSelectedMemberId: StateSetter<string | null>;
   setSelectedSubsystemId: StateSetter<string>;
   setSubsystemSearch: TextSetter;
