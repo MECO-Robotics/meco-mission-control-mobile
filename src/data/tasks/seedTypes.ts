@@ -1,3 +1,14 @@
 import type { Task } from "../../types/domain";
 
-export type TaskSeed = Omit<Task, "blockers" | "isBlocked" | "isWaitingOnDependency" | "checklistItems"> & { checklistItems?: string[] };
+type DefaultedTaskField =
+  | "checklistItems"
+  | "linkedManufacturingIds"
+  | "linkedPurchaseIds"
+  | "partInstanceId"
+  | "requirementId"
+  | "mechanismId"
+  | "actualHours"
+  | "status";
+
+export type TaskSeed = Omit<Task, "blockers" | "isBlocked" | "isWaitingOnDependency" | DefaultedTaskField> &
+  Partial<Pick<Task, DefaultedTaskField>>;

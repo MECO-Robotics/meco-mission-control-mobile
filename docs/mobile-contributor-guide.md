@@ -31,7 +31,7 @@ sync/auth status, and timer state.
 
 Workspace arrays initialize from `mecoSnapshot` in `src/data/mockData.ts`, with
 additional seeded tasks from `src/data/tasks`. Bootstrap responses replace those
-workspace arrays when a backend is available.
+workspace arrays when a backend is available. Task seed modules declare distinct records and nondefault values; `src/data/tasks/index.ts` fills missing task defaults before deriving blocker/dependency readiness. Empty collection defaults are allocated separately for each task, and optional documentation flags remain absent unless declared.
 
 Derived state is computed in `App.tsx` with `useMemo`. Common derived shapes
 include ID maps, filtered screen rows, summaries, current member/session
