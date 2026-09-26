@@ -33,11 +33,20 @@ Workspace arrays initialize from `mecoSnapshot` in `src/data/mockData.ts`, with
 additional seeded tasks from `src/data/tasks`. Bootstrap responses replace those
 workspace arrays when a backend is available. Task seed modules declare distinct records and nondefault values; `src/data/tasks/index.ts` fills missing task defaults before deriving blocker/dependency readiness. Empty collection defaults are allocated separately for each task, and optional documentation flags remain absent unless declared.
 
-Derived state is computed in `App.tsx` with `useMemo`. Common derived shapes
-include ID maps, filtered screen rows, summaries, current member/session
-resolution, subsystem counts, timeline data, inventory rollups, and home-screen
-priority lists. Screens should consume these prepared values through
-`AppScreenProps` rather than reimplementing the same cross-domain calculations.
+`useManufacturingBrowse`, `usePurchaseBrowse`, `useMaterialsBrowse`, and
+`usePartsBrowse` own their feature filters and derived browse data. App mounts
+these hooks above tab switching, so filters survive screen unmounts and bootstrap
+refreshes. Screens receive readonly filters and explicit `updateFilters` commands;
+canonical workspace collections remain in App for other consumers.
+
+Materials derives its rollups from all manufacturing and purchase records. Parts
+filters definitions by search only, while instance rows also use subsystem and
+status filters. Definition totals use all instances; the visible instance summary
+uses filtered quantities. Keep these distinct scopes when changing browse logic.
+
+App retains shared projections such as ID maps, current member/session resolution,
+subsystem counts, timeline data and home priority lists. Screens consume prepared
+values through `AppScreenProps` rather than duplicating cross-domain calculations.
 
 Mutations use the shared `runMutation` helper in `App.tsx`. After a successful
 mutation, the app refreshes workspace state from `GET /api/bootstrap` so all

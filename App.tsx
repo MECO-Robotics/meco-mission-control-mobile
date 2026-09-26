@@ -1,3 +1,5 @@
+import { useMaterialsBrowse } from "./src/screens/inventory/useMaterialsBrowse";
+import { usePartsBrowse } from "./src/screens/inventory/usePartsBrowse";
 import { useManufacturingEditor } from "./src/app/editorModals/useManufacturingEditor";
 import { usePurchaseEditor } from "./src/app/editorModals/usePurchaseEditor";
 import { useMilestoneEditor, type MilestonePayload } from "./src/app/editorModals/useMilestoneEditor";
@@ -25,10 +27,8 @@ import {
 import {
   buildDateTime,
   buildWorkLogDraft,
-  derivePartLifecycleStatus,
   formatDate,
   formatDateTime,
-  inferMaterialCategory,
   isoToday,
   localTodayDate,
   splitList,
@@ -38,7 +38,6 @@ import { getResponsiveMetrics, scaleFont } from "./src/ui/responsive";
 import { styles } from "./src/ui/styles";
 import type {
   EditorMode,
-  MaterialRollup,
   MilestoneSortField,
   QaReportDraft,
   SummaryChipData,
@@ -417,14 +416,6 @@ export default function App() {
   const [workLogSubsystemFilter, setWorkLogSubsystemFilter] = useState("all");
   const [workLogSortMode, setWorkLogSortMode] =
     useState<WorkLogSortMode>("recent");
-
-  const [materialsSearch, setMaterialsSearch] = useState("");
-  const [materialsCategoryFilter, setMaterialsCategoryFilter] = useState("all");
-  const [materialsStockFilter, setMaterialsStockFilter] = useState("all");
-
-  const [partsSearch, setPartsSearch] = useState("");
-  const [partsSubsystemFilter, setPartsSubsystemFilter] = useState("all");
-  const [partsStatusFilter, setPartsStatusFilter] = useState("all");
 
   const [subsystemSearch, setSubsystemSearch] = useState("");
   const [selectedSubsystemId, setSelectedSubsystemId] = useState<string>(
@@ -1298,132 +1289,8 @@ export default function App() {
     items: purchaseItems, activePersonFilter, membersById, subsystemsById,
   });
 
-  const materialRollups = useMemo(() => {
-    const rows: MaterialRollup[] = [];
-
-    for (const materialName of manufacturingBrowse.materialOptions.map((option) => option.id)) {
-      const relatedManufacturing = manufacturingItems.filter(
-        (item) => item.material === materialName,
-      );
-      const relatedPurchases = purchaseItems.filter((item) => {
-        const text = `${item.title} ${item.vendor} ${item.linkLabel}`.toLowerCase();
-        return materialName
-          .toLowerCase()
-          .split(" ")
-          .some((token) => token.length > 3 && text.includes(token));
-      });
-
-      const openDemand = relatedManufacturing
-        .filter((item) => item.status !== "complete")
-        .reduce((sum, item) => sum + item.quantity, 0);
-      const supplied = relatedPurchases
-        .filter((item) => item.status === "delivered" || item.status === "purchased")
-        .reduce((sum, item) => sum + item.quantity, 0);
-      const openPurchases = relatedPurchases.filter(
-        (item) => item.status !== "delivered",
-      );
-      const openPurchaseQuantity = openPurchases.reduce((sum, item) => sum + item.quantity, 0);
-      const reorderPoint = Math.max(1, Math.ceil(openDemand / 2));
-      const onHand = Math.max(0, supplied - Math.ceil(openDemand * 0.35));
-      const suggestedOrderQuantity = Math.max(
-        0,
-        reorderPoint + openDemand - onHand - openPurchaseQuantity,
-      );
-      const category = inferMaterialCategory(materialName);
-      const vendor = relatedPurchases[0]?.vendor ?? "Mixed";
-
-      rows.push({
-        id: materialName.toLowerCase().replace(/\s+/g, "-"),
-        name: materialName,
-        category,
-        onHand,
-        reorderPoint,
-        openDemand,
-        openPurchaseCount: openPurchases.length,
-        openPurchaseQuantity,
-        suggestedOrderQuantity,
-        vendor,
-        stock: onHand <= reorderPoint ? "low" : "ok",
-      });
-    }
-
-    return rows.sort((left, right) => left.name.localeCompare(right.name));
-  }, [manufacturingBrowse.materialOptions, manufacturingItems, purchaseItems]);
-
-  const filteredMaterialRollups = useMemo(() => {
-    const search = materialsSearch.trim().toLowerCase();
-
-    return materialRollups.filter((row) => {
-      if (materialsCategoryFilter !== "all" && row.category !== materialsCategoryFilter) {
-        return false;
-      }
-
-      if (materialsStockFilter !== "all" && row.stock !== materialsStockFilter) {
-        return false;
-      }
-
-      if (!search) {
-        return true;
-      }
-
-      return `${row.name} ${row.vendor} ${row.category}`.toLowerCase().includes(search);
-    });
-  }, [materialRollups, materialsCategoryFilter, materialsSearch, materialsStockFilter]);
-
-  const partInstancesWithStatus = useMemo(() => {
-    return partInstances.map((partInstance) => ({
-      partInstance,
-      status: derivePartLifecycleStatus(partInstance, tasks),
-    }));
-  }, [partInstances, tasks]);
-
-  const filteredPartDefinitions = useMemo(() => {
-    const search = partsSearch.trim().toLowerCase();
-
-    return partDefinitions.filter((partDefinition) => {
-      if (!search) {
-        return true;
-      }
-
-      return `${partDefinition.name} ${partDefinition.partNumber} ${partDefinition.type} ${partDefinition.source}`
-        .toLowerCase()
-        .includes(search);
-    });
-  }, [partsSearch, partDefinitions]);
-
-  const filteredPartInstances = useMemo(() => {
-    const search = partsSearch.trim().toLowerCase();
-
-    return partInstancesWithStatus.filter(({ partInstance, status }) => {
-      if (partsSubsystemFilter !== "all" && partInstance.subsystemId !== partsSubsystemFilter) {
-        return false;
-      }
-
-      if (partsStatusFilter !== "all" && status !== partsStatusFilter) {
-        return false;
-      }
-
-      if (!search) {
-        return true;
-      }
-
-      const definition = partDefinitionsById[partInstance.partDefinitionId];
-      const mechanismName = partInstance.mechanismId
-        ? (mechanismsById[partInstance.mechanismId]?.name ?? "")
-        : "";
-
-      return `${partInstance.name} ${definition?.name ?? ""} ${definition?.partNumber ?? ""} ${mechanismName}`
-        .toLowerCase()
-        .includes(search);
-    });
-  }, [
-    mechanismsById,
-    partDefinitionsById,
-    partInstancesWithStatus,
-    partsSearch,
-    partsStatusFilter,
-    partsSubsystemFilter,
-  ]);
+  const materialsBrowse = useMaterialsBrowse({ manufacturingItems, purchaseItems });
+  const partsBrowse = usePartsBrowse({ partDefinitions, partInstances, tasks, partDefinitionsById, mechanismsById });
 
   const subsystemCountsById = useMemo(() => {
     const counts = Object.fromEntries(
@@ -2922,6 +2789,8 @@ export default function App() {
   const screenProps = {
     manufacturingBrowse,
     purchaseBrowse,
+    materialsBrowse,
+    partsBrowse,
     appResponsiveStyles,
     attendancePreview,
     attendanceSummary,
@@ -2930,9 +2799,6 @@ export default function App() {
     canSubmitQa,
     disciplinesById,
     editTagStyle,
-    filteredMaterialRollups,
-    filteredPartDefinitions,
-    filteredPartInstances,
     filteredSubsystems,
     filteredWorkLogs,
     helpRequests,
@@ -2941,9 +2807,6 @@ export default function App() {
     isLandscapeCardLayout,
     isSyncing,
     manufacturingItems,
-    materialsCategoryFilter,
-    materialsSearch,
-    materialsStockFilter,
     mechanisms,
     mechanismsById,
     meetingAttendance,
@@ -2968,12 +2831,7 @@ export default function App() {
     openDuplicateTaskEditor,
     openMaterialRestockEditor: purchaseEditor.restock,
     openTaskQueueFromTask,
-    partDefinitions,
     partDefinitionsById,
-    partInstancesWithStatus,
-    partsSearch,
-    partsStatusFilter,
-    partsSubsystemFilter,
     patchManufacturingItem,
     purchaseItems,
     qaRequests,
@@ -2988,12 +2846,6 @@ export default function App() {
     selectedSubsystem,
     setActiveTab,
     setAttendanceStatusByMemberId,
-    setMaterialsCategoryFilter,
-    setMaterialsSearch,
-    setMaterialsStockFilter,
-    setPartsSearch,
-    setPartsStatusFilter,
-    setPartsSubsystemFilter,
     setSelectedMemberId,
     setSelectedSubsystemId,
     setSubsystemSearch,

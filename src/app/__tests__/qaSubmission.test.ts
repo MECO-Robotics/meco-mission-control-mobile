@@ -107,3 +107,27 @@ test("manufacturing and purchase filters survive real tab unmounts and workspace
     workspace.mockImplementation(({ editorModals }) => createElement(Fragment, null, editorModals));
   }
 });
+
+test("materials and parts filters survive screen unmounts and refreshed collections", async () => {
+  const workspace = jest.mocked(WorkspaceShell);
+  workspace.mockImplementation(({ activeTabContent, editorModals }) => createElement(Fragment, null, activeTabContent, editorModals));
+  try {
+    const view = render(createElement(App));
+    await signIn();
+    act(() => screenProps().setActiveTab("resources-materials"));
+    fireEvent.changeText(view.getByLabelText("Search materials"), "Steel");
+    act(() => screenProps().materialsBrowse.updateFilters({ category: "metal", stock: "low" }));
+    act(() => screenProps().setActiveTab("resources-parts"));
+    fireEvent.changeText(view.getByLabelText("Search parts"), "Plate");
+    act(() => screenProps().partsBrowse.updateFilters({ subsystemId: "drive", status: "available" }));
+    act(() => screenProps().setActiveTab("resources-materials"));
+    expect(view.getByLabelText("Search materials").props.value).toBe("Steel");
+    await act(async () => { shell().onRefresh(); });
+    expect(screenProps().materialsBrowse.filters).toEqual({ search: "Steel", category: "metal", stock: "low" });
+    act(() => screenProps().setActiveTab("resources-parts"));
+    expect(view.getByLabelText("Search parts").props.value).toBe("Plate");
+    expect(screenProps().partsBrowse.filters).toEqual({ search: "Plate", subsystemId: "drive", status: "available" });
+  } finally {
+    workspace.mockImplementation(({ editorModals }) => createElement(Fragment, null, editorModals));
+  }
+});

@@ -23,25 +23,11 @@ import type { AppScreenProps } from "../types";
 export function InventoryMaterialsScreen(props: AppScreenProps) {
   const {
     appResponsiveStyles,
-    filteredMaterialRollups,
+    materialsBrowse,
     openCreatePurchaseEditor,
-    materialsCategoryFilter,
-    materialsSearch,
-    materialsStockFilter,
     openMaterialRestockEditor,
-    setMaterialsCategoryFilter,
-    setMaterialsSearch,
-    setMaterialsStockFilter,
   } = props;
-
-  const materialSummary = filteredMaterialRollups.reduce(
-    (summary, row) => ({
-      lowStockCount: summary.lowStockCount + (row.stock === "low" ? 1 : 0),
-      suggestedRestockCount:
-        summary.suggestedRestockCount + (row.suggestedOrderQuantity > 0 ? 1 : 0),
-    }),
-    { lowStockCount: 0, suggestedRestockCount: 0 },
-  );
+  const { filters, updateFilters, rows, summary } = materialsBrowse;
 
   return (
     <WorkspacePanel
@@ -55,38 +41,38 @@ export function InventoryMaterialsScreen(props: AppScreenProps) {
     >
       <FilterToolbar>
         <SearchField
-          onChangeText={setMaterialsSearch}
+          onChangeText={(value) => updateFilters({ search: value })}
           placeholder="Search materials"
-          value={materialsSearch}
+          value={filters.search}
         />
 
         <OptionChipRow
           allLabel="All categories"
-          onChange={setMaterialsCategoryFilter}
+          onChange={(value) => updateFilters({ category: value })}
           options={MATERIAL_CATEGORY_OPTIONS}
-          value={materialsCategoryFilter}
+          value={filters.category}
         />
 
         <OptionChipRow
           allLabel="All stock"
-          onChange={setMaterialsStockFilter}
+          onChange={(value) => updateFilters({ stock: value })}
           options={[
             { id: "ok", name: "Stock OK" },
             { id: "low", name: "Low stock" },
           ]}
-          value={materialsStockFilter}
+          value={filters.stock}
         />
       </FilterToolbar>
 
       <SummaryRow
         chips={[
-          { label: "Visible materials", value: String(filteredMaterialRollups.length) },
-          { label: "Low stock", value: String(materialSummary.lowStockCount) },
-          { label: "Restock suggested", value: String(materialSummary.suggestedRestockCount) },
+          { label: "Visible materials", value: String(rows.length) },
+          { label: "Low stock", value: String(summary.lowStockCount) },
+          { label: "Restock suggested", value: String(summary.suggestedRestockCount) },
         ]}
       />
 
-      {filteredMaterialRollups.map((row) => (
+      {rows.map((row) => (
         <View key={row.id} style={[styles.queueRowCard, appResponsiveStyles.rowCard]}>
           <View style={styles.queueRowHeader}>
             <View style={styles.queueRowPrimaryText}>
@@ -126,7 +112,7 @@ export function InventoryMaterialsScreen(props: AppScreenProps) {
         </View>
       ))}
 
-      {filteredMaterialRollups.length === 0 ? (
+      {rows.length === 0 ? (
         <EmptyState text="No materials match the current filters." />
       ) : null}
 
