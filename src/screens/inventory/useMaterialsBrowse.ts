@@ -81,14 +81,14 @@ export function useMaterialsBrowse({ manufacturingItems, purchaseItems }: Inputs
     });
   }, [materialRollups, filters]);
 
-  const summary = rows.reduce(
+  const summary = useMemo(() => rows.reduce(
     (summary, row) => ({
       lowStockCount: summary.lowStockCount + (row.stock === "low" ? 1 : 0),
       suggestedRestockCount:
         summary.suggestedRestockCount + (row.suggestedOrderQuantity > 0 ? 1 : 0),
     }),
     { lowStockCount: 0, suggestedRestockCount: 0 },
-  );
+  ), [rows]);
 
   return { filters, updateFilters, rows, summary };
 }

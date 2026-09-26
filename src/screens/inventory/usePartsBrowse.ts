@@ -69,7 +69,7 @@ export function usePartsBrowse({ partDefinitions, partInstances, tasks, partDefi
     filters.subsystemId,
   ]);
 
-  const definitionStatsById = partInstancesWithStatus.reduce<Record<string, { count: number; spares: number }>>(
+  const definitionStatsById = useMemo(() => partInstancesWithStatus.reduce<Record<string, { count: number; spares: number }>>(
     (statsById, { partInstance, status }) => {
       const stats = statsById[partInstance.partDefinitionId] ?? { count: 0, spares: 0 };
       statsById[partInstance.partDefinitionId] = {
@@ -79,14 +79,14 @@ export function usePartsBrowse({ partDefinitions, partInstances, tasks, partDefi
       return statsById;
     },
     {},
-  );
-  const summary = instances.reduce(
+  ), [partInstancesWithStatus]);
+  const summary = useMemo(() => instances.reduce(
     (summary, { partInstance, status }) => ({
       instanceCount: summary.instanceCount + partInstance.quantity,
       spareCount: summary.spareCount + (status === "available" ? partInstance.quantity : 0),
     }),
     { instanceCount: 0, spareCount: 0 },
-  );
+  ), [instances]);
 
   return { filters, updateFilters, definitions, instances, definitionStatsById, summary };
 }
