@@ -1,3 +1,4 @@
+import { useManufacturingEditor } from "./src/app/editorModals/useManufacturingEditor";
 import { usePurchaseEditor } from "./src/app/editorModals/usePurchaseEditor";
 import { useMilestoneEditor, type MilestonePayload } from "./src/app/editorModals/useMilestoneEditor";
 import { formatHoursFromTimer, getWorkLogTimerElapsedMs, type WorkLogTimerState } from "./src/screens/worklogs/workLogTimer";
@@ -23,7 +24,6 @@ import {
 } from "./src/ui/constants";
 import {
   buildDateTime,
-  buildManufacturingDraft,
   buildMemberDraft,
   buildPartDefinitionDraft,
   buildSubsystemDraft,
@@ -43,7 +43,6 @@ import type {
   AcquisitionMethod,
   ArchiveFilterMode,
   EditorMode,
-  ManufacturingDraft,
   ManufacturingViewTab,
   MaterialRollup,
   MemberDraft,
@@ -477,15 +476,6 @@ export default function App() {
   const [workLogError, setWorkLogError] = useState<string | null>(null);
   const [workLogTimer, setWorkLogTimer] = useState<WorkLogTimerState | null>(null);
   const workLogTimerRef = useRef<WorkLogTimerState | null>(null);
-
-  const [manufacturingEditorMode, setManufacturingEditorMode] = useState<EditorMode | null>(
-    null,
-  );
-  const [activeManufacturingId, setActiveManufacturingId] = useState<string | null>(null);
-  const [manufacturingDraft, setManufacturingDraft] = useState<ManufacturingDraft>(
-    buildManufacturingDraft("cnc"),
-  );
-  const [manufacturingError, setManufacturingError] = useState<string | null>(null);
 
   const [memberEditorMode, setMemberEditorMode] = useState<EditorMode | null>(null);
   const [activeMemberId, setActiveMemberId] = useState<string | null>(null);
@@ -2788,103 +2778,10 @@ export default function App() {
     }
   };
 
-  const openCreateManufacturingEditor = () => {
-    const process =
-      manufacturingView === "cnc" || manufacturingView === "all"
-        ? "cnc"
-        : manufacturingView === "prints"
-          ? "3d-print"
-          : "fabrication";
-    const requesterId = signedInMember?.id ?? members[0]?.id ?? "";
-
-    setActiveManufacturingId(null);
-    setManufacturingError(null);
-    setManufacturingDraft(
-      buildManufacturingDraft(process, {
-        subsystemId: subsystems[0]?.id ?? "",
-        requestedById: requesterId,
-        dueDate: isoToday(),
-      }),
-    );
-    setManufacturingEditorMode("create");
-  };
-
-  const openEditManufacturingEditor = (item: ManufacturingItem) => {
-    setActiveManufacturingId(item.id);
-    setManufacturingDraft(buildManufacturingDraft(item.process, item));
-    setManufacturingError(null);
-    setManufacturingEditorMode("edit");
-  };
-
-  const closeManufacturingEditor = () => {
-    setManufacturingEditorMode(null);
-    setActiveManufacturingId(null);
-    setManufacturingError(null);
-  };
-
-  const saveManufacturingDraft = async () => {
-    const parsedQty = Number(manufacturingDraft.quantity);
-    const parsedQaReviewCount = Number(manufacturingDraft.qaReviewCount);
-    const title = manufacturingDraft.title.trim();
-    const material = manufacturingDraft.material.trim();
-    const missingFields = [
-      !title ? "title" : null,
-      !manufacturingDraft.subsystemId ? "subsystem" : null,
-      !manufacturingDraft.requestedById ? "requester" : null,
-      !material ? "material" : null,
-      Number.isNaN(parsedQty) || parsedQty <= 0 ? "quantity" : null,
-      Number.isNaN(parsedQaReviewCount) || parsedQaReviewCount < 0 ? "QA review count" : null,
-    ].filter((field): field is string => Boolean(field));
-
-    if (missingFields.length > 0) {
-      setManufacturingError(`Add ${missingFields.join(", ")} before saving this manufacturing item.`);
-      return;
-    }
-
-    setManufacturingError(null);
-
-    const payload = {
-      title,
-      subsystemId: manufacturingDraft.subsystemId,
-      requestedById: manufacturingDraft.requestedById,
-      process: manufacturingDraft.process,
-      dueDate: manufacturingDraft.dueDate || isoToday(),
-      material,
-      quantity: parsedQty,
-      batchLabel: manufacturingDraft.batchLabel.trim() || undefined,
-      qaReviewCount: parsedQaReviewCount,
-      ...(manufacturingEditorMode === "create"
-        ? { status: "requested", mentorReviewed: false }
-        : {}),
-    };
-
-    const isEdit = manufacturingEditorMode === "edit" && activeManufacturingId;
-    const ok = await runMutation(
-      isEdit ? `/api/manufacturing/${activeManufacturingId}` : "/api/manufacturing",
-      {
-        method: isEdit ? "PATCH" : "POST",
-        body: JSON.stringify(payload),
-      },
-    );
-
-    if (ok) {
-      closeManufacturingEditor();
-    }
-  };
-
-  const deleteManufacturingDraft = async () => {
-    if (!activeManufacturingId || !canMentorApprove) {
-      return;
-    }
-
-    const ok = await runMutation(`/api/manufacturing/${activeManufacturingId}`, {
-      method: "DELETE",
-    });
-
-    if (ok) {
-      closeManufacturingEditor();
-    }
-  };
+  const manufacturingEditor = useManufacturingEditor({
+    manufacturingView, subsystems, members, signedInMember,
+    canMentorApprove, mutate: runMutation,
+  });
 
   const patchManufacturingItem = async (
     item: ManufacturingItem,
@@ -3433,7 +3330,7 @@ export default function App() {
     closeWorkLogEditor();
     milestoneEditor.close();
     closeDeadlineEditor();
-    closeManufacturingEditor();
+    manufacturingEditor.close();
     purchaseEditor.close();
     closeMemberEditor();
     closeSubsystemEditor();
@@ -3640,7 +3537,7 @@ export default function App() {
     members,
     membersById,
     createQaRequest,
-    openCreateManufacturingEditor,
+    openCreateManufacturingEditor: () => manufacturingEditor.open(),
     openCreateMemberEditor,
     openCreatePartDefinitionEditor,
     openCreatePurchaseEditor: () => purchaseEditor.open(),
@@ -3648,7 +3545,7 @@ export default function App() {
     openCreateSubsystemEditor,
     openCreateWorkLogEditor,
     openWorkLogFromTimer,
-    openEditManufacturingEditor,
+    openEditManufacturingEditor: manufacturingEditor.open,
     openEditMemberEditor,
     openEditPartDefinitionEditor,
     openEditPurchaseEditor: purchaseEditor.open,
@@ -3793,22 +3690,9 @@ export default function App() {
         />
 
         <ManufacturingEditorModal
+          editor={manufacturingEditor}
           appResponsiveStyles={appResponsiveStyles}
-          canDelete={canMentorApprove}
-          deleteManufacturingDraft={deleteManufacturingDraft}
-          manufacturingDraft={manufacturingDraft}
-          manufacturingEditorMode={manufacturingEditorMode}
-          manufacturingError={manufacturingError}
           memberOptions={memberOptions}
-          onCancel={closeManufacturingEditor}
-          onSave={saveManufacturingDraft}
-          requesterName={
-            membersById[manufacturingDraft.requestedById]?.name ??
-            signedInMember?.name ??
-            "Signed-in person"
-          }
-          setManufacturingDraft={setManufacturingDraft}
-          setManufacturingError={setManufacturingError}
           subsystemOptions={subsystemOptions}
           themeColors={themeColors}
         />

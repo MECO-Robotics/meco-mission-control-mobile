@@ -1,61 +1,44 @@
-import type { Dispatch, SetStateAction } from "react";
+import type { useManufacturingEditor } from "./useManufacturingEditor";
 import { View } from "react-native";
 
 import { Text } from "../../i18n";
 import type { AppThemeColors } from "../../theme";
 import { MANUFACTURING_VIEW_OPTIONS } from "../../ui/constants";
 import { styles } from "../../ui/styles";
-import type { EditorMode, ManufacturingDraft, Option } from "../../ui/types";
+import type { Option } from "../../ui/types";
 import { AdvancedOptions, DropdownField, EditorModal, ModalField } from "../../ui/ui";
 import type { ManufacturingItem } from "../../types/domain";
 import type { ResponsiveScreenStyles } from "../../screens/types";
 import { EditorCallout } from "./EditorCallout";
 
 type ManufacturingEditorModalProps = {
+  editor: ReturnType<typeof useManufacturingEditor>;
   appResponsiveStyles: Pick<ResponsiveScreenStyles, "calloutBody" | "calloutBox" | "calloutTitle">;
-  canDelete: boolean;
-  deleteManufacturingDraft: () => void;
-  manufacturingDraft: ManufacturingDraft;
-  manufacturingEditorMode: EditorMode | null;
-  manufacturingError: string | null;
   memberOptions: Option[];
-  onCancel: () => void;
-  onSave: () => void;
-  requesterName: string;
-  setManufacturingDraft: Dispatch<SetStateAction<ManufacturingDraft>>;
-  setManufacturingError: (value: string | null) => void;
   subsystemOptions: Option[];
   themeColors: AppThemeColors;
 };
 
 export function ManufacturingEditorModal({
+  editor,
   appResponsiveStyles,
-  canDelete,
-  deleteManufacturingDraft,
-  manufacturingDraft,
-  manufacturingEditorMode,
-  manufacturingError,
   memberOptions,
-  onCancel,
-  onSave,
-  requesterName,
-  setManufacturingDraft,
-  setManufacturingError,
   subsystemOptions,
   themeColors,
 }: ManufacturingEditorModalProps) {
+  const { draft, id, visible, error, canDelete, requesterName, close, save, deleteManufacturing, updateDraft } = editor;
   return (
     <EditorModal
-      onCancel={onCancel}
-      onDelete={manufacturingEditorMode === "edit" && canDelete ? deleteManufacturingDraft : undefined}
-      onSave={onSave}
-      saveLabel={manufacturingEditorMode === "edit" ? "Update item" : "Create item"}
-      title={manufacturingEditorMode === "edit" ? "Edit manufacturing item" : "Create manufacturing item"}
-      visible={Boolean(manufacturingEditorMode)}
+      onCancel={close}
+      onDelete={id && canDelete ? deleteManufacturing : undefined}
+      onSave={save}
+      saveLabel={id ? "Update item" : "Create item"}
+      title={id ? "Edit manufacturing item" : "Create manufacturing item"}
+      visible={visible}
     >
-      {manufacturingError ? (
+      {error ? (
         <EditorCallout
-          body={manufacturingError}
+          body={error}
           bodyStyle={appResponsiveStyles.calloutBody}
           boxStyle={appResponsiveStyles.calloutBox}
           title="Missing manufacturing details"
@@ -64,25 +47,19 @@ export function ManufacturingEditorModal({
       ) : null}
       <ModalField
         label="Title"
-        onChangeText={(value) => {
-          setManufacturingError(null);
-          setManufacturingDraft((current) => ({ ...current, title: value }));
-        }}
+        onChangeText={(value) => updateDraft({ title: value })}
         placeholder="Part title"
-        value={manufacturingDraft.title}
+        value={draft.title}
       />
       <DropdownField
         clearLabel="No subsystem"
         label="Subsystem"
-        onChange={(value) => {
-          setManufacturingError(null);
-          setManufacturingDraft((current) => ({ ...current, subsystemId: value }));
-        }}
+        onChange={(value) => updateDraft({ subsystemId: value })}
         options={subsystemOptions}
         placeholder="Select subsystem"
-        value={manufacturingDraft.subsystemId}
+        value={draft.subsystemId}
       />
-      {manufacturingEditorMode === "create" ? (
+      {!id ? (
         <View style={styles.modalField}>
           <Text style={[styles.modalFieldLabel, { color: themeColors.subtleText }]}>
             Requester
@@ -105,78 +82,54 @@ export function ManufacturingEditorModal({
           <DropdownField
             clearLabel="No requester"
             label="Requester"
-            onChange={(value) => {
-              setManufacturingError(null);
-              setManufacturingDraft((current) => ({ ...current, requestedById: value }));
-            }}
+            onChange={(value) => updateDraft({ requestedById: value })}
             options={memberOptions}
             placeholder="Select requester"
-            value={manufacturingDraft.requestedById}
+            value={draft.requestedById}
           />
         </>
       )}
       <DropdownField
         label="Process"
-        onChange={(value) => {
-          setManufacturingError(null);
-          setManufacturingDraft((current) => ({
-            ...current,
-            process: value as ManufacturingItem["process"],
-          }));
-        }}
+        onChange={(value) => updateDraft({ process: value as ManufacturingItem["process"] })}
         options={MANUFACTURING_VIEW_OPTIONS.filter((option) => option.value !== "all").map((option) => ({
           id: option.value === "prints" ? "3d-print" : option.value,
           name: option.label,
         }))}
-        value={manufacturingDraft.process}
+        value={draft.process}
       />
       <ModalField
         label="Material"
-        onChangeText={(value) => {
-          setManufacturingError(null);
-          setManufacturingDraft((current) => ({ ...current, material: value }));
-        }}
+        onChangeText={(value) => updateDraft({ material: value })}
         placeholder="Material"
-        value={manufacturingDraft.material}
+        value={draft.material}
       />
       <ModalField
         label="Quantity"
         keyboardType="numeric"
-        onChangeText={(value) => {
-          setManufacturingError(null);
-          setManufacturingDraft((current) => ({ ...current, quantity: value }));
-        }}
+        onChangeText={(value) => updateDraft({ quantity: value })}
         placeholder="1"
-        value={manufacturingDraft.quantity}
+        value={draft.quantity}
       />
       <ModalField
         label="Due date (YYYY-MM-DD)"
-        onChangeText={(value) => {
-          setManufacturingError(null);
-          setManufacturingDraft((current) => ({ ...current, dueDate: value }));
-        }}
+        onChangeText={(value) => updateDraft({ dueDate: value })}
         placeholder="2026-04-24"
-        value={manufacturingDraft.dueDate}
+        value={draft.dueDate}
       />
       <AdvancedOptions>
         <ModalField
           label="Batch label"
-          onChangeText={(value) => {
-            setManufacturingError(null);
-            setManufacturingDraft((current) => ({ ...current, batchLabel: value }));
-          }}
+          onChangeText={(value) => updateDraft({ batchLabel: value })}
           placeholder="B-17"
-          value={manufacturingDraft.batchLabel}
+          value={draft.batchLabel}
         />
         <ModalField
           label="QA review count"
           keyboardType="numeric"
-          onChangeText={(value) => {
-            setManufacturingError(null);
-            setManufacturingDraft((current) => ({ ...current, qaReviewCount: value }));
-          }}
+          onChangeText={(value) => updateDraft({ qaReviewCount: value })}
           placeholder="0"
-          value={manufacturingDraft.qaReviewCount}
+          value={draft.qaReviewCount}
         />
       </AdvancedOptions>
     </EditorModal>

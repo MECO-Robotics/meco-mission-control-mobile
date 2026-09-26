@@ -1,7 +1,6 @@
 import * as Localization from "expo-localization";
 
 import type {
-  ManufacturingItem,
   MemberRole,
   PartInstance,
   Subsystem,
@@ -12,7 +11,6 @@ import type {
 
 import { STATUS_GROUPS } from "./constants";
 import type {
-  ManufacturingDraft,
   MemberDraft,
   PartDefinitionDraft,
   PartLifecycleStatus,
@@ -27,25 +25,6 @@ export function buildWorkLogDraft(seed?: Partial<WorkLog>): WorkLogDraft {
     hours: typeof seed?.hours === "number" ? String(seed.hours) : "",
     participantIdsText: seed?.participantIds?.join(",") ?? "",
     notes: seed?.notes ?? "",
-  };
-}
-
-export function buildManufacturingDraft(
-  process: ManufacturingItem["process"],
-  seed?: Partial<ManufacturingItem>,
-): ManufacturingDraft {
-  return {
-    title: seed?.title ?? "",
-    subsystemId: seed?.subsystemId ?? "",
-    requestedById: seed?.requestedById ?? "",
-    process: seed?.process ?? process,
-    dueDate: seed?.dueDate ?? isoToday(),
-    material: seed?.material ?? "",
-    quantity: typeof seed?.quantity === "number" ? String(seed.quantity) : "1",
-    status: seed?.status ?? "requested",
-    mentorReviewed: seed?.mentorReviewed ?? false,
-    batchLabel: seed?.batchLabel ?? "",
-    qaReviewCount: typeof seed?.qaReviewCount === "number" ? String(seed.qaReviewCount) : "0",
   };
 }
 
