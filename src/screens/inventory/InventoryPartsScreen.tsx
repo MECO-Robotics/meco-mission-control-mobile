@@ -39,7 +39,13 @@ export function InventoryPartsScreen(props: AppScreenProps) {
       title="Part manager"
       subtitle="Definition catalog on top with subsystem part instances and lifecycle state below."
       actions={
-        <ActionButton onPress={openCreatePartDefinitionEditor} variant="primary" responsiveStyles={appResponsiveStyles}>Add</ActionButton>
+        <ActionButton
+          onPress={openCreatePartDefinitionEditor}
+          variant="primary"
+          responsiveStyles={appResponsiveStyles}
+        >
+          Add
+        </ActionButton>
       }
     >
       <FilterToolbar>

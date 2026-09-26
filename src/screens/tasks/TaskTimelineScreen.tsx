@@ -55,7 +55,13 @@ export function TaskTimelineScreen(props: TaskTimelineScreenProps) {
       title={`${activeTaskSubteamLabel} timeline`}
       subtitle="Calendar-ordered milestones and ownership cues for the selected subteam."
       actions={
-        <ActionButton onPress={openCreateTaskEditor} variant="primary" responsiveStyles={appResponsiveStyles}>Add task</ActionButton>
+        <ActionButton
+          onPress={openCreateTaskEditor}
+          variant="primary"
+          responsiveStyles={appResponsiveStyles}
+        >
+          Add task
+        </ActionButton>
       }
     >
       <FilterToolbar>

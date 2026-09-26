@@ -99,6 +99,8 @@ Timer elapsed-time formatting and display ticking belong to `src/screens/worklog
 
 Most shared styles live in `src/ui/styles.ts`. Feature-specific styles can live with their component, such as the login screen styles under `src/app/components/`. Landscape timeline styles are split into dedicated modules under `src/ui/landscapeTimeline/`. Responsive sizing comes from `src/ui/responsive.ts`, and theme values come from `src/theme.ts` plus `src/ui/themeContext.tsx`.
 
+`src/ui/ActionButton.tsx` owns shared primary and quick-action markup and responsive style composition. `src/ui/Callout.tsx` owns the shared title/body presentation used by screens and editors. Both are stateless and retain localized text rendering; feature owners keep permissions, selection, navigation, mutation commands and failure lifetimes. Distinct approval and pagination controls retain their specialized presentation.
+
 Follow `AGENTS.md`: co-own feature state and commands, delete redundant layers and use cohesive responsibilities rather than file-size quotas.
 
 Editor lifecycle completion handles both success and failure only for the initiating draft. Feature controllers supply validation and operation messages; modal consumers receive draft state and user commands, not lifecycle completion or error setters.

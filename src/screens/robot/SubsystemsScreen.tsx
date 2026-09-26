@@ -33,7 +33,13 @@ export function SubsystemsScreen(props: AppScreenProps) {
       title="Subsystem manager"
       subtitle="Review ownership, risk, and mechanism coverage with expandable subsystem cards."
       actions={
-        <ActionButton onPress={openCreateSubsystemEditor} variant="primary" responsiveStyles={appResponsiveStyles}>Add subsystem</ActionButton>
+        <ActionButton
+          onPress={openCreateSubsystemEditor}
+          variant="primary"
+          responsiveStyles={appResponsiveStyles}
+        >
+          Add subsystem
+        </ActionButton>
       }
     >
       <FilterToolbar>

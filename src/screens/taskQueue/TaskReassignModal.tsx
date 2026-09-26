@@ -43,9 +43,22 @@ export function TaskReassignModal({
             body={task.ownerId ? membersById[task.ownerId]?.name ?? "Unknown owner" : "Unassigned"}
           />
           <View style={styles.quickActionRow}>
-            <ActionButton onPress={() => onChangeOwner(null)} variant="quick" responsiveStyles={appResponsiveStyles}>Unassigned</ActionButton>
+            <ActionButton
+              onPress={() => onChangeOwner(null)}
+              variant="quick"
+              responsiveStyles={appResponsiveStyles}
+            >
+              Unassigned
+            </ActionButton>
             {ownerOptions.map((member) => (
-              <ActionButton key={member.id} onPress={() => onChangeOwner(member.id)} variant="quick" responsiveStyles={appResponsiveStyles}>{ownerId === member.id ? `${member.name} selected` : member.name}</ActionButton>
+              <ActionButton
+                key={member.id}
+                onPress={() => onChangeOwner(member.id)}
+                variant="quick"
+                responsiveStyles={appResponsiveStyles}
+              >
+                {ownerId === member.id ? `${member.name} selected` : member.name}
+              </ActionButton>
             ))}
           </View>
         </>

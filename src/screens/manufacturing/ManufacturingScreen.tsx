@@ -61,7 +61,13 @@ export function ManufacturingScreen(props: AppScreenProps) {
         title={title}
         subtitle="Unified manufacturing rows for part, material, quantity, due date, status, and mentor review."
         actions={
-          <ActionButton onPress={openCreateManufacturingEditor} variant="primary" responsiveStyles={appResponsiveStyles}>Add</ActionButton>
+          <ActionButton
+            onPress={openCreateManufacturingEditor}
+            variant="primary"
+            responsiveStyles={appResponsiveStyles}
+          >
+            Add
+          </ActionButton>
         }
       >
         <FilterToolbar>
@@ -175,19 +181,33 @@ export function ManufacturingScreen(props: AppScreenProps) {
                 ) : null}
 
                 {canStartItem ? (
-                  <ActionButton onPress={() =>
-                      patchManufacturingItem(item, { status: "in-progress" })
-                    } variant="quick" responsiveStyles={appResponsiveStyles}>Start</ActionButton>
+                  <ActionButton
+                    onPress={() => patchManufacturingItem(item, { status: "in-progress" })}
+                    variant="quick"
+                    responsiveStyles={appResponsiveStyles}
+                  >
+                    Start
+                  </ActionButton>
                 ) : null}
 
                 {item.status === "in-progress" ? (
-                  <ActionButton onPress={() => patchManufacturingItem(item, { status: "qa" })} variant="quick" responsiveStyles={appResponsiveStyles}>QA</ActionButton>
+                  <ActionButton
+                    onPress={() => patchManufacturingItem(item, { status: "qa" })}
+                    variant="quick"
+                    responsiveStyles={appResponsiveStyles}
+                  >
+                    QA
+                  </ActionButton>
                 ) : null}
 
                 {canCompleteItem ? (
-                  <ActionButton onPress={() =>
-                      patchManufacturingItem(item, { status: "complete" })
-                    } variant="quick" responsiveStyles={appResponsiveStyles}>Complete</ActionButton>
+                  <ActionButton
+                    onPress={() => patchManufacturingItem(item, { status: "complete" })}
+                    variant="quick"
+                    responsiveStyles={appResponsiveStyles}
+                  >
+                    Complete
+                  </ActionButton>
                 ) : null}
               </View>
             </Pressable>

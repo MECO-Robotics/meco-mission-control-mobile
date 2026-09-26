@@ -96,7 +96,9 @@ export function WorkLogEditorModal({
       />
       <View style={styles.quickActionRow}>
         {WORKLOG_TEMPLATE_OPTIONS.map((template) => (
-          <ActionButton key={template.id} onPress={() => {
+          <ActionButton
+            key={template.id}
+            onPress={() => {
               setWorkLogError(null);
               setWorkLogDraft((current) => ({
                 ...current,
@@ -104,7 +106,12 @@ export function WorkLogEditorModal({
                   ? `${current.notes.trim()}\n\n${template.notes}`
                   : template.notes,
               }));
-            }} variant="quick" responsiveStyles={appResponsiveStyles}>{template.name}</ActionButton>
+            }}
+            variant="quick"
+            responsiveStyles={appResponsiveStyles}
+          >
+            {template.name}
+          </ActionButton>
         ))}
       </View>
       <ModalField

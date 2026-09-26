@@ -62,7 +62,13 @@ const renderScreen = () => {
       title="Home"
       subtitle="Priority tasks and workspace status for the next execution window."
       actions={
-        <ActionButton onPress={syncFromBackend} variant="primary" responsiveStyles={appResponsiveStyles}>{isSyncing ? "Refreshing" : "Refresh"}</ActionButton>
+        <ActionButton
+          onPress={syncFromBackend}
+          variant="primary"
+          responsiveStyles={appResponsiveStyles}
+        >
+          {isSyncing ? "Refreshing" : "Refresh"}
+        </ActionButton>
       }
     >
       <View style={styles.homeSection}>

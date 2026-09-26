@@ -112,7 +112,13 @@ const renderScreen = () => {
       title={props.mode === "pending" ? "Pending QA" : props.mode === "history" ? "QA results" : "Help requests"}
       subtitle={props.mode === "pending" ? "Requests awaiting review." : props.mode === "history" ? "Review outcomes, evidence, and follow-up." : "Requests for mentor support."}
       actions={props.mode === "pending" ?
-        <ActionButton onPress={() => setIsQaRequestOpen(true)} variant="primary" responsiveStyles={appResponsiveStyles}>Request QA</ActionButton> : undefined
+        <ActionButton
+          onPress={() => setIsQaRequestOpen(true)}
+          variant="primary"
+          responsiveStyles={appResponsiveStyles}
+        >
+          Request QA
+        </ActionButton> : undefined
       }
     >
 

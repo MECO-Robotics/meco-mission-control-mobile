@@ -210,7 +210,13 @@ const renderScreen = () => {
               Filters
             </Text>
           </Pressable>
-          <ActionButton onPress={openCreateTaskEditor} variant="primary" responsiveStyles={appResponsiveStyles}>Add</ActionButton>
+          <ActionButton
+            onPress={openCreateTaskEditor}
+            variant="primary"
+            responsiveStyles={appResponsiveStyles}
+          >
+            Add
+          </ActionButton>
         </View>
       }
     >
@@ -380,15 +386,20 @@ const renderScreen = () => {
                 <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>Blockers</Text>
                 <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>{task.blockers.join(" | ")}</Text>
                 <View style={styles.quickActionRow}>
-                  <ActionButton onPress={() => {
+                  <ActionButton
+                    onPress={() => {
                       const blockingTask = openDependencies[0];
                       if (blockingTask) {
                         openEditTaskEditor(blockingTask);
                         return;
                       }
-
                       openBlockerResolution(task);
-                    }} variant="quick" responsiveStyles={appResponsiveStyles}>{openDependencies.length > 0 ? "Open blocking task" : "Resolve blockers"}</ActionButton>
+                    }}
+                    variant="quick"
+                    responsiveStyles={appResponsiveStyles}
+                  >
+                    {openDependencies.length > 0 ? "Open blocking task" : "Resolve blockers"}
+                  </ActionButton>
                 </View>
               </View>
             ) : null}
@@ -460,39 +471,94 @@ const renderScreen = () => {
 
             <View style={styles.quickActionRow}>
               {assignmentState.canClaim ? (
-                <ActionButton onPress={() => {
+                <ActionButton
+                  onPress={() => {
                     void claimTask(task);
-                  }} variant="quick" responsiveStyles={appResponsiveStyles}>Claim only</ActionButton>
+                  }}
+                  variant="quick"
+                  responsiveStyles={appResponsiveStyles}
+                >
+                  Claim only
+                </ActionButton>
               ) : null}
               {canStartTask ? (
-                <ActionButton onPress={() => {
+                <ActionButton
+                  onPress={() => {
                     void startTask(task);
-                  }} variant="quick" responsiveStyles={appResponsiveStyles}>{getTaskStartActionLabel(task)}</ActionButton>
+                  }}
+                  variant="quick"
+                  responsiveStyles={appResponsiveStyles}
+                >
+                  {getTaskStartActionLabel(task)}
+                </ActionButton>
               ) : null}
               {assignmentState.canRelease ? (
-                <ActionButton onPress={() => {
+                <ActionButton
+                  onPress={() => {
                     void releaseTask(task);
-                  }} variant="quick" responsiveStyles={appResponsiveStyles}>Release</ActionButton>
+                  }}
+                  variant="quick"
+                  responsiveStyles={appResponsiveStyles}
+                >
+                  Release
+                </ActionButton>
               ) : null}
               {assignmentState.canReassign ? (
-                <ActionButton onPress={() => taskReassignModal.open(task)} variant="quick" responsiveStyles={appResponsiveStyles}>Reassign</ActionButton>
+                <ActionButton
+                  onPress={() => taskReassignModal.open(task)}
+                  variant="quick"
+                  responsiveStyles={appResponsiveStyles}
+                >
+                  Reassign
+                </ActionButton>
               ) : null}
               {!hasQaReport ? (
-                <ActionButton onPress={() => openCreateWorkLogEditor(task.id)} variant="quick" responsiveStyles={appResponsiveStyles}>Log work</ActionButton>
+                <ActionButton
+                  onPress={() => openCreateWorkLogEditor(task.id)}
+                  variant="quick"
+                  responsiveStyles={appResponsiveStyles}
+                >
+                  Log work
+                </ActionButton>
               ) : null}
               {canRequestQa && !hasQaReport ? (
-                <ActionButton onPress={() => {
+                <ActionButton
+                  onPress={() => {
                     void requestTaskQa(task);
-                  }} variant="quick" responsiveStyles={appResponsiveStyles}>Request QA</ActionButton>
+                  }}
+                  variant="quick"
+                  responsiveStyles={appResponsiveStyles}
+                >
+                  Request QA
+                </ActionButton>
               ) : null}
               {canSubmitQa && task.status === "waiting-for-qa" ? (
-                <ActionButton accessibilityRole="button" onPress={() => openCreateQaReportEditor(task.id, qaRequests.find((request) => request.taskId === task.id)?.id)} variant="quick" responsiveStyles={appResponsiveStyles}>Write QA report</ActionButton>
+                <ActionButton
+                  accessibilityRole="button"
+                  onPress={() => openCreateQaReportEditor(task.id, qaRequests.find((request) => request.taskId === task.id)?.id)}
+                  variant="quick"
+                  responsiveStyles={appResponsiveStyles}
+                >
+                  Write QA report
+                </ActionButton>
               ) : null}
               {canRequestHelp ? (
-                <ActionButton onPress={() => setHelpRequestTask(task)} variant="quick" responsiveStyles={appResponsiveStyles}>Need help</ActionButton>
+                <ActionButton
+                  onPress={() => setHelpRequestTask(task)}
+                  variant="quick"
+                  responsiveStyles={appResponsiveStyles}
+                >
+                  Need help
+                </ActionButton>
               ) : null}
               {hasQaReport ? (
-                <ActionButton onPress={() => setSelectedQaTaskId(task.id)} variant="quick" responsiveStyles={appResponsiveStyles}>QA report</ActionButton>
+                <ActionButton
+                  onPress={() => setSelectedQaTaskId(task.id)}
+                  variant="quick"
+                  responsiveStyles={appResponsiveStyles}
+                >
+                  QA report
+                </ActionButton>
               ) : null}
             </View>
           </Pressable>
@@ -510,8 +576,20 @@ const renderScreen = () => {
             Try clearing search, owner, status, priority, flag, subsystem, and archive filters.
           </Text>
           <View style={styles.quickActionRow}>
-            <ActionButton onPress={resetFilters} variant="quick" responsiveStyles={appResponsiveStyles}>Reset filters</ActionButton>
-            <ActionButton onPress={openCreateTaskEditor} variant="quick" responsiveStyles={appResponsiveStyles}>Add task</ActionButton>
+            <ActionButton
+              onPress={resetFilters}
+              variant="quick"
+              responsiveStyles={appResponsiveStyles}
+            >
+              Reset filters
+            </ActionButton>
+            <ActionButton
+              onPress={openCreateTaskEditor}
+              variant="quick"
+              responsiveStyles={appResponsiveStyles}
+            >
+              Add task
+            </ActionButton>
           </View>
         </View>
       ) : null}

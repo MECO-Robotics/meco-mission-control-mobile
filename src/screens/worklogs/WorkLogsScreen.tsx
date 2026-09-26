@@ -86,8 +86,20 @@ const renderScreen = () => {
       subtitle="Search by task or notes, then verify hours, participants, and linked subsystem impact."
       actions={
         <View style={styles.taskQueueHeaderActions}>
-          <ActionButton onPress={() => setIsFiltersVisible(true)} variant="primary" responsiveStyles={appResponsiveStyles}>Filters</ActionButton>
-          <ActionButton onPress={() => setIsAddMenuVisible(true)} variant="primary" responsiveStyles={appResponsiveStyles}>Add</ActionButton>
+          <ActionButton
+            onPress={() => setIsFiltersVisible(true)}
+            variant="primary"
+            responsiveStyles={appResponsiveStyles}
+          >
+            Filters
+          </ActionButton>
+          <ActionButton
+            onPress={() => setIsAddMenuVisible(true)}
+            variant="primary"
+            responsiveStyles={appResponsiveStyles}
+          >
+            Add
+          </ActionButton>
         </View>
       }
     >

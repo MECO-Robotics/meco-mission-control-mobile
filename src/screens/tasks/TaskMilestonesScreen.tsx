@@ -77,7 +77,13 @@ export function TaskMilestonesScreen(props: TaskMilestonesScreenProps) {
       title="Milestones"
       subtitle="Search, filter, and edit timeline events with subsystem context and linked task impact."
       actions={
-        <ActionButton onPress={openCreateMilestoneEditor} variant="primary" responsiveStyles={appResponsiveStyles}>Add</ActionButton>
+        <ActionButton
+          onPress={openCreateMilestoneEditor}
+          variant="primary"
+          responsiveStyles={appResponsiveStyles}
+        >
+          Add
+        </ActionButton>
       }
     >
       <FilterToolbar>

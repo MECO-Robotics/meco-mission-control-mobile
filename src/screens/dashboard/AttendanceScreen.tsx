@@ -51,7 +51,13 @@ const renderScreen = () => {
       title="Attendance"
       subtitle="Session attendance. Changes stay on this device until the app closes."
       actions={
-        <ActionButton onPress={syncFromBackend} variant="primary" responsiveStyles={appResponsiveStyles}>{isSyncing ? "Refreshing" : "Refresh"}</ActionButton>
+        <ActionButton
+          onPress={syncFromBackend}
+          variant="primary"
+          responsiveStyles={appResponsiveStyles}
+        >
+          {isSyncing ? "Refreshing" : "Refresh"}
+        </ActionButton>
       }
     >
       <SummaryRow chips={attendanceSummary} />

@@ -44,8 +44,20 @@ export function InventoryPurchasesScreen(props: AppScreenProps) {
       subtitle="Review request status, approval state, purchase state, and cost deltas in one queue."
       actions={
         <View style={styles.taskQueueHeaderActions}>
-          <ActionButton onPress={() => setIsFiltersVisible(true)} variant="primary" responsiveStyles={appResponsiveStyles}>Filters</ActionButton>
-          <ActionButton onPress={openCreatePurchaseEditor} variant="primary" responsiveStyles={appResponsiveStyles}>Add</ActionButton>
+          <ActionButton
+            onPress={() => setIsFiltersVisible(true)}
+            variant="primary"
+            responsiveStyles={appResponsiveStyles}
+          >
+            Filters
+          </ActionButton>
+          <ActionButton
+            onPress={openCreatePurchaseEditor}
+            variant="primary"
+            responsiveStyles={appResponsiveStyles}
+          >
+            Add
+          </ActionButton>
         </View>
       }
     >
@@ -113,7 +125,13 @@ export function InventoryPurchasesScreen(props: AppScreenProps) {
             ) : null}
             {canMentorApprove && nextStatus ? (
               <View style={styles.quickActionRow}>
-                <ActionButton onPress={() => transitionPurchaseItem(item, nextStatus)} variant="quick" responsiveStyles={appResponsiveStyles}>Mark {nextStatus}</ActionButton>
+                <ActionButton
+                  onPress={() => transitionPurchaseItem(item, nextStatus)}
+                  variant="quick"
+                  responsiveStyles={appResponsiveStyles}
+                >
+                  Mark {nextStatus}
+                </ActionButton>
               </View>
             ) : null}
           </Pressable>

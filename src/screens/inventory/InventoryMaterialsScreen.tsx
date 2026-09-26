@@ -35,7 +35,13 @@ export function InventoryMaterialsScreen(props: AppScreenProps) {
       title="Materials manager"
       subtitle="Rollup view for material demand, inferred on-hand stock, and reorder signals."
       actions={
-        <ActionButton onPress={openCreatePurchaseEditor} variant="primary" responsiveStyles={appResponsiveStyles}>Restock</ActionButton>
+        <ActionButton
+          onPress={openCreatePurchaseEditor}
+          variant="primary"
+          responsiveStyles={appResponsiveStyles}
+        >
+          Restock
+        </ActionButton>
       }
     >
       <FilterToolbar>
