@@ -4,7 +4,6 @@ import type {
   ManufacturingItem,
   MemberRole,
   PartInstance,
-  PurchaseItem,
   Subsystem,
   Task,
   TaskStatus,
@@ -17,7 +16,6 @@ import type {
   MemberDraft,
   PartDefinitionDraft,
   PartLifecycleStatus,
-  PurchaseDraft,
   StatusGroup,
   SubsystemDraft,
   WorkLogDraft,
@@ -48,22 +46,6 @@ export function buildManufacturingDraft(
     mentorReviewed: seed?.mentorReviewed ?? false,
     batchLabel: seed?.batchLabel ?? "",
     qaReviewCount: typeof seed?.qaReviewCount === "number" ? String(seed.qaReviewCount) : "0",
-  };
-}
-
-export function buildPurchaseDraft(seed?: Partial<PurchaseItem>): PurchaseDraft {
-  return {
-    title: seed?.title ?? "",
-    subsystemId: seed?.subsystemId ?? "",
-    requestedById: seed?.requestedById ?? "",
-    quantity: typeof seed?.quantity === "number" ? String(seed.quantity) : "1",
-    vendor: seed?.vendor ?? "",
-    linkLabel: seed?.linkLabel ?? "",
-    estimatedCost:
-      typeof seed?.estimatedCost === "number" ? String(seed.estimatedCost) : "",
-    finalCost: typeof seed?.finalCost === "number" ? String(seed.finalCost) : "",
-    approvedByMentor: seed?.approvedByMentor ?? false,
-    status: seed?.status ?? "requested",
   };
 }
 

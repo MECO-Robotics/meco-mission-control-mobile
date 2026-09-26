@@ -1,4 +1,4 @@
-import type { ManufacturingItem, MemberRole, PurchaseItem } from "../types/domain";
+import type { ManufacturingItem, MemberRole } from "../types/domain";
 export type ViewTab =
   | "home"
   | "work-tasks" | "work-schedule" | "work-risks" | "work-activity"
@@ -63,19 +63,6 @@ export type ManufacturingDraft = {
   mentorReviewed: boolean;
   batchLabel: string;
   qaReviewCount: string;
-};
-
-export type PurchaseDraft = {
-  title: string;
-  subsystemId: string;
-  requestedById: string;
-  quantity: string;
-  vendor: string;
-  linkLabel: string;
-  estimatedCost: string;
-  finalCost: string;
-  approvedByMentor: boolean;
-  status: PurchaseItem["status"];
 };
 
 export type MemberDraft = {
