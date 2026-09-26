@@ -1,46 +1,32 @@
-import type { Dispatch, SetStateAction } from "react";
+import type { usePartDefinitionEditor } from "./usePartDefinitionEditor";
 
 import { ACQUISITION_METHOD_OPTIONS, PART_SOURCE_OPTIONS } from "../../ui/constants";
-import type { AcquisitionMethod, EditorMode, PartDefinitionDraft } from "../../ui/types";
+import type { AcquisitionMethod } from "../../ui/types";
 import { DropdownField, EditorModal, ModalField } from "../../ui/ui";
 import type { ResponsiveScreenStyles } from "../../screens/types";
 import { EditorCallout } from "./EditorCallout";
 
 type PartDefinitionEditorModalProps = {
+  editor: ReturnType<typeof usePartDefinitionEditor>;
   appResponsiveStyles: Pick<ResponsiveScreenStyles, "calloutBody" | "calloutBox" | "calloutTitle">;
-  deletePartDefinitionDraft: () => void;
-  onCancel: () => void;
-  onSave: () => void;
-  partDefinitionDraft: PartDefinitionDraft;
-  partDefinitionEditorMode: EditorMode | null;
-  partDefinitionError: string | null;
-  setPartDefinitionDraft: Dispatch<SetStateAction<PartDefinitionDraft>>;
-  setPartDefinitionError: (value: string | null) => void;
 };
 
 export function PartDefinitionEditorModal({
+  editor,
   appResponsiveStyles,
-  deletePartDefinitionDraft,
-  onCancel,
-  onSave,
-  partDefinitionDraft,
-  partDefinitionEditorMode,
-  partDefinitionError,
-  setPartDefinitionDraft,
-  setPartDefinitionError,
 }: PartDefinitionEditorModalProps) {
   return (
     <EditorModal
-      onCancel={onCancel}
-      onDelete={partDefinitionEditorMode === "edit" ? deletePartDefinitionDraft : undefined}
-      onSave={onSave}
-      saveLabel={partDefinitionEditorMode === "edit" ? "Update part definition" : "Create part definition"}
-      title={partDefinitionEditorMode === "edit" ? "Edit part definition" : "Create part definition"}
-      visible={Boolean(partDefinitionEditorMode)}
+      onCancel={editor.close}
+      onDelete={editor.id ? editor.remove : undefined}
+      onSave={editor.save}
+      saveLabel={editor.id ? "Update part definition" : "Create part definition"}
+      title={editor.id ? "Edit part definition" : "Create part definition"}
+      visible={editor.visible}
     >
-      {partDefinitionError ? (
+      {editor.error ? (
         <EditorCallout
-          body={partDefinitionError}
+          body={editor.error}
           bodyStyle={appResponsiveStyles.calloutBody}
           boxStyle={appResponsiveStyles.calloutBox}
           title="Missing part details"
@@ -49,57 +35,38 @@ export function PartDefinitionEditorModal({
       ) : null}
       <ModalField
         label="Name"
-        onChangeText={(value) => {
-          setPartDefinitionError(null);
-          setPartDefinitionDraft((current) => ({ ...current, name: value }));
-        }}
+        onChangeText={(value) => editor.updateDraft({ name: value })}
         placeholder="Part name"
-        value={partDefinitionDraft.name}
+        value={editor.draft.name}
       />
       <ModalField
         label="Part number"
-        onChangeText={(value) => {
-          setPartDefinitionError(null);
-          setPartDefinitionDraft((current) => ({ ...current, partNumber: value }));
-        }}
+        onChangeText={(value) => editor.updateDraft({ partNumber: value })}
         placeholder="DRV-101"
-        value={partDefinitionDraft.partNumber}
+        value={editor.draft.partNumber}
       />
       <ModalField
         label="Revision"
-        onChangeText={(value) => {
-          setPartDefinitionError(null);
-          setPartDefinitionDraft((current) => ({ ...current, revision: value }));
-        }}
+        onChangeText={(value) => editor.updateDraft({ revision: value })}
         placeholder="A"
-        value={partDefinitionDraft.revision}
+        value={editor.draft.revision}
       />
       <DropdownField
         label="Source"
-        onChange={(value) => {
-          setPartDefinitionError(null);
-          setPartDefinitionDraft((current) => ({
-            ...current,
+        onChange={(value) => editor.updateDraft({
             source: value,
             acquisitionMethod:
-              value === "FRC Supplier" || value === "COTS" ? "purchase" : current.acquisitionMethod,
-          }));
-        }}
+              value === "FRC Supplier" || value === "COTS" ? "purchase" : editor.draft.acquisitionMethod,
+          })}
         options={PART_SOURCE_OPTIONS}
-        value={partDefinitionDraft.source || "Onshape"}
+        value={editor.draft.source || "Onshape"}
       />
-      {partDefinitionEditorMode === "create" ? (
+      {!editor.id ? (
         <DropdownField
           label="Acquisition method"
-          onChange={(value) => {
-            setPartDefinitionError(null);
-            setPartDefinitionDraft((current) => ({
-              ...current,
-              acquisitionMethod: value as AcquisitionMethod,
-            }));
-          }}
+          onChange={(value) => editor.updateDraft({ acquisitionMethod: value as AcquisitionMethod })}
           options={ACQUISITION_METHOD_OPTIONS}
-          value={partDefinitionDraft.acquisitionMethod}
+          value={editor.draft.acquisitionMethod}
         />
       ) : null}
     </EditorModal>

@@ -24,9 +24,6 @@ import {
 } from "./src/ui/constants";
 import {
   buildDateTime,
-  buildMemberDraft,
-  buildPartDefinitionDraft,
-  buildSubsystemDraft,
   buildWorkLogDraft,
   derivePartLifecycleStatus,
   formatDate,
@@ -40,17 +37,13 @@ import {
 import { getResponsiveMetrics, scaleFont } from "./src/ui/responsive";
 import { styles } from "./src/ui/styles";
 import type {
-  AcquisitionMethod,
   ArchiveFilterMode,
   EditorMode,
   ManufacturingViewTab,
   MaterialRollup,
-  MemberDraft,
   MilestoneSortField,
-  PartDefinitionDraft,
   QaReportDraft,
   SummaryChipData,
-  SubsystemDraft,
   TaskSubteamTab,
   TaskViewTab,
   ViewTab,
@@ -88,7 +81,6 @@ import {
 } from "./src/data/taskQueueOrdering";
 import { mecoSnapshot } from "./src/data/mockData";
 import type {
-  MemberRole,
   ManufacturingItem,
   MobileDeviceSessionSummary,
   HelpRequest,
@@ -100,7 +92,6 @@ import type {
   MobileSessionResponse,
   SessionResponse,
   SessionUser,
-  Subsystem,
   Task,
   WorkLog,
 } from "./src/types/domain";
@@ -122,7 +113,6 @@ import {
   isWorkLogDraftOwnedBy,
   mapMilestonesToEvents,
   mapPendingWorkLogDraftToWorkLog,
-  mapTaskPayloadToServer,
   mapTaskPriorityToRiskPriority,
   normalizeRequiredEmailDomain,
   normalizeTaskFromServer,
@@ -149,6 +139,9 @@ import { LoginScreen } from "./src/app/components/LoginScreen";
 import { WorkspaceShell } from "./src/app/components/WorkspaceShell";
 import { DeadlineEditorModal } from "./src/app/editorModals/DeadlineEditorModal";
 import { ManufacturingEditorModal } from "./src/app/editorModals/ManufacturingEditorModal";
+import { usePartDefinitionEditor } from "./src/app/editorModals/usePartDefinitionEditor";
+import { useSubsystemEditor } from "./src/app/editorModals/useSubsystemEditor";
+import { useMemberEditor } from "./src/app/editorModals/useMemberEditor";
 import { MemberEditorModal } from "./src/app/editorModals/MemberEditorModal";
 import { MilestoneEditorModal } from "./src/app/editorModals/MilestoneEditorModal";
 import { PartDefinitionEditorModal } from "./src/app/editorModals/PartDefinitionEditorModal";
@@ -477,26 +470,6 @@ export default function App() {
   const [workLogTimer, setWorkLogTimer] = useState<WorkLogTimerState | null>(null);
   const workLogTimerRef = useRef<WorkLogTimerState | null>(null);
 
-  const [memberEditorMode, setMemberEditorMode] = useState<EditorMode | null>(null);
-  const [activeMemberId, setActiveMemberId] = useState<string | null>(null);
-  const [memberDraft, setMemberDraft] = useState<MemberDraft>(buildMemberDraft());
-  const [memberError, setMemberError] = useState<string | null>(null);
-
-  const [subsystemEditorMode, setSubsystemEditorMode] = useState<EditorMode | null>(null);
-  const [activeSubsystemId, setActiveSubsystemId] = useState<string | null>(null);
-  const [subsystemDraft, setSubsystemDraft] = useState<SubsystemDraft>(
-    buildSubsystemDraft(),
-  );
-  const [subsystemError, setSubsystemError] = useState<string | null>(null);
-
-  const [partDefinitionEditorMode, setPartDefinitionEditorMode] = useState<EditorMode | null>(
-    null,
-  );
-  const [activePartDefinitionId, setActivePartDefinitionId] = useState<string | null>(null);
-  const [partDefinitionDraft, setPartDefinitionDraft] = useState<PartDefinitionDraft>(
-    buildPartDefinitionDraft(),
-  );
-  const [partDefinitionError, setPartDefinitionError] = useState<string | null>(null);
   const [qaReportEditorMode, setQaReportEditorMode] = useState<EditorMode | null>(null);
   const [activeQaRequestId, setActiveQaRequestId] = useState<string | null>(null);
   const [qaReportDraft, setQaReportDraft] = useState<QaReportDraft>({
@@ -2825,355 +2798,11 @@ export default function App() {
     });
   };
 
-  const openCreateMemberEditor = (role: MemberRole = "student") => {
-    setActiveMemberId(null);
-    setMemberError(null);
-    setMemberDraft(buildMemberDraft({ role }));
-    setMemberEditorMode("create");
-  };
-
-  const openEditMemberEditor = (memberId: string) => {
-    const member = members.find((candidate) => candidate.id === memberId);
-    if (!member) {
-      return;
-    }
-
-    setActiveMemberId(member.id);
-    setMemberError(null);
-    setMemberDraft(buildMemberDraft(member));
-    setMemberEditorMode("edit");
-  };
-
-  const closeMemberEditor = () => {
-    setMemberEditorMode(null);
-    setActiveMemberId(null);
-    setMemberError(null);
-  };
-
-  const showProfilePhotoUrlOnlyMessage = () => {
-    setMemberError("Paste a hosted image URL below. Mobile file upload is not available yet.");
-  };
-
-  const saveMemberDraft = async () => {
-    if (!canMentorApprove) {
-      setMemberError("Only mentors can invite or edit people.");
-      return;
-    }
-
-    const name = memberDraft.name.trim();
-    const email = memberDraft.email.trim().toLowerCase();
-    const duplicateName = members.some(
-      (member) =>
-        member.id !== activeMemberId &&
-        member.name.trim().toLowerCase() === name.toLowerCase(),
-    );
-
-    if (!name) {
-      setMemberError("Add a name before saving this roster member.");
-      return;
-    }
-
-    if (duplicateName) {
-      setMemberError("A roster member with this name already exists.");
-      return;
-    }
-
-    setMemberError(null);
-
-    const payload = {
-      disciplineId: memberDraft.disciplineId || null,
-      elevated: memberDraft.role === "lead" || memberDraft.role === "admin",
-      email,
-      name,
-      photoUrl: memberDraft.photoUrl.trim(),
-      plannedAttendanceDays: memberDraft.plannedAttendanceDays,
-      plannedAttendanceNotes: memberDraft.plannedAttendanceNotes.trim(),
-      plannedWeeklyAttendanceHours: Math.max(
-        0,
-        Number(memberDraft.plannedWeeklyAttendanceHours) || 0,
-      ),
-      role: memberDraft.role,
-    };
-
-    const isEdit = memberEditorMode === "edit" && activeMemberId;
-    const ok = await runMutation(
-      isEdit ? `/api/members/${activeMemberId}` : "/api/members",
-      {
-        method: isEdit ? "PATCH" : "POST",
-        body: JSON.stringify(payload),
-      },
-    );
-
-    if (ok) {
-      closeMemberEditor();
-    }
-  };
-
-  const deleteMemberDraft = async () => {
-    if (!activeMemberId) {
-      return;
-    }
-
-    const ok = await runMutation(`/api/members/${activeMemberId}`, {
-      method: "DELETE",
-    });
-
-    if (ok) {
-      closeMemberEditor();
-    }
-  };
-
-  const openCreateSubsystemEditor = () => {
-    setActiveSubsystemId(null);
-    setSubsystemError(null);
-    setSubsystemDraft(
-      buildSubsystemDraft({
-        responsibleEngineerId: members[0]?.id ?? "",
-      }),
-    );
-    setSubsystemEditorMode("create");
-  };
-
-  const openEditSubsystemEditor = (subsystem: Subsystem) => {
-    setActiveSubsystemId(subsystem.id);
-    setSubsystemError(null);
-    setSubsystemDraft(buildSubsystemDraft(subsystem));
-    setSubsystemEditorMode("edit");
-  };
-
-  const closeSubsystemEditor = () => {
-    setSubsystemEditorMode(null);
-    setActiveSubsystemId(null);
-    setSubsystemError(null);
-  };
-
-  const saveSubsystemDraft = async () => {
-    const mentors = splitList(subsystemDraft.mentorIdsText).filter((mentorId) =>
-      members.some((member) => member.id === mentorId),
-    );
-    const risks = splitList(subsystemDraft.risksText);
-    const name = subsystemDraft.name.trim();
-    const description = subsystemDraft.description.trim();
-    const missingFields = [
-      !name ? "name" : null,
-      !description ? "description" : null,
-      !subsystemDraft.responsibleEngineerId || !membersById[subsystemDraft.responsibleEngineerId]
-        ? "responsible engineer"
-        : null,
-    ].filter((field): field is string => Boolean(field));
-
-    if (missingFields.length > 0) {
-      setSubsystemError(`Add ${missingFields.join(", ")} before saving this subsystem.`);
-      return;
-    }
-
-    setSubsystemError(null);
-
-    const payload = {
-      name,
-      description,
-      parentSubsystemId: null,
-      responsibleEngineerId: subsystemDraft.responsibleEngineerId,
-      mentorIds: mentors,
-      risks,
-    };
-
-    const isEdit = subsystemEditorMode === "edit" && activeSubsystemId;
-    const ok = await runMutation(
-      isEdit ? `/api/subsystems/${activeSubsystemId}` : "/api/subsystems",
-      {
-        method: isEdit ? "PATCH" : "POST",
-        body: JSON.stringify(payload),
-      },
-    );
-
-    if (ok) {
-      closeSubsystemEditor();
-    }
-  };
-
-  const deleteSubsystemDraft = async () => {
-    if (!activeSubsystemId) {
-      return;
-    }
-
-    const ok = await runMutation(`/api/subsystems/${activeSubsystemId}`, {
-      method: "DELETE",
-    });
-
-    if (ok) {
-      closeSubsystemEditor();
-    }
-  };
-
-  const openCreatePartDefinitionEditor = () => {
-    setActivePartDefinitionId(null);
-    setPartDefinitionError(null);
-    setPartDefinitionDraft(buildPartDefinitionDraft());
-    setPartDefinitionEditorMode("create");
-  };
-
-  const openEditPartDefinitionEditor = (partDefinitionId: string) => {
-    const partDefinition = partDefinitions.find((candidate) => candidate.id === partDefinitionId);
-    if (!partDefinition) {
-      return;
-    }
-
-    setActivePartDefinitionId(partDefinition.id);
-    setPartDefinitionError(null);
-    setPartDefinitionDraft(buildPartDefinitionDraft(partDefinition));
-    setPartDefinitionEditorMode("edit");
-  };
-
-  const closePartDefinitionEditor = () => {
-    setPartDefinitionEditorMode(null);
-    setActivePartDefinitionId(null);
-    setPartDefinitionError(null);
-  };
-
-  const createPartAcquisitionWork = async (
-    partName: string,
-    acquisitionMethod: AcquisitionMethod,
-  ) => {
-    if (acquisitionMethod === "stock") {
-      return;
-    }
-
-    const subsystemId = subsystems[0]?.id ?? "";
-    const requesterId = signedInMember?.id ?? members[0]?.id ?? "";
-    const ownerId = requesterId;
-    const mentorId =
-      members.find((member) => member.role === "mentor" || member.role === "admin")?.id ??
-      requesterId;
-    const dueDate = isoToday();
-
-    if (!subsystemId || !requesterId || !ownerId || !mentorId) {
-      return;
-    }
-
-    if (acquisitionMethod === "manufacture") {
-      await runMutation("/api/manufacturing", {
-        method: "POST",
-        body: JSON.stringify({
-          title: `Make ${partName}`,
-          subsystemId,
-          requestedById: requesterId,
-          process: "cnc",
-          dueDate,
-          material: partDefinitionDraft.source,
-          quantity: 1,
-          status: "requested",
-          mentorReviewed: false,
-          batchLabel: undefined,
-          qaReviewCount: 0,
-        }),
-      });
-    } else {
-      await runMutation("/api/purchases", {
-        method: "POST",
-        body: JSON.stringify({
-          title: `Buy ${partName}`,
-          subsystemId,
-          requestedById: requesterId,
-          quantity: 1,
-          vendor: partDefinitionDraft.source,
-          linkLabel: "n/a",
-          estimatedCost: 0,
-          approvedByMentor: false,
-          status: "requested",
-        }),
-      });
-    }
-
-    await runMutation("/api/tasks", {
-      method: "POST",
-      body: JSON.stringify(mapTaskPayloadToServer({
-        title: `Acquire ${partName}`,
-        summary:
-          acquisitionMethod === "manufacture"
-            ? `Manufacture ${partName} and move it through QA.`
-            : `Purchase ${partName} and confirm it is ready for installation.`,
-        subsystemId,
-        disciplineId: disciplines[0]?.id || "mechanical",
-        mechanismId: null,
-        partInstanceId: null,
-        targetEventId: null,
-        ownerId,
-        mentorId,
-        dueDate,
-        priority: "medium",
-        status: "not-started",
-
-        linkedManufacturingIds: [],
-        linkedPurchaseIds: [],
-        estimatedHours: 0,
-        actualHours: 0,
-      })),
-    });
-  };
-
-  const savePartDefinitionDraft = async () => {
-    const partName = partDefinitionDraft.name.trim();
-    const partNumber = partDefinitionDraft.partNumber.trim();
-    const revision = partDefinitionDraft.revision.trim();
-    const source = partDefinitionDraft.source.trim();
-    const missingFields = [
-      !partName ? "name" : null,
-      !partNumber ? "part number" : null,
-      !revision ? "revision" : null,
-      !source ? "source" : null,
-      !partDefinitionDraft.acquisitionMethod ? "acquisition method" : null,
-    ].filter((field): field is string => Boolean(field));
-
-    if (missingFields.length > 0) {
-      setPartDefinitionError(`Add ${missingFields.join(", ")} before saving this part definition.`);
-      return;
-    }
-
-    setPartDefinitionError(null);
-
-    const payload = {
-      name: partName,
-      partNumber,
-      revision,
-      type: partDefinitionDraft.source === "Onshape" ? "custom" : "cots",
-      source,
-      description: "",
-    };
-
-    const isEdit = partDefinitionEditorMode === "edit" && activePartDefinitionId;
-    const ok = await runMutation(
-      isEdit
-        ? `/api/part-definitions/${activePartDefinitionId}`
-        : "/api/part-definitions",
-      {
-        method: isEdit ? "PATCH" : "POST",
-        body: JSON.stringify(payload),
-      },
-    );
-
-    if (ok) {
-      if (!isEdit) {
-        await createPartAcquisitionWork(partName, partDefinitionDraft.acquisitionMethod);
-      }
-
-      closePartDefinitionEditor();
-    }
-  };
-
-  const deletePartDefinitionDraft = async () => {
-    if (!activePartDefinitionId) {
-      return;
-    }
-
-    const ok = await runMutation(`/api/part-definitions/${activePartDefinitionId}`, {
-      method: "DELETE",
-    });
-
-    if (ok) {
-      closePartDefinitionEditor();
-    }
-  };
+  const memberEditor = useMemberEditor({ members, canMentorApprove, mutate: runMutation });
+  const subsystemEditor = useSubsystemEditor({ members, mutate: runMutation });
+  const partDefinitionEditor = usePartDefinitionEditor({
+    members, subsystems, disciplines, partDefinitions, signedInMember, mutate: runMutation,
+  });
 
   const openCreateQaReportEditor = (taskId = tasks[0]?.id ?? "", qaRequestId?: string) => {
     if (!canSubmitQa) return;
@@ -3332,9 +2961,9 @@ export default function App() {
     closeDeadlineEditor();
     manufacturingEditor.close();
     purchaseEditor.close();
-    closeMemberEditor();
-    closeSubsystemEditor();
-    closePartDefinitionEditor();
+    memberEditor.close();
+    subsystemEditor.close();
+    partDefinitionEditor.close();
     closeQaReportEditor();
     clearWorkLogTimer();
   };
@@ -3538,18 +3167,18 @@ export default function App() {
     membersById,
     createQaRequest,
     openCreateManufacturingEditor: () => manufacturingEditor.open(),
-    openCreateMemberEditor,
-    openCreatePartDefinitionEditor,
+    openCreateMemberEditor: memberEditor.open,
+    openCreatePartDefinitionEditor: partDefinitionEditor.open,
     openCreatePurchaseEditor: () => purchaseEditor.open(),
     openCreateQaReportEditor,
-    openCreateSubsystemEditor,
+    openCreateSubsystemEditor: () => subsystemEditor.open(),
     openCreateWorkLogEditor,
     openWorkLogFromTimer,
     openEditManufacturingEditor: manufacturingEditor.open,
-    openEditMemberEditor,
-    openEditPartDefinitionEditor,
+    openEditMemberEditor: memberEditor.edit,
+    openEditPartDefinitionEditor: partDefinitionEditor.edit,
     openEditPurchaseEditor: purchaseEditor.open,
-    openEditSubsystemEditor,
+    openEditSubsystemEditor: subsystemEditor.open,
     openEditTaskEditor,
     openEditWorkLogEditor,
     openDuplicateTaskEditor,
@@ -3705,43 +3334,21 @@ export default function App() {
         />
 
         <PartDefinitionEditorModal
+          editor={partDefinitionEditor}
           appResponsiveStyles={appResponsiveStyles}
-          deletePartDefinitionDraft={deletePartDefinitionDraft}
-          onCancel={closePartDefinitionEditor}
-          onSave={savePartDefinitionDraft}
-          partDefinitionDraft={partDefinitionDraft}
-          partDefinitionEditorMode={partDefinitionEditorMode}
-          partDefinitionError={partDefinitionError}
-          setPartDefinitionDraft={setPartDefinitionDraft}
-          setPartDefinitionError={setPartDefinitionError}
         />
 
         <MemberEditorModal
+          editor={memberEditor}
           appResponsiveStyles={appResponsiveStyles}
-          deleteMemberDraft={deleteMemberDraft}
           disciplineOptions={disciplineOptions}
-          memberDraft={memberDraft}
-          memberEditorMode={memberEditorMode}
-          memberError={memberError}
-          onCancel={closeMemberEditor}
-          onSave={saveMemberDraft}
-          setMemberDraft={setMemberDraft}
-          setMemberError={setMemberError}
-          showProfilePhotoUrlOnlyMessage={showProfilePhotoUrlOnlyMessage}
           themeColors={themeColors}
         />
 
         <SubsystemEditorModal
+          editor={subsystemEditor}
           appResponsiveStyles={appResponsiveStyles}
-          deleteSubsystemDraft={deleteSubsystemDraft}
           memberOptions={memberOptions}
-          onCancel={closeSubsystemEditor}
-          onSave={saveSubsystemDraft}
-          setSubsystemDraft={setSubsystemDraft}
-          setSubsystemError={setSubsystemError}
-          subsystemDraft={subsystemDraft}
-          subsystemEditorMode={subsystemEditorMode}
-          subsystemError={subsystemError}
         />
 
         <QaReportEditorModal
