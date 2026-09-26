@@ -41,3 +41,5 @@ The merge gate owns branch, CI and snapshot checks, plus the cross-repository pr
 The ignored `skills/` directory is an optional local import, not an application dependency. Import explicitly with `bash scripts/sync-skills.sh`; compare an existing import with `bash scripts/check-skills-current.sh`. `SKILLS_REPO` and `SKILLS_REF` select the source. CI's separate import smoke check uses `SYNC_MISSING_SKILLS=true`; local comparison defaults to failing on missing imports. No context engine or generated index is required for contributions.
 
 CI renders Expo public configuration after verification and reuses that same-run artifact for snapshot packaging; the snapshot job does not reinstall dependencies.
+
+Keep Graphify artifacts local and ignored. When `graphify-out/graph.json` exists, use a scoped `graphify query "question"` before browsing source, then run `graphify update .` after code changes. Generated graphs, reports and dated archives are not application source or review artifacts.
