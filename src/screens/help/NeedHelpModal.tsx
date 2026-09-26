@@ -1,3 +1,4 @@
+import { Callout } from "../../ui/Callout";
 import { useEffect, useState } from "react";
 import { View, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
 
@@ -83,14 +84,11 @@ export function NeedHelpModal({
         <StatusPill label="Requested" value="requested" />
       </View>
       {error ? (
-        <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-          <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-            Check help request
-          </Text>
-          <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-            {error}
-          </Text>
-        </View>
+        <Callout
+          responsiveStyles={appResponsiveStyles}
+          title="Check help request"
+          body={error}
+        />
       ) : null}
       <ModalField
         label="Reason"

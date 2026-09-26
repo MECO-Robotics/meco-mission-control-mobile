@@ -1,3 +1,4 @@
+import { Callout } from "../../ui/Callout";
 import type { useTaskEditor } from "./useTaskEditor";
 import { View, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
 
@@ -20,7 +21,6 @@ import type {
   TaskPriority,
   TaskStatus,
 } from "../../types/domain";
-import { EditorCallout } from "../../app/editorModals/EditorCallout";
 import { TaskDependenciesField } from "./TaskDependenciesField";
 
 type TaskEditorModalProps = {
@@ -84,21 +84,17 @@ export function TaskEditorModal({
       visible={Boolean(taskEditorMode)}
     >
       {taskEditorError ? (
-        <EditorCallout
+        <Callout
           body={taskEditorError}
-          bodyStyle={appResponsiveStyles.calloutBody}
-          boxStyle={appResponsiveStyles.calloutBox}
           title="Task could not be saved"
-          titleStyle={appResponsiveStyles.calloutTitle}
+          responsiveStyles={appResponsiveStyles}
         />
       ) : null}
       {taskDependencyReadinessMessage ? (
-        <EditorCallout
+        <Callout
           body={taskDependencyReadinessMessage}
-          bodyStyle={appResponsiveStyles.calloutBody}
-          boxStyle={appResponsiveStyles.calloutBox}
           title="Waiting on dependencies"
-          titleStyle={appResponsiveStyles.calloutTitle}
+          responsiveStyles={appResponsiveStyles}
         />
       ) : null}
       <View style={isLandscapeCardLayout ? styles.taskEditorLandscapeGrid : styles.taskEditorStack}>

@@ -1,3 +1,4 @@
+import { ActionButton } from "../../ui/ActionButton";
 import { Pressable, View } from "react-native";
 
 import { Text } from "../../i18n";
@@ -32,9 +33,13 @@ export function SubsystemsScreen(props: AppScreenProps) {
       title="Subsystem manager"
       subtitle="Review ownership, risk, and mechanism coverage with expandable subsystem cards."
       actions={
-        <Pressable onPress={openCreateSubsystemEditor} style={[styles.primaryAction, appResponsiveStyles.primaryAction]}>
-          <Text style={[styles.primaryActionLabel, appResponsiveStyles.primaryActionLabel]}>Add subsystem</Text>
-        </Pressable>
+        <ActionButton
+          onPress={openCreateSubsystemEditor}
+          variant="primary"
+          responsiveStyles={appResponsiveStyles}
+        >
+          Add subsystem
+        </ActionButton>
       }
     >
       <FilterToolbar>

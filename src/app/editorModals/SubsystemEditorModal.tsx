@@ -1,9 +1,9 @@
+import { Callout } from "../../ui/Callout";
 import type { useSubsystemEditor } from "./useSubsystemEditor";
 
 import type { Option } from "../../ui/types";
 import { AdvancedOptions, DropdownField, EditorModal, ModalField } from "../../ui/ui";
 import type { ResponsiveScreenStyles } from "../../screens/types";
-import { EditorCallout } from "./EditorCallout";
 
 type SubsystemEditorModalProps = {
   editor: ReturnType<typeof useSubsystemEditor>;
@@ -26,12 +26,10 @@ export function SubsystemEditorModal({
       visible={editor.visible}
     >
       {editor.error ? (
-        <EditorCallout
+        <Callout
           body={editor.error}
-          bodyStyle={appResponsiveStyles.calloutBody}
-          boxStyle={appResponsiveStyles.calloutBox}
           title="Missing subsystem details"
-          titleStyle={appResponsiveStyles.calloutTitle}
+          responsiveStyles={appResponsiveStyles}
         />
       ) : null}
       <ModalField

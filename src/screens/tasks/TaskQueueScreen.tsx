@@ -1,3 +1,5 @@
+import { Callout } from "../../ui/Callout";
+import { ActionButton } from "../../ui/ActionButton";
 import { isTaskBlocked } from "../../data/taskReadiness";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
@@ -208,9 +210,13 @@ const renderScreen = () => {
               Filters
             </Text>
           </Pressable>
-          <Pressable onPress={openCreateTaskEditor} style={[styles.primaryAction, appResponsiveStyles.primaryAction]}>
-            <Text style={[styles.primaryActionLabel, appResponsiveStyles.primaryActionLabel]}>Add</Text>
-          </Pressable>
+          <ActionButton
+            onPress={openCreateTaskEditor}
+            variant="primary"
+            responsiveStyles={appResponsiveStyles}
+          >
+            Add
+          </ActionButton>
         </View>
       }
     >
@@ -238,23 +244,17 @@ const renderScreen = () => {
       {visibleSections.map((section) => (
         <View key={section.id}>
           {section.tasks.length > 0 ? (
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                {section.title}
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {section.totalTasks} task{section.totalTasks === 1 ? "" : "s"}
-              </Text>
-            </View>
+            <Callout
+              responsiveStyles={appResponsiveStyles}
+              title={section.title}
+              body={[section.totalTasks, " task", section.totalTasks === 1 ? "" : "s"]}
+            />
           ) : section.totalTasks === 0 && section.emptyTitle ? (
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                {section.emptyTitle}
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {section.emptyBody}
-              </Text>
-            </View>
+            <Callout
+              responsiveStyles={appResponsiveStyles}
+              title={section.emptyTitle}
+              body={section.emptyBody}
+            />
           ) : null}
 
           {section.tasks.map((task) => {
@@ -386,22 +386,20 @@ const renderScreen = () => {
                 <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>Blockers</Text>
                 <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>{task.blockers.join(" | ")}</Text>
                 <View style={styles.quickActionRow}>
-                  <Pressable
+                  <ActionButton
                     onPress={() => {
                       const blockingTask = openDependencies[0];
                       if (blockingTask) {
                         openEditTaskEditor(blockingTask);
                         return;
                       }
-
                       openBlockerResolution(task);
                     }}
-                    style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+                    variant="quick"
+                    responsiveStyles={appResponsiveStyles}
                   >
-                    <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                      {openDependencies.length > 0 ? "Open blocking task" : "Resolve blockers"}
-                    </Text>
-                  </Pressable>
+                    {openDependencies.length > 0 ? "Open blocking task" : "Resolve blockers"}
+                  </ActionButton>
                 </View>
               </View>
             ) : null}
@@ -473,98 +471,94 @@ const renderScreen = () => {
 
             <View style={styles.quickActionRow}>
               {assignmentState.canClaim ? (
-                <Pressable
+                <ActionButton
                   onPress={() => {
                     void claimTask(task);
                   }}
-                  style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+                  variant="quick"
+                  responsiveStyles={appResponsiveStyles}
                 >
-                  <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                    Claim only
-                  </Text>
-                </Pressable>
+                  Claim only
+                </ActionButton>
               ) : null}
               {canStartTask ? (
-                <Pressable
+                <ActionButton
                   onPress={() => {
                     void startTask(task);
                   }}
-                  style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+                  variant="quick"
+                  responsiveStyles={appResponsiveStyles}
                 >
-                  <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                    {getTaskStartActionLabel(task)}
-                  </Text>
-                </Pressable>
+                  {getTaskStartActionLabel(task)}
+                </ActionButton>
               ) : null}
               {assignmentState.canRelease ? (
-                <Pressable
+                <ActionButton
                   onPress={() => {
                     void releaseTask(task);
                   }}
-                  style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+                  variant="quick"
+                  responsiveStyles={appResponsiveStyles}
                 >
-                  <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                    Release
-                  </Text>
-                </Pressable>
+                  Release
+                </ActionButton>
               ) : null}
               {assignmentState.canReassign ? (
-                <Pressable
+                <ActionButton
                   onPress={() => taskReassignModal.open(task)}
-                  style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+                  variant="quick"
+                  responsiveStyles={appResponsiveStyles}
                 >
-                  <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                    Reassign
-                  </Text>
-                </Pressable>
+                  Reassign
+                </ActionButton>
               ) : null}
               {!hasQaReport ? (
-                <Pressable
+                <ActionButton
                   onPress={() => openCreateWorkLogEditor(task.id)}
-                  style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+                  variant="quick"
+                  responsiveStyles={appResponsiveStyles}
                 >
-                  <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                    Log work
-                  </Text>
-                </Pressable>
+                  Log work
+                </ActionButton>
               ) : null}
               {canRequestQa && !hasQaReport ? (
-                <Pressable
+                <ActionButton
                   onPress={() => {
                     void requestTaskQa(task);
                   }}
-                  style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+                  variant="quick"
+                  responsiveStyles={appResponsiveStyles}
                 >
-                  <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                    Request QA
-                  </Text>
-                </Pressable>
+                  Request QA
+                </ActionButton>
               ) : null}
               {canSubmitQa && task.status === "waiting-for-qa" ? (
-                <Pressable accessibilityRole="button" onPress={() => openCreateQaReportEditor(task.id, qaRequests.find((request) => request.taskId === task.id)?.id)}
-                  style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}>
-                  <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>Write QA report</Text>
-                </Pressable>
+                <ActionButton
+                  accessibilityRole="button"
+                  onPress={() => openCreateQaReportEditor(task.id, qaRequests.find((request) => request.taskId === task.id)?.id)}
+                  variant="quick"
+                  responsiveStyles={appResponsiveStyles}
+                >
+                  Write QA report
+                </ActionButton>
               ) : null}
               {canRequestHelp ? (
-                <Pressable
+                <ActionButton
                   onPress={() => setHelpRequestTask(task)}
-                  style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+                  variant="quick"
+                  responsiveStyles={appResponsiveStyles}
                 >
-                  <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                    Need help
-                  </Text>
-                </Pressable>
+                  Need help
+                </ActionButton>
               ) : null}
               {hasQaReport ? (
-                <Pressable
+                <ActionButton
                   onPress={() => setSelectedQaTaskId(task.id)}
-                  style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+                  variant="quick"
+                  responsiveStyles={appResponsiveStyles}
                 >
-                  <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                    QA report
-                  </Text>
-                </Pressable>
+                  QA report
+                </ActionButton>
               ) : null}
             </View>
           </Pressable>
@@ -582,22 +576,20 @@ const renderScreen = () => {
             Try clearing search, owner, status, priority, flag, subsystem, and archive filters.
           </Text>
           <View style={styles.quickActionRow}>
-            <Pressable
+            <ActionButton
               onPress={resetFilters}
-              style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+              variant="quick"
+              responsiveStyles={appResponsiveStyles}
             >
-              <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                Reset filters
-              </Text>
-            </Pressable>
-            <Pressable
+              Reset filters
+            </ActionButton>
+            <ActionButton
               onPress={openCreateTaskEditor}
-              style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+              variant="quick"
+              responsiveStyles={appResponsiveStyles}
             >
-              <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                Add task
-              </Text>
-            </Pressable>
+              Add task
+            </ActionButton>
           </View>
         </View>
       ) : null}
@@ -655,23 +647,17 @@ const renderScreen = () => {
       >
         {blockerResolutionTask ? (
           <>
-            <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                Current blockers
-              </Text>
-              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                {blockerResolutionTask.blockers.join(" | ")}
-              </Text>
-            </View>
+            <Callout
+              responsiveStyles={appResponsiveStyles}
+              title="Current blockers"
+              body={blockerResolutionTask.blockers.join(" | ")}
+            />
             {blockerResolutionError ? (
-              <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-                <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-                  Resolution note required
-                </Text>
-                <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                  {blockerResolutionError}
-                </Text>
-              </View>
+              <Callout
+                responsiveStyles={appResponsiveStyles}
+                title="Resolution note required"
+                body={blockerResolutionError}
+              />
             ) : null}
             <ModalField
               label="Resolution note"

@@ -1,3 +1,4 @@
+import { Callout } from "../../ui/Callout";
 import type { useMilestoneEditor } from "./useMilestoneEditor";
 
 import { EVENT_TYPE_OPTIONS } from "../../ui/constants";
@@ -5,7 +6,6 @@ import { localTodayDate } from "../../ui/helpers";
 import { AdvancedOptions, DropdownField, EditorModal, ModalField, ToggleField } from "../../ui/ui";
 import type { EventType } from "../../types/domain";
 import type { ResponsiveScreenStyles } from "../../screens/types";
-import { EditorCallout } from "./EditorCallout";
 
 type MilestoneEditorModalProps = {
   appResponsiveStyles: Pick<ResponsiveScreenStyles, "calloutBody" | "calloutBox" | "calloutTitle">;
@@ -27,12 +27,10 @@ export function MilestoneEditorModal({
       visible={visible}
     >
       {error ? (
-        <EditorCallout
+        <Callout
           body={error}
-          bodyStyle={appResponsiveStyles.calloutBody}
-          boxStyle={appResponsiveStyles.calloutBox}
           title="Milestone needs attention"
-          titleStyle={appResponsiveStyles.calloutTitle}
+          responsiveStyles={appResponsiveStyles}
         />
       ) : null}
       <ModalField

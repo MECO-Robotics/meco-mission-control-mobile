@@ -1,9 +1,9 @@
+import { Callout } from "../../ui/Callout";
 import type { usePartDefinitionEditor } from "./usePartDefinitionEditor";
 
 import type { AcquisitionMethod } from "../../ui/types";
 import { DropdownField, EditorModal, ModalField } from "../../ui/ui";
 import type { ResponsiveScreenStyles } from "../../screens/types";
-import { EditorCallout } from "./EditorCallout";
 
 type PartDefinitionEditorModalProps = {
   editor: ReturnType<typeof usePartDefinitionEditor>;
@@ -24,21 +24,17 @@ export function PartDefinitionEditorModal({
       visible={editor.visible}
     >
       {!editor.id && !editor.canCreateParts ? (
-        <EditorCallout
+        <Callout
           title="Team permission required"
           body="Only leads, mentors and admins can add part definitions. Ask a team lead to add this part."
-          bodyStyle={appResponsiveStyles.calloutBody}
-          boxStyle={appResponsiveStyles.calloutBox}
-          titleStyle={appResponsiveStyles.calloutTitle}
+          responsiveStyles={appResponsiveStyles}
         />
       ) : null}
       {editor.error ? (
-        <EditorCallout
+        <Callout
           body={editor.error}
-          bodyStyle={appResponsiveStyles.calloutBody}
-          boxStyle={appResponsiveStyles.calloutBox}
           title="Part definition"
-          titleStyle={appResponsiveStyles.calloutTitle}
+          responsiveStyles={appResponsiveStyles}
         />
       ) : null}
       <ModalField

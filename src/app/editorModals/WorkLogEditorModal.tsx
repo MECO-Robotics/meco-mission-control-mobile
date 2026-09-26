@@ -1,14 +1,14 @@
+import { Callout } from "../../ui/Callout";
+import { ActionButton } from "../../ui/ActionButton";
 import { ParticipantField } from "../../ui/editorFieldWidgets";
 import type { Dispatch, SetStateAction } from "react";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 
-import { Text } from "../../i18n";
 import { WORKLOG_TEMPLATE_OPTIONS } from "../../ui/constants";
 import { styles } from "../../ui/styles";
 import type { EditorMode, Option, WorkLogDraft } from "../../ui/types";
 import { DropdownField, EditorModal, ModalField } from "../../ui/ui";
 import type { ResponsiveScreenStyles } from "../../screens/types";
-import { EditorCallout } from "./EditorCallout";
 
 type WorkLogEditorModalProps = {
   appResponsiveStyles: Pick<
@@ -50,12 +50,10 @@ export function WorkLogEditorModal({
       visible={Boolean(workLogEditorMode)}
     >
       {workLogError ? (
-        <EditorCallout
+        <Callout
           body={workLogError}
-          bodyStyle={appResponsiveStyles.calloutBody}
-          boxStyle={appResponsiveStyles.calloutBox}
           title="Missing work log details"
-          titleStyle={appResponsiveStyles.calloutTitle}
+          responsiveStyles={appResponsiveStyles}
         />
       ) : null}
       <DropdownField
@@ -98,7 +96,7 @@ export function WorkLogEditorModal({
       />
       <View style={styles.quickActionRow}>
         {WORKLOG_TEMPLATE_OPTIONS.map((template) => (
-          <Pressable
+          <ActionButton
             key={template.id}
             onPress={() => {
               setWorkLogError(null);
@@ -109,12 +107,11 @@ export function WorkLogEditorModal({
                   : template.notes,
               }));
             }}
-            style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+            variant="quick"
+            responsiveStyles={appResponsiveStyles}
           >
-            <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-              {template.name}
-            </Text>
-          </Pressable>
+            {template.name}
+          </ActionButton>
         ))}
       </View>
       <ModalField

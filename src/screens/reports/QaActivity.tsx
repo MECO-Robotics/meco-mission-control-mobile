@@ -1,3 +1,5 @@
+import { Callout } from "../../ui/Callout";
+import { ActionButton } from "../../ui/ActionButton";
 import { useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
 
@@ -110,9 +112,13 @@ const renderScreen = () => {
       title={props.mode === "pending" ? "Pending QA" : props.mode === "history" ? "QA results" : "Help requests"}
       subtitle={props.mode === "pending" ? "Requests awaiting review." : props.mode === "history" ? "Review outcomes, evidence, and follow-up." : "Requests for mentor support."}
       actions={props.mode === "pending" ?
-        <Pressable onPress={() => setIsQaRequestOpen(true)} style={[styles.primaryAction, appResponsiveStyles.primaryAction]}>
-          <Text style={[styles.primaryActionLabel, appResponsiveStyles.primaryActionLabel]}>Request QA</Text>
-        </Pressable> : undefined
+        <ActionButton
+          onPress={() => setIsQaRequestOpen(true)}
+          variant="primary"
+          responsiveStyles={appResponsiveStyles}
+        >
+          Request QA
+        </ActionButton> : undefined
       }
     >
 
@@ -300,12 +306,11 @@ const renderScreen = () => {
                 </Text>
               ) : null}
               {review.result === "iteration-worthy" ? (
-                <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-                  <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>Iteration</Text>
-                  <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                    This finding should create or anchor a design iteration.
-                  </Text>
-                </View>
+                <Callout
+                  responsiveStyles={appResponsiveStyles}
+                  title="Iteration"
+                  body="This finding should create or anchor a design iteration."
+                />
               ) : null}
             </Pressable>
           );

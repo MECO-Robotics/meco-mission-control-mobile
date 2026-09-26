@@ -1,3 +1,4 @@
+import { ActionButton } from "../../ui/ActionButton";
 import { Pressable, View } from "react-native";
 
 import { Text } from "../../i18n";
@@ -34,9 +35,13 @@ export function InventoryMaterialsScreen(props: AppScreenProps) {
       title="Materials manager"
       subtitle="Rollup view for material demand, inferred on-hand stock, and reorder signals."
       actions={
-        <Pressable onPress={openCreatePurchaseEditor} style={[styles.primaryAction, appResponsiveStyles.primaryAction]}>
-          <Text style={[styles.primaryActionLabel, appResponsiveStyles.primaryActionLabel]}>Restock</Text>
-        </Pressable>
+        <ActionButton
+          onPress={openCreatePurchaseEditor}
+          variant="primary"
+          responsiveStyles={appResponsiveStyles}
+        >
+          Restock
+        </ActionButton>
       }
     >
       <FilterToolbar>

@@ -1,3 +1,4 @@
+import { Callout } from "../../ui/Callout";
 import type { useMemberEditor } from "./useMemberEditor";
 import { Pressable, View } from "react-native";
 
@@ -9,7 +10,6 @@ import type { Option } from "../../ui/types";
 import { DropdownField, EditorModal, ModalField } from "../../ui/ui";
 import type { MemberRole } from "../../types/domain";
 import type { ResponsiveScreenStyles } from "../../screens/types";
-import { EditorCallout } from "./EditorCallout";
 
 type MemberEditorModalProps = {
   editor: ReturnType<typeof useMemberEditor>;
@@ -39,12 +39,10 @@ export function MemberEditorModal({
         </Text>
       ) : null}
       {editor.error ? (
-        <EditorCallout
+        <Callout
           body={editor.error}
-          bodyStyle={appResponsiveStyles.calloutBody}
-          boxStyle={appResponsiveStyles.calloutBox}
           title="Missing roster details"
-          titleStyle={appResponsiveStyles.calloutTitle}
+          responsiveStyles={appResponsiveStyles}
         />
       ) : null}
       <View style={styles.profilePhotoField}>

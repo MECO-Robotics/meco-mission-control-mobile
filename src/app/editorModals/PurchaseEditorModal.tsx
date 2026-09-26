@@ -1,9 +1,9 @@
+import { Callout } from "../../ui/Callout";
 import type { usePurchaseEditor } from "./usePurchaseEditor";
 
 import type { Option } from "../../ui/types";
 import { AdvancedOptions, DropdownField, EditorModal, ModalField } from "../../ui/ui";
 import type { ResponsiveScreenStyles } from "../../screens/types";
-import { EditorCallout } from "./EditorCallout";
 
 type PurchaseEditorModalProps = {
   editor: ReturnType<typeof usePurchaseEditor>;
@@ -33,12 +33,10 @@ export function PurchaseEditorModal({
       visible={visible}
     >
       {error ? (
-        <EditorCallout
+        <Callout
           body={error}
-          bodyStyle={appResponsiveStyles.calloutBody}
-          boxStyle={appResponsiveStyles.calloutBox}
           title="Purchase needs attention"
-          titleStyle={appResponsiveStyles.calloutTitle}
+          responsiveStyles={appResponsiveStyles}
         />
       ) : null}
       <ModalField

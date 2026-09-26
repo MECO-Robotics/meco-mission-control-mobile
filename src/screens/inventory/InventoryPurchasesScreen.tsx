@@ -1,3 +1,4 @@
+import { ActionButton } from "../../ui/ActionButton";
 import { useState } from "react";
 import { Modal, Pressable, View } from "react-native";
 
@@ -43,12 +44,20 @@ export function InventoryPurchasesScreen(props: AppScreenProps) {
       subtitle="Review request status, approval state, purchase state, and cost deltas in one queue."
       actions={
         <View style={styles.taskQueueHeaderActions}>
-          <Pressable onPress={() => setIsFiltersVisible(true)} style={[styles.primaryAction, appResponsiveStyles.primaryAction]}>
-            <Text style={[styles.primaryActionLabel, appResponsiveStyles.primaryActionLabel]}>Filters</Text>
-          </Pressable>
-          <Pressable onPress={openCreatePurchaseEditor} style={[styles.primaryAction, appResponsiveStyles.primaryAction]}>
-            <Text style={[styles.primaryActionLabel, appResponsiveStyles.primaryActionLabel]}>Add</Text>
-          </Pressable>
+          <ActionButton
+            onPress={() => setIsFiltersVisible(true)}
+            variant="primary"
+            responsiveStyles={appResponsiveStyles}
+          >
+            Filters
+          </ActionButton>
+          <ActionButton
+            onPress={openCreatePurchaseEditor}
+            variant="primary"
+            responsiveStyles={appResponsiveStyles}
+          >
+            Add
+          </ActionButton>
         </View>
       }
     >
@@ -116,14 +125,13 @@ export function InventoryPurchasesScreen(props: AppScreenProps) {
             ) : null}
             {canMentorApprove && nextStatus ? (
               <View style={styles.quickActionRow}>
-                <Pressable
+                <ActionButton
                   onPress={() => transitionPurchaseItem(item, nextStatus)}
-                  style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+                  variant="quick"
+                  responsiveStyles={appResponsiveStyles}
                 >
-                  <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                    Mark {nextStatus}
-                  </Text>
-                </Pressable>
+                  Mark {nextStatus}
+                </ActionButton>
               </View>
             ) : null}
           </Pressable>
