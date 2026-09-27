@@ -18,8 +18,7 @@ the relevant data, setters, and action callbacks into each screen.
 
 Shared UI primitives, form widgets, responsive helpers, constants, and styles
 live under `src/ui/`. Domain data contracts live in `src/types/domain.ts`.
-Feature data seeds live in `src/data/`, including `mockData.ts` and task seed
-modules under `src/data/tasks/`.
+Shared editor and screen test data lives under `src/data/__tests__/fixtures/`; it is not imported by the application bundle.
 
 Follow [CONTRIBUTING.md](../CONTRIBUTING.md) for contribution workflow and review criteria. Prefer cohesive feature ownership and explicit dependencies over arbitrary file-size splits.
 
@@ -29,9 +28,7 @@ The app currently lifts most shared state into `App.tsx`. This includes
 workspace arrays, active navigation tabs, filters, selected IDs, editor drafts,
 sync/auth status, and timer state.
 
-Workspace arrays initialize from `mecoSnapshot` in `src/data/mockData.ts`, with
-additional seeded tasks from `src/data/tasks`. Bootstrap responses replace those
-workspace arrays when a backend is available. Task seed modules declare distinct records and nondefault values; `src/data/tasks/index.ts` fills missing task defaults before deriving blocker/dependency readiness. Empty collection defaults are allocated separately for each task, and optional documentation flags remain absent unless declared.
+Workspace arrays start empty and are populated only after authentication succeeds and the backend bootstrap response arrives. Test fixtures under `src/data/__tests__/fixtures/` provide representative graph data for isolated feature tests.
 
 `useManufacturingBrowse`, `usePurchaseBrowse`, `useMaterialsBrowse`, and
 `usePartsBrowse` own their feature filters and derived browse data.

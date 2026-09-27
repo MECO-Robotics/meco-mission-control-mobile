@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react-native";
 import { useMilestoneEditor } from "../editorModals/useMilestoneEditor";
-import { mecoSnapshot } from "../../data/mockData";
+import { mecoSnapshot } from "../../data/__tests__/fixtures/mockData";
 import { buildDateTime } from "../../ui/helpers";
 
 function setup(persist = jest.fn(async () => true), remove = jest.fn(async () => true)) {

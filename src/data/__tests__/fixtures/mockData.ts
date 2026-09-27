@@ -15,7 +15,7 @@ import {
   Requirement,
   Subsystem,
   WorkLog,
-} from "../types/domain";
+} from "../../../types/domain";
 import {
   offseasonAttendanceRecords,
   offseasonEscalations,

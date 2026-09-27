@@ -1,4 +1,4 @@
-import type { TaskBlocker } from "../../types/domain";
+import type { TaskBlocker } from "../../../../types/domain";
 
 export const taskBlockers: TaskBlocker[] = [
   {"id": "intake-guard-blocker-0", "blockedTaskId": "intake-guard", "description": "Waiting on CNC batch B-17 to clear the router.", "status": "open"},

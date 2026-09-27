@@ -5,8 +5,6 @@ import { useManufacturingEditor } from "./src/app/editorModals/useManufacturingE
 import { usePurchaseEditor } from "./src/app/editorModals/usePurchaseEditor";
 import { useMilestoneEditor, type MilestonePayload } from "./src/app/editorModals/useMilestoneEditor";
 import { formatHoursFromTimer, getWorkLogTimerElapsedMs, type WorkLogTimerState } from "./src/screens/worklogs/workLogTimer";
-import { taskBlockers as seededTaskBlockers } from "./src/data/tasks/blockers";
-import { taskDependencies as seededTaskDependencies } from "./src/data/tasks/dependencies";
 import { getAutoTaskStatus, isTaskBlocked, isTaskReadyForQaPass } from "./src/data/taskReadiness";
 import { useTaskEditor } from "./src/screens/tasks/useTaskEditor";
 import { createWorkLogQueue } from "./src/services/workLogQueue";
@@ -77,9 +75,14 @@ import {
 import {
   getTaskSubteamForDisciplineId,
 } from "./src/data/taskQueueOrdering";
-import { mecoSnapshot } from "./src/data/mockData";
 import type {
+  Discipline,
+  Event,
   ManufacturingItem,
+  Member,
+  Mechanism,
+  PartDefinition,
+  PartInstance,
   MobileDeviceSessionSummary,
   HelpRequest,
   PlatformBootstrapPayload,
@@ -90,11 +93,13 @@ import type {
   MobileSessionResponse,
   SessionResponse,
   SessionUser,
+  Subsystem,
   Task,
+  TaskBlocker,
+  TaskDependency,
   WorkLog,
 } from "./src/types/domain";
 import {
-  ATTENDANCE_STATUS_BY_MEMBER_ID,
   AUTH_REQUEST_TIMEOUT_MS,
   RISK_PRIORITY_RANK,
   applyMilestoneSubsystemLinks,
@@ -113,7 +118,6 @@ import {
   mapTaskPriorityToRiskPriority,
   normalizeRequiredEmailDomain,
   normalizeTaskFromServer,
-  normalizeTaskSubsystems,
   parseClientError,
   shouldQueueWorkLogDraftAfterError,
   type BackendReachability,
@@ -349,23 +353,23 @@ export default function App() {
   const [deviceSessionsError, setDeviceSessionsError] = useState<string | null>(null);
   const [isLoadingDeviceSessions, setIsLoadingDeviceSessions] = useState(false);
   const [attendanceStatusByMemberId, setAttendanceStatusByMemberId] =
-    useState<Record<string, AttendanceStatus>>(ATTENDANCE_STATUS_BY_MEMBER_ID);
+    useState<Record<string, AttendanceStatus>>({});
   const [themeOverride, setThemeOverride] = useState<AppThemeName | null>(null);
   const [languageOverride] = useState<LanguageCode | null>(null);
   const [activePersonFilter, setActivePersonFilter] = useState("all");
 
-  const [members, setMembers] = useState(() => mecoSnapshot.members);
-  const [subsystems, setSubsystems] = useState(() => normalizeTaskSubsystems(mecoSnapshot.subsystems));
-  const [disciplines, setDisciplines] = useState(() => mecoSnapshot.disciplines);
-  const [mechanisms, setMechanisms] = useState(() => mecoSnapshot.mechanisms);
-  const [taskState] = useState(() => createTaskState(mecoSnapshot.tasks));
+  const [members, setMembers] = useState<Member[]>([]);
+  const [subsystems, setSubsystems] = useState<Subsystem[]>([]);
+  const [disciplines, setDisciplines] = useState<Discipline[]>([]);
+  const [mechanisms, setMechanisms] = useState<Mechanism[]>([]);
+  const [taskState] = useState(() => createTaskState([]));
   const tasks = useSyncExternalStore(taskState.subscribe, taskState.getSnapshot);
   const setTasks = taskState.replace;
-  const [taskDependencies, setTaskDependencies] = useState(seededTaskDependencies);
-  const [taskBlockers, setTaskBlockers] = useState(seededTaskBlockers);
-  const [events, setEvents] = useState(() => mecoSnapshot.events);
-  const [workLogs, setWorkLogs] = useState(() => mecoSnapshot.workLogs);
-  const workLogsRef = useRef<WorkLog[]>(mecoSnapshot.workLogs);
+  const [taskDependencies, setTaskDependencies] = useState<TaskDependency[]>([]);
+  const [taskBlockers, setTaskBlockers] = useState<TaskBlocker[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [workLogs, setWorkLogs] = useState<WorkLog[]>([]);
+  const workLogsRef = useRef<WorkLog[]>([]);
   const hasRestoredAuthSessionRef = useRef(false);
   const startTaskRef = useRef<(task: Task, options?: StartTaskOptions) => Promise<void>>(
     async () => undefined,
@@ -388,15 +392,11 @@ export default function App() {
     });
     return () => workLogQueue.dispose();
   }, [workLogQueue]);
-  const [manufacturingItems, setManufacturingItems] = useState(
-    () => mecoSnapshot.manufacturingItems,
-  );
-  const [purchaseItems, setPurchaseItems] = useState(() => mecoSnapshot.purchaseItems);
-  const [partDefinitions, setPartDefinitions] = useState(
-    () => mecoSnapshot.partDefinitions,
-  );
-  const [partInstances, setPartInstances] = useState(() => mecoSnapshot.partInstances);
-  const [qaReviews, setQaReviews] = useState<QaReview[]>(() => mecoSnapshot.qaReviews);
+  const [manufacturingItems, setManufacturingItems] = useState<ManufacturingItem[]>([]);
+  const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([]);
+  const [partDefinitions, setPartDefinitions] = useState<PartDefinition[]>([]);
+  const [partInstances, setPartInstances] = useState<PartInstance[]>([]);
+  const [qaReviews, setQaReviews] = useState<QaReview[]>([]);
   const [qaRequests, setQaRequests] = useState<QaRequest[]>([]);
   const [helpRequests, setHelpRequests] = useState<HelpRequest[]>([]);
   const systemThemeMode: AppThemeName = systemColorScheme === "dark" ? "dark" : "light";
@@ -455,7 +455,7 @@ export default function App() {
     // Keep refs and state in lockstep for async callbacks that need the latest
     // workspace snapshot without retriggering every callback when data changes.
     setMembers(ensureArray(payload.members));
-    setSubsystems(normalizeTaskSubsystems(ensureArray(payload.subsystems)));
+    setSubsystems(ensureArray(payload.subsystems));
     setDisciplines(ensureArray(payload.disciplines));
     setMechanisms(ensureArray(payload.mechanisms));
     setTasks(tasks);

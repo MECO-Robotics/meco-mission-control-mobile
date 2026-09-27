@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react-native";
 import { useTaskEditor } from "../useTaskEditor";
-import { mecoSnapshot } from "../../../data/mockData";
+import { mecoSnapshot } from "../../../data/__tests__/fixtures/mockData";
 import type { TaskDependency } from "../../../types/domain";
 
 function setup(failRelation = false, deletion?: Promise<void>) {

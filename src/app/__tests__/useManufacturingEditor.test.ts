@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react-native";
 import { useManufacturingEditor } from "../editorModals/useManufacturingEditor";
-import { mecoSnapshot } from "../../data/mockData";
+import { mecoSnapshot } from "../../data/__tests__/fixtures/mockData";
 import type { ManufacturingViewTab } from "../../ui/types";
 
 function setup(manufacturingView: ManufacturingViewTab = "all", canMentorApprove = false, succeeds = true) {

@@ -1,4 +1,4 @@
-import type { Task } from "../../types/domain";
+import type { Task } from "../../../../types/domain";
 
 type DefaultedTaskField =
   | "workstreamIds"

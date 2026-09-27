@@ -1,4 +1,4 @@
-import type { Task } from "../../types/domain";
+import type { Task } from "../../../../types/domain";
 import { taskDependencies } from "./dependencies";
 import { taskBlockers } from "./blockers";
 import { electricalTasks } from "./electricalTasks";

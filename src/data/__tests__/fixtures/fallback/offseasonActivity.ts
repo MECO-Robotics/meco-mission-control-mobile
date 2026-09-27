@@ -5,7 +5,7 @@ import type {
   Meeting,
   QaReview,
   WorkLog,
-} from "../../types/domain";
+} from "../../../../types/domain";
 
 export const offseasonEvents: Event[] = [
   {

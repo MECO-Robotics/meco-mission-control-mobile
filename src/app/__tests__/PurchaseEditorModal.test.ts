@@ -3,7 +3,7 @@ import { Button } from "react-native";
 import { act, fireEvent, render } from "@testing-library/react-native";
 import { PurchaseEditorModal } from "../editorModals/PurchaseEditorModal";
 import { usePurchaseEditor } from "../editorModals/usePurchaseEditor";
-import { mecoSnapshot } from "../../data/mockData";
+import { mecoSnapshot } from "../../data/__tests__/fixtures/mockData";
 
 const purchase = mecoSnapshot.purchaseItems[0];
 

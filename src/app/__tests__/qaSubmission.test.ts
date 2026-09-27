@@ -2,9 +2,10 @@ import { createElement, Fragment } from "react";
 import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import App from "../../../App";
 import { requestJson } from "../../data/api";
-import { mecoSnapshot } from "../../data/mockData";
+import { mecoSnapshot } from "../../data/__tests__/fixtures/mockData";
 import { LoginScreen } from "../components/LoginScreen";
 import { WorkspaceShell } from "../components/WorkspaceShell";
+import { loadPersistedAuthSession } from "../../services/authSessionStorage";
 import type { AppScreenProps } from "../../screens/types";
 
 jest.mock("../../data/api", () => ({ ...jest.requireActual("../../data/api"), requestJson: jest.fn() }));
@@ -24,7 +25,7 @@ function shell() { return jest.mocked(WorkspaceShell).mock.calls.at(-1)![0]; }
 function screenProps() { return (shell().activeTabContent as ReturnType<typeof createElement<{ screenProps: AppScreenProps }>>).props.screenProps; }
 
 beforeEach(() => {
-  jest.clearAllMocks(); reports = []; failSave = false; failRefresh = false;
+  jest.clearAllMocks(); reports = []; failSave = false; failRefresh = false; jest.mocked(loadPersistedAuthSession).mockResolvedValue(null);
   request.mockImplementation(async (_base, path, init) => {
     if (path === "/api/auth/config") return { enabled: false, hostedDomain: "mecorobotics.org", emailEnabled: true };
     if (path === "/api/bootstrap") {
@@ -45,6 +46,39 @@ async function signIn() {
   await act(async () => { await jest.mocked(LoginScreen).mock.calls.at(-1)![0].signInWithDevBypass(); });
   await waitFor(() => expect(WorkspaceShell).toHaveBeenCalled());
 }
+
+test("failed bootstrap keeps a fresh sign-in behind the auth gate until retry succeeds", async () => {
+  const view = render(createElement(App));
+  await waitFor(() => expect(LoginScreen).toHaveBeenCalled());
+  expect(WorkspaceShell).not.toHaveBeenCalled();
+  failRefresh = true;
+  await act(async () => { await jest.mocked(LoginScreen).mock.calls.at(-1)![0].signInWithDevBypass(); });
+  expect(WorkspaceShell).not.toHaveBeenCalled();
+  expect(jest.mocked(LoginScreen).mock.calls.at(-1)![0].authError).toMatch(/workspace/i);
+  failRefresh = false;
+  await act(async () => { await jest.mocked(LoginScreen).mock.calls.at(-1)![0].signInWithDevBypass(); });
+  await waitFor(() => expect(WorkspaceShell).toHaveBeenCalled());
+  expect(screenProps().members).toEqual(mecoSnapshot.members);
+  view.unmount();
+});
+
+test("restored sessions do not expose workspace state when bootstrap fails", async () => {
+  jest.mocked(loadPersistedAuthSession).mockResolvedValue({
+    token: "restored-token",
+    refreshToken: "refresh-token",
+    accessTokenExpiresAt: "2999-01-01T00:00:00.000Z",
+    sessionExpiresAt: "2999-01-02T00:00:00.000Z",
+    user: { accountId: "account", authProvider: "email", email: "member@mecorobotics.org", name: "Member", picture: null, hostedDomain: "mecorobotics.org" },
+    session: { id: "session", createdAt: "2026-01-01T00:00:00.000Z", lastUsedAt: "2026-01-01T00:00:00.000Z" },
+    deviceNumber: "123456789012",
+  });
+  failRefresh = true;
+  const view = render(createElement(App));
+  await waitFor(() => expect(LoginScreen).toHaveBeenCalled());
+  expect(WorkspaceShell).not.toHaveBeenCalled();
+  failRefresh = false;
+  view.unmount();
+});
 
 test("QA uses one atomic command, survives bootstrap and retains a failed draft", async () => {
   const view = render(createElement(Fragment, null, createElement(App)));

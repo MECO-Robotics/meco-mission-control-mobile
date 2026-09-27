@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Mechanism, Member, PurchaseItem, QaReview, Subsystem, Task } from "../../types/domain";
 import { getQaReviewTaskId } from "../../app/appModel";
 import { localTodayDate } from "../../ui/helpers";
@@ -29,11 +29,15 @@ type SubsystemCounts = {
 export function useSubsystemBrowse({ subsystems, mechanisms, tasks, purchaseItems, qaReviews, membersById, taskById }: Inputs) {
   const [filters, setFilters] = useState<Readonly<Filters>>({ search: "" });
   const [expandedId, setExpandedId] = useState(subsystems[0]?.id ?? "");
+  const hasInitializedExpansion = useRef(subsystems.length > 0);
   const updateFilters = (patch: Partial<Filters>) => setFilters((current) => ({ ...current, ...patch }));
   const toggleExpanded = (id: string) => setExpandedId((current) => current === id ? "" : id);
 
   useEffect(() => {
-    if (expandedId && !subsystems.some((subsystem) => subsystem.id === expandedId)) {
+    if (!hasInitializedExpansion.current && subsystems.length > 0) {
+      hasInitializedExpansion.current = true;
+      setExpandedId(subsystems[0].id);
+    } else if (expandedId && !subsystems.some((subsystem) => subsystem.id === expandedId)) {
       setExpandedId(subsystems[0]?.id ?? "");
     }
   }, [expandedId, subsystems]);

@@ -4,7 +4,7 @@ import { act, fireEvent, render } from "@testing-library/react-native";
 import { PartDefinitionEditorModal } from "../editorModals/PartDefinitionEditorModal";
 import { usePartDefinitionEditor } from "../editorModals/usePartDefinitionEditor";
 import type { PartDefinition } from "../../types/domain";
-import { mecoSnapshot } from "../../data/mockData";
+import { mecoSnapshot } from "../../data/__tests__/fixtures/mockData";
 
 function Editor({ allowed, mutate, seed }: { allowed: boolean; mutate: () => Promise<boolean>; seed?: PartDefinition }) {
   const editor = usePartDefinitionEditor({ ...mecoSnapshot, partDefinitions: seed ? [seed] : mecoSnapshot.partDefinitions, canCreateParts: allowed, mutate });
