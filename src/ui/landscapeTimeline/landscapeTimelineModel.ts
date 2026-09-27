@@ -61,9 +61,11 @@ function getTaskStartDate(task: Task) {
 }
 
 function compareTasksByTimelineDate(left: Task, right: Task) {
+  const leftRange = getTaskDateRange(left);
+  const rightRange = getTaskDateRange(right);
   return (
-    getTaskStartDate(left).getTime() - getTaskStartDate(right).getTime() ||
-    left.dueDate.localeCompare(right.dueDate)
+    leftRange.start.getTime() - rightRange.start.getTime() ||
+    leftRange.end.getTime() - rightRange.end.getTime()
   );
 }
 

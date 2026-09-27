@@ -154,3 +154,18 @@ test("secondary lanes sort multi-target tasks chronologically before reusing tra
   expect(lane?.tasks.map(({ top }) => top)).toEqual([10, 10]);
   expect(lane?.height).toBe(52);
 });
+
+test("secondary lane ordering uses the normalized range for reversed task dates", () => {
+  const normalTask = {
+    ...task, id: "normal-range", subsystemIds: ["a", "b"],
+    startDate: "2026-09-10", dueDate: "2026-09-12",
+  };
+  const reversedTask = {
+    ...task, id: "reversed-range", subsystemIds: ["b", "a"],
+    startDate: "2026-09-20", dueDate: "2026-09-05",
+  };
+  const lane = buildLanes([normalTask, reversedTask], subsystems, new Date(2026, 8, 1), 30)
+    .find((item) => item.id === "b");
+
+  expect(lane?.tasks.map(({ task: item }) => item.id)).toEqual(["reversed-range", "normal-range"]);
+});
