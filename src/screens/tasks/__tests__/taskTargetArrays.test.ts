@@ -21,12 +21,12 @@ const task = {
 };
 const index = <T extends { id: string }>(items: T[]) => Object.fromEntries(items.map((item) => [item.id, item]));
 
-function setup() {
+function setup(taskToEdit = task) {
   const writes: Record<string, unknown>[] = [];
   let editor!: ReturnType<typeof useTaskEditor>;
   function Harness() {
     editor = useTaskEditor({
-      tasks: [task], taskById: { [task.id]: task }, taskDependencies: [], mechanisms, partInstances: parts,
+      tasks: [taskToEdit], taskById: { [taskToEdit.id]: taskToEdit }, taskDependencies: [], mechanisms, partInstances: parts,
       members: mecoSnapshot.members, membersById: index(mecoSnapshot.members), disciplines: mecoSnapshot.disciplines,
       subsystemsById: index(subsystems), taskSubsystemOptions: subsystems,
       activeTaskSubteam: "programming", setActiveTaskSubteam: jest.fn(), refresh: async () => undefined,
@@ -46,8 +46,8 @@ function setup() {
     });
   }
   const view = render(createElement(Harness));
-  act(() => editor.openEditTaskEditor(task));
-  const choose = (label: string, name: string) => {
+  act(() => editor.openEditTaskEditor(taskToEdit));
+  const choose = (label: string, name: string | RegExp) => {
     fireEvent.press(view.getByRole("button", { name: new RegExp(`^${label}:`) }));
     const option = view.getAllByRole("button", { name }).find((node) => node.props.accessibilityState?.selected !== undefined);
     expect(option).toBeDefined();
@@ -89,6 +89,30 @@ test("replacing primary mechanism and clearing primary part preserves secondary 
   expect(await save()).toMatchObject({
     subsystemIds: ["a", "b"], mechanismIds: ["m-a2", "m-b"], partInstanceIds: ["p-m-b"],
   });
+});
+
+const primaryMechanismWithoutTaskPart = {
+  ...task,
+  mechanismIds: ["m-a2", "m-b"],
+  partInstanceIds: ["p-m-b"],
+};
+
+test("clearing an empty primary part keeps the secondary mechanism part", async () => {
+  const { choose, save } = setup(primaryMechanismWithoutTaskPart);
+  choose("Part instance", "No part instance");
+  expect(await save()).toMatchObject({ mechanismIds: ["m-a2", "m-b"], partInstanceIds: ["p-m-b"] });
+});
+
+test("replacing an empty primary part keeps the secondary mechanism part", async () => {
+  const { choose, save } = setup(primaryMechanismWithoutTaskPart);
+  choose("Part instance", /Part m-a2/);
+  expect(await save()).toMatchObject({ mechanismIds: ["m-a2", "m-b"], partInstanceIds: ["p-m-a2", "p-m-b"] });
+});
+
+test("clearing a primary part keeps unknown and secondary part IDs", async () => {
+  const { choose, save } = setup({ ...primaryMechanismWithoutTaskPart, partInstanceIds: ["unknown-part", "p-m-b"] });
+  choose("Part instance", "No part instance");
+  expect(await save()).toMatchObject({ partInstanceIds: ["unknown-part", "p-m-b"] });
 });
 
 test("clearing primary subsystem promotes the retained secondary branch", async () => {

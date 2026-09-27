@@ -87,8 +87,18 @@ export function selectTaskMechanism(draft: TaskDraft, id: string, parts: PartIns
   };
 }
 
-export function selectTaskPart(draft: TaskDraft, id: string): TaskDraft {
-  return id === (draft.partInstanceIds[0] ?? "") ? draft : {
-    ...draft, partInstanceIds: replacePrimary(draft.partInstanceIds, id),
-  };
+export function selectTaskPart(draft: TaskDraft, id: string, parts: PartInstance[]): TaskDraft {
+  const primaryMechanismId = draft.mechanismIds[0];
+  const selectedPart = parts.find((part) => part.id === id);
+  if (id === (draft.partInstanceIds[0] ?? "") && selectedPart?.mechanismId === primaryMechanismId) return draft;
+
+  const retainedParts = draft.partInstanceIds.filter((candidate) => {
+    const part = parts.find((item) => item.id === candidate);
+    return !primaryMechanismId || !part || part.mechanismId !== primaryMechanismId;
+  });
+  const partInstanceIds = [...(id ? [id] : []), ...retainedParts.filter((candidate) => candidate !== id)];
+  return partInstanceIds.every((candidate, index) => candidate === draft.partInstanceIds[index]) &&
+    partInstanceIds.length === draft.partInstanceIds.length
+    ? draft
+    : { ...draft, partInstanceIds };
 }

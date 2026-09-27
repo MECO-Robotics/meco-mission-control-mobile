@@ -196,7 +196,7 @@ export function useTaskEditor({ mechanisms, partInstances, tasks, taskById, task
 
   const selectSubsystem = (id: string) => setTaskDraft((draft) => selectTaskSubsystem(draft, id, mechanisms, partInstances));
   const selectMechanism = (id: string) => setTaskDraft((draft) => selectTaskMechanism(draft, id, partInstances));
-  const selectPart = (id: string) => setTaskDraft((draft) => selectTaskPart(draft, id));
+  const selectPart = (id: string) => setTaskDraft((draft) => selectTaskPart(draft, id, partInstances));
 
   const saveTaskDraft = async () => {
     if (saving.current) return;
