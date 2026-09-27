@@ -118,7 +118,6 @@ import {
   mapTaskPriorityToRiskPriority,
   normalizeRequiredEmailDomain,
   normalizeTaskFromServer,
-  normalizeTaskSubsystems,
   parseClientError,
   shouldQueueWorkLogDraftAfterError,
   type BackendReachability,
@@ -456,7 +455,7 @@ export default function App() {
     // Keep refs and state in lockstep for async callbacks that need the latest
     // workspace snapshot without retriggering every callback when data changes.
     setMembers(ensureArray(payload.members));
-    setSubsystems(normalizeTaskSubsystems(ensureArray(payload.subsystems)));
+    setSubsystems(ensureArray(payload.subsystems));
     setDisciplines(ensureArray(payload.disciplines));
     setMechanisms(ensureArray(payload.mechanisms));
     setTasks(tasks);

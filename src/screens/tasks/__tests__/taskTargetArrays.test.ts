@@ -2,7 +2,7 @@ import { buildLanes } from "../../../ui/landscapeTimeline/landscapeTimelineModel
 import { derivePartLifecycleStatus } from "../../../ui/helpers";
 import { createElement } from "react";
 import { act, fireEvent, render } from "@testing-library/react-native";
-import { mecoSnapshot } from "../../../data/mockData";
+import { mecoSnapshot } from "../../../data/__tests__/fixtures/mockData";
 import { useAppTheme } from "../../../ui/themeContext";
 import { TaskEditorModal } from "../TaskEditorModal";
 import { useTaskEditor } from "../useTaskEditor";

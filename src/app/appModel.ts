@@ -18,7 +18,7 @@ import type {
   TaskPriority,
   WorkLog,
 } from "../types/domain";
-import type { AttendanceStatus, RiskPriority } from "../types/status";
+import type { RiskPriority } from "../types/status";
 import type { WorkLogListItem } from "../screens/types";
 
 export const REQUIRED_EMAIL_DOMAIN = "mecorobotics.org";
@@ -41,23 +41,6 @@ export const RISK_PRIORITY_RANK: Record<RiskPriority, number> = {
   low: 2,
 };
 
-export const ATTENDANCE_STATUS_BY_MEMBER_ID: Record<string, AttendanceStatus> = {
-  ava: "yes",
-  ethan: "maybe",
-  jordan: "yes",
-  lucas: "no",
-  maya: "yes",
-  priya: "maybe",
-  riley: "yes",
-  noah: "yes",
-  zoe: "maybe",
-  diego: "yes",
-  emma: "yes",
-  samira: "yes",
-  caleb: "maybe",
-  nina: "yes",
-};
-
 export const PLANNED_ATTENDANCE_DAY_OPTIONS = [
   { id: "monday", label: "Mon" },
   { id: "tuesday", label: "Tue" },
@@ -67,59 +50,6 @@ export const PLANNED_ATTENDANCE_DAY_OPTIONS = [
   { id: "saturday", label: "Sat" },
   { id: "sunday", label: "Sun" },
 ] as const;
-
-export const REQUIRED_TASK_SUBSYSTEMS: Subsystem[] = [
-  {
-    id: "climber",
-    name: "Climber",
-    description: "Endgame lift, latch, and climb release mechanisms.",
-    isCore: false,
-    parentSubsystemId: null,
-    responsibleEngineerId: "priya",
-    mentorIds: ["jordan"],
-    risks: ["Hook alignment", "Winch load margin"],
-  },
-  {
-    id: "controls",
-    name: "Controls",
-    description: "Robot software, safety, and autonomous logic.",
-    isCore: false,
-    parentSubsystemId: "drive",
-    responsibleEngineerId: "ethan",
-    mentorIds: ["riley"],
-    risks: ["Auto safety interlocks"],
-  },
-  {
-    id: "drive",
-    name: "Drivetrain",
-    description: "Core drivetrain, chassis interfaces, and shared base electronics.",
-    isCore: true,
-    parentSubsystemId: null,
-    responsibleEngineerId: "ava",
-    mentorIds: ["jordan"],
-    risks: ["Sensor drift", "Cable clearance"],
-  },
-  {
-    id: "manipulator",
-    name: "Manipulator",
-    description: "Intake, handling, and game-piece interaction hardware.",
-    isCore: false,
-    parentSubsystemId: "drive",
-    responsibleEngineerId: "lucas",
-    mentorIds: ["riley"],
-    risks: ["Chain wear", "Assembly tolerance"],
-  },
-  {
-    id: "vision",
-    name: "Vision",
-    description: "Camera targeting, pose estimation, and visual feedback.",
-    isCore: false,
-    parentSubsystemId: "drive",
-    responsibleEngineerId: "ethan",
-    mentorIds: ["riley"],
-    risks: ["Camera calibration", "Lighting variability"],
-  },
-];
 
 export function shouldQueueWorkLogDraftAfterError(error: unknown) {
   return (
@@ -151,10 +81,6 @@ export function buildSubsystemOptions(subsystems: Subsystem[]) {
     id: subsystem.id,
     name: subsystem.name,
   }));
-}
-
-export function normalizeTaskSubsystems(currentSubsystems: Subsystem[]) {
-  return currentSubsystems.length > 0 ? currentSubsystems : REQUIRED_TASK_SUBSYSTEMS;
 }
 
 export function parseClientError(error: unknown) {
