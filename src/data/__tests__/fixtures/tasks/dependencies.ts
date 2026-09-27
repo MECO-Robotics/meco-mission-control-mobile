@@ -1,4 +1,4 @@
-import type { TaskDependency } from "../../types/domain";
+import type { TaskDependency } from "../../../../types/domain";
 
 export const taskDependencies: TaskDependency[] = [
   {"id": "intake-roller-shim-pack-depends-intake-guard", "taskId": "intake-roller-shim-pack", "kind": "task", "refId": "intake-guard", "requiredState": "complete", "dependencyType": "hard", "createdAt": "2026-09-08T00:00:00Z"},

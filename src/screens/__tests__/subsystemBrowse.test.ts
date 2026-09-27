@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react-native";
-import { mecoSnapshot } from "../../data/mockData";
+import { mecoSnapshot } from "../../data/__tests__/fixtures/mockData";
 import type { Mechanism, PurchaseItem, QaReview, Subsystem, Task } from "../../types/domain";
 import { useSubsystemBrowse } from "../robot/useSubsystemBrowse";
 

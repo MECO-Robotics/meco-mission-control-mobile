@@ -1,4 +1,4 @@
-import type { Member } from "../../types/domain";
+import type { Member } from "../../../../types/domain";
 
 export const offseasonMembers: Member[] = [
   {

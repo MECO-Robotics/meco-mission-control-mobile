@@ -1,6 +1,6 @@
 import { getAutoTaskStatus, isTaskBlocked, isTaskReadyForQaPass, hasOpenTaskDependency } from "../taskReadiness";
 import { getTaskAssignmentState } from "../taskAssignment";
-import { mecoSnapshot } from "../mockData";
+import { mecoSnapshot } from "./fixtures/mockData";
 
 const member = { id: "member", name: "Member", role: "student" as const };
 test.each([

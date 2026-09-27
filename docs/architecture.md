@@ -10,8 +10,7 @@ The app is an Expo/React Native application with TypeScript. `App.tsx` composes 
 - `src/app/`: app-shell helpers, root-level presentation components, and editor modal components extracted from `App.tsx`.
 - `src/ui/`: shared UI components, editor widgets, selection widgets, helpers, responsive metrics, theme context, constants, and styles.
 - `src/ui/landscapeTimeline/`: landscape timeline and calendar-specific model, palette, components, and styles.
-- `src/data/`: API helper, mock snapshot, and seeded task data.
-- `src/data/tasks/`: seeded discipline-specific tasks.
+- `src/data/`: API helpers; representative workspace fixtures live under `src/data/__tests__/fixtures/` and are excluded from runtime bundles.
 - `src/types/`: domain types for API payloads and in-app entities.
 - `src/services/`: auth-session storage, work-log draft sync, work-log timer notifications, and durable work-log queue ownership.
 - `src/i18n/`: localization provider, dictionaries, and demo dictionaries.

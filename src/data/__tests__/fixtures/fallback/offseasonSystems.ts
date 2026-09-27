@@ -1,4 +1,4 @@
-import type { Mechanism, Requirement, Subsystem } from "../../types/domain";
+import type { Mechanism, Requirement, Subsystem } from "../../../../types/domain";
 
 export const offseasonSubsystems: Subsystem[] = [
   {

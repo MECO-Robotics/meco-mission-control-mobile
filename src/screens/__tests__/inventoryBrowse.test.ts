@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react-native";
-import { mecoSnapshot } from "../../data/mockData";
+import { mecoSnapshot } from "../../data/__tests__/fixtures/mockData";
 import type { ManufacturingItem, PartInstance, PurchaseItem, Task } from "../../types/domain";
 import { useMaterialsBrowse } from "../inventory/useMaterialsBrowse";
 import { usePartsBrowse } from "../inventory/usePartsBrowse";

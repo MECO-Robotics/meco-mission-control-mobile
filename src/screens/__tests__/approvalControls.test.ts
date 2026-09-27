@@ -3,7 +3,7 @@ import { fireEvent, render } from "@testing-library/react-native";
 import { ManufacturingScreen } from "../manufacturing/ManufacturingScreen";
 import { InventoryPurchasesScreen } from "../inventory/InventoryPurchasesScreen";
 import { QaActivity } from "../reports/QaActivity";
-import { mecoSnapshot } from "../../data/mockData";
+import { mecoSnapshot } from "../../data/__tests__/fixtures/mockData";
 import { WorkLogsScreen } from "../worklogs/WorkLogsScreen";
 import { getSessionPermissions } from "../../data/sessionPermissions";
 import type { AppScreenProps } from "../types";

@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react-native";
-import { mecoSnapshot } from "../../data/mockData";
+import { mecoSnapshot } from "../../data/__tests__/fixtures/mockData";
 import { useMemberEditor } from "../editorModals/useMemberEditor";
 import { useSubsystemEditor } from "../editorModals/useSubsystemEditor";
 import { usePartDefinitionEditor } from "../editorModals/usePartDefinitionEditor";

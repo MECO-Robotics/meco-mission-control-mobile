@@ -3,7 +3,7 @@ import type {
   PartDefinition,
   PartInstance,
   PurchaseItem,
-} from "../../types/domain";
+} from "../../../../types/domain";
 
 export const offseasonPartDefinitions: PartDefinition[] = [
   {

@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react-native";
 import { usePurchaseEditor } from "../editorModals/usePurchaseEditor";
-import { mecoSnapshot } from "../../data/mockData";
+import { mecoSnapshot } from "../../data/__tests__/fixtures/mockData";
 import type { MaterialRollup } from "../../ui/types";
 
 const purchase = mecoSnapshot.purchaseItems[0];

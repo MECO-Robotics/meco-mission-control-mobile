@@ -1,4 +1,4 @@
-import { mecoSnapshot } from "../mockData";
+import { mecoSnapshot } from "./fixtures/mockData";
 
 function ids<T extends { id: string }>(items: T[]) {
   return new Set(items.map((item) => item.id));
