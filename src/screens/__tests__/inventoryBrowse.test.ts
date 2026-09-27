@@ -40,9 +40,9 @@ test("parts preserves catalog order and whole-catalog quantities while filtering
     { ...mecoSnapshot.partInstances[0], id: "unknown", partDefinitionId: "missing", name: "Unknown", subsystemId: "drive", mechanismId: "missing", quantity: 2 },
   ];
   const tasks: Task[] = [
-    { ...mecoSnapshot.tasks[0], partInstanceId: "available", status: "waiting-for-qa" },
-    { ...mecoSnapshot.tasks[0], partInstanceId: "available", status: "in-progress" },
-    { ...mecoSnapshot.tasks[0], partInstanceId: "installed", status: "complete" },
+    { ...mecoSnapshot.tasks[0], partInstanceIds: ["available"], status: "waiting-for-qa" },
+    { ...mecoSnapshot.tasks[0], partInstanceIds: ["available"], status: "in-progress" },
+    { ...mecoSnapshot.tasks[0], partInstanceIds: ["installed"], status: "complete" },
   ];
   const input = { partDefinitions: definitions, partInstances: instances, tasks, partDefinitionsById: Object.fromEntries(definitions.map((definition) => [definition.id, definition])), mechanismsById: { wheel: { ...mecoSnapshot.mechanisms[0], name: "Wheel" } } };
   const { result, rerender } = renderHook(({ rows }: { rows: PartInstance[] }) => usePartsBrowse({ ...input, partInstances: rows }), { initialProps: { rows: instances } });

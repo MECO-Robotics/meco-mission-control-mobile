@@ -1053,7 +1053,7 @@ export default function App() {
   const taskById = useMemo(() => {
     return buildTaskById(tasks);
   }, [tasks]);
-  const taskEditor = useTaskEditor({ tasks, taskById, taskDependencies, members, membersById, disciplines,
+  const taskEditor = useTaskEditor({ mechanisms, partInstances, tasks, taskById, taskDependencies, members, membersById, disciplines,
     subsystemsById, taskSubsystemOptions, activeTaskSubteam, setActiveTaskSubteam,
     request: authenticatedRequestJson, refresh: () => refreshWorkspaceFromServer(apiToken),
   });
@@ -1176,7 +1176,7 @@ export default function App() {
         return task.ownerId === activePersonFilter || task.mentorId === activePersonFilter;
       })
       .filter((task) =>
-        timelineSubsystemFilter === "all" ? true : task.subsystemId === timelineSubsystemFilter,
+        timelineSubsystemFilter === "all" ? true : task.subsystemIds.includes(timelineSubsystemFilter),
       )
       .filter((task) =>
         timelineMilestoneFilter === "all" ? true : task.targetEventId === timelineMilestoneFilter,
@@ -1200,7 +1200,7 @@ export default function App() {
         return false;
       }
 
-      if (workLogSubsystemFilter !== "all" && task?.subsystemId !== workLogSubsystemFilter) {
+      if (workLogSubsystemFilter !== "all" && !task?.subsystemIds.includes(workLogSubsystemFilter)) {
         return false;
       }
 
@@ -1212,7 +1212,7 @@ export default function App() {
         .map((participantId) => membersById[participantId]?.name ?? "")
         .join(" ");
       const taskText = `${task?.title ?? ""} ${task?.summary ?? ""}`;
-      const subsystemText = task ? (subsystemsById[task.subsystemId]?.name ?? "") : "";
+      const subsystemText = task?.subsystemIds.map((id) => subsystemsById[id]?.name ?? "").join(" ") ?? "";
 
       return `${workLog.notes} ${taskText} ${participantNames} ${subsystemText}`
         .toLowerCase()
@@ -1309,7 +1309,7 @@ export default function App() {
         id: `task-${task.id}`,
         title: task.title,
         detail: task.blockers.join(" | "),
-        subsystemId: task.subsystemId,
+        subsystemId: (task.subsystemIds[0] ?? ""),
         source: "Task blocker",
         priority: mapTaskPriorityToRiskPriority(task.priority),
       }));
@@ -1323,7 +1323,7 @@ export default function App() {
           id: `qa-${review.id}`,
           title: review.subjectTitle,
           detail: review.notes,
-          subsystemId: task?.subsystemId ?? "",
+          subsystemId: task?.subsystemIds[0] ?? "",
           source: review.result === "iteration-worthy" ? "Iteration" : "QA finding",
           priority: review.result === "iteration-worthy" ? "high" as const : "medium" as const,
         };
@@ -1368,7 +1368,7 @@ export default function App() {
     const taskActions = tasks
       .filter((task) => task.status !== "complete")
       .flatMap((task) => {
-        const subsystemName = subsystemsById[task.subsystemId]?.name ?? "Unknown subsystem";
+        const subsystemName = subsystemsById[(task.subsystemIds[0] ?? "")]?.name ?? "Unknown subsystem";
         const ownerName = task.ownerId
           ? (membersById[task.ownerId]?.name ?? "Unassigned")
           : "Unassigned";

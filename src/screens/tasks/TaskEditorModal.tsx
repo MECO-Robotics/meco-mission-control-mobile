@@ -60,14 +60,14 @@ export function TaskEditorModal({
   taskSubsystemOptions,
   themeColors,
 }: TaskEditorModalProps) {
-  const { addTaskDependency, availableTaskDependencyOptions, deleteTaskDraft, downstreamTaskDependencies, removeTaskDependency, selectedTaskDependencies, setTaskDependencySearch, setTaskDraft, taskDependencyReadinessMessage, taskDependencySearch, taskDraft, taskEditorError, taskEditorMode, closeTaskEditor: onCancel, saveTaskDraft: onSave } = editor;
+  const { selectSubsystem, selectMechanism, selectPart, addTaskDependency, availableTaskDependencyOptions, deleteTaskDraft, downstreamTaskDependencies, removeTaskDependency, selectedTaskDependencies, setTaskDependencySearch, setTaskDraft, taskDependencyReadinessMessage, taskDependencySearch, taskDraft, taskEditorError, taskEditorMode, closeTaskEditor: onCancel, saveTaskDraft: onSave } = editor;
 
   const mechanismOptions = mechanisms
-    .filter((mechanism) => mechanism.subsystemId === taskDraft.subsystemId)
+    .filter((mechanism) => mechanism.subsystemId === taskDraft.subsystemIds[0])
     .map(({ id, name }) => ({ id, name }));
-  const mechanismAndTaskPartOptions = taskDraft.mechanismId
+  const mechanismAndTaskPartOptions = taskDraft.mechanismIds[0]
     ? partInstances
-        .filter((part) => part.mechanismId === taskDraft.mechanismId)
+        .filter((part) => part.mechanismId === taskDraft.mechanismIds[0])
         .map((part) => ({
           id: part.id,
           name: `${part.name} (${partDefinitionsById[part.partDefinitionId]?.name ?? "part"})`,
@@ -127,24 +127,10 @@ export function TaskEditorModal({
           <DropdownField
             clearLabel="No subsystem"
             label="Subsystem"
-            onChange={(value) =>
-              setTaskDraft((current) => {
-                const subsystemId = value;
-                const nextMechanisms = mechanisms.filter(
-                  (mechanism) => mechanism.subsystemId === subsystemId,
-                );
-                const mechanismId = nextMechanisms[0]?.id ?? null;
-                const partInstanceId = mechanismId
-                  ? partInstances.find((partInstance) => partInstance.mechanismId === mechanismId)
-                      ?.id ?? null
-                  : null;
-
-                return { ...current, subsystemId, mechanismId, partInstanceId };
-              })
-            }
+            onChange={selectSubsystem}
             options={taskSubsystemOptions}
             placeholder="Select subsystem"
-            value={taskDraft.subsystemId}
+            value={taskDraft.subsystemIds[0] ?? ""}
           />
           <DropdownField
             clearLabel="No discipline"
@@ -162,30 +148,18 @@ export function TaskEditorModal({
           <DropdownField
             clearLabel="No mechanism"
             label="Mechanism"
-            onChange={(value) =>
-              setTaskDraft((current) => {
-                const mechanismId = value || null;
-                const partInstanceId = mechanismId
-                  ? partInstances.find((partInstance) => partInstance.mechanismId === mechanismId)
-                      ?.id ?? null
-                  : null;
-
-                return { ...current, mechanismId, partInstanceId };
-              })
-            }
+            onChange={selectMechanism}
             options={mechanismOptions}
             placeholder="Select mechanism"
-            value={taskDraft.mechanismId || ""}
+            value={taskDraft.mechanismIds[0] || ""}
           />
           <DropdownField
             clearLabel="No part instance"
             label="Part instance"
-            onChange={(value) =>
-              setTaskDraft((current) => ({ ...current, partInstanceId: value || null }))
-            }
+            onChange={selectPart}
             options={mechanismAndTaskPartOptions}
             placeholder="Select part instance"
-            value={taskDraft.partInstanceId || ""}
+            value={taskDraft.partInstanceIds[0] || ""}
           />
           <DropdownField
             clearLabel="No target event"
@@ -244,10 +218,10 @@ export function TaskEditorModal({
                   },
                 ]}
               >
-                {`${subsystemsById[taskDraft.subsystemId]?.name ?? "No subsystem"} / `}
+                {`${subsystemsById[taskDraft.subsystemIds[0]]?.name ?? "No subsystem"} / `}
                 {`${disciplinesById[taskDraft.disciplineId]?.name ?? "No discipline"} / `}
-                {`${taskDraft.mechanismId ? mechanismsById[taskDraft.mechanismId]?.name : "No mechanism"} / `}
-                {`${taskDraft.partInstanceId ? partInstancesById[taskDraft.partInstanceId]?.name : "No part instance"} / `}
+                {`${taskDraft.mechanismIds[0] ? mechanismsById[taskDraft.mechanismIds[0]]?.name : "No mechanism"} / `}
+                {`${taskDraft.partInstanceIds[0] ? partInstancesById[taskDraft.partInstanceIds[0]]?.name : "No part instance"} / `}
                 {`${taskDraft.targetEventId ? eventsById[taskDraft.targetEventId]?.title : "No event"}`}
               </Text>
             </View>

@@ -91,7 +91,7 @@ export function TaskTimelineScreen(props: TaskTimelineScreenProps) {
 
       {timelineTasks.map((task) => {
         const progress = timelineProgress(task.status);
-        const subsystemName = subsystemsById[task.subsystemId]?.name ?? "Unknown";
+        const subsystemName = subsystemsById[(task.subsystemIds[0] ?? "")]?.name ?? "Unknown";
         const ownerName = task.ownerId
           ? (membersById[task.ownerId]?.name ?? "Unassigned")
           : "Unassigned";

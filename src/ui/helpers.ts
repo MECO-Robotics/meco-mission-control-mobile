@@ -137,7 +137,7 @@ export function derivePartLifecycleStatus(
   partInstance: PartInstance,
   tasks: Task[],
 ): PartLifecycleStatus {
-  const linkedTasks = tasks.filter((task) => task.partInstanceId === partInstance.id);
+  const linkedTasks = tasks.filter((task) => task.partInstanceIds.includes(partInstance.id));
 
   if (linkedTasks.length === 0) {
     return "planned";

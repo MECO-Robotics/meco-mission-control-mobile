@@ -54,11 +54,11 @@ describe("mobile fallback data integrity", () => {
     }
 
     for (const task of mecoSnapshot.tasks) {
-      expectKnownId(task.subsystemId, subsystemIds);
+      task.subsystemIds.forEach((id) => expectKnownId(id, subsystemIds));
       expectKnownId(task.disciplineId, disciplineIds);
       expectKnownId(task.requirementId, requirementIds);
-      expectKnownId(task.mechanismId, mechanismIds);
-      expectKnownId(task.partInstanceId, partInstanceIds);
+      task.mechanismIds.forEach((id) => expectKnownId(id, mechanismIds));
+      task.partInstanceIds.forEach((id) => expectKnownId(id, partInstanceIds));
       expectKnownId(task.targetEventId, eventIds);
       expectKnownId(task.ownerId, memberIds);
       expectKnownId(task.mentorId, memberIds);

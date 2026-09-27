@@ -1,21 +1,22 @@
 import { useMemo, useRef, useState } from "react";
-import type { Task, TaskDependency, TaskBlocker, Member, Discipline, Subsystem } from "../../types/domain";
+import type { Mechanism, PartInstance, Task, TaskDependency, TaskBlocker, Member, Discipline, Subsystem } from "../../types/domain";
 import type { EditorMode, Option, TaskSubteamTab } from "../../ui/types";
 import { STATUS_LABELS, TASK_SUBTEAM_DISCIPLINE_IDS } from "../../ui/constants";
 import { isoToday, localTodayDate, splitList } from "../../ui/helpers";
 import { taskDependsOnTarget } from "../../data/taskReadiness";
 import { getTaskSubteamForDisciplineId } from "../../data/taskQueueOrdering";
 import { getClientErrorMessage, mapTaskPayloadToServer } from "../../app/appModel";
-import { buildTaskDraft, type TaskDraft } from "./taskDraft";
+import { buildTaskDraft, selectTaskSubsystem, selectTaskMechanism, selectTaskPart, type TaskDraft } from "./taskDraft";
 
 type Inputs = {
+  mechanisms: Mechanism[]; partInstances: PartInstance[];
   tasks: Task[]; taskById: Record<string, Task>; taskDependencies: TaskDependency[];
   members: Member[]; membersById: Record<string, Member>; disciplines: Discipline[];
   subsystemsById: Record<string, Subsystem>; taskSubsystemOptions: Option[];
   activeTaskSubteam: TaskSubteamTab; setActiveTaskSubteam: (subteam: TaskSubteamTab) => void;
   request: <T>(path: string, init: RequestInit) => Promise<T>; refresh: () => Promise<unknown>;
 };
-export function useTaskEditor({ tasks, taskById, taskDependencies, members, membersById, disciplines,
+export function useTaskEditor({ mechanisms, partInstances, tasks, taskById, taskDependencies, members, membersById, disciplines,
   subsystemsById, taskSubsystemOptions, activeTaskSubteam, setActiveTaskSubteam, request, refresh }: Inputs) {
   const editorVersion = useRef(0);
   const saving = useRef(false);
@@ -70,7 +71,7 @@ export function useTaskEditor({ tasks, taskById, taskDependencies, members, memb
           return true;
         }
 
-        const subsystemName = subsystemsById[task.subsystemId]?.name ?? "";
+        const subsystemName = task.subsystemIds.map((id) => subsystemsById[id]?.name ?? "").join(" ");
         const ownerName = task.ownerId ? (membersById[task.ownerId]?.name ?? "") : "";
 
         return [
@@ -86,8 +87,8 @@ export function useTaskEditor({ tasks, taskById, taskDependencies, members, memb
           .includes(search);
       })
       .sort((firstTask, secondTask) => {
-        const firstSubsystemScore = firstTask.subsystemId === taskDraft.subsystemId ? 0 : 1;
-        const secondSubsystemScore = secondTask.subsystemId === taskDraft.subsystemId ? 0 : 1;
+        const firstSubsystemScore = firstTask.subsystemIds.some((id) => taskDraft.subsystemIds.includes(id)) ? 0 : 1;
+        const secondSubsystemScore = secondTask.subsystemIds.some((id) => taskDraft.subsystemIds.includes(id)) ? 0 : 1;
         const firstDisciplineScore = firstTask.disciplineId === taskDraft.disciplineId ? 0 : 1;
         const secondDisciplineScore = secondTask.disciplineId === taskDraft.disciplineId ? 0 : 1;
 
@@ -106,7 +107,7 @@ export function useTaskEditor({ tasks, taskById, taskDependencies, members, memb
     subsystemsById,
     taskDependencySearch,
     taskDraft.disciplineId,
-    taskDraft.subsystemId,
+    taskDraft.subsystemIds,
     tasks,
     taskDependencies,
   ]);
@@ -118,7 +119,7 @@ export function useTaskEditor({ tasks, taskById, taskDependencies, members, memb
     setActiveTaskId(null);
     setTaskDraft(
       buildTaskDraft({
-        subsystemId: taskSubsystemOptions[0]?.id ?? "",
+        subsystemIds: taskSubsystemOptions[0] ? [taskSubsystemOptions[0].id] : [],
         disciplineId:
           TASK_SUBTEAM_DISCIPLINE_IDS[activeTaskSubteam][0] ?? disciplines[0]?.id ?? "",
         ownerId: members[0]?.id ?? "",
@@ -193,6 +194,10 @@ export function useTaskEditor({ tasks, taskById, taskDependencies, members, memb
     setTaskDraft((current) => ({ ...current, dependencies: current.dependencies.filter((edge) => edge.kind !== "task" || edge.refId !== dependencyId) }));
   };
 
+  const selectSubsystem = (id: string) => setTaskDraft((draft) => selectTaskSubsystem(draft, id, mechanisms, partInstances));
+  const selectMechanism = (id: string) => setTaskDraft((draft) => selectTaskMechanism(draft, id, partInstances));
+  const selectPart = (id: string) => setTaskDraft((draft) => selectTaskPart(draft, id, partInstances));
+
   const saveTaskDraft = async () => {
     if (saving.current) return;
     const version = editorVersion.current;
@@ -211,7 +216,7 @@ export function useTaskEditor({ tasks, taskById, taskDependencies, members, memb
     const missingFields = [
       !title ? "title" : null,
       !summary ? "summary" : null,
-      !taskDraft.subsystemId ? "subsystem" : null,
+      !taskDraft.subsystemIds.length ? "subsystem" : null,
       !taskDraft.ownerId ? "owner" : null,
       Number.isNaN(parsedEstimatedHours) || parsedEstimatedHours < 0 ? "estimated hours" : null,
     ].filter((field): field is string => Boolean(field));
@@ -243,11 +248,13 @@ export function useTaskEditor({ tasks, taskById, taskDependencies, members, memb
     const payload = mapTaskPayloadToServer({
       title,
       summary,
-      subsystemId: taskDraft.subsystemId,
+      subsystemIds: taskDraft.subsystemIds,
+      workstreamIds: taskDraft.workstreamIds,
+      artifactIds: taskDraft.artifactIds,
       disciplineId:
         taskDraft.disciplineId || disciplines[0]?.id || "mechanical",
-      mechanismId: taskDraft.mechanismId,
-      partInstanceId: taskDraft.partInstanceId,
+      mechanismIds: taskDraft.mechanismIds,
+      partInstanceIds: taskDraft.partInstanceIds,
       targetEventId: taskDraft.targetEventId,
       ownerId: taskDraft.ownerId,
       mentorId: taskDraft.mentorId || null,
@@ -323,5 +330,5 @@ export function useTaskEditor({ tasks, taskById, taskDependencies, members, memb
     }
   };
 
-  return { taskDraft, taskEditorError, taskEditorMode, taskDependencySearch, setTaskDependencySearch, setTaskDraft, availableTaskDependencyOptions, downstreamTaskDependencies, selectedTaskDependencies, taskDependencyReadinessMessage, openCreateTaskEditor, openEditTaskEditor, openDuplicateTaskEditor, closeTaskEditor, addTaskDependency, removeTaskDependency, saveTaskDraft, deleteTaskDraft };
+  return { selectSubsystem, selectMechanism, selectPart, taskDraft, taskEditorError, taskEditorMode, taskDependencySearch, setTaskDependencySearch, setTaskDraft, availableTaskDependencyOptions, downstreamTaskDependencies, selectedTaskDependencies, taskDependencyReadinessMessage, openCreateTaskEditor, openEditTaskEditor, openDuplicateTaskEditor, closeTaskEditor, addTaskDependency, removeTaskDependency, saveTaskDraft, deleteTaskDraft };
 }

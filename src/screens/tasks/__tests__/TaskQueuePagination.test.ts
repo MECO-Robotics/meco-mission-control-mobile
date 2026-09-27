@@ -8,10 +8,10 @@ import type { Task } from "../../../types/domain";
 function queueProps(count: number, taskSearch = "") {
   const tasks = Array.from({ length: count }, (_, index) => ({
     id: `task-${index}`, title: `Measured task ${index}`, summary: "Prepare robot hardware",
-    subsystemId: "drive", disciplineId: "mechanical", ownerId: null,
+    workstreamIds: [], artifactIds: [], subsystemIds: ["drive"], disciplineId: "mechanical", ownerId: null,
     dueDate: "2026-10-01", status: "not-started", priority: "medium",
     linkedManufacturingIds: [], linkedPurchaseIds: [], blockers: [], checklistItems: [],
-    estimatedHours: 1, actualHours: 0, mechanismId: null, partInstanceId: null,
+    estimatedHours: 1, actualHours: 0, mechanismIds: [], partInstanceIds: [],
     targetEventId: null, mentorId: null, isBlocked: false, isWaitingOnDependency: false,
   } as Task));
   return {
