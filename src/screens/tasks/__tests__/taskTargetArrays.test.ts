@@ -137,3 +137,20 @@ test("timeline membership and part lifecycle include secondary targets without d
   expect(lanes.find((lane) => lane.id === "b")?.tasks.map((item) => item.task.id)).toEqual([task.id]);
   expect(derivePartLifecycleStatus(parts[1], [multi])).toBe("installed");
 });
+
+test("secondary lanes sort multi-target tasks chronologically before reusing tracks", () => {
+  const lateTask = {
+    ...task, id: "late-multi", subsystemIds: ["a", "b"],
+    startDate: "2026-09-15", dueDate: "2026-09-20",
+  };
+  const earlyTask = {
+    ...task, id: "early-multi", subsystemIds: ["b", "a"],
+    startDate: "2026-09-02", dueDate: "2026-09-06",
+  };
+  const lane = buildLanes([lateTask, earlyTask], subsystems, new Date(2026, 8, 1), 30)
+    .find((item) => item.id === "b");
+
+  expect(lane?.tasks.map(({ task: item }) => item.id)).toEqual(["early-multi", "late-multi"]);
+  expect(lane?.tasks.map(({ top }) => top)).toEqual([10, 10]);
+  expect(lane?.height).toBe(52);
+});

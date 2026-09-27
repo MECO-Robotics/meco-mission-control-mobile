@@ -60,6 +60,13 @@ function getTaskStartDate(task: Task) {
   return addDays(parseDate(task.dueDate), -estimatedDays + 1);
 }
 
+function compareTasksByTimelineDate(left: Task, right: Task) {
+  return (
+    getTaskStartDate(left).getTime() - getTaskStartDate(right).getTime() ||
+    left.dueDate.localeCompare(right.dueDate)
+  );
+}
+
 export function getTaskDateRange(task: Task) {
   const taskStart = getTaskStartDate(task);
   const taskEnd = parseDate(task.dueDate);
@@ -142,10 +149,7 @@ export function buildLanes(tasks: Task[], subsystems: Subsystem[], monthStart: D
         return subsystemDelta;
       }
 
-      return (
-        getTaskStartDate(left).getTime() - getTaskStartDate(right).getTime() ||
-        left.dueDate.localeCompare(right.dueDate)
-      );
+      return compareTasksByTimelineDate(left, right);
     })
     .forEach((task) => {
       for (const subsystemId of new Set(task.subsystemIds.length ? task.subsystemIds : [""])) {
@@ -161,7 +165,9 @@ export function buildLanes(tasks: Task[], subsystems: Subsystem[], monthStart: D
   return Array.from(lanesBySubsystem.entries()).map(([subsystemId, lane]) => {
     const trackEndIndexes: number[] = [];
     const taskColorOffset = getStableColorIndex(subsystemId, TASK_COLORS.length);
-    const visibleTasks = lane.tasks.filter((task) => getLaneTaskRange(task, monthStart, dayCount) !== null);
+    const visibleTasks = lane.tasks
+      .filter((task) => getLaneTaskRange(task, monthStart, dayCount) !== null)
+      .sort(compareTasksByTimelineDate);
     const packedTasks = visibleTasks.map((task, taskIndex) => {
       const dateIndexes = getTaskDateIndexes(task, monthStart);
       const trackIndex = trackEndIndexes.findIndex((endIndex) => endIndex < dateIndexes.firstIndex);
