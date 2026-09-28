@@ -4,12 +4,13 @@ import { TaskQueueScreen } from "../TaskQueueScreen";
 import type { TaskScreenProps } from "../taskScreenTypes";
 import { useTaskQueue } from "../useTaskQueue";
 import type { Task } from "../../../types/domain";
+import { localTodayDate, shiftDateByDays } from "../../../ui/helpers";
 
-function queueProps(count: number, taskSearch = "") {
+function queueProps(count: number, taskSearch = "", dueDate = "2026-10-01") {
   const tasks = Array.from({ length: count }, (_, index) => ({
     id: `task-${index}`, title: `Measured task ${index}`, summary: "Prepare robot hardware",
     workstreamIds: [], artifactIds: [], subsystemIds: ["drive"], disciplineId: "mechanical", ownerId: null,
-    dueDate: "2026-10-01", status: "not-started", priority: "medium",
+    dueDate, status: "not-started", priority: "medium",
     linkedManufacturingIds: [], linkedPurchaseIds: [], blockers: [], checklistItems: [],
     estimatedHours: 1, actualHours: 0, mechanismIds: [], partInstanceIds: [],
     targetEventId: null, mentorId: null, isBlocked: false, isWaitingOnDependency: false,
@@ -26,6 +27,19 @@ function queueProps(count: number, taskSearch = "") {
     taskDependencies: [], taskById: {}, taskLoggedHoursById: {}, qaReviews: [],
   } as unknown as TaskScreenProps;
 }
+
+test("due-soon pill includes the seventh local calendar day east of UTC", () => {
+  const originalTimezone = process.env.TZ;
+  try {
+    process.env.TZ = "Australia/Sydney";
+    const seventhDay = shiftDateByDays(localTodayDate(), 7);
+    const view = render(createElement(TaskQueueScreen, queueProps(1, "", seventhDay)));
+    expect(view.getByText("Due soon")).toBeTruthy();
+  } finally {
+    if (originalTimezone === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTimezone;
+  }
+});
 
 test("measures actual large task queue mount", () => {
   const started = performance.now();
