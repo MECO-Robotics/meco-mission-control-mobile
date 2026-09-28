@@ -53,17 +53,10 @@ export const landscapeTimelineHeaderStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  controlButtonActive: {
-    borderColor: plannerColors.today,
-    backgroundColor: plannerColors.controlActiveSurface,
-  },
   controlLabel: {
     color: plannerColors.controlMuted,
     fontSize: 15,
     fontWeight: "800",
-  },
-  controlLabelActive: {
-    color: plannerColors.controlActiveInk,
   },
   addButton: {
     minHeight: 42,

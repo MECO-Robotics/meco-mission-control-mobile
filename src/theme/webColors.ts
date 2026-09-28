@@ -210,9 +210,7 @@ export const plannerColors = {
   stripe: "rgba(22, 71, 142, 0.12)",
   today: brandColors.blue,
   controlBorder: "#d9e0ea",
-  controlActiveSurface: "#d7e3f6",
   controlMuted: "#6f7d91",
-  controlActiveInk: "#173b6d",
   addButton: "#1f5aa6",
 } as const;
 

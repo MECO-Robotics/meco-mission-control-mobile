@@ -45,18 +45,11 @@ export function LandscapeTimelineMonthPicker({
 
   return (
     <>
-      <Pressable
-        onPress={() => setIsMonthMenuOpen((current) => !current)}
-        style={[
-          styles.controlButton,
-          styles.controlButtonActive,
-          { borderColor: colors.blue, backgroundColor: colors.navySurface },
-        ]}
-      >
-        <Text style={[styles.controlLabel, styles.controlLabelActive, { color: colors.navyInk }]}>Month</Text>
-      </Pressable>
       <View style={styles.monthMenuAnchor}>
         <Pressable
+          accessibilityLabel={`Select month ${formatMonth(timelineStart, locale)}`}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: isMonthMenuOpen }}
           onPress={() => setIsMonthMenuOpen((current) => !current)}
           style={[styles.controlButton, { borderColor: colors.border, backgroundColor: colors.surface }]}
         >
@@ -66,6 +59,8 @@ export function LandscapeTimelineMonthPicker({
           <View style={[styles.monthMenu, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.monthMenuYearRow}>
               <Pressable
+                accessibilityLabel="Previous year"
+                accessibilityRole="button"
                 onPress={() => onSelectMonth(getYearShiftDate(timelineStart, -1))}
                 style={[styles.monthMenuYearButton, { borderColor: colors.border }]}
               >
@@ -73,6 +68,8 @@ export function LandscapeTimelineMonthPicker({
               </Pressable>
               <Text style={[styles.monthMenuYearLabel, { color: colors.ink }]}>{timelineYear}</Text>
               <Pressable
+                accessibilityLabel="Next year"
+                accessibilityRole="button"
                 onPress={() => onSelectMonth(getYearShiftDate(timelineStart, 1))}
                 style={[styles.monthMenuYearButton, { borderColor: colors.border }]}
               >
@@ -86,6 +83,9 @@ export function LandscapeTimelineMonthPicker({
                 return (
                   <Pressable
                     key={option.monthIndex}
+                    accessibilityLabel={formatMonth(option.date, locale)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isSelected }}
                     onPress={() => {
                       onSelectMonth(option.date);
                       setIsMonthMenuOpen(false);
