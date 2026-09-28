@@ -1,7 +1,6 @@
 import { StyleSheet } from "react-native";
 
-import { colors, spacing } from "../../theme";
-import { planner } from "./landscapeTimelinePalette";
+import { colors, plannerColors, spacing } from "../../theme";
 
 export const landscapeCalendarStyles = StyleSheet.create({
   calendar: {
@@ -73,7 +72,7 @@ export const landscapeCalendarStyles = StyleSheet.create({
     fontWeight: "900",
   },
   moreText: {
-    color: planner.muted,
+    color: plannerColors.muted,
     fontSize: 10,
     fontWeight: "800",
   },

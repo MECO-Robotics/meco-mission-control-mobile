@@ -1,7 +1,6 @@
 import { StyleSheet } from "react-native";
 
-import { colors, spacing } from "../../theme";
-import { planner } from "./landscapeTimelinePalette";
+import { colors, plannerColors, spacing } from "../../theme";
 
 export const landscapeTimelineHeaderStyles = StyleSheet.create({
   header: {
@@ -48,28 +47,28 @@ export const landscapeTimelineHeaderStyles = StyleSheet.create({
     minHeight: 38,
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: planner.controlBorder,
+    borderColor: plannerColors.controlBorder,
     backgroundColor: colors.white,
     paddingHorizontal: spacing.md,
     alignItems: "center",
     justifyContent: "center",
   },
   controlButtonActive: {
-    borderColor: planner.today,
-    backgroundColor: planner.controlActiveSurface,
+    borderColor: plannerColors.today,
+    backgroundColor: plannerColors.controlActiveSurface,
   },
   controlLabel: {
-    color: planner.controlMuted,
+    color: plannerColors.controlMuted,
     fontSize: 15,
     fontWeight: "800",
   },
   controlLabelActive: {
-    color: planner.controlActiveInk,
+    color: plannerColors.controlActiveInk,
   },
   addButton: {
     minHeight: 42,
     borderRadius: 999,
-    backgroundColor: planner.addButton,
+    backgroundColor: plannerColors.addButton,
     paddingHorizontal: spacing.lg,
     alignItems: "center",
     justifyContent: "center",

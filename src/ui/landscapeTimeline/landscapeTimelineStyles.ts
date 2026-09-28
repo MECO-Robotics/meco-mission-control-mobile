@@ -1,7 +1,6 @@
 import { StyleSheet } from "react-native";
 
-import { spacing } from "../../theme";
-import { planner } from "./landscapeTimelinePalette";
+import { plannerColors, spacing } from "../../theme";
 
 export const landscapeTimelineStyles = StyleSheet.create({
   shell: {
@@ -14,8 +13,8 @@ export const landscapeTimelineStyles = StyleSheet.create({
     minHeight: 268,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: planner.border,
-    backgroundColor: planner.chart,
+    borderColor: plannerColors.border,
+    backgroundColor: plannerColors.chart,
     overflow: "hidden",
   },
   contentRow: {
@@ -26,10 +25,10 @@ export const landscapeTimelineStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: spacing.lg,
-    backgroundColor: planner.chart,
+    backgroundColor: plannerColors.chart,
   },
   emptyText: {
-    color: planner.muted,
+    color: plannerColors.muted,
     fontSize: 15,
     fontWeight: "800",
     textAlign: "center",

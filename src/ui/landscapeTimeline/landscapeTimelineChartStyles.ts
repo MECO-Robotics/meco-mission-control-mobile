@@ -1,24 +1,23 @@
 import { StyleSheet } from "react-native";
 
-import { colors, spacing } from "../../theme";
+import { colors, plannerColors, spacing } from "../../theme";
 import { DAY_WIDTH } from "./landscapeTimelineModel";
-import { planner } from "./landscapeTimelinePalette";
 
 export const landscapeTimelineChartStyles = StyleSheet.create({
   chart: {
     position: "relative",
-    backgroundColor: planner.chart,
+    backgroundColor: plannerColors.chart,
   },
   monthLabel: {
     height: 26,
     alignItems: "center",
     justifyContent: "center",
     borderBottomWidth: 1,
-    borderColor: planner.border,
-    backgroundColor: planner.header,
+    borderColor: plannerColors.border,
+    backgroundColor: plannerColors.header,
   },
   monthText: {
-    color: planner.today,
+    color: plannerColors.today,
     fontSize: 10,
     fontWeight: "900",
     textTransform: "uppercase",
@@ -27,18 +26,18 @@ export const landscapeTimelineChartStyles = StyleSheet.create({
     height: 40,
     flexDirection: "row",
     borderBottomWidth: 1,
-    borderColor: planner.border,
-    backgroundColor: planner.header,
+    borderColor: plannerColors.border,
+    backgroundColor: plannerColors.header,
   },
   dayHeaderCell: {
     width: DAY_WIDTH,
     alignItems: "center",
     justifyContent: "center",
     borderRightWidth: 1,
-    borderColor: planner.border,
+    borderColor: plannerColors.border,
   },
   weekday: {
-    color: planner.muted,
+    color: plannerColors.muted,
     fontSize: 8,
     fontWeight: "800",
   },
@@ -50,7 +49,7 @@ export const landscapeTimelineChartStyles = StyleSheet.create({
   todayPill: {
     position: "absolute",
     top: 2,
-    color: planner.today,
+    color: plannerColors.today,
     fontSize: 7,
     fontWeight: "900",
   },
@@ -58,13 +57,13 @@ export const landscapeTimelineChartStyles = StyleSheet.create({
     position: "relative",
     flexDirection: "row",
     borderBottomWidth: 1,
-    borderColor: planner.border,
+    borderColor: plannerColors.border,
   },
   dayCell: {
     width: DAY_WIDTH,
     borderRightWidth: 1,
-    borderColor: planner.border,
-    backgroundColor: planner.chart,
+    borderColor: plannerColors.border,
+    backgroundColor: plannerColors.chart,
   },
   taskBar: {
     position: "absolute",
