@@ -1,4 +1,5 @@
-import type { Member, QaReview } from "../../types/domain";
+import type { Member, QaReport } from "../../types/domain";
+import { getQaReviewTaskId } from "../../app/appModel";
 import { EditorModal } from "../../ui/ui";
 import { View } from "react-native";
 
@@ -6,7 +7,7 @@ import { Text } from "../../i18n";
 import { styles } from "../../ui/styles";
 import { useAppTheme } from "../../ui/themeContext";
 
-type Props = { review: QaReview | null; membersById: Record<string, Member>; onClose: () => void };
+type Props = { review: QaReport | null; membersById: Record<string, Member>; onClose: () => void };
 
 type QaDetailRow = {
   label: string;
@@ -16,16 +17,16 @@ type QaDetailRow = {
 
 export function QaReviewDetail({ review, membersById, onClose }: Props) {
   const rows: QaDetailRow[] = review ? [
-    { label: "QA item", value: review.subjectTitle },
-    { label: "Requested by", value: review.requestedById ? membersById[review.requestedById]?.name ?? "Unknown person" : review.participantIds.map((id) => membersById[id]?.name ?? id).join(", ") || "Not recorded" },
+    { label: "QA item", value: review.summary || getQaReviewTaskId(review) || "QA report" },
+    { label: "Participants", value: review.participantIds.map((id) => membersById[id]?.name ?? id).join(", ") || "Not recorded" },
     { label: "Reviewer", value: review.mentorId ? membersById[review.mentorId]?.name ?? "Unknown reviewer" : "Not recorded" },
     { label: "Result", value: review.result.replaceAll("-", " ") },
-    { label: "Mentor approval", value: review.mentorApproved ? "Approved" : "Pending" },
+    { label: "Review status", value: review.status },
     { label: "Notes", value: review.notes, multiline: true },
     ...(review.evidenceNotes ? [{ label: "Evidence", value: review.evidenceNotes, multiline: true }] : []),
     ...(review.result === "iteration-worthy" ? [{ label: "Follow-up", value: "This finding should create or anchor a design iteration.", multiline: true }] : []),
   ] : [];
-  return <EditorModal title={review?.subjectTitle ?? "QA result"} visible={Boolean(review)}
+  return <EditorModal title={review?.summary ?? "QA report"} visible={Boolean(review)}
     onCancel={onClose} onSave={onClose} saveLabel="Done">
     <View style={styles.modalContent}>
       {rows.map((row) => <QaDetailField key={row.label} {...row} />)}

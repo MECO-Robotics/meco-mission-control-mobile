@@ -14,6 +14,7 @@ import {
   OptionChipRow,
   SearchField,
   StatusPill,
+  DropdownField,
   SummaryRow,
   WorkspacePanel,
 } from "../../ui/ui";
@@ -28,16 +29,15 @@ export function InventoryPartsScreen(props: AppScreenProps) {
     openCreatePartDefinitionEditor,
     openEditPartDefinitionEditor,
     partDefinitionsById,
-    mechanismsById,
     subsystems,
-    subsystemsById,
+    updatePartInstance,
   } = props;
   const { filters, updateFilters, definitions, instances, definitionStatsById, summary } = partsBrowse;
 
   return (
     <WorkspacePanel
       title="Part manager"
-      subtitle="Definition catalog on top with subsystem part instances and lifecycle state below."
+      subtitle="Part definitions describe designs; each PartInstance records one physical unit and its separate readiness."
       actions={
         <ActionButton
           onPress={openCreatePartDefinitionEditor}
@@ -104,39 +104,44 @@ export function InventoryPartsScreen(props: AppScreenProps) {
               <Text style={editTagStyle}>EDIT</Text>
             </View>
 
-            <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
-              Source {partDefinition.source} | Count {stats.count} | Spares {stats.spares}
+        <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
+              CAD {partDefinition.cadSource} | Default acquisition {partDefinition.defaultAcquisitionMethod} | Count {stats.count} | Stock {stats.spares}
             </Text>
           </Pressable>
         );
       })}
 
       <Text style={[styles.subsectionLabel, appResponsiveStyles.subsectionLabel]}>Part instances</Text>
-      {instances.map(({ partInstance, status }) => {
+      {instances.map(({ partInstance, locationLabel }) => {
         const definition = partDefinitionsById[partInstance.partDefinitionId];
-        const mechanismName = partInstance.mechanismId
-          ? (mechanismsById[partInstance.mechanismId]?.name ?? "Unknown mechanism")
-          : "Unassigned";
-        const subsystemName = subsystemsById[partInstance.subsystemId]?.name ?? "Unknown";
+        const locationKind = partInstance.location.kind;
+        const nextLocation = (kind: string) => {
+          const location = kind === "installed"
+            ? { kind: "installed" as const, subsystemId: partInstance.intendedSubsystemId ?? subsystems[0]?.id ?? "", mechanismId: partInstance.intendedMechanismId }
+            : kind === "stock" || kind === "repair"
+              ? { kind: kind as "stock" | "repair", location: locationKind === kind && (partInstance.location.kind === "stock" || partInstance.location.kind === "repair") ? partInstance.location.location : "Unassigned" }
+              : kind === "retired" ? { kind: "retired" as const, location: "Unassigned" }
+                : kind === "lost" ? { kind: "lost" as const } : { kind: "unlocated" as const };
+          void updatePartInstance(partInstance, { location });
+        };
 
         return (
           <View key={partInstance.id} style={[styles.queueRowCard, appResponsiveStyles.rowCard]}>
             <View style={styles.queueRowHeader}>
               <View style={styles.queueRowPrimaryText}>
-                <Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>{partInstance.name}</Text>
+                <Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>{definition?.partNumber ?? partInstance.id}</Text>
                 <Text style={[styles.queueRowSubtitle, appResponsiveStyles.rowSubtitle]}>
-                  {definition?.name ?? "Unknown definition"} - {subsystemName}
+                  {definition?.name ?? "Unknown definition"} - {locationLabel}
                 </Text>
               </View>
-              <StatusPill label={status} value={status} />
+              <StatusPill label={partInstance.readinessStatus ?? "readiness not set"} value={partInstance.readinessStatus ?? "neutral"} />
             </View>
 
             <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
-              Mechanism {mechanismName} | Qty {partInstance.quantity}
+              Physical location
             </Text>
-            <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
-              Tracking {partInstance.trackIndividually ? "Individual" : "Bulk"}
-            </Text>
+            <DropdownField label="Location state" value={locationKind} options={[{id:"stock",name:"Stock"},{id:"installed",name:"Installed"},{id:"repair",name:"Repair"},{id:"retired",name:"Retired"},{id:"lost",name:"Lost"},{id:"unlocated",name:"Unlocated"}]} onChange={nextLocation} />
+            <DropdownField label="Derived readiness" value={partInstance.readinessStatus ?? ""} options={[{id:"not-ready",name:"Not ready"},{id:"blocked",name:"Blocked"},{id:"qa",name:"QA"},{id:"ready",name:"Ready"}]} clearLabel="Not assessed" onChange={(readinessStatus) => void updatePartInstance(partInstance, { readinessStatus: (readinessStatus || undefined) as "not-ready" | "blocked" | "qa" | "ready" | undefined })} />
           </View>
         );
       })}

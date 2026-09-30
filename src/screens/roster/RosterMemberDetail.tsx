@@ -18,7 +18,7 @@ const PLANNED_ATTENDANCE_DAY_LABELS: Record<string, string> = {
 
 type RosterMemberDetailProps = {
   canMentorApprove: boolean;
-  disciplineName: string | null;
+  responsibleGroupNames: string;
   member: Member;
   tasks: Task[];
   onClose: () => void;
@@ -42,7 +42,7 @@ function formatPlannedAttendanceDays(member: Member) {
 
 export function RosterMemberDetail({
   canMentorApprove,
-  disciplineName,
+  responsibleGroupNames,
   member,
   tasks,
   onClose,
@@ -70,7 +70,7 @@ export function RosterMemberDetail({
               { color: themeColors.subtleText },
             ]}
           >
-            {disciplineName ?? formatRole(member.role)}
+            {responsibleGroupNames || formatRole(member.role)}
           </Text>
         </View>
         <Pressable

@@ -21,6 +21,7 @@ export function SubsystemsScreen(props: AppScreenProps) {
     appResponsiveStyles,
     editTagStyle,
     subsystemBrowse,
+    riskRows,
     membersById,
     openCreateSubsystemEditor,
     openEditSubsystemEditor,
@@ -114,10 +115,10 @@ export function SubsystemsScreen(props: AppScreenProps) {
               ) : null}
             </View>
 
-            {subsystem.risks.length > 0 ? (
+            {riskRows.some((risk) => risk.subsystemId === subsystem.id) ? (
               <View style={styles.queuePillRow}>
-                {subsystem.risks.map((risk) => (
-                  <StatusPill key={risk} label={risk} value="warning" />
+                {riskRows.filter((risk) => risk.subsystemId === subsystem.id).map((risk) => (
+                  <StatusPill key={risk.id} label={risk.title} value={risk.priority} />
                 ))}
               </View>
             ) : null}

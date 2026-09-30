@@ -23,7 +23,7 @@ import type { ArchiveFilterMode } from "../../ui/types";
 import type { TaskScreenProps } from "./taskScreenTypes";
 
 type TaskTimelineScreenProps = Pick<TaskScreenProps,
-  | "activeTaskSubteamLabel" | "appResponsiveStyles" | "eventOptions"
+  | "activeResponsibleGroupLabel" | "appResponsiveStyles" | "eventOptions"
   | "eventsById" | "membersById" | "openCreateTaskEditor"
   | "openEditTaskEditor" | "setTimelineMilestoneFilter"
   | "setTimelineSubsystemFilter" | "subsystems" | "subsystemsById"
@@ -33,7 +33,7 @@ type TaskTimelineScreenProps = Pick<TaskScreenProps,
 
 export function TaskTimelineScreen(props: TaskTimelineScreenProps) {
   const {
-    activeTaskSubteamLabel,
+    activeResponsibleGroupLabel,
     appResponsiveStyles,
     eventOptions,
     eventsById,
@@ -52,7 +52,7 @@ export function TaskTimelineScreen(props: TaskTimelineScreenProps) {
 
   return (
     <WorkspacePanel
-      title={`${activeTaskSubteamLabel} timeline`}
+      title={`${activeResponsibleGroupLabel} timeline`}
       subtitle="Calendar-ordered milestones and ownership cues for the selected subteam."
       actions={
         <ActionButton
@@ -95,7 +95,7 @@ export function TaskTimelineScreen(props: TaskTimelineScreenProps) {
         const ownerName = task.ownerId
           ? (membersById[task.ownerId]?.name ?? "Unassigned")
           : "Unassigned";
-        const targetEvent = task.targetEventId ? eventsById[task.targetEventId]?.title : null;
+        const targetEvent = task.scheduleRefs[0] ? eventsById[`${task.scheduleRefs[0].kind}:${task.scheduleRefs[0].id}`]?.title : null;
 
         return (
           <Pressable

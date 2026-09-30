@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { useWindowDimensions, View } from "react-native";
 
-import type { Event, Subsystem, Task } from "../../types/domain";
+import type { Subsystem, Task } from "../../types/domain";
+import type { ScheduleEntry } from "../../app/appModel";
 import type { AppThemeColors } from "../../theme";
 import { getAppLocale, localTodayDate } from "../helpers";
 import { LandscapeCalendarView } from "./LandscapeCalendarView";
@@ -22,7 +23,7 @@ import { landscapeTimelineStyles as styles } from "./landscapeTimelineStyles";
 
 type Props = {
   colors: AppThemeColors;
-  events: Event[];
+  events: ScheduleEntry[];
   onAddDeadline: () => void;
   onAddTask: () => void;
   onTaskPress: (task: Task) => void;

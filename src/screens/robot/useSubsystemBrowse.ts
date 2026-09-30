@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Mechanism, Member, PurchaseItem, QaReview, Subsystem, Task } from "../../types/domain";
-import { getQaReviewTaskId } from "../../app/appModel";
+import type { Mechanism, Member, PurchaseItem, QaFinding, Risk, Subsystem, Task } from "../../types/domain";
 import { localTodayDate } from "../../ui/helpers";
 
 type Filters = { search: string };
@@ -9,7 +8,8 @@ type Inputs = {
   mechanisms: Mechanism[];
   tasks: Task[];
   purchaseItems: PurchaseItem[];
-  qaReviews: QaReview[];
+  qaFindings: QaFinding[];
+  risks: Risk[];
   membersById: Record<string, Member>;
   taskById: Record<string, Task>;
 };
@@ -26,7 +26,7 @@ type SubsystemCounts = {
   tasks: number;
 };
 
-export function useSubsystemBrowse({ subsystems, mechanisms, tasks, purchaseItems, qaReviews, membersById, taskById }: Inputs) {
+export function useSubsystemBrowse({ subsystems, mechanisms, tasks, purchaseItems, qaFindings, risks, membersById, taskById }: Inputs) {
   const [filters, setFilters] = useState<Readonly<Filters>>({ search: "" });
   const [expandedId, setExpandedId] = useState(subsystems[0]?.id ?? "");
   const hasInitializedExpansion = useRef(subsystems.length > 0);
@@ -62,7 +62,7 @@ export function useSubsystemBrowse({ subsystems, mechanisms, tasks, purchaseItem
           overdueTasks: 0,
           qaFindings: 0,
           waitingQa: 0,
-          risks: subsystem.risks.length,
+          risks: 0,
           tasks: 0,
         },
       ]),
@@ -80,7 +80,7 @@ export function useSubsystemBrowse({ subsystems, mechanisms, tasks, purchaseItem
         if (task.status !== "complete") {
           bucket.openTasks += 1;
         }
-        if (task.status !== "complete" && task.blockers.length > 0) {
+        if (task.status !== "complete" && (task.isBlocked || task.isWaitingOnDependency)) {
           bucket.blockedTasks += 1;
         }
         if (task.status !== "complete" && task.dueDate < today) {
@@ -93,22 +93,36 @@ export function useSubsystemBrowse({ subsystems, mechanisms, tasks, purchaseItem
     }
 
     for (const purchase of purchaseItems) {
-      const bucket = counts[purchase.subsystemId];
-      if (bucket && purchase.status !== "delivered") {
+      const task = taskById[purchase.taskId];
+      for (const subsystemId of new Set(task?.subsystemIds ?? [])) {
+        const bucket = counts[subsystemId];
+        if (bucket && purchase.orderStatus !== "delivered" && purchase.orderStatus !== "cancelled") {
         bucket.openPurchases += 1;
+        }
       }
     }
 
-    for (const review of qaReviews) {
-      if (review.result === "pass") {
-        continue;
-      }
-
-      const taskId = getQaReviewTaskId(review);
-      const task = taskId ? taskById[taskId] : null;
-      for (const subsystemId of new Set(task?.subsystemIds ?? [])) {
+    for (const finding of qaFindings) {
+      if (finding.status === "resolved") continue;
+      const linkedSubsystemIds = finding.targetRefs.flatMap((target) => {
+        if (target.kind === "subsystem") return [target.id];
+        if (target.kind === "task") return taskById[target.id]?.subsystemIds ?? [];
+        return [];
+      });
+      for (const subsystemId of new Set(linkedSubsystemIds)) {
         const bucket = counts[subsystemId];
         if (bucket) bucket.qaFindings += 1;
+      }
+    }
+
+    for (const risk of risks) {
+      if (risk.status === "resolved") continue;
+      for (const target of risk.relatedTargets) {
+        const subsystemIds = target.kind === "subsystem" ? [target.id] : target.kind === "task" ? taskById[target.id]?.subsystemIds ?? [] : [];
+        for (const subsystemId of subsystemIds) {
+          const bucket = counts[subsystemId];
+          if (bucket) bucket.risks += 1;
+        }
       }
     }
 
@@ -126,7 +140,7 @@ export function useSubsystemBrowse({ subsystems, mechanisms, tasks, purchaseItem
     }
 
     return counts;
-  }, [purchaseItems, qaReviews, subsystems, taskById, tasks]);
+  }, [purchaseItems, qaFindings, risks, subsystems, taskById, tasks]);
 
   const filteredSubsystems = useMemo(() => {
     const search = filters.search.trim().toLowerCase();
@@ -146,7 +160,7 @@ export function useSubsystemBrowse({ subsystems, mechanisms, tasks, purchaseItem
         .map((mechanism) => mechanism.name)
         .join(" ");
 
-      return `${subsystem.name} ${subsystem.description} ${leadName} ${mentorNames} ${mechanismNames} ${subsystem.risks.join(" ")}`
+      return `${subsystem.name} ${subsystem.description} ${leadName} ${mentorNames} ${mechanismNames}`
         .toLowerCase()
         .includes(search);
     });

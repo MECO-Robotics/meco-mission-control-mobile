@@ -1,23 +1,33 @@
 import { useMemo, useRef, useState } from "react";
-import type { Mechanism, PartInstance, Task, TaskDependency, TaskBlocker, Member, Discipline, Subsystem } from "../../types/domain";
-import type { EditorMode, Option, TaskSubteamTab } from "../../ui/types";
-import { STATUS_LABELS, TASK_SUBTEAM_DISCIPLINE_IDS } from "../../ui/constants";
-import { isoToday, localTodayDate, splitList } from "../../ui/helpers";
+import type { Mechanism, PartInstance, Task, TaskDependency, Member, WorkType, Project } from "../../types/domain";
+import type { EditorMode, Option } from "../../ui/types";
+import { STATUS_LABELS } from "../../ui/constants";
+import { isoToday, localTodayDate } from "../../ui/helpers";
 import { taskDependsOnTarget } from "../../data/taskReadiness";
-import { getTaskSubteamForDisciplineId } from "../../data/taskQueueOrdering";
-import { getClientErrorMessage, mapTaskPayloadToServer } from "../../app/appModel";
+import { getClientErrorMessage } from "../../app/appModel";
 import { buildTaskDraft, selectTaskSubsystem, selectTaskMechanism, selectTaskPart, type TaskDraft } from "./taskDraft";
 
+type DependencyDraft = TaskDependency extends infer Edge ? Edge extends TaskDependency ? Omit<Edge, "id" | "taskId" | "createdAt"> : never : never;
 type Inputs = {
-  mechanisms: Mechanism[]; partInstances: PartInstance[];
-  tasks: Task[]; taskById: Record<string, Task>; taskDependencies: TaskDependency[];
-  members: Member[]; membersById: Record<string, Member>; disciplines: Discipline[];
-  subsystemsById: Record<string, Subsystem>; taskSubsystemOptions: Option[];
-  activeTaskSubteam: TaskSubteamTab; setActiveTaskSubteam: (subteam: TaskSubteamTab) => void;
-  request: <T>(path: string, init: RequestInit) => Promise<T>; refresh: () => Promise<unknown>;
+  mechanisms: Mechanism[];
+  partInstances: PartInstance[];
+  projects: Project[];
+  workTypes: WorkType[];
+  tasks: Task[];
+  taskById: Record<string, Task>;
+  taskDependencies: TaskDependency[];
+  members: Member[];
+  membersById: Record<string, Member>;
+  subsystemsById: Record<string, import("../../types/domain").Subsystem>;
+  taskSubsystemOptions: Option[];
+  activeResponsibleGroupId: string;
+  setActiveResponsibleGroupId: (groupId: string) => void;
+  request: <T>(path: string, init: RequestInit) => Promise<T>;
+  refresh: () => Promise<unknown>;
 };
-export function useTaskEditor({ mechanisms, partInstances, tasks, taskById, taskDependencies, members, membersById, disciplines,
-  subsystemsById, taskSubsystemOptions, activeTaskSubteam, setActiveTaskSubteam, request, refresh }: Inputs) {
+
+export function useTaskEditor({ mechanisms, partInstances, projects, workTypes, tasks, taskById, taskDependencies, members, membersById,
+  subsystemsById, taskSubsystemOptions, activeResponsibleGroupId, setActiveResponsibleGroupId, request, refresh }: Inputs) {
   const editorVersion = useRef(0);
   const saving = useRef(false);
   const [taskEditorMode, setTaskEditorMode] = useState<EditorMode | null>(null);
@@ -26,174 +36,56 @@ export function useTaskEditor({ mechanisms, partInstances, tasks, taskById, task
   const [taskEditorError, setTaskEditorError] = useState<string | null>(null);
   const [taskDependencySearch, setTaskDependencySearch] = useState("");
 
-  const selectedTaskDependencyIds = useMemo(() => {
-    return taskDraft.dependencies.filter((edge) => edge.kind === "task").map((edge) => edge.refId)
-      .filter((dependencyId) => taskById[dependencyId])
-      .filter((dependencyId) => dependencyId !== activeTaskId);
-  }, [activeTaskId, taskById, taskDraft.dependencies]);
-  const selectedTaskDependencies = useMemo(() => {
-    return selectedTaskDependencyIds
-      .map((dependencyId) => taskById[dependencyId])
-      .filter((task): task is Task => Boolean(task));
-  }, [selectedTaskDependencyIds, taskById]);
+  const selectedTaskDependencyIds = useMemo(() => taskDraft.dependencies.filter((edge) => edge.kind === "task").map((edge) => edge.refId)
+    .filter((id) => taskById[id] && id !== activeTaskId), [activeTaskId, taskById, taskDraft.dependencies]);
+  const selectedTaskDependencies = useMemo(() => selectedTaskDependencyIds.map((id) => taskById[id]).filter((task): task is Task => Boolean(task)), [selectedTaskDependencyIds, taskById]);
   const taskDependencyReadinessMessage = useMemo(() => {
-    const unresolved = taskDraft.dependencies.filter((edge) => edge.kind === "task" && edge.dependencyType === "hard" && taskById[edge.refId]?.status !== edge.requiredState);
-    if (unresolved.length === 0) return null;
-    return `Waiting on: ${unresolved.map((edge) => `${taskById[edge.refId]?.title ?? `Missing task ${edge.refId}`} (${edge.requiredState} required)`).join(", ")}.`;
+    const unresolved = taskDraft.dependencies.filter((edge): edge is Extract<DependencyDraft, { kind: "task" }> => edge.kind === "task" && edge.dependencyType === "hard" && taskById[edge.refId]?.status !== edge.requiredState);
+    return unresolved.length ? `Waiting on: ${unresolved.map((edge) => `${taskById[edge.refId]?.title ?? `Missing task ${edge.refId}`} (${edge.requiredState} required)`).join(", ")}.` : null;
   }, [taskDraft.dependencies, taskById]);
-  const downstreamTaskDependencies = useMemo(() => {
-    if (!activeTaskId) {
-      return [];
-    }
-
-    return tasks
-      .filter((task) => task.id !== activeTaskId)
-      .filter((task) => taskDependencies.some((edge) => edge.taskId === task.id && edge.kind === "task" && edge.refId === activeTaskId))
-      .sort(
-        (firstTask, secondTask) =>
-          firstTask.dueDate.localeCompare(secondTask.dueDate) ||
-          firstTask.title.localeCompare(secondTask.title),
-      )
-      .slice(0, 6);
-  }, [activeTaskId, tasks, taskDependencies]);
+  const downstreamTaskDependencies = useMemo(() => !activeTaskId ? [] : tasks.filter((task) => task.id !== activeTaskId)
+    .filter((task) => taskDependencies.some((edge) => edge.taskId === task.id && edge.kind === "task" && edge.refId === activeTaskId))
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.title.localeCompare(b.title)).slice(0, 6), [activeTaskId, tasks, taskDependencies]);
   const availableTaskDependencyOptions = useMemo(() => {
-    const selectedIds = new Set(selectedTaskDependencyIds);
+    const selected = new Set(selectedTaskDependencyIds);
     const search = taskDependencySearch.trim().toLowerCase();
-
-    return tasks
-      .filter((task) => task.id !== activeTaskId)
-      .filter((task) => !selectedIds.has(task.id))
-      .filter(
-        (task) => !activeTaskId || !taskDependsOnTarget(task.id, activeTaskId, taskDependencies),
-      )
-      .filter((task) => {
-        if (!search) {
-          return true;
-        }
-
-        const subsystemName = task.subsystemIds.map((id) => subsystemsById[id]?.name ?? "").join(" ");
-        const ownerName = task.ownerId ? (membersById[task.ownerId]?.name ?? "") : "";
-
-        return [
-          task.id,
-          task.title,
-          task.summary,
-          STATUS_LABELS[task.status],
-          subsystemName,
-          ownerName,
-        ]
-          .join(" ")
-          .toLowerCase()
-          .includes(search);
-      })
-      .sort((firstTask, secondTask) => {
-        const firstSubsystemScore = firstTask.subsystemIds.some((id) => taskDraft.subsystemIds.includes(id)) ? 0 : 1;
-        const secondSubsystemScore = secondTask.subsystemIds.some((id) => taskDraft.subsystemIds.includes(id)) ? 0 : 1;
-        const firstDisciplineScore = firstTask.disciplineId === taskDraft.disciplineId ? 0 : 1;
-        const secondDisciplineScore = secondTask.disciplineId === taskDraft.disciplineId ? 0 : 1;
-
-        return (
-          firstSubsystemScore - secondSubsystemScore ||
-          firstDisciplineScore - secondDisciplineScore ||
-          firstTask.dueDate.localeCompare(secondTask.dueDate) ||
-          firstTask.title.localeCompare(secondTask.title)
-        );
-      })
-      .slice(0, search ? 20 : 10);
-  }, [
-    activeTaskId,
-    membersById,
-    selectedTaskDependencyIds,
-    subsystemsById,
-    taskDependencySearch,
-    taskDraft.disciplineId,
-    taskDraft.subsystemIds,
-    tasks,
-    taskDependencies,
-  ]);
+    return tasks.filter((task) => task.id !== activeTaskId && !selected.has(task.id))
+      .filter((task) => !activeTaskId || !taskDependsOnTarget(task.id, activeTaskId, taskDependencies))
+      .filter((task) => !search || `${task.id} ${task.title} ${task.summary} ${STATUS_LABELS[task.status]} ${task.subsystemIds.map((id) => subsystemsById[id]?.name ?? "").join(" ")} ${task.ownerId ? membersById[task.ownerId]?.name ?? "" : ""}`.toLowerCase().includes(search))
+      .sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.title.localeCompare(b.title)).slice(0, search ? 20 : 10);
+  }, [activeTaskId, membersById, selectedTaskDependencyIds, subsystemsById, taskDependencySearch, tasks, taskDependencies]);
 
   const openCreateTaskEditor = () => {
     editorVersion.current += 1;
     const today = localTodayDate();
-
+    const project = projects.find((item) => item.projectType === "robot") ?? projects[0];
+    const workType = workTypes.find((item) => item.projectType === project?.projectType && item.code === "planning") ?? workTypes.find((item) => item.projectType === project?.projectType);
     setActiveTaskId(null);
-    setTaskDraft(
-      buildTaskDraft({
-        subsystemIds: taskSubsystemOptions[0] ? [taskSubsystemOptions[0].id] : [],
-        disciplineId:
-          TASK_SUBTEAM_DISCIPLINE_IDS[activeTaskSubteam][0] ?? disciplines[0]?.id ?? "",
-        ownerId: members[0]?.id ?? "",
-        mentorId:
-          members.find((member) => member.role === "mentor" || member.role === "admin")?.id ??
-          members[0]?.id ??
-          "",
-        startDate: today,
-        dueDate: today,
-      }),
-    );
-    setTaskEditorError(null);
-    setTaskDependencySearch("");
-    setTaskEditorMode("create");
+    setTaskDraft(buildTaskDraft({ projectId: project?.id ?? "", workTypeId: workType?.id ?? "", responsibleGroupId: activeResponsibleGroupId === "all" ? "" : activeResponsibleGroupId,
+      subsystemIds: taskSubsystemOptions[0] ? [taskSubsystemOptions[0].id] : [], ownerId: members[0]?.id ?? "",
+      mentorId: members.find((member) => member.role === "mentor" || member.role === "admin")?.id ?? "", startDate: today, dueDate: today }));
+    setTaskEditorError(null); setTaskDependencySearch(""); setTaskEditorMode("create");
   };
-
   const openEditTaskEditor = (task: Task) => {
-    editorVersion.current += 1;
-    setActiveTaskId(task.id);
-    setTaskDraft({ ...buildTaskDraft(task), dependencies: taskDependencies.filter((edge) => edge.taskId === task.id).map(({ kind, refId, requiredState, dependencyType }) => ({ kind, refId, requiredState, dependencyType })) });
-    setTaskEditorError(null);
-    setTaskDependencySearch("");
-    setTaskEditorMode("edit");
+    editorVersion.current += 1; setActiveTaskId(task.id);
+    setTaskDraft({ ...buildTaskDraft(task), dependencies: taskDependencies.filter((edge) => edge.taskId === task.id).map((edge): DependencyDraft => {
+      if (edge.kind === "task") return { kind: edge.kind, refId: edge.refId, dependencyType: edge.dependencyType, requiredState: edge.requiredState };
+      if (edge.kind === "milestone") return { kind: edge.kind, refId: edge.refId, dependencyType: edge.dependencyType, requiredState: edge.requiredState };
+      return { kind: edge.kind, refId: edge.refId, dependencyType: edge.dependencyType, requiredCondition: edge.requiredCondition };
+    }) });
+    setTaskEditorError(null); setTaskDependencySearch(""); setTaskEditorMode("edit");
   };
-
   const openDuplicateTaskEditor = (task: Task) => {
-    editorVersion.current += 1;
-    setActiveTaskId(null);
-    setTaskDraft(
-      buildTaskDraft({
-        ...task,
-        id: "",
-        title: `Copy of ${task.title}`,
-        dueDate: isoToday(),
-        status: "not-started",
-        blockers: [],
-        actualHours: 0,
-        isBlocked: false,
-      }),
-    );
-    setTaskEditorError(null);
-    setTaskDependencySearch("");
-    setTaskEditorMode("create");
+    editorVersion.current += 1; setActiveTaskId(null);
+    setTaskDraft(buildTaskDraft({ ...task, id: "", title: `Copy of ${task.title}`, dueDate: isoToday(), status: "not-started", actualHours: 0, isBlocked: false }));
+    setTaskEditorError(null); setTaskDependencySearch(""); setTaskEditorMode("create");
   };
-
-  const closeTaskEditor = () => {
-    editorVersion.current += 1;
-    setTaskEditorMode(null);
-    setActiveTaskId(null);
-    setTaskEditorError(null);
-    setTaskDependencySearch("");
-  };
-
-  const addTaskDependency = (dependencyId: string) => {
-    setTaskDraft((current) => {
-      if (dependencyId === activeTaskId) {
-        return current;
-      }
-
-      if (
-        activeTaskId &&
-        taskDependsOnTarget(dependencyId, activeTaskId, taskDependencies)
-      ) {
-        return current;
-      }
-
-      if (current.dependencies.some((edge) => edge.kind === "task" && edge.refId === dependencyId)) return current;
-      return { ...current, dependencies: [...current.dependencies, { kind: "task", refId: dependencyId, requiredState: "complete", dependencyType: "hard" }] };
-    });
-  };
-  const removeTaskDependency = (dependencyId: string) => {
-    setTaskDraft((current) => ({ ...current, dependencies: current.dependencies.filter((edge) => edge.kind !== "task" || edge.refId !== dependencyId) }));
-  };
-
+  const closeTaskEditor = () => { editorVersion.current += 1; setTaskEditorMode(null); setActiveTaskId(null); setTaskEditorError(null); setTaskDependencySearch(""); };
+  const addTaskDependency = (id: string) => setTaskDraft((current) => {
+    if (id === activeTaskId || (activeTaskId && taskDependsOnTarget(id, activeTaskId, taskDependencies)) || current.dependencies.some((edge) => edge.kind === "task" && edge.refId === id)) return current;
+    return { ...current, dependencies: [...current.dependencies, { kind: "task", refId: id, requiredState: "complete", dependencyType: "hard" }] };
+  });
+  const removeTaskDependency = (id: string) => setTaskDraft((current) => ({ ...current, dependencies: current.dependencies.filter((edge) => edge.kind !== "task" || edge.refId !== id) }));
   const selectSubsystem = (id: string) => setTaskDraft((draft) => selectTaskSubsystem(draft, id, mechanisms, partInstances));
   const selectMechanism = (id: string) => setTaskDraft((draft) => selectTaskMechanism(draft, id, partInstances));
   const selectPart = (id: string) => setTaskDraft((draft) => selectTaskPart(draft, id, partInstances));
@@ -201,134 +93,61 @@ export function useTaskEditor({ mechanisms, partInstances, tasks, taskById, task
   const saveTaskDraft = async () => {
     if (saving.current) return;
     const version = editorVersion.current;
-    const assertCurrentEditor = () => { if (editorVersion.current !== version) throw new Error("The task editor changed during save."); };
+    const assertCurrent = () => { if (editorVersion.current !== version) throw new Error("The task editor changed during save."); };
     const isEdit = taskEditorMode === "edit" && activeTaskId;
     const existingTask = isEdit ? taskById[activeTaskId] : null;
-    const blockers = splitList(taskDraft.blockersText);
-    const checklistItems = splitList(taskDraft.checklistItemsText);
-    const dependencyRefs = taskDraft.dependencies.filter((edge) => edge.kind === "task").map((edge) => edge.refId)
-      .filter((dependencyId) => taskById[dependencyId])
-      .filter((dependencyId) => dependencyId !== activeTaskId);
-    const title = taskDraft.title.trim();
-    const summary = taskDraft.summary.trim();
-    const parsedEstimatedHours = Number(taskDraft.estimatedHours);
-
-    const missingFields = [
-      !title ? "title" : null,
-      !summary ? "summary" : null,
-      !taskDraft.subsystemIds.length ? "subsystem" : null,
-      !taskDraft.ownerId ? "owner" : null,
-      Number.isNaN(parsedEstimatedHours) || parsedEstimatedHours < 0 ? "estimated hours" : null,
-    ].filter((field): field is string => Boolean(field));
-
-    if (missingFields.length > 0) {
-      setTaskEditorError(`Add ${missingFields.join(", ")} before saving this task.`);
-      return;
-    }
-
+    const checklistItems = taskDraft.checklistItemsText.split(",").map((item) => item.trim()).filter(Boolean);
+    const dependencyRefs = taskDraft.dependencies.filter((edge) => edge.kind === "task").map((edge) => edge.refId).filter((id) => taskById[id] && id !== activeTaskId);
+    const title = taskDraft.title.trim(); const summary = taskDraft.summary.trim(); const estimatedHours = Number(taskDraft.estimatedHours);
+    const missing = [!title ? "title" : null, !summary ? "summary" : null, !taskDraft.projectId ? "project" : null, !taskDraft.workTypeId ? "work type" : null,
+      !taskDraft.ownerId ? "owner" : null, Number.isNaN(estimatedHours) || estimatedHours < 0 ? "estimated hours" : null].filter((field): field is string => Boolean(field));
+    if (missing.length) { setTaskEditorError(`Add ${missing.join(", ")} before saving this work item.`); return; }
     if (activeTaskId) {
-      const circularDependencies = dependencyRefs.filter((dependencyId) =>
-        taskDependsOnTarget(dependencyId, activeTaskId, taskDependencies),
-      );
-
-      if (circularDependencies.length > 0) {
-        const dependencyNames = circularDependencies
-          .map((dependencyId) => taskById[dependencyId]?.title ?? dependencyId)
-          .join(", ");
-        setTaskEditorError(
-          `Remove circular dependencies before saving: ${dependencyNames}.`,
-        );
-        return;
-      }
+      const circular = dependencyRefs.filter((id) => taskDependsOnTarget(id, activeTaskId, taskDependencies));
+      if (circular.length) { setTaskEditorError(`Remove circular dependencies before saving: ${circular.map((id) => taskById[id]?.title ?? id).join(", ")}.`); return; }
     }
-
     setTaskEditorError(null);
-    const status = taskDraft.status;
-
-    const payload = mapTaskPayloadToServer({
-      title,
-      summary,
-      subsystemIds: taskDraft.subsystemIds,
-      workstreamIds: taskDraft.workstreamIds,
-      artifactIds: taskDraft.artifactIds,
-      disciplineId:
-        taskDraft.disciplineId || disciplines[0]?.id || "mechanical",
-      mechanismIds: taskDraft.mechanismIds,
-      partInstanceIds: taskDraft.partInstanceIds,
-      targetEventId: taskDraft.targetEventId,
-      ownerId: taskDraft.ownerId,
-      mentorId: taskDraft.mentorId || null,
-      startDate: taskDraft.startDate || undefined,
-      dueDate: taskDraft.dueDate || isoToday(),
-      priority: taskDraft.priority,
-      status,
-      checklistItems,
-      linkedManufacturingIds: existingTask?.linkedManufacturingIds ?? [],
-      linkedPurchaseIds: existingTask?.linkedPurchaseIds ?? [],
-      estimatedHours: parsedEstimatedHours,
-      actualHours: existingTask?.actualHours ?? 0,
-    });
-
+    const payload = {
+      projectId: taskDraft.projectId, workTypeId: taskDraft.workTypeId, responsibleGroupId: taskDraft.responsibleGroupId || null,
+      title, summary, subsystemIds: taskDraft.subsystemIds, mechanismIds: taskDraft.mechanismIds, partInstanceIds: taskDraft.partInstanceIds,
+      scheduleRefs: taskDraft.scheduleRefs, workstreamIds: taskDraft.workstreamIds, ownerId: taskDraft.ownerId || null,
+      assigneeIds: taskDraft.assigneeIds, requestedById: existingTask?.requestedById ?? null, mentorId: taskDraft.mentorId || null,
+      startDate: taskDraft.startDate || isoToday(), dueDate: taskDraft.dueDate || isoToday(), priority: taskDraft.priority, status: taskDraft.status,
+      checklistItems, estimatedHours, actualHours: existingTask?.actualHours ?? 0,
+      requiresDocumentation: existingTask?.requiresDocumentation ?? false, manufacturingDetails: taskDraft.manufacturingDetails,
+    };
     saving.current = true;
     try {
-      const response = await request<{ item: Task }>(isEdit ? `/api/tasks/${activeTaskId}` : "/api/tasks", {
-        method: isEdit ? "PATCH" : "POST", body: JSON.stringify(payload),
-      });
-      assertCurrentEditor();
-      const taskId = response.item.id;
-      // Keep the created ID immediately: a relation failure must retry a PATCH,
-      // never create another task.
-      setActiveTaskId(taskId);
-      setTaskEditorMode("edit");
-      const relations = await request<{ taskDependencies: TaskDependency[]; taskBlockers: TaskBlocker[] }>("/api/bootstrap", {});
-      assertCurrentEditor();
-      const existingEdges = relations.taskDependencies.filter((edge) => edge.taskId === taskId);
-      const sameEdge = (left: TaskDraft["dependencies"][number], right: TaskDraft["dependencies"][number]) =>
-        left.kind === right.kind && left.refId === right.refId && left.requiredState === right.requiredState && left.dependencyType === right.dependencyType;
-      for (const edge of existingEdges) {
-        assertCurrentEditor();
-        if (!taskDraft.dependencies.some((desired) => sameEdge(edge, desired)))
-          await request(`/api/task-dependencies/${edge.id}`, { method: "DELETE" });
+      const response = await request<{ item: Task }>(isEdit ? `/api/tasks/${activeTaskId}` : "/api/tasks", { method: isEdit ? "PATCH" : "POST", body: JSON.stringify(payload) });
+      assertCurrent(); const taskId = response.item.id; setActiveTaskId(taskId); setTaskEditorMode("edit");
+      const { taskDependencies: currentEdges } = await request<{ taskDependencies: TaskDependency[] }>("/api/bootstrap", {}); assertCurrent();
+      const current = currentEdges.filter((edge) => edge.taskId === taskId);
+      const same = (a: DependencyDraft, b: DependencyDraft) => JSON.stringify(a) === JSON.stringify(b);
+      for (const edge of current) {
+        const { id: _id, taskId: _taskId, createdAt: _createdAt, ...value } = edge;
+        if (!taskDraft.dependencies.some((desired) => same(value as DependencyDraft, desired))) { assertCurrent(); await request(`/api/task-dependencies/${edge.id}`, { method: "DELETE" }); }
       }
       for (const edge of taskDraft.dependencies) {
-        assertCurrentEditor();
-        if (!existingEdges.some((existing) => sameEdge(existing, edge)))
-          await request("/api/task-dependencies", { method: "POST", body: JSON.stringify({ ...edge, taskId }) });
+        if (!current.some((existing) => { const { id: _id, taskId: _taskId, createdAt: _createdAt, ...value } = existing; return same(value as DependencyDraft, edge); })) {
+          assertCurrent(); await request("/api/task-dependencies", { method: "POST", body: JSON.stringify({ ...edge, taskId }) });
+        }
       }
-      const openBlockers = relations.taskBlockers.filter((blocker) => blocker.blockedTaskId === taskId && blocker.status === "open");
-      for (const blocker of openBlockers) {
-        assertCurrentEditor();
-        if (!blockers.includes(blocker.description))
-          await request(`/api/task-blockers/${blocker.id}`, { method: "PATCH", body: JSON.stringify({ status: "resolved" }) });
-      }
-      for (const description of blockers) {
-        assertCurrentEditor();
-        if (!openBlockers.some((blocker) => blocker.description === description))
-          await request("/api/task-blockers", { method: "POST", body: JSON.stringify({ blockedTaskId: taskId, blockerType: "external", blockerId: null, description, severity: "medium", status: "open" }) });
-      }
-      await refresh();
-      assertCurrentEditor();
-      setActiveTaskSubteam(getTaskSubteamForDisciplineId(taskDraft.disciplineId, activeTaskSubteam));
+      await refresh(); assertCurrent();
+      if (taskDraft.responsibleGroupId) setActiveResponsibleGroupId(taskDraft.responsibleGroupId);
       closeTaskEditor();
     } catch (error) {
-      if (editorVersion.current === version) setTaskEditorError(`Task save incomplete: ${getClientErrorMessage(error)}. Review and retry.`);
+      if (editorVersion.current === version) setTaskEditorError(`Work item save incomplete: ${getClientErrorMessage(error)}. Review and retry.`);
     } finally { saving.current = false; }
   };
 
   const deleteTaskDraft = async () => {
-    if (!activeTaskId) {
-      return;
-    }
-
+    if (!activeTaskId) return;
     const version = editorVersion.current;
-    try {
-      await request(`/api/tasks/${activeTaskId}`, { method: "DELETE" });
-      await refresh();
-      if (editorVersion.current === version) closeTaskEditor();
-    } catch (error) {
-      if (editorVersion.current === version) setTaskEditorError(getClientErrorMessage(error));
-    }
+    try { await request(`/api/tasks/${activeTaskId}`, { method: "DELETE" }); await refresh(); if (editorVersion.current === version) closeTaskEditor(); }
+    catch (error) { if (editorVersion.current === version) setTaskEditorError(getClientErrorMessage(error)); }
   };
 
-  return { selectSubsystem, selectMechanism, selectPart, taskDraft, taskEditorError, taskEditorMode, taskDependencySearch, setTaskDependencySearch, setTaskDraft, availableTaskDependencyOptions, downstreamTaskDependencies, selectedTaskDependencies, taskDependencyReadinessMessage, openCreateTaskEditor, openEditTaskEditor, openDuplicateTaskEditor, closeTaskEditor, addTaskDependency, removeTaskDependency, saveTaskDraft, deleteTaskDraft };
+  return { selectSubsystem, selectMechanism, selectPart, taskDraft, taskEditorError, taskEditorMode, taskDependencySearch, setTaskDependencySearch, setTaskDraft,
+    availableTaskDependencyOptions, downstreamTaskDependencies, selectedTaskDependencies, taskDependencyReadinessMessage, openCreateTaskEditor, openEditTaskEditor,
+    openDuplicateTaskEditor, closeTaskEditor, addTaskDependency, removeTaskDependency, saveTaskDraft, deleteTaskDraft };
 }

@@ -2,7 +2,8 @@ import { Pressable, View } from "react-native";
 
 import { Text } from "../../i18n";
 import type { AppThemeColors } from "../../theme";
-import type { Event, Task } from "../../types/domain";
+import type { Task } from "../../types/domain";
+import type { ScheduleEntry } from "../../app/appModel";
 import {
   daysBetween,
   getTaskDateRange,
@@ -16,7 +17,7 @@ import { landscapeTimelineStyles as styles } from "./landscapeTimelineStyles";
 type Props = {
   calendarDays: Date[];
   colors: AppThemeColors;
-  events: Event[];
+  events: ScheduleEntry[];
   lanes: PackedLane[];
   locale: string;
   onTaskPress: (task: Task) => void;

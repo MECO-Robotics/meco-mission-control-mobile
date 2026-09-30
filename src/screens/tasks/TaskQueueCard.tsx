@@ -10,22 +10,22 @@ import {
   getTaskStartActionLabel,
 } from "../../data/taskAssignment";
 import { styles } from "../../ui/styles";
+import { getQaReviewTaskId } from "../../app/appModel";
 import { StatusPill } from "../../ui/ui";
-import type { Task } from "../../types/domain";
+import type { Task, TaskDependency } from "../../types/domain";
 import type { TaskScreenProps } from "./taskScreenTypes";
 
 type TaskQueueCardContext = Pick<TaskScreenProps,
   | "appResponsiveStyles" | "canReassignTasks" | "canSubmitQa"
-  | "claimTask" | "disciplinesById" | "editTagStyle" | "eventsById"
+  | "claimTask" | "workTypesById" | "editTagStyle" | "eventsById"
   | "isLandscapeCardLayout" | "mechanismsById" | "membersById"
   | "openCreateQaReportEditor" | "openCreateWorkLogEditor" | "openEditTaskEditor"
-  | "partInstancesById" | "qaRequests" | "qaReviews" | "releaseTask"
+  | "partInstancesById" | "partDefinitionsById" | "qaRequests" | "qaReports" | "releaseTask"
   | "requestTaskQa" | "signedInMember" | "startTask" | "subsystemsById"
   | "taskById" | "taskDependencies" | "taskLoggedHoursById" | "themeColors"
 >;
 
 type TaskQueueCardActions = {
-  onOpenBlockerResolution: (task: Task) => void;
   onOpenHelpRequest: (task: Task) => void;
   onOpenQaReview: (task: Task) => void;
   onOpenReassign: (task: Task) => void;
@@ -45,7 +45,7 @@ export function TaskQueueCard({
     canReassignTasks,
     canSubmitQa,
     claimTask,
-    disciplinesById,
+    workTypesById,
     editTagStyle,
     eventsById,
     isLandscapeCardLayout,
@@ -56,7 +56,7 @@ export function TaskQueueCard({
     openEditTaskEditor,
     partInstancesById,
     qaRequests,
-    qaReviews,
+    qaReports,
     releaseTask,
     requestTaskQa,
     signedInMember,
@@ -67,19 +67,19 @@ export function TaskQueueCard({
     taskLoggedHoursById,
     themeColors,
   } = context;
-  const { onOpenBlockerResolution, onOpenHelpRequest, onOpenQaReview, onOpenReassign } = actions;
+  const { onOpenHelpRequest, onOpenQaReview, onOpenReassign } = actions;
   const subsystemName = subsystemsById[(task.subsystemIds[0] ?? "")]?.name ?? "Unknown";
   const ownerName = task.ownerId ? (membersById[task.ownerId]?.name ?? "Unassigned") : "Unassigned";
-  const disciplineName = disciplinesById[task.disciplineId]?.name ?? "Unknown discipline";
+  const workTypeName = workTypesById[task.workTypeId]?.name ?? "Unknown work type";
   const mechanismName = task.mechanismIds[0]
     ? (mechanismsById[task.mechanismIds[0]]?.name ?? "Unknown mechanism")
     : "No mechanism";
   const linkedPart = task.partInstanceIds[0]
-    ? (partInstancesById[task.partInstanceIds[0]]?.name ?? "Unknown part")
+    ? (context.partDefinitionsById[partInstancesById[task.partInstanceIds[0]]?.partDefinitionId ?? ""]?.name ?? "Unknown part")
     : "No part";
-  const targetEvent = task.targetEventId ? (eventsById[task.targetEventId]?.title ?? "Event") : "No event";
+  const targetEvent = task.scheduleRefs[0] ? (eventsById[`${task.scheduleRefs[0].kind}:${task.scheduleRefs[0].id}`]?.title ?? "Schedule item") : "No schedule item";
   const openDependencies = taskDependencies
-    .filter((edge) => edge.taskId === task.id && edge.kind === "task" && edge.dependencyType === "hard")
+    .filter((edge): edge is Extract<TaskDependency, { kind: "task" }> => edge.taskId === task.id && edge.kind === "task" && edge.dependencyType === "hard")
     .filter((edge) => taskById[edge.refId]?.status !== edge.requiredState)
     .map((edge) => taskById[edge.refId])
     .filter((dependency): dependency is Task => Boolean(dependency));
@@ -92,8 +92,7 @@ export function TaskQueueCard({
   const assignmentState = getTaskAssignmentState({ canReassignTasks, membersById, signedInMember, task });
   const canRequestQa = task.status === "in-progress" && !isTaskBlocked(task);
   const checklistItems = task.checklistItems ?? [];
-  const hasQaReport = qaReviews.some((review) =>
-    review.taskId === task.id || (review.subjectType === "task" && review.subjectId === task.id));
+  const hasQaReport = qaReports.some((review) => getQaReviewTaskId(review) === task.id);
   const exceptionPills = [
     openDependencies.length > 0 ? (
       <StatusPill key="dependencies" label={`${openDependencies.length} dependenc${openDependencies.length === 1 ? "y" : "ies"}`} value="waiting" />
@@ -103,8 +102,7 @@ export function TaskQueueCard({
     isDueSoon ? <StatusPill key="due-soon" label="Due soon" value="waiting" /> : null,
     isOverEstimate ? <StatusPill key="over-estimate" label="Over estimate" value="critical" /> : null,
     !task.ownerId ? <StatusPill key="unassigned" label="Unassigned" value="warning" /> : null,
-    task.linkedManufacturingIds.length > 0 ? <StatusPill key="fabrication" label="Fabrication" value="waiting" /> : null,
-    task.linkedPurchaseIds.length > 0 ? <StatusPill key="purchase" label="Purchase" value="requested" /> : null,
+    task.manufacturingDetails ? <StatusPill key="fabrication" label="Manufacturing" value="waiting" /> : null,
     assignmentState.isClaimedByCurrentMember ? <StatusPill key="claimed-you" label="Yours" value="in-progress" /> : null,
     assignmentState.isClaimedByOtherMember ? (
       <StatusPill key="claimed-other" label={`Claimed by ${assignmentState.ownerName}`} value="waiting" />
@@ -126,7 +124,7 @@ export function TaskQueueCard({
           <View style={styles.queueRowHeader}>
             <View style={styles.queueRowPrimaryText}>
               <Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>{task.title}</Text>
-              <Text style={[styles.queueRowSubtitle, appResponsiveStyles.rowSubtitle]}>{subsystemName} - {disciplineName}</Text>
+              <Text style={[styles.queueRowSubtitle, appResponsiveStyles.rowSubtitle]}>{subsystemName} - {workTypeName}</Text>
             </View>
             <Text style={editTagStyle}>EDIT</Text>
           </View>
@@ -153,17 +151,16 @@ export function TaskQueueCard({
         ) : null}
       </View>
 
-      {task.blockers.length > 0 ? (
+      {isTaskBlocked(task) ? (
         <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-          <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>Blockers</Text>
-          <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>{task.blockers.join(" | ")}</Text>
+          <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>Blocked by unresolved work</Text>
+          <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>Review linked dependencies and risks in their owning domains.</Text>
           <View style={styles.quickActionRow}>
             <ActionButton onPress={() => {
               const blockingTask = openDependencies[0];
               if (blockingTask) openEditTaskEditor(blockingTask);
-              else onOpenBlockerResolution(task);
             }} variant="quick" responsiveStyles={appResponsiveStyles}>
-              {openDependencies.length > 0 ? "Open blocking task" : "Resolve blockers"}
+              {openDependencies.length > 0 ? "Open blocking task" : "View dependencies"}
             </ActionButton>
           </View>
         </View>
@@ -207,7 +204,7 @@ export function TaskQueueCard({
         {canRequestQa && !hasQaReport ? <ActionButton onPress={() => { void requestTaskQa(task); }} variant="quick" responsiveStyles={appResponsiveStyles}>Request QA</ActionButton> : null}
         {canSubmitQa && task.status === "waiting-for-qa" ? (
           <ActionButton accessibilityRole="button"
-            onPress={() => openCreateQaReportEditor(task.id, qaRequests.find((request) => request.taskId === task.id)?.id)}
+            onPress={() => openCreateQaReportEditor(task.id, qaRequests.find((request) => request.targetRefs.some((target) => target.kind === "task" && target.id === task.id))?.id)}
             variant="quick" responsiveStyles={appResponsiveStyles}>Write QA report</ActionButton>
         ) : null}
         {task.status === "in-progress" ? <ActionButton onPress={() => onOpenHelpRequest(task)} variant="quick" responsiveStyles={appResponsiveStyles}>Need help</ActionButton> : null}

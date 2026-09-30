@@ -6,7 +6,6 @@ import {
   BLOCKER_FILTER_OPTIONS,
   TASK_PRIORITY_OPTIONS,
   TASK_STATUS_OPTIONS,
-  TASK_SUBTEAM_OPTIONS,
 } from "../../ui/constants";
 import { styles } from "../../ui/styles";
 import {
@@ -22,10 +21,11 @@ import type { TaskScreenProps } from "../tasks/taskScreenTypes";
 type TaskQueueFilterSheetProps = Pick<
   TaskScreenProps,
   | "queue"
-  | "activeTaskSubteam"
+  | "activeResponsibleGroupId"
   | "appResponsiveStyles"
   | "members"
-  | "setActiveTaskSubteam"
+  | "setActiveResponsibleGroupId"
+  | "responsibleGroups"
   | "subsystems"
   | "themeColors"
 > & {
@@ -35,11 +35,12 @@ type TaskQueueFilterSheetProps = Pick<
 
 export function TaskQueueFilterSheet({
   queue,
-  activeTaskSubteam,
+  activeResponsibleGroupId,
   appResponsiveStyles,
   members,
   onClose,
-  setActiveTaskSubteam,
+  setActiveResponsibleGroupId,
+  responsibleGroups,
   subsystems,
   themeColors,
   visible,
@@ -90,12 +91,12 @@ export function TaskQueueFilterSheet({
           >
             <View style={styles.taskQueueFilterGroup}>
               <Text style={[styles.subsectionLabel, appResponsiveStyles.subsectionLabel]}>
-                Subteam
+                Responsible group
               </Text>
               <SectionTabs
-                activeValue={activeTaskSubteam}
-                onChange={setActiveTaskSubteam}
-                options={TASK_SUBTEAM_OPTIONS}
+                activeValue={activeResponsibleGroupId}
+                onChange={setActiveResponsibleGroupId}
+                options={[{ value: "all", label: "All groups" }, ...responsibleGroups.filter((group) => !group.isArchived).map((group) => ({ value: group.id, label: group.name }))]}
               />
             </View>
 

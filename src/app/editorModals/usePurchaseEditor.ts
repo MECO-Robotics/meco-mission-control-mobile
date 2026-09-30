@@ -1,142 +1,31 @@
 import { useEditorDraft } from "./useEditorDraft";
-import type { ManufacturingItem, Member, PurchaseItem, Subsystem } from "../../types/domain";
+import type { Material, PurchaseItem, Task, Vendor } from "../../types/domain";
 import type { MaterialRollup } from "../../ui/types";
 
-function buildDraft(seed?: Partial<PurchaseItem>) {
-  return {
-    title: seed?.title ?? "",
-    subsystemId: seed?.subsystemId ?? "",
-    requestedById: seed?.requestedById ?? "",
-    quantity: typeof seed?.quantity === "number" ? String(seed.quantity) : "1",
-    vendor: seed?.vendor ?? "",
-    linkLabel: seed?.linkLabel ?? "",
-    estimatedCost:
-      typeof seed?.estimatedCost === "number" ? String(seed.estimatedCost) : "",
-    finalCost: typeof seed?.finalCost === "number" ? String(seed.finalCost) : "",
-  };
+type Draft = { title: string; taskId: string; kind: "cots-goods" | "manufacturing-service"; quantity: string; vendorId: string; amount: string; materialId: string };
+function buildDraft(seed?: PurchaseItem): Draft {
+  const quote = seed?.quotes.find((item) => item.id === seed.selectedQuoteId) ?? seed?.quotes[0];
+  return { title: seed?.title ?? "", taskId: seed?.taskId ?? "", kind: seed?.kind ?? "cots-goods", quantity: String(seed?.quantity ?? 1), vendorId: quote?.vendorId ?? "", amount: quote?.amount ? String(quote.amount.amount) : "", materialId: seed?.materialId ?? "" };
 }
-
-type Inputs = {
-  subsystems: Subsystem[];
-  members: Member[];
-  signedInMember: Member | null;
-  manufacturingItems: ManufacturingItem[];
-  purchaseItems: PurchaseItem[];
-  canMentorApprove: boolean;
-  mutate: (path: string, init: RequestInit) => Promise<boolean>;
-};
-
-export function usePurchaseEditor({
-  subsystems,
-  members,
-  signedInMember,
-  manufacturingItems,
-  purchaseItems,
-  canMentorApprove,
-  mutate,
-}: Inputs) {
+type Inputs = { tasks: Task[]; materials: Material[]; vendors: Vendor[]; purchaseItems: PurchaseItem[]; canMentorApprove: boolean; mutate: (path: string, init: RequestInit) => Promise<boolean> };
+export function usePurchaseEditor({ tasks, materials, vendors, purchaseItems, canMentorApprove, mutate }: Inputs) {
   const { view: editor, open: openDraft, setError, complete } = useEditorDraft(buildDraft);
-  const open = (seed: Partial<PurchaseItem> = {}) => {
-    const draft = buildDraft({
-      subsystemId: subsystems[0]?.id ?? "",
-      requestedById: members[0]?.id ?? "",
-      ...seed,
-    });
-    openDraft(draft, seed.id ?? null);
-  };
-  const restock = (row: MaterialRollup) => {
-    const relatedManufacturingItem = manufacturingItems.find(
-      (item) => item.material === row.name && item.status !== "complete",
-    );
-    const relatedPurchase = purchaseItems.find((item) => {
-      const text = `${item.title} ${item.vendor} ${item.linkLabel}`.toLowerCase();
-      return row.name
-        .toLowerCase()
-        .split(" ")
-        .some((token) => token.length > 3 && text.includes(token));
-    });
-
-    open({
-      title: `Restock ${row.name}`,
-      subsystemId: relatedManufacturingItem?.subsystemId ?? subsystems[0]?.id ?? "",
-      requestedById: signedInMember?.id ?? members[0]?.id ?? "",
-      quantity: Math.max(row.suggestedOrderQuantity, row.reorderPoint),
-      vendor: row.vendor === "Mixed" ? "" : row.vendor,
-      linkLabel: relatedPurchase?.linkLabel ?? "",
-    });
-  };
-
+  const open = (seed?: PurchaseItem) => openDraft(buildDraft(seed), seed?.id ?? null);
+  const restock = (row: MaterialRollup) => openDraft({ ...buildDraft(), title: `Restock ${row.name}`, materialId: row.id, quantity: String(Math.max(1, row.suggestedOrderQuantity)) });
   const save = async () => {
-    const parsedQty = Number(editor.draft.quantity);
-    const parsedEstimate = Number(editor.draft.estimatedCost);
-    const parsedFinal = editor.draft.finalCost.trim() ? Number(editor.draft.finalCost) : undefined;
-    const title = editor.draft.title.trim();
-    const vendor = editor.draft.vendor.trim();
-    const linkLabel = editor.draft.linkLabel.trim();
-    const invalidFinalCost =
-      editor.draft.finalCost.trim() &&
-      (typeof parsedFinal !== "number" || Number.isNaN(parsedFinal) || parsedFinal < 0);
-    const missingFields = [
-      !title ? "title" : null,
-      !editor.draft.subsystemId ? "subsystem" : null,
-      !editor.draft.requestedById ? "requester" : null,
-      !vendor ? "vendor" : null,
-      Number.isNaN(parsedQty) || parsedQty <= 0 ? "quantity" : null,
-      Number.isNaN(parsedEstimate) || parsedEstimate < 0 ? "estimated cost" : null,
-      invalidFinalCost ? "final cost" : null,
-    ].filter((field): field is string => Boolean(field));
-
-    if (missingFields.length > 0) {
-      setError(`Add ${missingFields.join(", ")} before saving this purchase.`);
-      return;
+    const quantity = Number(editor.draft.quantity);
+    const amount = editor.draft.amount.trim() ? Number(editor.draft.amount) : null;
+    if (!tasks.some((task) => task.id === editor.draft.taskId) || !editor.draft.title.trim() || !Number.isFinite(quantity) || quantity <= 0 || (amount !== null && (!Number.isFinite(amount) || amount < 0))) {
+      setError("Choose the procurement task and enter a title, positive quantity, and valid quote amount."); return;
     }
-
-    const payload = {
-      title,
-      subsystemId: editor.draft.subsystemId,
-      requestedById: editor.draft.requestedById,
-      quantity: parsedQty,
-      vendor,
-      linkLabel: linkLabel || "n/a",
-      estimatedCost: parsedEstimate,
-      finalCost:
-        canMentorApprove && typeof parsedFinal === "number" && !Number.isNaN(parsedFinal)
-          ? parsedFinal
-          : undefined,
-      ...(!editor.id
-        ? { approvedByMentor: false, status: "requested" }
-        : {}),
-    };
-
-    const ok = await mutate(
-      editor.id ? `/api/purchases/${editor.id}` : "/api/purchases",
-      {
-        method: editor.id ? "PATCH" : "POST",
-        body: JSON.stringify(payload),
-      },
-    );
-
-    complete(ok, "Could not confirm the purchase was saved. Your draft is still here.");
+    if (editor.draft.vendorId && !vendors.some((vendor) => vendor.id === editor.draft.vendorId)) { setError("Choose a known vendor."); return; }
+    if (editor.draft.materialId && !materials.some((material) => material.id === editor.draft.materialId)) { setError("Choose a known material."); return; }
+    const quoteId = editor.draft.vendorId ? (editor.draft.vendorId + "-quote") : null;
+    const quotes = editor.draft.vendorId ? [{ id: quoteId!, vendorId: editor.draft.vendorId, reference: null, amount: amount === null ? null : { amount, currency: "USD" }, quotedAt: new Date().toISOString() }] : [];
+    const payload = { taskId: editor.draft.taskId, kind: editor.draft.kind, partDefinitionId: null, materialId: editor.draft.materialId || null, title: editor.draft.title.trim(), quantity, quotes, selectedQuoteId: quoteId, approvalStatus: "pending", approvedById: null, approvedAt: null, purchaseOrderNumber: null, orderStatus: "not-ordered", finalCost: null, expectedDeliveryDate: null, trackingNumber: null, trackingUrl: null, orderedAt: null, deliveredAt: null };
+    const ok = await mutate(editor.id ? `/api/purchases/${editor.id}` : "/api/purchases", { method: editor.id ? "PATCH" : "POST", body: JSON.stringify(payload) });
+    complete(ok, "Could not confirm the purchase item was saved. Your draft is still here.");
   };
-
-  const deletePurchase = async () => {
-    if (!editor.id || !canMentorApprove) {
-      return;
-    }
-
-    const ok = await mutate(`/api/purchases/${editor.id}`, {
-      method: "DELETE",
-    });
-
-    complete(ok, "Could not confirm the purchase was deleted.");
-  };
-
-  return {
-    ...editor,
-    canManageProtectedFields: canMentorApprove,
-    open,
-    restock,
-    save,
-    deletePurchase,
-  };
+  const deletePurchase = async () => { if (!editor.id || !canMentorApprove) return; const ok = await mutate(`/api/purchases/${editor.id}`, { method: "DELETE" }); complete(ok, "Could not confirm the purchase item was deleted."); };
+  return { ...editor, open, restock, save, deletePurchase, canManageProtectedFields: canMentorApprove, taskOptions: tasks.map((task) => ({ id: task.id, name: task.title })), vendorOptions: vendors.map((vendor) => ({ id: vendor.id, name: vendor.name })), materialOptions: materials.map((material) => ({ id: material.id, name: material.name })) };
 }

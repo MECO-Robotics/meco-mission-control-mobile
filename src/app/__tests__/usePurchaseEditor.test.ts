@@ -1,60 +1,48 @@
 import { act, renderHook } from "@testing-library/react-native";
 import { usePurchaseEditor } from "../editorModals/usePurchaseEditor";
 import { mecoSnapshot } from "../../data/__tests__/fixtures/mockData";
-import type { MaterialRollup } from "../../ui/types";
 
 const purchase = mecoSnapshot.purchaseItems[0];
 function setup(canMentorApprove = false, succeeds = true) {
   const mutate = jest.fn(async (_path: string, _init: RequestInit) => succeeds);
-  return { mutate, ...renderHook(() => usePurchaseEditor({ ...mecoSnapshot,
-    signedInMember: mecoSnapshot.members[1], canMentorApprove, mutate })) };
+  return { mutate, ...renderHook(() => usePurchaseEditor({ tasks: mecoSnapshot.tasks, materials: [], vendors: mecoSnapshot.vendors, purchaseItems: mecoSnapshot.purchaseItems, canMentorApprove, mutate })) };
 }
 
-test.each([false, true])("create/edit/delete retain protected-field policy (mentor=%s)", async (mentor) => {
-  const { result, mutate } = setup(mentor);
+test("purchase creation links commercial state to one procurement Task", async () => {
+  const { result, mutate } = setup();
   act(() => result.current.open());
-  expect(result.current.draft.requestedById).toBe(mecoSnapshot.members[0].id);
-  act(() => result.current.updateDraft({ title: " Order ", vendor: " Shop ", estimatedCost: "2", finalCost: "3" }));
+  act(() => result.current.updateDraft({ taskId: mecoSnapshot.tasks[0].id, title: "Order motor", vendorId: mecoSnapshot.vendors[0].id, quantity: "2", amount: "45" }));
   await act(async () => { await result.current.save(); });
-  const [path, init] = mutate.mock.calls[0];
-  expect(path).toBe("/api/purchases");
-  expect(init.method).toBe("POST");
-  expect(JSON.parse(init.body as string)).toEqual(expect.objectContaining({ title: "Order", vendor: "Shop",
-    approvedByMentor: false, status: "requested", linkLabel: "n/a" }));
-  expect(JSON.parse(init.body as string).finalCost).toBe(mentor ? 3 : undefined);
+  expect(mutate.mock.calls[0][0]).toBe("/api/purchases");
+  const body = JSON.parse(mutate.mock.calls[0][1].body as string);
+  expect(body).toMatchObject({ taskId: mecoSnapshot.tasks[0].id, title: "Order motor", approvalStatus: "pending", orderStatus: "not-ordered" });
+  expect(body.quotes[0]).toMatchObject({ vendorId: mecoSnapshot.vendors[0].id, amount: { amount: 45, currency: "USD" } });
+  expect(body).not.toHaveProperty("requestedById");
+});
+
+test("editing and deleting retain record identity and permission", async () => {
+  const { result, mutate } = setup(true);
   act(() => result.current.open(purchase));
   await act(async () => { await result.current.save(); });
-  expect(mutate.mock.calls[1][0]).toBe(`/api/purchases/${purchase.id}`);
-  expect(mutate.mock.calls[1][1].method).toBe("PATCH");
-  const edit = JSON.parse(mutate.mock.calls[1][1].body as string);
-  expect(edit).not.toHaveProperty("approvedByMentor");
-  expect(edit).not.toHaveProperty("status");
+  expect(mutate.mock.calls[0][0]).toBe(`/api/purchases/${purchase.id}`);
+  expect(mutate.mock.calls[0][1].method).toBe("PATCH");
   act(() => result.current.open(purchase));
   await act(async () => { await result.current.deletePurchase(); });
-  expect(mutate).toHaveBeenCalledTimes(mentor ? 3 : 2);
-  expect(result.current.visible).toBe(!mentor);
+  expect(mutate.mock.calls[1][1].method).toBe("DELETE");
 });
 
-test("restock prefers signed-in requester, demand quantity and the matching item's subsystem", () => {
+test("restock creates a commercial draft that still requires a procurement Task", () => {
   const { result } = setup();
-  const item = mecoSnapshot.manufacturingItems.find((item) => item.status !== "complete")!;
-  act(() => result.current.restock({ name: item.material, vendor: "Mixed", suggestedOrderQuantity: 4,
-    reorderPoint: 6 } as MaterialRollup));
-  expect(result.current).toMatchObject({ id: null, visible: true, draft: {
-    title: `Restock ${item.material}`, vendor: "", quantity: "6", subsystemId: item.subsystemId,
-    requestedById: mecoSnapshot.members[1].id,
-  } });
+  act(() => result.current.restock({ id: "steel", name: "Steel", category: "metal", onHand: 1, reorderPoint: 6, openDemand: 0, openPurchaseCount: 0, openPurchaseQuantity: 0, suggestedOrderQuantity: 4, vendor: "See purchasing records", stock: "low" }));
+  expect(result.current).toMatchObject({ id: null, visible: true, draft: { title: "Restock Steel", taskId: "", quantity: "4", materialId: "steel" } });
 });
 
-test("validation and mutation failure retain the draft; editing clears the local error", async () => {
+test("invalid drafts are retained until required procurement ownership is supplied", async () => {
   const { result, mutate } = setup(true, false);
-  act(() => result.current.open(purchase));
-  act(() => result.current.updateDraft({ quantity: "0" }));
+  act(() => result.current.open());
+  act(() => result.current.updateDraft({ title: "Order hardware", quantity: "0" }));
   await act(async () => { await result.current.save(); });
   expect(mutate).not.toHaveBeenCalled();
-  expect(result.current.error).toContain("quantity");
-  act(() => result.current.updateDraft({ quantity: "2" }));
-  expect(result.current.error).toBeNull();
-  await act(async () => { await result.current.save(); await result.current.deletePurchase(); });
-  expect(result.current).toMatchObject({ visible: true, id: purchase.id, draft: { quantity: "2" } });
+  expect(result.current.error).toContain("procurement task");
+  expect(result.current.visible).toBe(true);
 });

@@ -4,35 +4,28 @@ import {
   getDefaultHelpMentorId,
 } from "../helpRequests";
 import type { Member, Task, WorkLog } from "../../types/domain";
+import { makeMember, makeTask } from "./fixtures/factories";
 
 const mentors: Member[] = [
-  { id: "jordan", name: "Jordan Lee", role: "mentor" },
-  { id: "riley", name: "Riley Kim", role: "mentor" },
+  makeMember({ id: "jordan", name: "Jordan Lee", role: "mentor" }),
+  makeMember({ id: "riley", name: "Riley Kim", role: "mentor" }),
 ];
 
-const student: Member = { id: "ava", name: "Ava Chen", role: "student" };
+const student: Member = makeMember({ id: "ava", name: "Ava Chen", role: "student" });
 
-const task: Task = {
+const task: Task = makeTask({
   id: "swerve-sensor-bundle",
   title: "Validate swerve sensors",
   summary: "Confirm encoder zeroing before QA.",
-  workstreamIds: [], artifactIds: [], subsystemIds: ["drive"],
-  disciplineId: "mechanical",
-  mechanismIds: [],
-  partInstanceIds: [],
-  targetEventId: null,
+  subsystemIds: ["drive"],
   ownerId: student.id,
   mentorId: "riley",
   dueDate: "2026-04-24",
   priority: "high",
   status: "in-progress",
-  blockers: [],
-  isBlocked: false, isWaitingOnDependency: false, checklistItems: [],
-  linkedManufacturingIds: [],
-  linkedPurchaseIds: [],
   estimatedHours: 2,
   actualHours: 0,
-};
+});
 
 const workLog: WorkLog = {
   id: "log-1",

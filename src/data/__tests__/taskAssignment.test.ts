@@ -12,33 +12,26 @@ import {
   releaseTaskRequest,
 } from "../taskAssignment";
 import type { Member, Task } from "../../types/domain";
+import { makeMember, makeTask } from "./fixtures/factories";
 
-const student: Member = { id: "ava", name: "Ava Chen", role: "student" };
-const otherStudent: Member = { id: "lucas", name: "Lucas Brooks", role: "student" };
-const mentor: Member = { id: "jordan", name: "Jordan Lee", role: "mentor" };
-const external: Member = { id: "sam", name: "Sam Rivera", role: "external" };
+const student: Member = makeMember({ id: "ava", name: "Ava Chen", role: "student" });
+const otherStudent: Member = makeMember({ id: "lucas", name: "Lucas Brooks", role: "student" });
+const mentor: Member = makeMember({ id: "jordan", name: "Jordan Lee", role: "mentor" });
+const external: Member = makeMember({ id: "sam", name: "Sam Rivera", role: "external" });
 
-const baseTask: Task = {
+const baseTask: Task = makeTask({
   id: "task-1",
   title: "Wire launcher",
   summary: "Add wiring.",
-  workstreamIds: [], artifactIds: [], subsystemIds: ["controls"],
-  disciplineId: "electrical",
-  mechanismIds: [],
-  partInstanceIds: [],
-  targetEventId: null,
+  workTypeId: "electrical-wiring", subsystemIds: ["controls"],
   ownerId: null,
   mentorId: mentor.id,
   dueDate: "2026-06-10",
   priority: "high",
   status: "not-started",
-  blockers: [],
-  isBlocked: false, isWaitingOnDependency: false, checklistItems: [],
-  linkedManufacturingIds: [],
-  linkedPurchaseIds: [],
   estimatedHours: 2,
   actualHours: 0,
-};
+});
 
 const membersById = {
   [student.id]: student,
@@ -118,13 +111,13 @@ describe("task assignment state", () => {
     expect(state.canStartWork).toBe(false);
   });
 
-  it("does not expose start controls while blockers or dependencies are open", () => {
+  it("does not expose start controls while the server reports a dependency block", () => {
     const blockedState = getTaskAssignmentState({
       canReassignTasks: false,
 
       membersById,
       signedInMember: student,
-      task: { ...baseTask, blockers: ["Waiting on mentor review"], isBlocked: true, ownerId: student.id },
+      task: { ...baseTask, isBlocked: true, ownerId: student.id },
     });
     const dependencyState = getTaskAssignmentState({
       canReassignTasks: false,

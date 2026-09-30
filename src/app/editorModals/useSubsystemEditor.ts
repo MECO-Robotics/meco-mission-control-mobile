@@ -16,7 +16,6 @@ export function useSubsystemEditor({ members, mutate }: Inputs) {
     const mentors = splitList(editor.draft.mentorIdsText).filter((mentorId) =>
       members.some((member) => member.id === mentorId),
     );
-    const risks = splitList(editor.draft.risksText);
     const name = editor.draft.name.trim();
     const description = editor.draft.description.trim();
     const missingFields = [
@@ -38,7 +37,6 @@ export function useSubsystemEditor({ members, mutate }: Inputs) {
       parentSubsystemId: null,
       responsibleEngineerId: editor.draft.responsibleEngineerId,
       mentorIds: mentors,
-      risks,
     };
 
     const isEdit = editor.id;

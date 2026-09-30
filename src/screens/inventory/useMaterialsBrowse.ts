@@ -1,65 +1,37 @@
 import { useMemo, useState } from "react";
-import type { ManufacturingItem, PurchaseItem } from "../../types/domain";
-import { inferMaterialCategory } from "../../ui/helpers";
+import type { Material, PurchaseItem } from "../../types/domain";
 import type { MaterialRollup } from "../../ui/types";
 
 type Filters = { search: string; category: string; stock: string };
-type Inputs = { manufacturingItems: ManufacturingItem[]; purchaseItems: PurchaseItem[] };
+type Inputs = { materials: Material[]; purchaseItems: PurchaseItem[] };
 
-export function useMaterialsBrowse({ manufacturingItems, purchaseItems }: Inputs) {
+export function useMaterialsBrowse({ materials, purchaseItems }: Inputs) {
   const [filters, setFilters] = useState<Readonly<Filters>>({ search: "", category: "all", stock: "all" });
   const updateFilters = (patch: Partial<Filters>) => setFilters((current) => ({ ...current, ...patch }));
   const materialRollups = useMemo(() => {
     const rows: MaterialRollup[] = [];
 
-    for (const materialName of new Set(manufacturingItems.map((item) => item.material))) {
-      const relatedManufacturing = manufacturingItems.filter(
-        (item) => item.material === materialName,
-      );
-      const relatedPurchases = purchaseItems.filter((item) => {
-        const text = `${item.title} ${item.vendor} ${item.linkLabel}`.toLowerCase();
-        return materialName
-          .toLowerCase()
-          .split(" ")
-          .some((token) => token.length > 3 && text.includes(token));
-      });
-
-      const openDemand = relatedManufacturing
-        .filter((item) => item.status !== "complete")
-        .reduce((sum, item) => sum + item.quantity, 0);
-      const supplied = relatedPurchases
-        .filter((item) => item.status === "delivered" || item.status === "purchased")
-        .reduce((sum, item) => sum + item.quantity, 0);
-      const openPurchases = relatedPurchases.filter(
-        (item) => item.status !== "delivered",
-      );
+    for (const material of materials) {
+      const relatedPurchases = purchaseItems.filter((item) => item.materialId === material.id);
+      const openPurchases = relatedPurchases.filter((item) => !["delivered", "cancelled"].includes(item.orderStatus));
       const openPurchaseQuantity = openPurchases.reduce((sum, item) => sum + item.quantity, 0);
-      const reorderPoint = Math.max(1, Math.ceil(openDemand / 2));
-      const onHand = Math.max(0, supplied - Math.ceil(openDemand * 0.35));
-      const suggestedOrderQuantity = Math.max(
-        0,
-        reorderPoint + openDemand - onHand - openPurchaseQuantity,
-      );
-      const category = inferMaterialCategory(materialName);
-      const vendor = relatedPurchases[0]?.vendor ?? "Mixed";
-
       rows.push({
-        id: materialName.toLowerCase().replace(/\s+/g, "-"),
-        name: materialName,
-        category,
-        onHand,
-        reorderPoint,
-        openDemand,
+        id: material.id,
+        name: material.name,
+        category: material.category,
+        onHand: material.onHandQuantity,
+        reorderPoint: material.reorderPoint,
+        openDemand: 0,
         openPurchaseCount: openPurchases.length,
         openPurchaseQuantity,
-        suggestedOrderQuantity,
-        vendor,
-        stock: onHand <= reorderPoint ? "low" : "ok",
+        suggestedOrderQuantity: Math.max(0, material.reorderPoint - material.onHandQuantity - openPurchaseQuantity),
+        vendor: "See purchasing records",
+        stock: material.onHandQuantity <= material.reorderPoint ? "low" : "ok",
       });
     }
 
     return rows.sort((left, right) => left.name.localeCompare(right.name));
-  }, [manufacturingItems, purchaseItems]);
+  }, [materials, purchaseItems]);
 
   const rows = useMemo(() => {
     const search = filters.search.trim().toLowerCase();

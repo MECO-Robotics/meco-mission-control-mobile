@@ -2,9 +2,7 @@ import * as Localization from "expo-localization";
 
 import type {
   MemberRole,
-  PartInstance,
   Subsystem,
-  Task,
   TaskStatus,
   WorkLog,
 } from "../types/domain";
@@ -12,7 +10,6 @@ import type {
 import { STATUS_GROUPS } from "./constants";
 import type {
   MemberDraft,
-  PartLifecycleStatus,
   StatusGroup,
   SubsystemDraft,
   WorkLogDraft,
@@ -34,7 +31,6 @@ export function buildMemberDraft(
     name: string;
     role: MemberRole;
     elevated: boolean;
-    disciplineId: string | null;
     plannedWeeklyAttendanceHours: number;
     plannedAttendanceDays: string[];
     plannedAttendanceNotes: string;
@@ -47,7 +43,6 @@ export function buildMemberDraft(
     role: seed?.role ?? "student",
     elevated:
       seed?.elevated ?? (seed?.role === "lead" || seed?.role === "admin"),
-    disciplineId: seed?.disciplineId ?? "",
     plannedWeeklyAttendanceHours:
       typeof seed?.plannedWeeklyAttendanceHours === "number"
         ? String(seed.plannedWeeklyAttendanceHours)
@@ -63,7 +58,6 @@ export function buildSubsystemDraft(seed?: Partial<Subsystem>): SubsystemDraft {
     description: seed?.description ?? "",
     responsibleEngineerId: seed?.responsibleEngineerId ?? "",
     mentorIdsText: seed?.mentorIds?.join(",") ?? "",
-    risksText: seed?.risks?.join(", ") ?? "",
   };
 }
 
@@ -131,31 +125,6 @@ export function inferMaterialCategory(materialName: string): string {
   }
 
   return "other";
-}
-
-export function derivePartLifecycleStatus(
-  partInstance: PartInstance,
-  tasks: Task[],
-): PartLifecycleStatus {
-  const linkedTasks = tasks.filter((task) => task.partInstanceIds.includes(partInstance.id));
-
-  if (linkedTasks.length === 0) {
-    return "planned";
-  }
-
-  if (linkedTasks.every((task) => task.status === "complete")) {
-    return "installed";
-  }
-
-  if (linkedTasks.some((task) => task.status === "waiting-for-qa")) {
-    return "available";
-  }
-
-  if (linkedTasks.some((task) => task.status === "in-progress")) {
-    return "needed";
-  }
-
-  return "planned";
 }
 
 function parseDateOnly(value: string) {

@@ -30,11 +30,11 @@ beforeEach(() => {
     if (path === "/api/auth/config") return { enabled: false, hostedDomain: "mecorobotics.org", emailEnabled: true };
     if (path === "/api/bootstrap") {
       if (failRefresh) throw new Error("Refresh unavailable");
-      return { ...mecoSnapshot, tasks: [task], qaReports: reports, qaRequests: [], taskDependencies: [], taskBlockers: [] };
+      return { ...mecoSnapshot, tasks: [task], reports, qaRequests: [], taskDependencies: [] };
     }
     if (path === "/api/qa-reports/submit") {
       if (failSave) throw new Error("Report write failed");
-      const item = { ...JSON.parse(String(init?.body)), id: "persisted-report" };
+      const item = { ...JSON.parse(String(init?.body)), id: "persisted-report", reportType: "qa" };
       reports.push(item); return { item };
     }
     return {};
@@ -94,13 +94,13 @@ test("QA uses one atomic command, survives bootstrap and retains a failed draft"
   await act(async () => fireEvent.press(view.getByRole("button", { name: "Save QA report" })));
   expect(reports).toHaveLength(1);
   expect(view.queryByRole("button", { name: "Save QA report" })).toBeNull();
-  expect(screenProps().qaReviews).toEqual(expect.arrayContaining([expect.objectContaining({ id: "persisted-report", notes: "Bearing inspection passed" })]));
+  expect(screenProps().qaReports).toEqual(expect.arrayContaining([expect.objectContaining({ id: "persisted-report", notes: "Bearing inspection passed" })]));
   expect(request.mock.calls.filter(([, , init]) => init?.method === "POST").map(([, path]) => path)).toEqual(["/api/qa-reports/submit", "/api/qa-reports/submit"]);
   view.unmount();
   failRefresh = false;
   render(createElement(App));
   await signIn();
-  expect(screenProps().qaReviews[0].id).toBe("persisted-report");
+  expect(screenProps().qaReports[0].id).toBe("persisted-report");
 });
 
 test("refreshing the workspace retains the active timer and open editor draft", async () => {
@@ -116,27 +116,26 @@ test("refreshing the workspace retains the active timer and open editor draft", 
   expect(view.getByLabelText("Notes").props.value).toBe("Inspection draft in progress");
 });
 
-test("manufacturing and purchase filters survive real tab unmounts and workspace refresh", async () => {
+test("Kanban and purchase filters survive real tab unmounts and workspace refresh", async () => {
   const workspace = jest.mocked(WorkspaceShell);
   workspace.mockImplementation(({ activeTabContent, editorModals }) => createElement(Fragment, null, activeTabContent, editorModals));
   try {
     const view = render(createElement(App));
     await signIn();
-    act(() => screenProps().setActiveTab("resources-manufacturing"));
-    fireEvent.changeText(view.getByLabelText("Search queue"), "Steel");
-    fireEvent.press(view.getByRole("button", { name: "Process: All processes" }));
-    fireEvent.press(view.getByRole("button", { name: "CNC" }));
+    act(() => screenProps().setActiveTab("work-tasks"));
+    fireEvent.press(view.getByText("Filters"));
+    fireEvent.changeText(view.getByPlaceholderText("Search tasks"), "Steel");
     act(() => screenProps().setActiveTab("resources-purchases"));
     fireEvent.press(view.getByText("Filters"));
-    fireEvent.changeText(view.getByLabelText("Search purchases"), "Bolts");
-    act(() => screenProps().setActiveTab("resources-manufacturing"));
-    expect(view.getByLabelText("Search queue").props.value).toBe("Steel");
-    expect(view.getByRole("button", { name: "Process: CNC" })).toBeTruthy();
+    fireEvent.changeText(view.getByPlaceholderText("Search purchasing"), "Bolts");
+    act(() => screenProps().setActiveTab("work-tasks"));
+    fireEvent.press(view.getByText("Filters"));
+    expect(view.getByPlaceholderText("Search tasks").props.value).toBe("Steel");
     await act(async () => { shell().onRefresh(); });
-    expect(view.getByLabelText("Search queue").props.value).toBe("Steel");
+    expect(view.getByPlaceholderText("Search tasks").props.value).toBe("Steel");
     act(() => screenProps().setActiveTab("resources-purchases"));
     fireEvent.press(view.getByText("Filters"));
-    expect(view.getByLabelText("Search purchases").props.value).toBe("Bolts");
+    expect(view.getByPlaceholderText("Search purchasing").props.value).toBe("Bolts");
   } finally {
     workspace.mockImplementation(({ editorModals }) => createElement(Fragment, null, editorModals));
   }

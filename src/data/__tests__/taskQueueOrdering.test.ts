@@ -1,141 +1,47 @@
-import {
-  buildTaskQueueSections,
-  getTaskSubteamForDisciplineId,
-} from "../taskQueueOrdering";
-import type { Member, Task } from "../../types/domain";
+import { buildTaskQueueSections } from "../taskQueueOrdering";
+import type { Member, ResponsibleGroup, Task } from "../../types/domain";
 
-const mentor: Member = { id: "mentor-1", name: "Mentor One", role: "mentor" };
-
+const mentor: Member = { id: "mentor-1", name: "Mentor One", role: "mentor", email: "mentor@example.org", elevated: true, seasonId: "season", activeSeasonIds: ["season"] };
+const groups: ResponsibleGroup[] = [
+  { id: "robot-build", seasonId: "season", name: "Robot Build", projectIds: ["robot"], memberIds: [mentor.id], isArchived: false },
+  { id: "programming", seasonId: "season", name: "Programming", projectIds: ["robot"], memberIds: [], isArchived: false },
+];
 const baseTask: Task = {
-  actualHours: 0,
-  blockers: [],
-  disciplineId: "software",
-  dueDate: "2026-06-10",
-  estimatedHours: 2,
-  id: "task",
-  isBlocked: false, isWaitingOnDependency: false, checklistItems: [],
-  linkedManufacturingIds: [],
-  linkedPurchaseIds: [],
-  mechanismIds: [],
-  mentorId: mentor.id,
-  ownerId: null,
-  partInstanceIds: [],
-  priority: "medium",
-  status: "not-started",
-  workstreamIds: [], artifactIds: [], subsystemIds: ["controls"],
-  summary: "Task summary.",
-  targetEventId: null,
-  title: "Task",
+  actualHours: 0, projectId: "robot", workTypeId: "programming", responsibleGroupId: "programming", dueDate: "2026-06-10", estimatedHours: 2,
+  id: "task", isBlocked: false, isWaitingOnDependency: false, checklistItems: [], scheduleRefs: [], manufacturingDetails: null,
+  mechanismIds: [], mentorId: mentor.id, ownerId: null, requestedById: null, assigneeIds: [], partInstanceIds: [], priority: "medium", status: "not-started",
+  workstreamIds: [], subsystemIds: ["controls"], summary: "Task summary.", title: "Task", startDate: "2026-06-01", requiresDocumentation: false,
 };
-
-function makeTask(patch: Partial<Task>): Task {
-  return {
-    ...baseTask,
-    ...patch,
-    id: patch.id ?? baseTask.id,
-    title: patch.title ?? patch.id ?? baseTask.title,
-  };
+function makeTask(patch: Partial<Task>): Task { return { ...baseTask, ...patch, id: patch.id ?? baseTask.id, title: patch.title ?? patch.id ?? baseTask.title }; }
+function taskIds(sectionId: string, tasks: Task[], activeResponsibleGroupId = "programming") {
+  return buildTaskQueueSections({ activeResponsibleGroupId, responsibleGroups: groups, canViewAllQueues: false, tasks }).find(({ id }) => id === sectionId)?.tasks.map(({ id }) => id) ?? [];
 }
 
-function taskIds(sectionId: string, tasks: Task[]) {
-  const section = buildTaskQueueSections({
-    activeTaskSubteam: "programming",
-    canViewAllQueues: false,
-
-    tasks,
-  }).find((candidate) => candidate.id === sectionId);
-
-  return section?.tasks.map((task) => task.id) ?? [];
-}
-
-describe("task queue ordering", () => {
-  it("maps discipline IDs to mobile subteam queues", () => {
-    expect(getTaskSubteamForDisciplineId("software", "mechanical")).toBe("programming");
-    expect(getTaskSubteamForDisciplineId("electrical", "mechanical")).toBe("electrical");
-    expect(getTaskSubteamForDisciplineId("unknown", "mechanical")).toBe("mechanical");
-  });
-
-  it("orders user subteam work before other available tasks", () => {
+describe("Task Kanban queue ordering", () => {
+  it("filters by responsible group independently from work type", () => {
     const tasks = [
-      makeTask({ disciplineId: "mechanical", dueDate: "2026-06-01", id: "other" }),
-      makeTask({ disciplineId: "software", dueDate: "2026-06-03", id: "mine-late" }),
-      makeTask({ disciplineId: "software", dueDate: "2026-06-02", id: "mine-soon" }),
+      makeTask({ workTypeId: "design", responsibleGroupId: "robot-build", dueDate: "2026-06-01", id: "other" }),
+      makeTask({ workTypeId: "programming", responsibleGroupId: "programming", dueDate: "2026-06-03", id: "mine-late" }),
+      makeTask({ workTypeId: "testing", responsibleGroupId: "programming", dueDate: "2026-06-02", id: "mine-soon" }),
     ];
-
     expect(taskIds("primary-available", tasks)).toEqual(["mine-soon", "mine-late"]);
     expect(taskIds("other-available", tasks)).toEqual(["other"]);
   });
-
-  it("separates blocked and Waiting QA work from available queues", () => {
-    const dependency = makeTask({
-      disciplineId: "mechanical",
-      id: "dependency",
-      status: "in-progress",
-    });
-    const tasks = [
-      dependency,
-      makeTask({ id: "blocked", blockers: ["Need mentor review"], isBlocked: true }),
-      makeTask({ isBlocked: true, isWaitingOnDependency: true, id: "dependency-wait" }),
-      makeTask({ id: "waiting", status: "waiting-for-qa" }),
-      makeTask({ id: "available" }),
-    ];
-
+  it("separates dependency-blocked and QA work from available queues", () => {
+    const tasks = [makeTask({ id: "blocked", isBlocked: true }), makeTask({ id: "waiting", status: "waiting-for-qa" }), makeTask({ id: "available" })];
     expect(taskIds("primary-available", tasks)).toEqual(["available"]);
-    expect(taskIds("blocked", tasks)).toEqual(["blocked", "dependency-wait"]);
+    expect(taskIds("blocked", tasks)).toEqual(["blocked"]);
     expect(taskIds("waiting-qa", tasks)).toEqual(["waiting"]);
   });
-
-  it("lets mentors and admins see blocked and QA work across queues", () => {
-    const tasks = [
-      makeTask({ disciplineId: "mechanical", id: "mechanical-blocked", blockers: ["Part missing"], isBlocked: true }),
-      makeTask({ disciplineId: "electrical", id: "electrical-qa", status: "waiting-for-qa" }),
-    ];
-    const sections = buildTaskQueueSections({
-      activeTaskSubteam: "programming",
-      canViewAllQueues: true,
-
-      tasks,
-    });
-
-    expect(sections.find((section) => section.id === "blocked")?.tasks.map((task) => task.id)).toEqual([
-      "mechanical-blocked",
-    ]);
-    expect(sections.find((section) => section.id === "waiting-qa")?.tasks.map((task) => task.id)).toEqual([
-      "electrical-qa",
-    ]);
+  it("lets reviewers see all responsible-group work", () => {
+    const tasks = [makeTask({ id: "other-blocked", responsibleGroupId: "robot-build", isBlocked: true }), makeTask({ id: "group-qa", status: "waiting-for-qa" })];
+    const sections = buildTaskQueueSections({ activeResponsibleGroupId: "programming", responsibleGroups: groups, canViewAllQueues: true, tasks });
+    expect(sections.find(({ id }) => id === "blocked")?.tasks.map(({ id }) => id)).toEqual(["other-blocked"]);
+    expect(sections.find(({ id }) => id === "waiting-qa")?.tasks.map(({ id }) => id)).toEqual(["group-qa"]);
   });
-
-  it("keeps completed subteam work visible when filters return completed tasks", () => {
-    const tasks = [
-      makeTask({ disciplineId: "software", id: "mine-complete", status: "complete" }),
-      makeTask({ disciplineId: "mechanical", id: "other-complete", status: "complete" }),
-    ];
-
+  it("keeps completed work visible when filtering the group queue", () => {
+    const tasks = [makeTask({ id: "mine-complete", status: "complete" }), makeTask({ id: "other-complete", responsibleGroupId: "robot-build", status: "complete" })];
     expect(taskIds("completed", tasks)).toEqual(["mine-complete"]);
     expect(taskIds("primary-available", tasks)).toEqual([]);
-  });
-
-  it("honors a non-mentor selected subteam queue", () => {
-    const tasks = [
-      makeTask({ disciplineId: "software", id: "software-available" }),
-      makeTask({ disciplineId: "mechanical", id: "mechanical-available" }),
-      makeTask({ disciplineId: "mechanical", id: "mechanical-blocked", blockers: ["Need stock"], isBlocked: true }),
-    ];
-    const sections = buildTaskQueueSections({
-      activeTaskSubteam: "mechanical",
-      canViewAllQueues: false,
-
-      tasks,
-    });
-
-    expect(sections.find((section) => section.id === "primary-available")?.tasks.map((task) => task.id)).toEqual([
-      "mechanical-available",
-    ]);
-    expect(sections.find((section) => section.id === "other-available")?.tasks.map((task) => task.id)).toEqual([
-      "software-available",
-    ]);
-    expect(sections.find((section) => section.id === "blocked")?.tasks.map((task) => task.id)).toEqual([
-      "mechanical-blocked",
-    ]);
   });
 });

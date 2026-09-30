@@ -3,20 +3,21 @@ import type { Task } from "../../../types/domain";
 import { useTaskQueue } from "../useTaskQueue";
 
 const ready: Task = {
-  id: "ready", title: "Build drive", summary: "", disciplineId: "software", workstreamIds: [], artifactIds: [], subsystemIds: ["drive"],
-  ownerId: "student", mentorId: "mentor", dueDate: "2099-01-01", priority: "medium",
-  status: "not-started", actualHours: 1, estimatedHours: 2, blockers: [], linkedManufacturingIds: [], linkedPurchaseIds: [], isBlocked: false, isWaitingOnDependency: false, checklistItems: [],
-  mechanismIds: [], partInstanceIds: [], targetEventId: null,
+  id: "ready", projectId: "robot", workTypeId: "programming", responsibleGroupId: "programming", workstreamIds: [], title: "Build drive", summary: "",
+  subsystemIds: ["drive"], mechanismIds: [], partInstanceIds: [], scheduleRefs: [], requestedById: null, ownerId: "student", assigneeIds: [], mentorId: "mentor",
+  startDate: "2026-09-01", dueDate: "2099-01-01", priority: "medium", status: "not-started", actualHours: 1, estimatedHours: 2,
+  requiresDocumentation: false, checklistItems: [], manufacturingDetails: null,
 };
-const blocked: Task = { ...ready, id: "blocked", title: "Blocked", blockers: ["Supply"], isBlocked: true };
-const waiting: Task = { ...ready, id: "waiting", title: "Wait", isBlocked: true, isWaitingOnDependency: true, };
+const blocked: Task = { ...ready, id: "blocked", title: "Blocked", isBlocked: true };
+const waiting: Task = { ...ready, id: "waiting", title: "Wait", isBlocked: true, isWaitingOnDependency: true };
 const complete: Task = { ...ready, id: "complete", title: "Finished", status: "complete" };
 const tasks = [ready, blocked, waiting, complete];
 const inputs = {
   tasks, taskById: Object.fromEntries(tasks.map((task) => [task.id, task])),
-  taskLoggedHoursById: { ready: 3 }, activeTaskSubteam: "programming" as const,
-  canMentorApprove: false, activePersonFilter: "all", mechanismsById: {}, subsystemsById: {},
-  membersById: { student: { id: "student", name: "Ada", role: "student" as const } },
+  taskLoggedHoursById: { ready: 3 }, activeResponsibleGroupId: "programming" as const,
+  responsibleGroups: [{ id: "programming", seasonId: "season", name: "Programming", projectIds: ["robot"], memberIds: [], isArchived: false }],
+  purchaseTaskIds: new Set<string>(), canMentorApprove: false, activePersonFilter: "all", mechanismsById: {}, subsystemsById: {},
+  membersById: { student: { id: "student", name: "Ada", role: "student" as const, email: "ada@example.org", elevated: false, seasonId: "season", activeSeasonIds: ["season"] } },
 };
 
 test("filter changes compose and queue navigation resets the entire selection", () => {
@@ -37,7 +38,7 @@ test("filter changes compose and queue navigation resets the entire selection", 
 });
 
 test.each([
-  ["blocked", ["blocked"]], ["dependency-wait", ["waiting"]], ["ready-now", ["ready"]],
+  ["blocked", ["blocked", "waiting"]], ["dependency-wait", ["waiting"]], ["ready-now", ["ready"]],
 ] as const)("%s selection preserves dependency and readiness behavior", (filter, ids) => {
   const { result } = renderHook(() => useTaskQueue(inputs));
   act(() => result.current.setFilter("taskBlockerFilter", filter));
@@ -65,7 +66,7 @@ test("summary counts and readiness selection agree for owned, unassigned, QA and
   expect(result.current.taskSummary).toEqual(expect.arrayContaining([
     { label: "Ready now", value: "1" },
     { label: "Ready QA", value: "1" },
-    { label: "Blocked", value: "2" },
+    { label: "Blocked", value: "3" },
     { label: "Waiting QA", value: "2" },
     { label: "Over est.", value: "1" },
   ]));

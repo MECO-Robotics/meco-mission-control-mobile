@@ -21,9 +21,7 @@ export function HomeScreen(props: AppScreenProps) {
     homeActionItems,
     homeTaskSummary,
     isSyncing,
-    manufacturingItems,
     openEditTaskEditor,
-    openEditManufacturingEditor,
     openEditPurchaseEditor,
     purchaseItems,
     setActiveTab,
@@ -49,12 +47,7 @@ const renderScreen = () => {
       return;
     }
 
-    const manufacturingItem = manufacturingItems.find(
-      (candidate) => candidate.id === item.onPressTargetId,
-    );
-    if (manufacturingItem) {
-      openEditManufacturingEditor(manufacturingItem);
-    }
+    setActiveTab("work-tasks");
   };
 
   return (
@@ -81,7 +74,7 @@ const renderScreen = () => {
             Needs attention
           </Text>
           <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
-            The highest-risk work across tasks, manufacturing, and purchases.
+            The highest-risk work and unresolved risks across projects.
           </Text>
         </Pressable>
         {homeActionItems.map((item) => (

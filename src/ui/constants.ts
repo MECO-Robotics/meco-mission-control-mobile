@@ -1,33 +1,13 @@
-import type { EventType, QaResult, TaskStatus } from "../types/domain";
+import type { QaResult, TaskStatus } from "../types/domain";
 import { eventTypeColors } from "../theme";
 import type {
   ArchiveFilterMode,
   BlockerFilterMode,
   EventStyle,
-  ManufacturingViewTab,
   Option,
   StatusGroup,
-  TaskSubteamTab,
   WorkLogSortMode,
 } from "./types";
-export const TASK_SUBTEAM_OPTIONS: { value: TaskSubteamTab; label: string }[] = [
-  { value: "programming", label: "Programming" },
-  { value: "mechanical", label: "Mechanical" },
-  { value: "electrical", label: "Electrical" },
-];
-
-export const TASK_SUBTEAM_DISCIPLINE_IDS: Record<TaskSubteamTab, string[]> = {
-  programming: ["software", "programming", "integration", "testing"],
-  mechanical: ["mechanical", "design", "manufacturing", "assembly"],
-  electrical: ["electrical"],
-};
-
-export const MANUFACTURING_VIEW_OPTIONS: { value: ManufacturingViewTab; label: string }[] = [
-  { value: "all", label: "All processes" },
-  { value: "cnc", label: "CNC" },
-  { value: "prints", label: "3D print" },
-  { value: "fabrication", label: "Fabrication" },
-];
 
 export const TASK_STATUS_OPTIONS: Option[] = [
   { id: "not-started", name: "Not started" },
@@ -52,24 +32,25 @@ export const MANUFACTURING_STATUS_OPTIONS: Option[] = [
 ];
 
 export const PART_STATUS_OPTIONS: Option[] = [
-  { id: "planned", name: "Planned" },
-  { id: "needed", name: "Needed" },
-  { id: "available", name: "Available" },
+  { id: "stock", name: "Stock" },
   { id: "installed", name: "Installed" },
+  { id: "repair", name: "Repair" },
   { id: "retired", name: "Retired" },
+  { id: "lost", name: "Lost" },
+  { id: "unlocated", name: "Unlocated" },
 ];
 
 export const PURCHASE_STATUS_OPTIONS: Option[] = [
-  { id: "requested", name: "Requested" },
-  { id: "approved", name: "Approved" },
-  { id: "purchased", name: "Purchased" },
+  { id: "not-ordered", name: "Not ordered" },
+  { id: "ordered", name: "Ordered" },
   { id: "shipped", name: "Shipped" },
   { id: "delivered", name: "Delivered" },
 ];
 
 export const PURCHASE_APPROVAL_OPTIONS: Option[] = [
   { id: "approved", name: "Approved" },
-  { id: "waiting", name: "Waiting" },
+  { id: "pending", name: "Pending" },
+  { id: "rejected", name: "Rejected" },
 ];
 
 export const MATERIAL_CATEGORY_OPTIONS: Option[] = [
@@ -128,8 +109,8 @@ export const WORKLOG_TEMPLATE_OPTIONS = [
   },
 ];
 
-export const EVENT_TYPE_OPTIONS: Option[] = [
-  { id: "drive-practice", name: "Drive practice" },
+export const MILESTONE_TYPE_OPTIONS: Option[] = [
+  { id: "practice", name: "Practice" },
   { id: "competition", name: "Competition" },
   { id: "deadline", name: "Deadline" },
   { id: "internal-review", name: "Internal review" },
@@ -162,9 +143,9 @@ export const QA_RESULT_OPTIONS: { id: QaResult; name: string }[] = [
   { id: "iteration-worthy", name: "Iteration-worthy" },
 ];
 
-export const EVENT_TYPE_STYLES: Record<EventType, EventStyle> = {
-  "drive-practice": {
-    label: "Drive practice",
+export const EVENT_TYPE_STYLES: Record<string, EventStyle> = {
+  practice: {
+    label: "Practice",
     rowBackground: eventTypeColors.practice.columnSurface,
     borderColor: eventTypeColors.practice.border,
     chipBackground: eventTypeColors.practice.surface,

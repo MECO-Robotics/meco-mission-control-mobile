@@ -1,8 +1,9 @@
 import { getAutoTaskStatus, isTaskBlocked, isTaskReadyForQaPass, hasOpenTaskDependency } from "../taskReadiness";
 import { getTaskAssignmentState } from "../taskAssignment";
 import { mecoSnapshot } from "./fixtures/mockData";
+import { makeMember } from "./fixtures/factories";
 
-const member = { id: "member", name: "Member", role: "student" as const };
+const member = makeMember({ id: "member", name: "Member", role: "student" as const });
 test.each([
   { isBlocked: true, isWaitingOnDependency: false },
   { isBlocked: false, isWaitingOnDependency: true },

@@ -1,44 +1,35 @@
 import type { Task } from "../../../../types/domain";
 import { taskDependencies } from "./dependencies";
-import { taskBlockers } from "./blockers";
 import { electricalTasks } from "./electricalTasks";
 import { mechanicalTasks } from "./mechanicalTasks";
 import { programmingOffseasonTasks } from "./programmingOffseasonTasks";
 import { programmingTasks } from "./programmingTasks";
 
-const seeds = [
-  ...programmingTasks,
-  ...programmingOffseasonTasks,
-  ...mechanicalTasks,
-  ...electricalTasks,
-].map(({
-  workstreamIds = [],
-  artifactIds = [],
-  checklistItems = [],
-  linkedManufacturingIds = [],
-  linkedPurchaseIds = [],
-  partInstanceIds = [],
-  requirementId = null,
-  mechanismIds = [],
-  actualHours = 0,
-  status = "not-started",
-  ...fields
-}) => ({
-  ...fields,
-  workstreamIds,
-  artifactIds,
-  checklistItems,
-  linkedManufacturingIds,
-  linkedPurchaseIds,
-  partInstanceIds,
-  requirementId,
-  mechanismIds,
-  actualHours,
-  status,
+const seeds = [...programmingTasks, ...programmingOffseasonTasks, ...mechanicalTasks, ...electricalTasks];
+
+export const tasks: Task[] = seeds.map((seed) => ({
+  projectId: "robot-project",
+  responsibleGroupId: "robot-build",
+  workstreamIds: [],
+  subsystemIds: [],
+  mechanismIds: [],
+  partInstanceIds: [],
+  scheduleRefs: [],
+  requestedById: null,
+  ownerId: null,
+  assigneeIds: [],
+  mentorId: null,
+  startDate: "2026-09-01",
+  dueDate: "2026-09-30",
+  priority: "medium",
+  status: "not-started",
+  checklistItems: [],
+  estimatedHours: 0,
+  actualHours: 0,
+  requiresDocumentation: false,
+  manufacturingDetails: null,
+  ...seed,
+  workTypeId: seed.workTypeId ?? "planning",
 }));
 
-export const tasks: Task[] = seeds.map((task) => {
-  const blockers = taskBlockers.filter((blocker) => blocker.blockedTaskId === task.id && blocker.status === "open").map((blocker) => blocker.description);
-  const isWaitingOnDependency = taskDependencies.some((edge) => edge.taskId === task.id && edge.dependencyType === "hard" && seeds.find((candidate) => candidate.id === edge.refId)?.status !== edge.requiredState);
-  return { ...task, blockers, isWaitingOnDependency, isBlocked: blockers.length > 0 };
-});
+export { taskDependencies };

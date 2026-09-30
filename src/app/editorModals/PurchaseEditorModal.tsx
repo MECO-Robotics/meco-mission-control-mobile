@@ -1,103 +1,19 @@
 import { Callout } from "../../ui/Callout";
 import type { usePurchaseEditor } from "./usePurchaseEditor";
-
-import type { Option } from "../../ui/types";
-import { AdvancedOptions, DropdownField, EditorModal, ModalField } from "../../ui/ui";
+import { DropdownField, EditorModal, ModalField } from "../../ui/ui";
 import type { ResponsiveScreenStyles } from "../../screens/types";
 
-type PurchaseEditorModalProps = {
-  editor: ReturnType<typeof usePurchaseEditor>;
-  appResponsiveStyles: Pick<ResponsiveScreenStyles, "calloutBody" | "calloutBox" | "calloutTitle">;
-  memberOptions: Option[];
-  subsystemOptions: Option[];
-};
-
-export function PurchaseEditorModal({
-  editor,
-  appResponsiveStyles,
-  memberOptions,
-  subsystemOptions,
-}: PurchaseEditorModalProps) {
-  const { draft, id, visible, error, canManageProtectedFields, close, save, deletePurchase, updateDraft } = editor;
-  return (
-    <EditorModal
-      onCancel={close}
-      onDelete={
-        id && canManageProtectedFields
-          ? deletePurchase
-          : undefined
-      }
-      onSave={save}
-      saveLabel={id ? "Update purchase" : "Create purchase"}
-      title={id ? "Edit purchase" : "Create purchase"}
-      visible={visible}
-    >
-      {error ? (
-        <Callout
-          body={error}
-          title="Purchase needs attention"
-          responsiveStyles={appResponsiveStyles}
-        />
-      ) : null}
-      <ModalField
-        label="Title"
-        onChangeText={(value) => updateDraft({ title: value })}
-        placeholder="Item title"
-        value={draft.title}
-      />
-      <DropdownField
-        clearLabel="No subsystem"
-        label="Subsystem"
-        onChange={(value) => updateDraft({ subsystemId: value })}
-        options={subsystemOptions}
-        placeholder="Select subsystem"
-        value={draft.subsystemId}
-      />
-      <DropdownField
-        clearLabel="No requester"
-        label="Requester"
-        onChange={(value) => updateDraft({ requestedById: value })}
-        options={memberOptions}
-        placeholder="Select requester"
-        value={draft.requestedById}
-      />
-      <ModalField
-        label="Vendor"
-        onChangeText={(value) => updateDraft({ vendor: value })}
-        placeholder="Vendor"
-        value={draft.vendor}
-      />
-      <ModalField
-        label="Quantity"
-        keyboardType="numeric"
-        onChangeText={(value) => updateDraft({ quantity: value })}
-        placeholder="1"
-        value={draft.quantity}
-      />
-      <ModalField
-        label="Estimated cost"
-        keyboardType="decimal-pad"
-        onChangeText={(value) => updateDraft({ estimatedCost: value })}
-        placeholder="82"
-        value={draft.estimatedCost}
-      />
-      <AdvancedOptions>
-        <ModalField
-          label="Acquisition website"
-          onChangeText={(value) => updateDraft({ linkLabel: value })}
-          placeholder="vendor.com/item"
-          value={draft.linkLabel}
-        />
-        {canManageProtectedFields ? (
-          <ModalField
-            label="Final cost (optional)"
-            keyboardType="decimal-pad"
-            onChangeText={(value) => updateDraft({ finalCost: value })}
-            placeholder="61"
-            value={draft.finalCost}
-          />
-        ) : null}
-      </AdvancedOptions>
-    </EditorModal>
-  );
+type Props = { editor: ReturnType<typeof usePurchaseEditor>; appResponsiveStyles: Pick<ResponsiveScreenStyles, "calloutBody" | "calloutBox" | "calloutTitle"> };
+export function PurchaseEditorModal({ editor, appResponsiveStyles }: Props) {
+  const { draft, id, visible, error, close, save, deletePurchase, updateDraft, taskOptions, vendorOptions, materialOptions, canManageProtectedFields } = editor;
+  return <EditorModal onCancel={close} onDelete={id && canManageProtectedFields ? deletePurchase : undefined} onSave={save} saveLabel={id ? "Update commercial record" : "Create commercial record"} title={id ? "Edit purchase" : "Add purchase"} visible={visible}>
+    {error ? <Callout body={error} title="Purchase needs attention" responsiveStyles={appResponsiveStyles} /> : null}
+    <DropdownField label="Procurement Task" onChange={(taskId) => updateDraft({ taskId })} options={taskOptions} placeholder="Select Task" value={draft.taskId} />
+    <ModalField label="Item" onChangeText={(title) => updateDraft({ title })} placeholder="Item or service" value={draft.title} />
+    <DropdownField label="Kind" onChange={(kind) => updateDraft({ kind: kind as "cots-goods" | "manufacturing-service" })} options={[{ id: "cots-goods", name: "COTS goods" }, { id: "manufacturing-service", name: "Manufacturing service" }]} value={draft.kind} />
+    <DropdownField clearLabel="No material" label="Material" onChange={(materialId) => updateDraft({ materialId })} options={materialOptions} placeholder="Select material" value={draft.materialId} />
+    <DropdownField clearLabel="No vendor quote" label="Quoted vendor" onChange={(vendorId) => updateDraft({ vendorId })} options={vendorOptions} placeholder="Select vendor" value={draft.vendorId} />
+    <ModalField label="Quantity" keyboardType="numeric" onChangeText={(quantity) => updateDraft({ quantity })} placeholder="1" value={draft.quantity} />
+    <ModalField label="Quote amount" keyboardType="decimal-pad" onChangeText={(amount) => updateDraft({ amount })} placeholder="0.00" value={draft.amount} />
+  </EditorModal>;
 }
