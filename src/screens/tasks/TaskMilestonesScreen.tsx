@@ -3,7 +3,6 @@ import { Pressable, View } from "react-native";
 
 import { Text } from "../../i18n";
 import {
-  EVENT_TYPE_OPTIONS,
   EVENT_TYPE_STYLES,
   SUBVIEW_INTERACTION_GUIDANCE,
 } from "../../ui/constants";
@@ -27,7 +26,7 @@ type TaskMilestonesScreenProps = Pick<TaskScreenProps,
   | "milestoneSearch" | "milestoneSortField" | "milestoneSortOrder"
   | "milestoneSummary" | "milestoneTypeFilter" | "openCreateMilestoneEditor"
   | "openEditMilestoneEditor" | "setMilestoneSearch" | "setMilestoneSortField"
-  | "setMilestoneSortOrder" | "setMilestoneTypeFilter" | "subsystemsById"
+  | "setMilestoneSortOrder" | "setMilestoneTypeFilter" | "projects"
 >;
 
 export function TaskMilestonesScreen(props: TaskMilestonesScreenProps) {
@@ -46,13 +45,10 @@ export function TaskMilestonesScreen(props: TaskMilestonesScreenProps) {
     setMilestoneSortField,
     setMilestoneSortOrder,
     setMilestoneTypeFilter,
-    subsystemsById,
+    projects,
   } = props;
 
-  const milestoneTypeOptions = EVENT_TYPE_OPTIONS.map((option) => ({
-    id: option.id,
-    name: option.name,
-  }));
+  const milestoneTypeOptions = [...new Set(filteredMilestones.map((item) => item.type))].map((type) => ({ id: type, name: type.replaceAll("-", " ") }));
 
   const getMilestoneSortIcon = (field: MilestoneSortField) => {
     if (milestoneSortField !== field) {
@@ -74,8 +70,8 @@ export function TaskMilestonesScreen(props: TaskMilestonesScreenProps) {
 
   return (
     <WorkspacePanel
-      title="Milestones"
-      subtitle="Search, filter, and edit timeline events with subsystem context and linked task impact."
+      title="Schedule"
+      subtitle="Meetings, competitions, practices, deadlines, milestones, and reviews across all projects."
       actions={
         <ActionButton
           onPress={openCreateMilestoneEditor}
@@ -89,7 +85,7 @@ export function TaskMilestonesScreen(props: TaskMilestonesScreenProps) {
       <FilterToolbar>
         <SearchField
           onChangeText={setMilestoneSearch}
-          placeholder="Search milestones"
+          placeholder="Search schedule"
           value={milestoneSearch}
         />
 
@@ -117,7 +113,7 @@ export function TaskMilestonesScreen(props: TaskMilestonesScreenProps) {
                 appResponsiveStyles.tableHeaderText,
               ]}
             >
-              Milestone{getMilestoneSortIcon("title")}
+              Schedule item{getMilestoneSortIcon("title")}
             </Text>
           </Pressable>
           <Pressable onPress={() => toggleMilestoneSort("type")} style={styles.tableHeaderButton}>
@@ -132,14 +128,14 @@ export function TaskMilestonesScreen(props: TaskMilestonesScreenProps) {
             </Text>
           </Pressable>
           <Text style={[styles.tableHeaderText, appResponsiveStyles.tableHeaderText]}>End</Text>
-          <Text style={[styles.tableHeaderText, appResponsiveStyles.tableHeaderText]}>Subsystems</Text>
+          <Text style={[styles.tableHeaderText, appResponsiveStyles.tableHeaderText]}>Projects</Text>
         </View>
       ) : null}
 
       {filteredMilestones.map((milestone) => {
-        const eventStyle = EVENT_TYPE_STYLES[milestone.type];
-        const subsystemNames = milestone.relatedSubsystemIds
-          .map((subsystemId) => subsystemsById[subsystemId]?.name ?? "Unknown subsystem")
+        const eventStyle = EVENT_TYPE_STYLES[milestone.type] ?? EVENT_TYPE_STYLES["internal-review"];
+        const projectNames = milestone.projectIds
+          .map((projectId) => projects.find((project) => project.id === projectId)?.name ?? "Unknown project")
           .join(", ");
 
         return (
@@ -177,17 +173,17 @@ export function TaskMilestonesScreen(props: TaskMilestonesScreenProps) {
 
             <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
               Start {formatDateTime(milestone.startDateTime)} | End{" "}
-              {milestone.endDateTime ? formatDateTime(milestone.endDateTime) : "No end"}
+              {milestone.endAt ? formatDateTime(milestone.endAt) : "No end"}
             </Text>
             <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
-              Subsystems {subsystemNames || "All subsystems"} | {milestone.isExternal ? "External" : "Internal"}
+              {milestone.recordType} | Projects {projectNames || "All projects"}
             </Text>
           </Pressable>
         );
       })}
 
       {filteredMilestones.length === 0 ? (
-        <EmptyState text="No milestones match the current filters." />
+        <EmptyState text="No schedule items match the current filters." />
       ) : null}
 
       <InteractionNote steps={SUBVIEW_INTERACTION_GUIDANCE.milestones} />

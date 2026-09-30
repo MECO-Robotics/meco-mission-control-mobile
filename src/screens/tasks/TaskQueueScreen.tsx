@@ -8,13 +8,12 @@ import { SUBVIEW_INTERACTION_GUIDANCE } from "../../ui/constants";
 import { getDefaultHelpMentorId } from "../../data/helpRequests";
 import { styles } from "../../ui/styles";
 import {
-  EditorModal,
   InteractionNote,
-  ModalField,
   SummaryRow,
   WorkspacePanel,
 } from "../../ui/ui";
 import { QaReviewDetail } from "../reports/QaReviewDetail";
+import { getQaReviewTaskId } from "../../app/appModel";
 import type { Task } from "../../types/domain";
 
 import type { TaskScreenProps } from "./taskScreenTypes";
@@ -29,32 +28,33 @@ import {
 } from "./taskQueuePagination";
 
 type TaskQueueScreenProps = Pick<TaskScreenProps,
-  | "queue" | "activeTaskSubteam" | "activeTaskSubteamLabel" | "appResponsiveStyles"
-  | "canReassignTasks" | "claimTask" | "clearTaskBlockers"
-  | "disciplinesById" | "editTagStyle" | "eventsById"
+  | "queue" | "activeResponsibleGroupId" | "activeResponsibleGroupLabel" | "appResponsiveStyles"
+  | "canReassignTasks" | "claimTask"
+  | "workTypesById" | "editTagStyle" | "eventsById" | "workstreamsById"
   | "isCompactLayout" | "isLandscapeCardLayout"
   | "mechanismsById" | "members" | "membersById"
   | "openCreateTaskEditor" | "openCreateWorkLogEditor" | "openEditTaskEditor"
-  | "partInstancesById" | "requestHelp" | "requestTaskQa"
+  | "partInstancesById" | "partDefinitionsById" | "requestHelp" | "requestTaskQa"
   | "reassignTask" | "releaseTask" | "rosterMentors"
-  | "rosterStudents" | "setActiveTaskSubteam"
+  | "rosterStudents" | "setActiveResponsibleGroupId"
   | "canSubmitQa" | "qaRequests" | "openCreateQaReportEditor" | "signedInMember" | "startTask"
-  | "subsystems" | "subsystemsById"
+  | "subsystems" | "subsystemsById" | "responsibleGroups"
   | "taskById" | "taskDependencies"
   | "taskLoggedHoursById"
-  | "themeColors" | "qaReviews"
+  | "themeColors" | "qaReports"
 >;
 
 export function TaskQueueScreen(props: TaskQueueScreenProps) {
   const {
     queue,
-    activeTaskSubteam,
-    activeTaskSubteamLabel,
+    activeResponsibleGroupId,
+    responsibleGroups,
+    activeResponsibleGroupLabel,
     appResponsiveStyles,
     canReassignTasks,
     claimTask,
-    clearTaskBlockers,
-    disciplinesById,
+    workTypesById,
+    workstreamsById,
     editTagStyle,
     eventsById,
     isCompactLayout,
@@ -66,13 +66,14 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
     openCreateWorkLogEditor,
     openEditTaskEditor,
     partInstancesById,
+    partDefinitionsById,
     requestHelp,
     requestTaskQa,
     reassignTask,
     releaseTask,
     rosterMentors,
     rosterStudents,
-    setActiveTaskSubteam,
+    setActiveResponsibleGroupId,
     canSubmitQa,
     qaRequests,
     openCreateQaReportEditor,
@@ -84,16 +85,13 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
     taskDependencies,
     taskLoggedHoursById,
     themeColors,
-    qaReviews,
+    qaReports,
   } = props;
   const [selectedQaTaskId, setSelectedQaTaskId] = useState<string | null>(null);
-  const [blockerResolutionTask, setBlockerResolutionTask] = useState<Task | null>(null);
-  const [blockerResolutionNote, setBlockerResolutionNote] = useState("");
-  const [blockerResolutionError, setBlockerResolutionError] = useState<string | null>(null);
   const [helpRequestTask, setHelpRequestTask] = useState<Task | null>(null);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const { filteredTaskQueue, taskQueueSections, taskSummary, resetFilters } = queue;
-  const filterKey = JSON.stringify([activeTaskSubteam, queue.filters]);
+  const filterKey = JSON.stringify([activeResponsibleGroupId, queue.filters]);
   const [pagination, setPagination] = useState({ filterKey, page: 0 });
   const taskCount = taskQueueSections.reduce((count, section) => count + section.tasks.length, 0);
   const pageCount = Math.max(1, Math.ceil(taskCount / TASK_QUEUE_PAGE_SIZE));
@@ -108,18 +106,6 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
     id: member.id,
     name: member.name,
   }));
-
-  const openBlockerResolution = (task: Task) => {
-    setBlockerResolutionTask(task);
-    setBlockerResolutionNote("");
-    setBlockerResolutionError(null);
-  };
-
-  const closeBlockerResolution = () => {
-    setBlockerResolutionTask(null);
-    setBlockerResolutionNote("");
-    setBlockerResolutionError(null);
-  };
 
   const closeHelpRequest = () => {
     setHelpRequestTask(null);
@@ -150,28 +136,13 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
     return didRequestHelp;
   };
 
-  const saveBlockerResolution = async () => {
-    if (!blockerResolutionTask) {
-      return;
-    }
-
-    if (!blockerResolutionNote.trim()) {
-      setBlockerResolutionError("Add a short note explaining what changed.");
-      return;
-    }
-
-    try {
-      await clearTaskBlockers(blockerResolutionTask, blockerResolutionNote);
-      closeBlockerResolution();
-    } catch (error) { setBlockerResolutionError(error instanceof Error ? error.message : String(error)); }
-  };
-
   const taskCardContext = {
     appResponsiveStyles,
     canReassignTasks,
     canSubmitQa,
     claimTask,
-    disciplinesById,
+    workTypesById,
+    workstreamsById,
     editTagStyle,
     eventsById,
     isLandscapeCardLayout,
@@ -181,8 +152,9 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
     openCreateWorkLogEditor,
     openEditTaskEditor,
     partInstancesById,
+    partDefinitionsById,
     qaRequests,
-    qaReviews,
+    qaReports,
     releaseTask,
     requestTaskQa,
     signedInMember,
@@ -194,7 +166,6 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
     themeColors,
   };
   const taskCardActions = {
-    onOpenBlockerResolution: openBlockerResolution,
     onOpenHelpRequest: setHelpRequestTask,
     onOpenQaReview: (task: Task) => setSelectedQaTaskId(task.id),
     onOpenReassign: taskReassignModal.open,
@@ -204,7 +175,7 @@ const renderScreen = () => {
   return (
     <WorkspacePanel
       compactActionsInline
-      title={`${activeTaskSubteamLabel} task queue`}
+      title={`${activeResponsibleGroupLabel} task queue`}
       subtitle="Search and filter queue cards for the selected subteam's work."
       actions={
         <View style={styles.taskQueueHeaderActions}>
@@ -234,7 +205,7 @@ const renderScreen = () => {
         </View>
       }
     >
-      <QaReviewDetail review={selectedQaTaskId ? qaReviews.find((review) => review.taskId === selectedQaTaskId) ?? null : null}
+      <QaReviewDetail review={selectedQaTaskId ? qaReports.find((review) => getQaReviewTaskId(review) === selectedQaTaskId) ?? null : null}
         membersById={membersById} onClose={() => setSelectedQaTaskId(null)} />
       <SummaryRow chips={taskSummary} />
 
@@ -334,11 +305,12 @@ const renderScreen = () => {
       />
       <TaskQueueFilterSheet
         queue={queue}
-        activeTaskSubteam={activeTaskSubteam}
+        activeResponsibleGroupId={activeResponsibleGroupId}
         appResponsiveStyles={appResponsiveStyles}
         members={members}
         onClose={() => setIsFiltersOpen(false)}
-        setActiveTaskSubteam={setActiveTaskSubteam}
+        setActiveResponsibleGroupId={setActiveResponsibleGroupId}
+        responsibleGroups={responsibleGroups}
         subsystems={subsystems}
         themeColors={themeColors}
         visible={isFiltersOpen}
@@ -353,40 +325,6 @@ const renderScreen = () => {
         ownerOptions={reassignOwnerOptions}
         task={taskReassignModal.task}
       />
-      <EditorModal
-        onCancel={closeBlockerResolution}
-        onSave={saveBlockerResolution}
-        saveLabel="Resolve"
-        title="Resolve blockers"
-        visible={Boolean(blockerResolutionTask)}
-      >
-        {blockerResolutionTask ? (
-          <>
-            <Callout
-              responsiveStyles={appResponsiveStyles}
-              title="Current blockers"
-              body={blockerResolutionTask.blockers.join(" | ")}
-            />
-            {blockerResolutionError ? (
-              <Callout
-                responsiveStyles={appResponsiveStyles}
-                title="Resolution note required"
-                body={blockerResolutionError}
-              />
-            ) : null}
-            <ModalField
-              label="Resolution note"
-              multiline
-              onChangeText={(value) => {
-                setBlockerResolutionNote(value);
-                setBlockerResolutionError(null);
-              }}
-              placeholder="What changed so this is no longer blocked?"
-              value={blockerResolutionNote}
-            />
-          </>
-        ) : null}
-      </EditorModal>
     </WorkspacePanel>
   );
 };

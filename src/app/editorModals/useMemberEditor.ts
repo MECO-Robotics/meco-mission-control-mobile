@@ -41,7 +41,6 @@ export function useMemberEditor({ members, canMentorApprove, mutate }: Inputs) {
     }
 
     const payload = {
-      disciplineId: editor.draft.disciplineId || null,
       elevated: editor.draft.role === "lead" || editor.draft.role === "admin",
       email,
       name,

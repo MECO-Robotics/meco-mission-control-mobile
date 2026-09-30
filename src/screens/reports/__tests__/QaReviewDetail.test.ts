@@ -1,7 +1,8 @@
 import { createElement, type ReactNode } from "react";
 import { fireEvent, render } from "@testing-library/react-native";
 
-import type { QaReview } from "../../../types/domain";
+import type { QaReport } from "../../../types/domain";
+import { makeMember } from "../../../data/__tests__/fixtures/factories";
 import { QaReviewDetail } from "../QaReviewDetail";
 
 jest.mock("../../../i18n", () => ({ Text: jest.requireActual("react-native").Text }));
@@ -26,30 +27,37 @@ jest.mock("../../../ui/ui", () => {
 
 test("QA detail keeps reviewer, notes, evidence, and close actions in one modal", () => {
   const onClose = jest.fn();
-  const review: QaReview = {
+  const review: QaReport = {
     id: "qa-1",
-    subjectTitle: "Drive test",
+    projectId: "robot-project",
+    targetRefs: [{ kind: "task", id: "task-1" }],
+    createdByMemberId: "student-1",
     participantIds: ["student-1"],
     requestedById: "student-1",
     mentorId: "mentor-1",
     result: "iteration-worthy",
-    mentorApproved: true,
+    reviewedById: "mentor-1",
+    reviewedAt: "2026-09-01",
     notes: "Review the mounting plate.",
     evidenceNotes: "Photo attached.",
+    summary: "Drive test",
+    createdAt: "2026-09-01",
+    status: "reviewed",
+    reportType: "qa",
   };
   const view = render(createElement(QaReviewDetail, {
     review,
     membersById: {
-      "student-1": { id: "student-1", name: "Student", role: "student" },
-      "mentor-1": { id: "mentor-1", name: "Mentor", role: "mentor" },
-    } as QaReviewDetailProps["membersById"],
+      "student-1": makeMember({ id: "student-1", name: "Student", role: "student" }),
+      "mentor-1": makeMember({ id: "mentor-1", name: "Mentor", role: "mentor" }),
+    },
     onClose,
   }));
 
   expect(view.getAllByText("Drive test")).toHaveLength(2);
   expect(view.getByText("Student")).toBeTruthy();
   expect(view.getByText("Mentor")).toBeTruthy();
-  expect(view.getByText("Approved")).toBeTruthy();
+  expect(view.getByText("reviewed")).toBeTruthy();
   expect(view.getByText("Review the mounting plate.")).toBeTruthy();
   expect(view.getByText("Photo attached.")).toBeTruthy();
   expect(view.getByText("This finding should create or anchor a design iteration.")).toBeTruthy();
@@ -57,5 +65,3 @@ test("QA detail keeps reviewer, notes, evidence, and close actions in one modal"
   fireEvent.press(view.getByRole("button", { name: "Done" }));
   expect(onClose).toHaveBeenCalledTimes(1);
 });
-
-type QaReviewDetailProps = Parameters<typeof QaReviewDetail>[0];

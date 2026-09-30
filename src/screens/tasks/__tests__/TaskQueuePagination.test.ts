@@ -3,28 +3,24 @@ import { fireEvent, render } from "@testing-library/react-native";
 import { TaskQueueScreen } from "../TaskQueueScreen";
 import type { TaskScreenProps } from "../taskScreenTypes";
 import { useTaskQueue } from "../useTaskQueue";
-import type { Task } from "../../../types/domain";
+import { makeTask } from "../../../data/__tests__/fixtures/factories";
 import { localTodayDate, shiftDateByDays } from "../../../ui/helpers";
 
 function queueProps(count: number, taskSearch = "", dueDate = "2026-10-01") {
-  const tasks = Array.from({ length: count }, (_, index) => ({
-    id: `task-${index}`, title: `Measured task ${index}`, summary: "Prepare robot hardware",
-    workstreamIds: [], artifactIds: [], subsystemIds: ["drive"], disciplineId: "mechanical", ownerId: null,
-    dueDate, status: "not-started", priority: "medium",
-    linkedManufacturingIds: [], linkedPurchaseIds: [], blockers: [], checklistItems: [],
-    estimatedHours: 1, actualHours: 0, mechanismIds: [], partInstanceIds: [],
-    targetEventId: null, mentorId: null, isBlocked: false, isWaitingOnDependency: false,
-  } as Task));
+  const tasks = Array.from({ length: count }, (_, index) => makeTask({
+    id: `task-${index}`, title: `Measured task ${index}`, summary: "Prepare robot hardware", subsystemIds: ["drive"], ownerId: null,
+    dueDate, status: "not-started", priority: "medium", estimatedHours: 1, actualHours: 0,
+  }));
   return {
-    activeTaskSubteamLabel: "Mechanical", activeTaskSubteam: "mechanical",
+    activeResponsibleGroupLabel: "Robot Build", activeResponsibleGroupId: "robot-build", responsibleGroups: [{ id: "robot-build", seasonId: "season", name: "Robot Build", projectIds: ["robot-project"], memberIds: [], isArchived: false }],
     appResponsiveStyles: {}, themeColors: {}, members: [], membersById: {},
     rosterMentors: [], rosterStudents: [], subsystems: [], subsystemsById: {},
-    disciplinesById: {}, mechanismsById: {}, partInstancesById: {}, eventsById: {},
+    workTypesById: {}, mechanismsById: {}, partInstancesById: {}, eventsById: {},
     queue: { filteredTaskQueue: tasks, taskQueueSections: [{ id: "queue", title: "Ready", tasks }],
     taskSummary: [], setFilter: jest.fn(), resetFilters: jest.fn(),
     filters: { taskSearch, taskArchiveFilter: "active", taskOwnerFilter: "all", taskPriorityFilter: "all",
     taskBlockerFilter: "all", taskStatusFilter: "all", taskSubsystemFilter: "all" } },
-    taskDependencies: [], taskById: {}, taskLoggedHoursById: {}, qaReviews: [],
+    taskDependencies: [], taskById: {}, taskLoggedHoursById: {}, qaReports: [],
   } as unknown as TaskScreenProps;
 }
 
@@ -63,7 +59,7 @@ test("search and both reset controls restore the first page without changing the
     const props = queueProps(40);
     const tasks = props.queue.filteredTaskQueue.map((task) => ({ ...task, ownerId: "student" }));
     tasks.push({ ...tasks[0], id: "other", title: "Another person's task", ownerId: "other" });
-    const queue = useTaskQueue({ tasks, activePersonFilter: "student", activeTaskSubteam: "mechanical",
+    const queue = useTaskQueue({ tasks, activePersonFilter: "student", activeResponsibleGroupId: "robot-build", responsibleGroups: [{ id: "robot-build", seasonId: "season", name: "Robot Build", projectIds: ["robot-project"], memberIds: [], isArchived: false }], purchaseTaskIds: new Set(),
       canMentorApprove: false, taskLoggedHoursById: {}, membersById: {}, mechanismsById: {}, subsystemsById: {} });
     return createElement(TaskQueueScreen, { ...props, queue });
   }

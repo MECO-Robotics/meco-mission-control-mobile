@@ -22,14 +22,15 @@ function routerProps(taskView: TaskScreenProps["taskView"], landscape = false) {
   return {
     taskView,
     isLandscapeTimelineLayout: landscape,
-    activeTaskSubteam: "programming",
+    activeResponsibleGroupId: "programming",
+    responsibleGroups: [{ id: "programming", seasonId: "season", name: "Programming", projectIds: [], memberIds: [], isArchived: false }],
     events: [],
     subsystems: [],
     timelineTasks: [],
     openCreateDeadlineEditor: jest.fn(),
     openCreateTaskEditor: jest.fn(),
     openEditTaskEditor: jest.fn(),
-    setActiveTaskSubteam: jest.fn(),
+    setActiveResponsibleGroupId: jest.fn(),
     themeColors: {},
   } as unknown as TaskScreenProps;
 }
@@ -40,7 +41,7 @@ test.each([
   ["queue", TaskQueueScreen, true],
   ["timeline", TaskTimelineScreen, true],
   ["milestones", TaskMilestonesScreen, false],
-] as const)("routes %s and shows discipline as a filter", (view, child, tabsVisible) => {
+] as const)("routes %s and shows responsible group as a filter", (view, child, tabsVisible) => {
   render(createElement(TasksScreen, routerProps(view)));
   expect(child).toHaveBeenCalledTimes(1);
   expect(DropdownField).toHaveBeenCalledTimes(tabsVisible ? 1 : 0);

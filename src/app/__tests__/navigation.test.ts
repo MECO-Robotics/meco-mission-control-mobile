@@ -35,7 +35,7 @@ test("all supported destinations are reachable using labeled controls without ge
   }
 });
 
-test("switching domains returns to the last view and new Work starts on Tasks", () => {
+test("switching domains returns to the last view and new Work starts on Kanban", () => {
   const view = render(createElement(Workspace));
   fireEvent.press(view.getByRole("tab", { name: "Work" }));
   expect(view.getByText("Current: work-tasks")).toBeTruthy();

@@ -1,17 +1,16 @@
 import type { useSubsystemBrowse } from "./robot/useSubsystemBrowse";
 import type { useMaterialsBrowse } from "./inventory/useMaterialsBrowse";
 import type { usePartsBrowse } from "./inventory/usePartsBrowse";
-import type { useManufacturingBrowse } from "./manufacturing/useManufacturingBrowse";
 import type { usePurchaseBrowse } from "./inventory/usePurchaseBrowse";
 import type { Dispatch, SetStateAction } from "react";
 import type { StyleProp, TextStyle, ViewStyle } from "react-native";
 
 import type { AppThemeColors } from "../theme";
 import type { WorkLogDraftSyncStatus } from "../services/workLogDraftSync";
-import type { Discipline, HelpRequest, ManufacturingItem, Mechanism, Member, PartDefinition, PurchaseItem, QaRequest, QaReview, Subsystem, Task, WorkLog } from "../types/domain";
+import type { Artifact, HelpRequest, Mechanism, Member, PartDefinition, PartInstance, Project, PurchaseItem, QaRequest, QaReport, ResponsibleGroup, RiskSeverity, Subsystem, Task, WorkLog, WorkType } from "../types/domain";
 import type { MaterialRollup, SummaryChipData, ViewTab, WorkLogSortMode } from "../ui/types";
-import type { AttendanceStatus, RiskPriority } from "../types/status";
-export type { AttendanceStatus, RiskPriority } from "../types/status";
+import type { AttendanceStatus } from "../types/status";
+export type { AttendanceStatus } from "../types/status";
 
 export type AttendanceRow = {
   member: Member;
@@ -21,7 +20,7 @@ export type AttendanceRow = {
 export type RiskRow = {
   detail: string;
   id: string;
-  priority: RiskPriority;
+  priority: RiskSeverity;
   source: string;
   subsystemId: string;
   title: string;
@@ -33,7 +32,7 @@ export type HomeActionItem = {
   label: string;
   onPressTargetId: string;
   priority: "critical" | "high" | "medium";
-  source: "manufacturing" | "purchase" | "task";
+  source: "purchase" | "task";
   title: string;
 };
 
@@ -69,17 +68,18 @@ export type ResponsiveScreenStyles = {
 };
 
 export interface AppScreenProps {
-  manufacturingBrowse: ReturnType<typeof useManufacturingBrowse>;
   materialsBrowse: ReturnType<typeof useMaterialsBrowse>;
   subsystemBrowse: ReturnType<typeof useSubsystemBrowse>;
   partsBrowse: ReturnType<typeof usePartsBrowse>;
   purchaseBrowse: ReturnType<typeof usePurchaseBrowse>;
   appResponsiveStyles: ResponsiveScreenStyles;
+  artifacts: Artifact[];
+  projectsById: Record<string, Project>;
   attendancePreview: AttendanceRow[];
   attendanceSummary: SummaryChipData[];
   canMentorApprove: boolean;
   canSubmitQa: boolean;
-  disciplinesById: Record<string, Discipline>;
+  workTypesById: Record<string, WorkType>;
   editTagStyle: StyleProp<TextStyle>;
   filteredWorkLogs: WorkLogListItem[];
   helpRequests: HelpRequest[];
@@ -87,12 +87,10 @@ export interface AppScreenProps {
   homeTaskSummary: SummaryChipData[];
   isLandscapeCardLayout: boolean;
   isSyncing: boolean;
-  manufacturingItems: ManufacturingItem[];
   mechanismsById: Record<string, Mechanism>;
   meetingAttendance: AttendanceRow[];
   members: Member[];
   membersById: Record<string, Member>;
-  openCreateManufacturingEditor: () => void;
   openCreateMemberEditor: (role?: Member["role"]) => void;
   openCreatePartDefinitionEditor: () => void;
   openCreatePurchaseEditor: () => void;
@@ -102,9 +100,9 @@ export interface AppScreenProps {
   openWorkLogFromTimer: () => void;
   approvePurchaseItem: (item: PurchaseItem, approved: boolean) => Promise<void>;
   createQaRequest: (subject: string, mentorId: string, taskId?: string | null) => void;
-  openEditManufacturingEditor: (item: ManufacturingItem) => void;
   openEditMemberEditor: (memberId: string) => void;
   openEditPartDefinitionEditor: (partDefinitionId: string) => void;
+  updatePartInstance: (item: PartInstance, patch: Partial<Pick<PartInstance, "location" | "readinessStatus">>) => Promise<void>;
   openEditPurchaseEditor: (item: PurchaseItem) => void;
   openEditSubsystemEditor: (subsystem: Subsystem) => void;
   openEditTaskEditor: (task: Task) => void;
@@ -113,17 +111,11 @@ export interface AppScreenProps {
   openMaterialRestockEditor: (row: MaterialRollup) => void;
   openTaskQueueFromTask: (task: Task) => void;
   partDefinitionsById: Record<string, PartDefinition>;
-  patchManufacturingItem: (
-    item: ManufacturingItem,
-    patch: Partial<Pick<ManufacturingItem, "mentorReviewed" | "status">>,
-  ) => Promise<void>;
-  transitionPurchaseItem: (
-    item: PurchaseItem,
-    status: PurchaseItem["status"],
-  ) => Promise<void>;
+  transitionPurchaseItem: (item: PurchaseItem, status: PurchaseItem["orderStatus"]) => Promise<void>;
   purchaseItems: PurchaseItem[];
+  responsibleGroups: ResponsibleGroup[];
   qaRequests: QaRequest[];
-  qaReviews: QaReview[];
+  qaReports: QaReport[];
   riskRows: RiskRow[];
   riskSummary: SummaryChipData[];
   rosterAdmins: Member[];

@@ -60,12 +60,6 @@ export function SubsystemEditorModal({
           placeholder="jordan,riley"
           value={editor.draft.mentorIdsText}
         />
-        <ModalField
-          label="Risks (comma separated)"
-          onChangeText={(value) => editor.updateDraft({ risksText: value })}
-          placeholder="Risk one, risk two"
-          value={editor.draft.risksText}
-        />
       </AdvancedOptions>
     </EditorModal>
   );

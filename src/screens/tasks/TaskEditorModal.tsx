@@ -1,4 +1,5 @@
 import { Callout } from "../../ui/Callout";
+import { useState } from "react";
 import type { useTaskEditor } from "./useTaskEditor";
 import { View, type StyleProp, type TextStyle, type ViewStyle } from "react-native";
 
@@ -9,27 +10,35 @@ import { isoToday } from "../../ui/helpers";
 import { styles } from "../../ui/styles";
 import type { Option } from "../../ui/types";
 import { AdvancedOptions, EditorModal } from "../../ui/editorWidgets";
-import { ModalField } from "../../ui/editorFieldWidgets";
+import { ModalField, ParticipantField } from "../../ui/editorFieldWidgets";
 import { DropdownField } from "../../ui/selectionFieldWidgets";
 import type {
-  Discipline,
-  Event,
   Mechanism,
   PartInstance,
   PartDefinition,
+  Project,
+  ManufacturingProcess,
+  Material,
   Subsystem,
   TaskPriority,
   TaskStatus,
 } from "../../types/domain";
 import { TaskDependenciesField } from "./TaskDependenciesField";
+import type { TaskDependencyDraft } from "./taskDraft";
 
 type TaskEditorModalProps = {
   editor: ReturnType<typeof useTaskEditor>;
   appResponsiveStyles: { calloutBody: StyleProp<TextStyle>; calloutBox: StyleProp<ViewStyle>; calloutTitle: StyleProp<TextStyle> };
-  disciplineOptions: Option[];
-  disciplinesById: Record<string, Discipline | undefined>;
-  eventOptions: Option[];
-  eventsById: Record<string, Event | undefined>;
+  projectOptions: Option[];
+  projectsById: Record<string, Project | undefined>;
+  workTypeOptions: Option[];
+  workTypesById: Record<string, import("../../types/domain").WorkType | undefined>;
+  responsibleGroupOptions: Option[];
+  workstreamOptions: Option[];
+  scheduleOptions: Option[];
+  scheduleNamesByRef: Record<string, string | undefined>;
+  manufacturingProcesses: ManufacturingProcess[];
+  materials: Material[];
   isLandscapeCardLayout: boolean;
   mechanisms: Mechanism[];
   mechanismsById: Record<string, Mechanism | undefined>;
@@ -45,10 +54,16 @@ type TaskEditorModalProps = {
 export function TaskEditorModal({
   editor,
   appResponsiveStyles,
-  disciplineOptions,
-  disciplinesById,
-  eventOptions,
-  eventsById,
+  projectOptions,
+  projectsById,
+  workTypeOptions,
+  workTypesById,
+  responsibleGroupOptions,
+  workstreamOptions,
+  scheduleOptions,
+  scheduleNamesByRef,
+  manufacturingProcesses,
+  materials,
   isLandscapeCardLayout,
   mechanisms,
   mechanismsById,
@@ -60,6 +75,7 @@ export function TaskEditorModal({
   taskSubsystemOptions,
   themeColors,
 }: TaskEditorModalProps) {
+  const [partDependencyId, setPartDependencyId] = useState("");
   const { selectSubsystem, selectMechanism, selectPart, addTaskDependency, availableTaskDependencyOptions, deleteTaskDraft, downstreamTaskDependencies, removeTaskDependency, selectedTaskDependencies, setTaskDependencySearch, setTaskDraft, taskDependencyReadinessMessage, taskDependencySearch, taskDraft, taskEditorError, taskEditorMode, closeTaskEditor: onCancel, saveTaskDraft: onSave } = editor;
 
   const mechanismOptions = mechanisms
@@ -67,10 +83,10 @@ export function TaskEditorModal({
     .map(({ id, name }) => ({ id, name }));
   const mechanismAndTaskPartOptions = taskDraft.mechanismIds[0]
     ? partInstances
-        .filter((part) => part.mechanismId === taskDraft.mechanismIds[0])
+        .filter((part) => part.intendedMechanismId === taskDraft.mechanismIds[0] || (part.location.kind === "installed" && part.location.mechanismId === taskDraft.mechanismIds[0]))
         .map((part) => ({
           id: part.id,
-          name: `${part.name} (${partDefinitionsById[part.partDefinitionId]?.name ?? "part"})`,
+          name: `${partDefinitionsById[part.partDefinitionId]?.name ?? "Part"} ${partDefinitionsById[part.partDefinitionId]?.revision ?? ""}`,
         }))
     : [];
 
@@ -132,15 +148,32 @@ export function TaskEditorModal({
             placeholder="Select subsystem"
             value={taskDraft.subsystemIds[0] ?? ""}
           />
+          <DropdownField label="Project" onChange={(projectId) => {
+            const project = projectsById[projectId];
+            const workTypeId = workTypesById[taskDraft.workTypeId]?.projectType === project?.projectType ? taskDraft.workTypeId : "";
+            setTaskDraft((current) => ({ ...current, projectId, workTypeId, workstreamIds: current.projectId === projectId ? current.workstreamIds : [] }));
+          }} options={projectOptions} value={taskDraft.projectId} />
           <DropdownField
-            clearLabel="No discipline"
-            label="Discipline"
+            label="Work type"
             onChange={(value) =>
-              setTaskDraft((current) => ({ ...current, disciplineId: value }))
+              setTaskDraft((current) => ({ ...current, workTypeId: value }))
             }
-            options={disciplineOptions}
-            placeholder="Select discipline"
-            value={taskDraft.disciplineId}
+            options={workTypeOptions}
+            placeholder="Select work type"
+            value={taskDraft.workTypeId}
+          />
+          <DropdownField
+            clearLabel="Unassigned group"
+            label="Responsible group"
+            onChange={(value) => setTaskDraft((current) => ({ ...current, responsibleGroupId: value }))}
+            options={responsibleGroupOptions}
+            value={taskDraft.responsibleGroupId}
+          />
+          <ParticipantField
+            label="Workstreams"
+            onChange={(value) => setTaskDraft((current) => ({ ...current, workstreamIds: value.split(",").map((id) => id.trim()).filter(Boolean) }))}
+            options={workstreamOptions}
+            value={taskDraft.workstreamIds.join(",")}
           />
         </View>
 
@@ -162,14 +195,12 @@ export function TaskEditorModal({
             value={taskDraft.partInstanceIds[0] || ""}
           />
           <DropdownField
-            clearLabel="No target event"
-            label="Target event"
-            onChange={(value) =>
-              setTaskDraft((current) => ({ ...current, targetEventId: value || null }))
-            }
-            options={eventOptions}
-            placeholder="Select target event"
-            value={taskDraft.targetEventId || ""}
+            clearLabel="No schedule link"
+            label="Schedule link"
+            onChange={(value) => setTaskDraft((current) => ({ ...current, scheduleRefs: value ? [{ kind: value.slice(0, value.indexOf(":")) as "meeting" | "event" | "milestone", id: value.slice(value.indexOf(":") + 1) }] : [] }))}
+            options={scheduleOptions}
+            placeholder="Select schedule record"
+            value={taskDraft.scheduleRefs[0] ? `${taskDraft.scheduleRefs[0].kind}:${taskDraft.scheduleRefs[0].id}` : ""}
           />
           <DropdownField
             clearLabel="No owner"
@@ -219,10 +250,10 @@ export function TaskEditorModal({
                 ]}
               >
                 {`${subsystemsById[taskDraft.subsystemIds[0]]?.name ?? "No subsystem"} / `}
-                {`${disciplinesById[taskDraft.disciplineId]?.name ?? "No discipline"} / `}
+                {`${workTypesById[taskDraft.workTypeId]?.name ?? "No work type"} / `}
                 {`${taskDraft.mechanismIds[0] ? mechanismsById[taskDraft.mechanismIds[0]]?.name : "No mechanism"} / `}
-                {`${taskDraft.partInstanceIds[0] ? partInstancesById[taskDraft.partInstanceIds[0]]?.name : "No part instance"} / `}
-                {`${taskDraft.targetEventId ? eventsById[taskDraft.targetEventId]?.title : "No event"}`}
+                {`${taskDraft.partInstanceIds[0] ? partDefinitionsById[partInstancesById[taskDraft.partInstanceIds[0]]?.partDefinitionId ?? ""]?.name : "No part instance"} / `}
+                {`${taskDraft.scheduleRefs[0] ? scheduleNamesByRef[`${taskDraft.scheduleRefs[0].kind}:${taskDraft.scheduleRefs[0].id}`] : "No schedule link"}`}
               </Text>
             </View>
             <ModalField
@@ -255,14 +286,36 @@ export function TaskEditorModal({
               taskDependencySearch={taskDependencySearch}
               themeColors={themeColors}
             />
-            <ModalField
-              label="Blockers (comma separated)"
-              onChangeText={(value) =>
-                setTaskDraft((current) => ({ ...current, blockersText: value }))
-              }
-              placeholder="Waiting on batch, cable routing"
-              value={taskDraft.blockersText}
-            />
+            <DropdownField label="Milestone dependency" value="" placeholder="Select milestone" options={scheduleOptions.filter((option) => option.id.startsWith("milestone:"))} onChange={(value) => {
+              const refId = value.slice("milestone:".length);
+              if (!refId) return;
+              const edge: TaskDependencyDraft = { kind: "milestone", refId, dependencyType: "hard", requiredState: "ready" };
+              setTaskDraft((current) => current.dependencies.some((item) => item.kind === edge.kind && item.refId === edge.refId) ? current : { ...current, dependencies: [...current.dependencies, edge] });
+            }} />
+            <DropdownField label="Part instance dependency" value={partDependencyId} onChange={setPartDependencyId}
+              options={partInstances.map((part) => ({ id: part.id, name: `${partDefinitionsById[part.partDefinitionId]?.partNumber ?? part.id} · ${part.location.kind}` }))} />
+            <DropdownField label="Required physical location" value="" placeholder="Select location state" options={["stock", "installed", "repair", "retired", "lost", "unlocated"].map((value) => ({ id: value, name: value }))} onChange={(value) => {
+                if (!partDependencyId) return;
+                const edge: TaskDependencyDraft = { kind: "part-instance", refId: partDependencyId, dependencyType: "hard", requiredCondition: { kind: "physical-location", value: value as "stock" | "installed" | "repair" | "retired" | "lost" | "unlocated" } };
+                setTaskDraft((current) => current.dependencies.some((item) => item.kind === edge.kind && item.refId === edge.refId) ? current : { ...current, dependencies: [...current.dependencies, edge] });
+              }} />
+            <DropdownField label="Required derived readiness" value="" placeholder="Select readiness state" options={["not-ready", "blocked", "qa", "ready"].map((value) => ({ id: value, name: value }))} onChange={(value) => {
+                if (!partDependencyId) return;
+                const edge: TaskDependencyDraft = { kind: "part-instance", refId: partDependencyId, dependencyType: "hard", requiredCondition: { kind: "derived-readiness", value: value as "not-ready" | "blocked" | "qa" | "ready" } };
+                setTaskDraft((current) => current.dependencies.some((item) => item.kind === edge.kind && item.refId === edge.refId) ? current : { ...current, dependencies: [...current.dependencies, edge] });
+              }} />
+            {taskDraft.dependencies.filter((edge) => edge.kind !== "task").map((edge) => <Text key={`${edge.kind}:${edge.refId}`} style={styles.queueMetaLine}>{edge.kind}: {edge.refId}{edge.kind === "part-instance" ? ` · ${edge.requiredCondition.kind}: ${edge.requiredCondition.value}` : ` · ${edge.requiredState}`}</Text>)}
+            {workTypesById[taskDraft.workTypeId]?.code === "manufacturing" ? <>
+              <DropdownField label="Process" onChange={(processId) => setTaskDraft((current) => ({ ...current, manufacturingDetails: { ...(current.manufacturingDetails ?? { part: { kind: "provisional", partNumber: "", revision: "" }, quantity: 1, processId, fulfillmentSource: "in-house", material: { kind: "specified-material", name: "" }, fileArtifactIds: [], tolerances: [], qaRequirements: [] }), processId } }))}
+                options={manufacturingProcesses.map((item) => ({ id: item.id, name: item.name }))} value={taskDraft.manufacturingDetails?.processId ?? ""} />
+              <DropdownField label="Fulfillment source" onChange={(value) => setTaskDraft((current) => ({ ...current, manufacturingDetails: current.manufacturingDetails ? { ...current.manufacturingDetails, fulfillmentSource: value as "in-house" | "outsourced" } : null }))}
+                options={[{ id: "in-house", name: "In-house" }, { id: "outsourced", name: "Outsourced" }]} value={taskDraft.manufacturingDetails?.fulfillmentSource ?? "in-house"} />
+              <DropdownField label="Material" onChange={(value) => setTaskDraft((current) => ({ ...current, manufacturingDetails: current.manufacturingDetails ? { ...current.manufacturingDetails, material: value ? { kind: "inventory-material", materialId: value } : { kind: "specified-material", name: "" } } : null }))}
+                options={materials.map((item) => ({ id: item.id, name: item.name }))} value={taskDraft.manufacturingDetails?.material.kind === "inventory-material" ? taskDraft.manufacturingDetails.material.materialId : ""} />
+              <ModalField label="Manufacturing quantity" keyboardType="number-pad" placeholder="1" value={String(taskDraft.manufacturingDetails?.quantity ?? 1)} onChangeText={(value) => setTaskDraft((current) => ({ ...current, manufacturingDetails: current.manufacturingDetails ? { ...current.manufacturingDetails, quantity: Math.max(1, Number(value) || 1) } : null }))} />
+              <ModalField label="Tolerances (comma separated)" placeholder="±0.2 mm" value={taskDraft.manufacturingDetails?.tolerances.join(", ") ?? ""} onChangeText={(value) => setTaskDraft((current) => ({ ...current, manufacturingDetails: current.manufacturingDetails ? { ...current.manufacturingDetails, tolerances: value.split(",").map((item) => item.trim()).filter(Boolean) } : null }))} />
+              <ModalField label="QA requirements (comma separated)" placeholder="Deburr, dimension check" value={taskDraft.manufacturingDetails?.qaRequirements.join(", ") ?? ""} onChangeText={(value) => setTaskDraft((current) => ({ ...current, manufacturingDetails: current.manufacturingDetails ? { ...current.manufacturingDetails, qaRequirements: value.split(",").map((item) => item.trim()).filter(Boolean) } : null }))} />
+            </> : null}
           </AdvancedOptions>
         </View>
       </View>

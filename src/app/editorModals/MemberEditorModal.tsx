@@ -6,7 +6,6 @@ import { Text } from "../../i18n";
 import type { AppThemeColors } from "../../theme";
 import { PLANNED_ATTENDANCE_DAY_OPTIONS, getPhotoFileName } from "../appModel";
 import { styles } from "../../ui/styles";
-import type { Option } from "../../ui/types";
 import { DropdownField, EditorModal, ModalField } from "../../ui/ui";
 import type { MemberRole } from "../../types/domain";
 import type { ResponsiveScreenStyles } from "../../screens/types";
@@ -14,14 +13,12 @@ import type { ResponsiveScreenStyles } from "../../screens/types";
 type MemberEditorModalProps = {
   editor: ReturnType<typeof useMemberEditor>;
   appResponsiveStyles: Pick<ResponsiveScreenStyles, "calloutBody" | "calloutBox" | "calloutTitle">;
-  disciplineOptions: Option[];
   themeColors: AppThemeColors;
 };
 
 export function MemberEditorModal({
   editor,
   appResponsiveStyles,
-  disciplineOptions,
   themeColors,
 }: MemberEditorModalProps) {
   return (
@@ -89,14 +86,6 @@ export function MemberEditorModal({
         onChangeText={(value) => editor.updateDraft({ email: value })}
         placeholder="person@mecorobotics.org"
         value={editor.draft.email}
-      />
-      <DropdownField
-        clearLabel="None"
-        label="Discipline"
-        onChange={(value) => editor.updateDraft({ disciplineId: value })}
-        options={disciplineOptions}
-        placeholder="None"
-        value={editor.draft.disciplineId}
       />
       <DropdownField
         label="Role"

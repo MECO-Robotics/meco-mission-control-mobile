@@ -1,7 +1,6 @@
 import { useSubsystemBrowse } from "./src/screens/robot/useSubsystemBrowse";
 import { useMaterialsBrowse } from "./src/screens/inventory/useMaterialsBrowse";
 import { usePartsBrowse } from "./src/screens/inventory/usePartsBrowse";
-import { useManufacturingEditor } from "./src/app/editorModals/useManufacturingEditor";
 import { usePurchaseEditor } from "./src/app/editorModals/usePurchaseEditor";
 import { useMilestoneEditor, type MilestonePayload } from "./src/app/editorModals/useMilestoneEditor";
 import { formatHoursFromTimer, getWorkLogTimerElapsedMs, type WorkLogTimerState } from "./src/screens/worklogs/workLogTimer";
@@ -19,11 +18,6 @@ import {
 } from "react-native";
 
 import {
-  EVENT_TYPE_STYLES,
-  TASK_SUBTEAM_DISCIPLINE_IDS,
-  TASK_SUBTEAM_OPTIONS,
-} from "./src/ui/constants";
-import {
   buildDateTime,
   buildWorkLogDraft,
   formatDate,
@@ -40,7 +34,7 @@ import type {
   MilestoneSortField,
   QaReportDraft,
   SummaryChipData,
-  TaskSubteamTab,
+  ResponsibleGroupFilter,
   TaskViewTab,
   ViewTab,
   WorkLogDraft,
@@ -72,15 +66,16 @@ import {
   reassignTaskRequest,
   releaseTaskRequest,
 } from "./src/data/taskAssignment";
-import {
-  getTaskSubteamForDisciplineId,
-} from "./src/data/taskQueueOrdering";
 import type {
-  Discipline,
+  Artifact,
   Event,
-  ManufacturingItem,
+  Meeting,
+  Milestone,
+  ManufacturingProcess,
   Member,
   Mechanism,
+  Material,
+  Project,
   PartDefinition,
   PartInstance,
   MobileDeviceSessionSummary,
@@ -89,39 +84,39 @@ import type {
   PublicAuthConfig,
   PurchaseItem,
   QaRequest,
-  QaReview,
+  QaFinding,
+  Report,
+  Risk,
+  ResponsibleGroup,
   MobileSessionResponse,
   SessionResponse,
   SessionUser,
   Subsystem,
   Task,
-  TaskBlocker,
   TaskDependency,
+  Workstream,
+  WorkType,
+  Vendor,
   WorkLog,
 } from "./src/types/domain";
 import {
   AUTH_REQUEST_TIMEOUT_MS,
   RISK_PRIORITY_RANK,
-  applyMilestoneSubsystemLinks,
   backendReachabilityAfterError,
   buildSubsystemOptions,
   buildTaskById,
+  buildScheduleEntries,
   ensureArray,
   getClientErrorMessage,
   getEmailCodeVerificationErrorMessage,
-  getQaReviewTaskId,
   getWorkLogDraftOwnerKey,
   hasRequiredEmailDomain,
   isWorkLogDraftOwnedBy,
-  mapMilestonesToEvents,
   mapPendingWorkLogDraftToWorkLog,
-  mapTaskPriorityToRiskPriority,
   normalizeRequiredEmailDomain,
-  normalizeTaskFromServer,
   parseClientError,
   shouldQueueWorkLogDraftAfterError,
   type BackendReachability,
-  type MilestoneMutationResponse,
   type StartTaskOptions,
   type WorkLogMutationResponse,
 } from "./src/app/appModel";
@@ -139,8 +134,6 @@ import { ActiveTabContent } from "./src/app/components/ActiveTabContent";
 import { LoginScreen } from "./src/app/components/LoginScreen";
 import { WorkspaceShell } from "./src/app/components/WorkspaceShell";
 import { DeadlineEditorModal } from "./src/app/editorModals/DeadlineEditorModal";
-import { ManufacturingEditorModal } from "./src/app/editorModals/ManufacturingEditorModal";
-import { useManufacturingBrowse } from "./src/screens/manufacturing/useManufacturingBrowse";
 import { usePurchaseBrowse } from "./src/screens/inventory/usePurchaseBrowse";
 import { usePartDefinitionEditor } from "./src/app/editorModals/usePartDefinitionEditor";
 import { useSubsystemEditor } from "./src/app/editorModals/useSubsystemEditor";
@@ -345,8 +338,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<ViewTab>("home");
   const [scheduleView, setScheduleView] = useState<"milestones" | "timeline">("milestones");
   const taskView: TaskViewTab = activeTab === "work-schedule" ? scheduleView : "queue";
-  const [activeTaskSubteam, setActiveTaskSubteam] =
-    useState<TaskSubteamTab>("programming");
+  const [activeResponsibleGroupId, setActiveResponsibleGroupId] =
+    useState<ResponsibleGroupFilter>("all");
   const [isPersonMenuVisible, setIsPersonMenuVisible] = useState(false);
   const [isDeviceSessionsVisible, setIsDeviceSessionsVisible] = useState(false);
   const [deviceSessions, setDeviceSessions] = useState<MobileDeviceSessionSummary[]>([]);
@@ -360,14 +353,19 @@ export default function App() {
 
   const [members, setMembers] = useState<Member[]>([]);
   const [subsystems, setSubsystems] = useState<Subsystem[]>([]);
-  const [disciplines, setDisciplines] = useState<Discipline[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [workTypes, setWorkTypes] = useState<WorkType[]>([]);
+  const [responsibleGroups, setResponsibleGroups] = useState<ResponsibleGroup[]>([]);
+  const [workstreams, setWorkstreams] = useState<Workstream[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [mechanisms, setMechanisms] = useState<Mechanism[]>([]);
   const [taskState] = useState(() => createTaskState([]));
   const tasks = useSyncExternalStore(taskState.subscribe, taskState.getSnapshot);
   const setTasks = taskState.replace;
   const [taskDependencies, setTaskDependencies] = useState<TaskDependency[]>([]);
-  const [taskBlockers, setTaskBlockers] = useState<TaskBlocker[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [workLogs, setWorkLogs] = useState<WorkLog[]>([]);
   const workLogsRef = useRef<WorkLog[]>([]);
   const hasRestoredAuthSessionRef = useRef(false);
@@ -392,11 +390,16 @@ export default function App() {
     });
     return () => workLogQueue.dispose();
   }, [workLogQueue]);
-  const [manufacturingItems, setManufacturingItems] = useState<ManufacturingItem[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [manufacturingProcesses, setManufacturingProcesses] = useState<ManufacturingProcess[]>([]);
   const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([]);
   const [partDefinitions, setPartDefinitions] = useState<PartDefinition[]>([]);
   const [partInstances, setPartInstances] = useState<PartInstance[]>([]);
-  const [qaReviews, setQaReviews] = useState<QaReview[]>([]);
+  const [risks, setRisks] = useState<Risk[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
+  const qaReports = useMemo(() => reports.filter((report): report is Extract<Report, { reportType: "qa" }> => report.reportType === "qa"), [reports]);
+  const [qaFindings, setQaFindings] = useState<QaFinding[]>([]);
+  const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [qaRequests, setQaRequests] = useState<QaRequest[]>([]);
   const [helpRequests, setHelpRequests] = useState<HelpRequest[]>([]);
   const systemThemeMode: AppThemeName = systemColorScheme === "dark" ? "dark" : "light";
@@ -449,28 +452,34 @@ export default function App() {
 
   const applyBootstrapPayload = useCallback((payload: PlatformBootstrapPayload) => {
     const events = ensureArray(payload.events);
-    const tasks = ensureArray(payload.tasks).map((task) => normalizeTaskFromServer(task));
+    const tasks = ensureArray(payload.tasks);
     const payloadWorkLogs = ensureArray(payload.workLogs);
 
     // Keep refs and state in lockstep for async callbacks that need the latest
     // workspace snapshot without retriggering every callback when data changes.
     setMembers(ensureArray(payload.members));
     setSubsystems(ensureArray(payload.subsystems));
-    setDisciplines(ensureArray(payload.disciplines));
+    setProjects(ensureArray(payload.projects));
+    setWorkTypes(ensureArray(payload.workTypes));
+    setResponsibleGroups(ensureArray(payload.responsibleGroups));
+    setWorkstreams(ensureArray(payload.workstreams));
+    setVendors(ensureArray(payload.vendors));
     setMechanisms(ensureArray(payload.mechanisms));
     setTasks(tasks);
     setTaskDependencies(ensureArray(payload.taskDependencies));
-    setTaskBlockers(ensureArray(payload.taskBlockers));
-    setEvents(events.length > 0 ? events : mapMilestonesToEvents(payload));
+    setEvents(events);
+    setMeetings(ensureArray(payload.meetings));
+    setMilestones(ensureArray(payload.milestones));
     workLogsRef.current = payloadWorkLogs;
     setWorkLogs(payloadWorkLogs);
-    setManufacturingItems(ensureArray(payload.manufacturingItems));
+    setMaterials(ensureArray(payload.materials));
+    setManufacturingProcesses(ensureArray(payload.manufacturingProcesses));
     setPurchaseItems(ensureArray(payload.purchaseItems));
     setQaRequests(ensureArray(payload.qaRequests));
-    setQaReviews(ensureArray(payload.qaReports).map((report) => ({ ...report,
-      subjectId: report.taskId, subjectType: "task",
-      subjectTitle: tasks.find((task) => task.id === report.taskId)?.title ?? report.taskId,
-    })));
+    setRisks(ensureArray(payload.risks));
+    setReports(ensureArray(payload.reports));
+    setQaFindings(ensureArray(payload.qaFindings));
+    setArtifacts(ensureArray(payload.artifacts));
     setHelpRequests(ensureArray(payload.helpRequests));
     setPartDefinitions(ensureArray(payload.partDefinitions));
     setPartInstances(ensureArray(payload.partInstances));
@@ -1020,11 +1029,8 @@ export default function App() {
   }, [subsystems]);
   const taskSubsystemOptions = useMemo(() => buildSubsystemOptions(subsystems), [subsystems]);
 
-  const disciplinesById = useMemo(() => {
-    return Object.fromEntries(
-      disciplines.map((discipline) => [discipline.id, discipline]),
-    ) as Record<string, (typeof disciplines)[number]>;
-  }, [disciplines]);
+  const workTypesById = useMemo(() => Object.fromEntries(workTypes.map((workType) => [workType.id, workType])) as Record<string, WorkType>, [workTypes]);
+  const workstreamsById = useMemo(() => Object.fromEntries(workstreams.map((workstream) => [workstream.id, workstream])) as Record<string, Workstream>, [workstreams]);
 
   const mechanismsById = useMemo(() => {
     return Object.fromEntries(
@@ -1044,17 +1050,18 @@ export default function App() {
     ) as Record<string, (typeof partInstances)[number]>;
   }, [partInstances]);
 
+  const scheduleEntries = useMemo(() => buildScheduleEntries(meetings, events, milestones), [events, meetings, milestones]);
   const eventsById = useMemo(() => {
     return Object.fromEntries(
-      events.map((event) => [event.id, event]),
-    ) as Record<string, (typeof events)[number]>;
-  }, [events]);
+      scheduleEntries.map((event) => [`${event.recordType}:${event.id}`, event]),
+    ) as Record<string, (typeof scheduleEntries)[number]>;
+  }, [scheduleEntries]);
 
   const taskById = useMemo(() => {
     return buildTaskById(tasks);
   }, [tasks]);
-  const taskEditor = useTaskEditor({ mechanisms, partInstances, tasks, taskById, taskDependencies, members, membersById, disciplines,
-    subsystemsById, taskSubsystemOptions, activeTaskSubteam, setActiveTaskSubteam,
+  const taskEditor = useTaskEditor({ mechanisms, partInstances, projects, tasks, taskById, taskDependencies, members, membersById, workTypes,
+    subsystemsById, taskSubsystemOptions, activeResponsibleGroupId, setActiveResponsibleGroupId,
     request: authenticatedRequestJson, refresh: () => refreshWorkspaceFromServer(apiToken),
   });
   const { openCreateTaskEditor, openEditTaskEditor, openDuplicateTaskEditor, closeTaskEditor } = taskEditor;
@@ -1075,14 +1082,10 @@ export default function App() {
     () => visiblePendingWorkLogDrafts.filter((draft) => draft.status === "failed").length,
     [visiblePendingWorkLogDrafts],
   );
-  const activeTaskSubteamTasks = useMemo(() => {
-    const disciplineIds = TASK_SUBTEAM_DISCIPLINE_IDS[activeTaskSubteam];
-
-    return tasks.filter((task) => disciplineIds.includes(task.disciplineId));
-  }, [activeTaskSubteam, tasks]);
-  const activeTaskSubteamLabel =
-    TASK_SUBTEAM_OPTIONS.find((option) => option.value === activeTaskSubteam)?.label ??
-    "Programming";
+  const activeResponsibleGroupIdTasks = useMemo(() => activeResponsibleGroupId === "all"
+    ? tasks : tasks.filter((task) => task.responsibleGroupId === activeResponsibleGroupId), [activeResponsibleGroupId, tasks]);
+  const activeResponsibleGroupLabel =
+    responsibleGroups.find((group) => group.id === activeResponsibleGroupId)?.name ?? "All groups";
   const taskLoggedHoursById = useMemo(() => {
     return workLogsForDisplay.reduce<Record<string, number>>((hoursByTaskId, workLog) => {
       hoursByTaskId[workLog.taskId] = (hoursByTaskId[workLog.taskId] ?? 0) + workLog.hours;
@@ -1090,14 +1093,15 @@ export default function App() {
     }, {});
   }, [workLogsForDisplay]);
 
-  const taskQueue = useTaskQueue({ tasks, taskLoggedHoursById, activeTaskSubteam,
+  const purchaseTaskIds = useMemo(() => new Set(purchaseItems.map((item) => item.taskId)), [purchaseItems]);
+  const taskQueue = useTaskQueue({ tasks, taskLoggedHoursById, activeResponsibleGroupId, responsibleGroups, purchaseTaskIds,
     canMentorApprove, activePersonFilter, membersById, mechanismsById, subsystemsById });
   const { taskArchiveFilter } = taskQueue.filters;
 
   const filteredMilestones = useMemo(() => {
     const search = milestoneSearch.trim().toLowerCase();
 
-    return [...events]
+    return [...scheduleEntries]
       .filter((event) =>
         milestoneTypeFilter === "all" ? true : event.type === milestoneTypeFilter,
       )
@@ -1106,15 +1110,15 @@ export default function App() {
           return true;
         }
 
-        const relatedSubsystemNames = event.relatedSubsystemIds
-          .map((subsystemId) => subsystemsById[subsystemId]?.name ?? "")
+        const relatedProjectNames = event.projectIds
+          .map((projectId) => projects.find((project) => project.id === projectId)?.name ?? "")
           .join(" ")
           .toLowerCase();
 
         return (
           event.title.toLowerCase().includes(search) ||
           event.description.toLowerCase().includes(search) ||
-          relatedSubsystemNames.includes(search)
+          relatedProjectNames.includes(search)
         );
       })
       .sort((left, right) => {
@@ -1122,13 +1126,13 @@ export default function App() {
           milestoneSortField === "title"
             ? left.title.toLowerCase()
             : milestoneSortField === "type"
-              ? EVENT_TYPE_STYLES[left.type].label
+              ? left.type
               : left.startDateTime;
         const rightValue =
           milestoneSortField === "title"
             ? right.title.toLowerCase()
             : milestoneSortField === "type"
-              ? EVENT_TYPE_STYLES[right.type].label
+              ? right.type
               : right.startDateTime;
 
         if (leftValue < rightValue) {
@@ -1142,16 +1146,16 @@ export default function App() {
         return 0;
       });
   }, [
-    events,
+    scheduleEntries,
+    projects,
     milestoneSearch,
     milestoneSortField,
     milestoneSortOrder,
     milestoneTypeFilter,
-    subsystemsById,
   ]);
 
   const milestoneSummary = useMemo(() => {
-    const externalCount = filteredMilestones.filter((milestone) => milestone.isExternal).length;
+    const externalCount = filteredMilestones.filter((entry) => entry.recordType === "event").length;
 
     return [
       { label: "Milestones", value: String(filteredMilestones.length) },
@@ -1160,14 +1164,14 @@ export default function App() {
   }, [filteredMilestones]);
 
   const eventOptions = useMemo(() => {
-    return events.map((event) => ({
+    return scheduleEntries.map((event) => ({
       id: event.id,
       name: `${event.title} (${formatDateTime(event.startDateTime)})`,
     }));
-  }, [events]);
+  }, [scheduleEntries]);
 
   const timelineTasks = useMemo(() => {
-    return [...activeTaskSubteamTasks]
+    return [...activeResponsibleGroupIdTasks]
       .filter((task) => {
         if (activePersonFilter === "all") {
           return true;
@@ -1179,13 +1183,13 @@ export default function App() {
         timelineSubsystemFilter === "all" ? true : task.subsystemIds.includes(timelineSubsystemFilter),
       )
       .filter((task) =>
-        timelineMilestoneFilter === "all" ? true : task.targetEventId === timelineMilestoneFilter,
+        timelineMilestoneFilter === "all" ? true : task.scheduleRefs.some((ref) => ref.id === timelineMilestoneFilter),
       )
       .filter((task) => taskArchiveFilter === "all" || task.status !== "complete")
       .sort((left, right) =>
       left.dueDate.localeCompare(right.dueDate),
     );
-  }, [activeTaskSubteamTasks, activePersonFilter, taskArchiveFilter, timelineMilestoneFilter, timelineSubsystemFilter]);
+  }, [activeResponsibleGroupIdTasks, activePersonFilter, taskArchiveFilter, timelineMilestoneFilter, timelineSubsystemFilter]);
 
   const filteredWorkLogs = useMemo(() => {
     const search = workLogSearch.trim().toLowerCase();
@@ -1278,80 +1282,30 @@ export default function App() {
     return summary;
   }, [failedWorkLogDraftCount, filteredWorkLogs, visiblePendingWorkLogDrafts.length]);
 
-  const manufacturingBrowse = useManufacturingBrowse({
-    items: manufacturingItems, activePersonFilter, membersById, subsystemsById,
-  });
-  const purchaseBrowse = usePurchaseBrowse({
-    items: purchaseItems, activePersonFilter, membersById, subsystemsById,
-  });
+  const vendorsById = useMemo(() => Object.fromEntries(vendors.map((vendor) => [vendor.id, vendor])), [vendors]);
+  const purchaseBrowse = usePurchaseBrowse({ items: purchaseItems, tasksById: taskById, vendorsById });
 
-  const materialsBrowse = useMaterialsBrowse({ manufacturingItems, purchaseItems });
+  const materialsBrowse = useMaterialsBrowse({ materials, purchaseItems });
   const partsBrowse = usePartsBrowse({ partDefinitions, partInstances, tasks, partDefinitionsById, mechanismsById });
 
   const subsystemBrowse = useSubsystemBrowse({
-    subsystems, mechanisms, tasks, purchaseItems, qaReviews, membersById, taskById,
+    subsystems, mechanisms, tasks, purchaseItems, risks, qaFindings, membersById, taskById,
   });
 
-  const riskRows = useMemo(() => {
-    const subsystemRisks = subsystems.flatMap((subsystem) =>
-      subsystem.risks.map((risk, index) => ({
-        id: `${subsystem.id}-${index}`,
-        title: risk,
-        detail: subsystem.description,
-        subsystemId: subsystem.id,
-        source: "Subsystem",
-        priority: "medium" as const,
-      })),
-    );
-    const blockerRisks = tasks
-      .filter((task) => task.blockers.length > 0 && task.status !== "complete")
-      .map((task) => ({
-        id: `task-${task.id}`,
-        title: task.title,
-        detail: task.blockers.join(" | "),
-        subsystemId: (task.subsystemIds[0] ?? ""),
-        source: "Task blocker",
-        priority: mapTaskPriorityToRiskPriority(task.priority),
-      }));
-    const qaRisks = qaReviews
-      .filter((review) => review.result === "iteration-worthy" || review.result === "minor-fix")
-      .map((review) => {
-        const taskId = getQaReviewTaskId(review);
-        const task = taskId ? taskById[taskId] : null;
-
-        return {
-          id: `qa-${review.id}`,
-          title: review.subjectTitle,
-          detail: review.notes,
-          subsystemId: task?.subsystemIds[0] ?? "",
-          source: review.result === "iteration-worthy" ? "Iteration" : "QA finding",
-          priority: review.result === "iteration-worthy" ? "high" as const : "medium" as const,
-        };
-      });
-
-    return [...blockerRisks, ...qaRisks, ...subsystemRisks].sort((left, right) => {
-      const priorityDelta = RISK_PRIORITY_RANK[left.priority] - RISK_PRIORITY_RANK[right.priority];
-      if (priorityDelta !== 0) {
-        return priorityDelta;
-      }
-
-      const sourceDelta = left.source.localeCompare(right.source);
-      if (sourceDelta !== 0) {
-        return sourceDelta;
-      }
-
-      return left.title.localeCompare(right.title);
-    });
-  }, [qaReviews, subsystems, taskById, tasks]);
+  const riskRows = useMemo(() => risks.filter((risk) => risk.status === "open" || risk.status === "mitigating")
+    .map((risk) => ({ id: risk.id, title: risk.title, detail: risk.detail,
+      subsystemId: risk.relatedTargets.find((target) => target.kind === "subsystem")?.id ?? "",
+      source: risk.source.kind, priority: risk.severity }))
+    .sort((left, right) => RISK_PRIORITY_RANK[left.priority] - RISK_PRIORITY_RANK[right.priority] || left.title.localeCompare(right.title)), [risks]);
 
   const riskSummary = useMemo(() => {
-    const highCount = riskRows.filter((risk) => risk.priority === "high").length;
+    const highCount = riskRows.filter((risk) => risk.priority === "high" || risk.priority === "critical").length;
     return [
       { label: "Open risks", value: String(riskRows.length) },
       { label: "High", value: String(highCount) },
-      { label: "Subsystem risks", value: String(subsystems.reduce((sum, subsystem) => sum + subsystem.risks.length, 0)) },
+      { label: "Mitigating", value: String(risks.filter((risk) => risk.status === "mitigating").length) },
     ] satisfies SummaryChipData[];
-  }, [riskRows, subsystems]);
+  }, [riskRows, risks]);
 
   const rosterStudents = members.filter(
     (member) => member.role === "student" || member.role === "lead",
@@ -1368,20 +1322,20 @@ export default function App() {
     const taskActions = tasks
       .filter((task) => task.status !== "complete")
       .flatMap((task) => {
-        const subsystemName = subsystemsById[(task.subsystemIds[0] ?? "")]?.name ?? "Unknown subsystem";
+        const subsystemName = subsystemsById[(task.subsystemIds[0] ?? "")]?.name ?? "FRC work";
         const ownerName = task.ownerId
           ? (membersById[task.ownerId]?.name ?? "Unassigned")
           : "Unassigned";
-        const openDependencies = taskDependencies.filter((edge) => edge.taskId === task.id && edge.kind === "task" && edge.dependencyType === "hard")
+        const openDependencies = taskDependencies.filter((edge): edge is Extract<TaskDependency, { kind: "task" }> => edge.taskId === task.id && edge.kind === "task" && edge.dependencyType === "hard")
           .filter((edge) => taskById[edge.refId]?.status !== edge.requiredState)
           .map((edge) => taskById[edge.refId])
           .filter((dependency): dependency is Task => Boolean(dependency))
           .filter((dependency) => dependency.status !== "complete");
         const actions = [];
 
-        if (task.blockers.length > 0) {
+        if (task.isBlocked) {
           actions.push({
-            detail: `${subsystemName} - ${ownerName} - ${task.blockers.join(" | ")}`,
+            detail: `${subsystemName} - ${ownerName} - unresolved risk or dependency`,
             id: `blocked-${task.id}`,
             label: "Blocked task",
             onPressTargetId: task.id,
@@ -1434,40 +1388,27 @@ export default function App() {
         return actions;
       });
 
-    const manufacturingActions = manufacturingItems
-      .filter((item) => item.status !== "complete")
-      .filter((item) => item.dueDate <= dueSoonDate || item.status === "qa")
-      .map((item) => ({
-        detail: `${subsystemsById[item.subsystemId]?.name ?? "Unknown subsystem"} - ${item.material} - Qty ${item.quantity}`,
-        id: `manufacturing-${item.id}`,
-        label: item.status === "qa" ? "Manufacturing QA" : "Manufacturing due",
-        onPressTargetId: item.id,
-        priority: item.status === "qa" || item.dueDate < today ? "high" as const : "medium" as const,
-        source: "manufacturing" as const,
-        title: item.title,
-      }));
-
     const purchaseActions = purchaseItems
-      .filter((item) => item.status === "requested" || item.status === "approved")
+      .filter((item) => item.approvalStatus === "pending" || item.orderStatus === "not-ordered")
       .map((item) => ({
-        detail: `${subsystemsById[item.subsystemId]?.name ?? "Unknown subsystem"} - ${item.vendor} - Qty ${item.quantity}`,
-        id: `purchase-${item.id}`,
-        label: item.status === "approved" ? "Ready to buy" : "Purchase request",
-        onPressTargetId: item.id,
-        priority: item.status === "approved" ? "high" as const : "medium" as const,
+        detail: `${taskById[item.taskId]?.title ?? "Procurement work"} - Qty ${item.quantity} - ${item.approvalStatus}`,
+        id: `purchase-${item.taskId}`,
+        label: "Procurement work",
+        onPressTargetId: item.taskId,
+        priority: item.approvalStatus === "approved" ? "high" as const : "medium" as const,
         source: "purchase" as const,
-        title: item.title,
+        title: taskById[item.taskId]?.title ?? item.title,
       }));
 
     const priorityRank = { critical: 0, high: 1, medium: 2 };
 
-    return [...taskActions, ...manufacturingActions, ...purchaseActions]
+    return [...taskActions, ...purchaseActions]
       .sort((left, right) => priorityRank[left.priority] - priorityRank[right.priority])
       .slice(0, 8);
-  }, [manufacturingItems, membersById, purchaseItems, subsystemsById, taskById, taskDependencies, tasks]);
+  }, [membersById, purchaseItems, subsystemsById, taskById, taskDependencies, tasks]);
   const homeTaskSummary = useMemo(() => {
     const openTasks = tasks.filter((task) => task.status !== "complete");
-    const blockedTasks = openTasks.filter((task) => task.blockers.length > 0);
+    const blockedTasks = openTasks.filter((task) => task.isBlocked);
     const dueToday = openTasks.filter((task) => task.dueDate <= isoToday());
     const waitingQa = openTasks.filter((task) => task.status === "waiting-for-qa");
 
@@ -1674,9 +1615,7 @@ export default function App() {
   }, [members, selectedMemberId]);
 
   const openTaskQueueFromTask = (task: Task) => {
-    const nextSubteam = getTaskSubteamForDisciplineId(task.disciplineId, activeTaskSubteam);
-
-    setActiveTaskSubteam(nextSubteam);
+    setActiveResponsibleGroupId(task.responsibleGroupId ?? "all");
     taskQueue.resetFilters();
     setActiveTab("work-tasks");
   };
@@ -1748,7 +1687,7 @@ export default function App() {
     setSyncError(null);
 
     try {
-      const response = await authenticatedRequestJson<MilestoneMutationResponse>(
+      await authenticatedRequestJson<unknown>(
         id ? `/api/milestones/${id}` : "/api/milestones",
         {
           method: id ? "PATCH" : "POST",
@@ -1757,14 +1696,6 @@ export default function App() {
       );
 
       await refreshWorkspaceFromServer(apiToken);
-      setEvents((currentEvents) =>
-        applyMilestoneSubsystemLinks(
-          currentEvents,
-          response.item,
-          id,
-          payload.relatedSubsystemIds,
-        ),
-      );
       setBackendStatus("connected");
       setBackendReachability("reachable");
       return true;
@@ -1810,28 +1741,9 @@ export default function App() {
   };
 
   const milestoneEditor = useMilestoneEditor({
-    subsystemsById,
     persist: persistMilestone,
     remove: (id) => runMutation(`/api/milestones/${id}`, { method: "DELETE" }),
   });
-
-  const clearTaskBlockers = async (task: Task, resolutionNote: string) => {
-    const trimmedNote = resolutionNote.trim();
-    if (!trimmedNote) {
-      return;
-    }
-
-    for (const blocker of taskBlockers.filter((candidate) => candidate.blockedTaskId === task.id && candidate.status === "open")) {
-      const ok = await runMutation(`/api/task-blockers/${blocker.id}`, {
-        method: "PATCH", body: JSON.stringify({ status: "resolved" }),
-      });
-      if (!ok) throw new Error("Blocker resolution failed. Refresh and retry.");
-    }
-    const saved = await runMutation(`/api/tasks/${task.id}`, { method: "PATCH", body: JSON.stringify({
-      summary: `${task.summary.trim()}\n\nBlockers cleared ${isoToday()}: ${trimmedNote}`,
-    }) });
-    if (!saved) throw new Error("Blockers resolved, but the resolution note failed to save. Retry the note.");
-  };
 
   const claimTask = async (task: Task) => {
     if (!signedInMember || task.status === "complete") {
@@ -1933,7 +1845,6 @@ export default function App() {
     if (
       !mentorId ||
       task.status !== "in-progress" ||
-      task.blockers.length > 0 ||
       isTaskBlocked(task)
     ) {
       return;
@@ -1958,8 +1869,9 @@ export default function App() {
     if (ok) {
       setQaRequests((current) => [
         {
-          id: `qa-request-local-${Date.now()}`,
-          taskId: task.id,
+        id: `qa-request-local-${Date.now()}`,
+          projectId: task.projectId,
+          targetRefs: [{ kind: "task", id: task.id }],
           subject: task.title,
           mentorId,
           requestedById: signedInMember?.id ?? null,
@@ -2292,33 +2204,8 @@ export default function App() {
     }
   };
 
-  const manufacturingEditor = useManufacturingEditor({
-    manufacturingView: manufacturingBrowse.filters.view, subsystems, members, signedInMember,
-    canMentorApprove, mutate: runMutation,
-  });
-
-  const patchManufacturingItem = async (
-    item: ManufacturingItem,
-    patch: Partial<Pick<ManufacturingItem, "mentorReviewed" | "status">>,
-  ) => {
-    if (patch.mentorReviewed !== undefined) {
-      await runMutation(`/api/manufacturing/${item.id}/review`, {
-        method: "PUT",
-        body: JSON.stringify({ reviewed: patch.mentorReviewed }),
-      });
-      return;
-    }
-
-    if (patch.status !== undefined) {
-      await runMutation(`/api/manufacturing/${item.id}/transition`, {
-        method: "POST",
-        body: JSON.stringify({ status: patch.status }),
-      });
-    }
-  };
-
   const purchaseEditor = usePurchaseEditor({
-    subsystems, members, signedInMember, manufacturingItems, purchaseItems,
+    tasks, materials, vendors, purchaseItems,
     canMentorApprove, mutate: runMutation,
   });
 
@@ -2329,10 +2216,7 @@ export default function App() {
     });
   };
 
-  const transitionPurchaseItem = async (
-    item: PurchaseItem,
-    status: PurchaseItem["status"],
-  ) => {
+  const transitionPurchaseItem = async (item: PurchaseItem, status: PurchaseItem["orderStatus"]) => {
     await runMutation(`/api/purchases/${item.id}/transition`, {
       method: "POST",
       body: JSON.stringify({ status }),
@@ -2342,10 +2226,14 @@ export default function App() {
   const memberEditor = useMemberEditor({ members, canMentorApprove, mutate: runMutation });
   const subsystemEditor = useSubsystemEditor({ members, mutate: runMutation });
   const partDefinitionEditor = usePartDefinitionEditor({
-    members, subsystems, disciplines, partDefinitions,
+    partDefinitions,
     canCreateParts: ["lead", "mentor", "admin"].includes(sessionUser?.role ?? ""),
     mutate: runMutation,
   });
+
+  const updatePartInstance = async (item: PartInstance, patch: Partial<Pick<PartInstance, "location" | "readinessStatus">>) => {
+    await runMutation(`/api/part-instances/${item.id}`, { method: "PATCH", body: JSON.stringify(patch) });
+  };
 
   const openCreateQaReportEditor = (taskId = tasks[0]?.id ?? "", qaRequestId?: string) => {
     if (!canSubmitQa) return;
@@ -2383,7 +2271,8 @@ export default function App() {
     setQaRequests((current) => [
       {
         id: `qa-request-local-${Date.now()}`,
-        taskId: task?.id ?? null,
+        projectId: task?.projectId ?? projects[0]?.id ?? "",
+        targetRefs: task ? [{ kind: "task", id: task.id }] : [],
         subject: requestSubject,
         mentorId,
         requestedById: signedInMember?.id ?? null,
@@ -2443,21 +2332,29 @@ export default function App() {
       (activeQaRequestId
         ? qaRequests.find((request) => request.id === activeQaRequestId)
         : null) ??
-      qaRequests.find((request) => request.taskId === task.id);
+      qaRequests.find((request) => request.targetRefs.some((target) => target.kind === "task" && target.id === task.id));
     const sessionVersion = authSessionVersionRef.current;
     try {
-      const { item } = await authenticatedRequestJson<{ item: NonNullable<PlatformBootstrapPayload["qaReports"]>[number] }>("/api/qa-reports/submit", {
+      const { item } = await authenticatedRequestJson<{ item: Extract<Report, { reportType: "qa" }> }>("/api/qa-reports/submit", {
         method: "POST", body: JSON.stringify({
-          taskId: task.id, participantIds: participants,
-          result: qaReportDraft.result, mentorApproved: qaReportDraft.mentorApproved,
-          notes: qaReportDraft.notes.trim(), evidenceNotes: qaReportDraft.evidenceNotes.trim(),
-          followUpTaskTitle: qaReportDraft.followUpTaskTitle.trim(),
-          qaRequestId: linkedQaRequest?.id ?? null, reviewedAt: isoToday(),
+          projectId: task.projectId,
+          targetRefs: [{ kind: "task", id: task.id }],
+          participantIds: participants,
+          result: qaReportDraft.result,
+          summary: qaReportDraft.notes.trim(),
+          notes: qaReportDraft.notes.trim(),
+          evidenceNotes: qaReportDraft.evidenceNotes.trim(),
+          qaRequestId: linkedQaRequest?.id ?? null,
+          createdByMemberId: signedInMember?.id ?? null,
+          mentorId: linkedQaRequest?.mentorId ?? null,
+          requestedById: linkedQaRequest?.requestedById ?? signedInMember?.id ?? null,
+          status: "submitted",
+          reviewedById: canMentorApprove ? signedInMember?.id ?? null : null,
+          reviewedAt: canMentorApprove ? new Date().toISOString() : null,
         }),
       });
       if (authSessionVersionRef.current !== sessionVersion) return;
-      setQaReviews((current) => [{ ...item, subjectTitle: task.title, subjectType: "task", subjectId: task.id },
-        ...current.filter((review) => review.id !== item.id)]);
+      setReports((current) => [item, ...current.filter((report) => report.id !== item.id)]);
       closeQaReportEditor();
     } catch (error) {
       if (authSessionVersionRef.current !== sessionVersion) return;
@@ -2479,20 +2376,29 @@ export default function App() {
   const clearIdentityScopedState = () => {
     setMembers([]);
     setSubsystems([]);
-    setDisciplines([]);
+    setProjects([]);
+    setWorkTypes([]);
+    setResponsibleGroups([]);
+    setWorkstreams([]);
+    setVendors([]);
     setMechanisms([]);
     setTasks([]);
     setTaskDependencies([]);
-    setTaskBlockers([]);
     setEvents([]);
+    setMeetings([]);
+    setMilestones([]);
     workLogsRef.current = [];
     setWorkLogs([]);
     workLogQueue.dispose();
-    setManufacturingItems([]);
+    setMaterials([]);
+    setManufacturingProcesses([]);
     setPurchaseItems([]);
     setPartDefinitions([]);
     setPartInstances([]);
-    setQaReviews([]);
+    setRisks([]);
+    setReports([]);
+    setQaFindings([]);
+    setArtifacts([]);
     setQaRequests([]);
     setHelpRequests([]);
     setActivePersonFilter("all");
@@ -2502,7 +2408,6 @@ export default function App() {
     closeWorkLogEditor();
     milestoneEditor.close();
     closeDeadlineEditor();
-    manufacturingEditor.close();
     purchaseEditor.close();
     memberEditor.close();
     subsystemEditor.close();
@@ -2611,23 +2516,25 @@ export default function App() {
     canSubmitQa,
     qaRequests,
     openCreateQaReportEditor,
-    activeTaskSubteam,
-    events,
+    activeResponsibleGroupId,
+    events: scheduleEntries,
     isLandscapeTimelineLayout,
     openCreateDeadlineEditor,
     openCreateTaskEditor,
     openEditTaskEditor,
-    setActiveTaskSubteam,
+    setActiveResponsibleGroupId,
     subsystems,
     taskView,
     themeColors,
     timelineTasks,
-    activeTaskSubteamLabel,
+    activeResponsibleGroupLabel,
+    responsibleGroups,
+    workstreamsById,
+    projects,
     appResponsiveStyles,
     canReassignTasks,
     claimTask,
-    clearTaskBlockers,
-    disciplinesById,
+    workTypesById,
     editTagStyle,
     eventsById,
     isCompactLayout,
@@ -2637,6 +2544,7 @@ export default function App() {
     membersById,
     openCreateWorkLogEditor,
     partInstancesById,
+    partDefinitionsById,
     requestHelp,
     requestTaskQa,
     reassignTask,
@@ -2649,7 +2557,7 @@ export default function App() {
     taskById,
     taskDependencies,
     taskLoggedHoursById,
-    qaReviews,
+    qaReports,
     eventOptions,
     setTimelineMilestoneFilter,
     setTimelineSubsystemFilter,
@@ -2662,7 +2570,10 @@ export default function App() {
     milestoneSummary,
     milestoneTypeFilter,
     openCreateMilestoneEditor: () => milestoneEditor.open(),
-    openEditMilestoneEditor: milestoneEditor.open,
+    openEditMilestoneEditor: (entry) => {
+      const milestone = milestones.find((item) => item.id === entry.id);
+      if (entry.recordType === "milestone" && milestone) milestoneEditor.open(milestone);
+    },
     setMilestoneSearch,
     setMilestoneSortField,
     setMilestoneSortOrder,
@@ -2670,7 +2581,8 @@ export default function App() {
   };
 
   const screenProps = {
-    manufacturingBrowse,
+    artifacts,
+    projectsById: Object.fromEntries(projects.map((project) => [project.id, project])),
     purchaseBrowse,
     materialsBrowse,
     partsBrowse,
@@ -2681,7 +2593,7 @@ export default function App() {
     approvePurchaseItem,
     canMentorApprove,
     canSubmitQa,
-    disciplinesById,
+    workTypesById,
     editTagStyle,
     filteredWorkLogs,
     helpRequests,
@@ -2689,13 +2601,11 @@ export default function App() {
     homeTaskSummary,
     isLandscapeCardLayout,
     isSyncing,
-    manufacturingItems,
     mechanismsById,
     meetingAttendance,
     members,
     membersById,
     createQaRequest,
-    openCreateManufacturingEditor: () => manufacturingEditor.open(),
     openCreateMemberEditor: memberEditor.open,
     openCreatePartDefinitionEditor: partDefinitionEditor.open,
     openCreatePurchaseEditor: () => purchaseEditor.open(),
@@ -2703,9 +2613,9 @@ export default function App() {
     openCreateSubsystemEditor: () => subsystemEditor.open(),
     openCreateWorkLogEditor,
     openWorkLogFromTimer,
-    openEditManufacturingEditor: manufacturingEditor.open,
     openEditMemberEditor: memberEditor.edit,
     openEditPartDefinitionEditor: partDefinitionEditor.edit,
+    updatePartInstance,
     openEditPurchaseEditor: purchaseEditor.open,
     openEditSubsystemEditor: subsystemEditor.open,
     openEditTaskEditor,
@@ -2714,10 +2624,10 @@ export default function App() {
     openMaterialRestockEditor: purchaseEditor.restock,
     openTaskQueueFromTask,
     partDefinitionsById,
-    patchManufacturingItem,
     purchaseItems,
+    responsibleGroups,
     qaRequests,
-    qaReviews,
+    qaReports,
     riskRows,
     riskSummary,
     rosterAdmins,
@@ -2754,21 +2664,33 @@ export default function App() {
   const renderEditorModals = () => {
     const taskOptions = tasks.map((task) => ({ id: task.id, name: task.title }));
     const memberOptions = members.map((member) => ({ id: member.id, name: member.name }));
-    const subsystemOptions = taskSubsystemOptions;
-    const disciplineOptions = disciplines.map((discipline) => ({
-      id: discipline.id,
-      name: discipline.name,
+    const selectedProjectType = projects.find((project) => project.id === taskEditor.taskDraft.projectId)?.projectType;
+    const workTypeOptions = workTypes.filter((workType) => workType.projectType === selectedProjectType).map((workType) => ({
+      id: workType.id,
+      name: workType.name,
     }));
+    const projectOptions = projects.map((project) => ({ id: project.id, name: project.name }));
+    const projectsById = Object.fromEntries(projects.map((project) => [project.id, project]));
+    const responsibleGroupOptions = responsibleGroups.filter((group) => !group.projectIds.length || group.projectIds.includes(taskEditor.taskDraft.projectId)).map((group) => ({ id: group.id, name: group.name }));
+    const workstreamOptions = workstreams.filter((workstream) => workstream.projectId === taskEditor.taskDraft.projectId && !workstream.isArchived).map((workstream) => ({ id: workstream.id, name: workstream.name }));
+    const scheduleOptions = scheduleEntries.map((entry) => ({ id: `${entry.recordType}:${entry.id}`, name: `${entry.title} (${formatDateTime(entry.startDateTime)})` }));
+    const scheduleNamesByRef = Object.fromEntries(scheduleEntries.map((entry) => [`${entry.recordType}:${entry.id}`, entry.title]));
 
     return (
       <>
         <TaskEditorModal
           editor={taskEditor}
           appResponsiveStyles={appResponsiveStyles}
-          disciplineOptions={disciplineOptions}
-          disciplinesById={disciplinesById}
-          eventOptions={eventOptions}
-          eventsById={eventsById}
+          projectOptions={projectOptions}
+          projectsById={projectsById}
+          workTypeOptions={workTypeOptions}
+          workTypesById={workTypesById}
+          responsibleGroupOptions={responsibleGroupOptions}
+          workstreamOptions={workstreamOptions}
+          scheduleOptions={scheduleOptions}
+          scheduleNamesByRef={scheduleNamesByRef}
+          manufacturingProcesses={manufacturingProcesses}
+          materials={materials}
           isLandscapeCardLayout={isLandscapeCardLayout}
           mechanisms={mechanisms}
           mechanismsById={mechanismsById}
@@ -2812,19 +2734,9 @@ export default function App() {
           workLogError={workLogError}
         />
 
-        <ManufacturingEditorModal
-          editor={manufacturingEditor}
-          appResponsiveStyles={appResponsiveStyles}
-          memberOptions={memberOptions}
-          subsystemOptions={subsystemOptions}
-          themeColors={themeColors}
-        />
-
         <PurchaseEditorModal
           editor={purchaseEditor}
           appResponsiveStyles={appResponsiveStyles}
-          memberOptions={memberOptions}
-          subsystemOptions={subsystemOptions}
         />
 
         <PartDefinitionEditorModal
@@ -2835,7 +2747,6 @@ export default function App() {
         <MemberEditorModal
           editor={memberEditor}
           appResponsiveStyles={appResponsiveStyles}
-          disciplineOptions={disciplineOptions}
           themeColors={themeColors}
         />
 

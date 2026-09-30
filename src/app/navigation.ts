@@ -3,9 +3,10 @@ import type { ViewTab } from "../ui/types";
 export const NAVIGATION = [
   { value: "home", label: "Home", views: [{ value: "home", label: "Home" }] },
   { value: "work", label: "Work", views: [
-    { value: "work-tasks", label: "Tasks" },
+    { value: "work-tasks", label: "Kanban" },
     { value: "work-schedule", label: "Schedule" },
     { value: "work-risks", label: "Risks" },
+    { value: "work-documents", label: "Documents" },
     { value: "work-activity", label: "Activity" },
   ] },
   { value: "resources", label: "Resources", views: [
@@ -13,7 +14,6 @@ export const NAVIGATION = [
     { value: "resources-materials", label: "Materials" },
     { value: "resources-parts", label: "Parts" },
     { value: "resources-purchases", label: "Purchases" },
-    { value: "resources-manufacturing", label: "Manufacturing" },
     { value: "resources-structure", label: "Structure" },
   ] },
 ] satisfies { value: string; label: string; views: { value: ViewTab; label: string }[] }[];

@@ -1,5 +1,4 @@
 import { View } from "react-native";
-import { TASK_SUBTEAM_OPTIONS } from "../../ui/constants";
 import { LandscapeSubsystemTimeline } from "../../ui/landscapeTimeline/LandscapeSubsystemTimeline";
 import { DropdownField } from "../../ui/ui";
 
@@ -10,13 +9,14 @@ import { TaskTimelineScreen } from "./TaskTimelineScreen";
 
 export function TasksScreen(props: TaskScreenProps) {
   const {
-    activeTaskSubteam,
+    activeResponsibleGroupId,
+    responsibleGroups,
     events,
     isLandscapeTimelineLayout,
     openCreateDeadlineEditor,
     openCreateTaskEditor,
     openEditTaskEditor,
-    setActiveTaskSubteam,
+    setActiveResponsibleGroupId,
     subsystems,
     taskView,
     themeColors,
@@ -40,9 +40,9 @@ export function TasksScreen(props: TaskScreenProps) {
   return (
     <>
       {taskView !== "milestones" ? <View style={{ paddingHorizontal: 20 }}>
-        <DropdownField label="Discipline" value={activeTaskSubteam}
-          onChange={(value) => setActiveTaskSubteam(value as typeof activeTaskSubteam)}
-          options={TASK_SUBTEAM_OPTIONS.map(({ value, label }) => ({ id: value, name: label }))} />
+        <DropdownField label="Responsible group" value={activeResponsibleGroupId}
+          onChange={(value) => setActiveResponsibleGroupId(value as typeof activeResponsibleGroupId)}
+          options={[{ id: "all", name: "All groups" }, ...responsibleGroups.filter((group) => !group.isArchived).map((group) => ({ id: group.id, name: group.name }))]} />
       </View> : null}
       {taskView === "timeline"
         ? <TaskTimelineScreen {...props} />

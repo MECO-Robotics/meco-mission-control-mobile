@@ -1,62 +1,75 @@
 export type MemberRole = "student" | "lead" | "mentor" | "admin" | "external";
 export type PlannedAttendanceDay =
-  | "monday"
-  | "tuesday"
-  | "wednesday"
-  | "thursday"
-  | "friday"
-  | "saturday"
-  | "sunday";
-export type EventType =
-  | "drive-practice"
-  | "competition"
-  | "deadline"
-  | "internal-review"
-  | "demo";
-export type DisciplineCode =
-  | "mechanical"
-  | "electrical"
-  | "software"
-  | "integration"
-  | "qa-test";
-export type TaskStatus =
-  | "not-started"
-  | "in-progress"
-  | "waiting-for-qa"
-  | "complete";
+  | "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday";
+export type ProjectType = "robot" | "media" | "outreach" | "operations" | "strategy" | "training";
+export type TaskStatus = "not-started" | "in-progress" | "waiting-for-qa" | "complete";
 export type TaskPriority = "critical" | "high" | "medium" | "low";
-export type MoscowPriority = "must" | "should" | "could" | "wont";
-export type RequirementStatus = "planned" | "in-progress" | "complete";
-export type ManufacturingStatus =
-  | "requested"
-  | "approved"
-  | "in-progress"
-  | "qa"
-  | "complete";
-export type ManufacturingProcess = "3d-print" | "cnc" | "fabrication";
-export type PurchaseStatus =
-  | "requested"
-  | "approved"
-  | "purchased"
-  | "shipped"
-  | "delivered";
-export type PartInstanceStatus =
-  | "planned"
-  | "needed"
-  | "available"
-  | "installed"
-  | "retired";
+export type ReadinessStatus = "not-ready" | "blocked" | "qa" | "ready";
+export type FulfillmentSource = "in-house" | "outsourced";
+export type AcquisitionMethod = "stock" | "purchase-cots" | "manufacture";
+export type PurchaseKind = "cots-goods" | "manufacturing-service";
+export type PurchaseApprovalStatus = "pending" | "approved" | "rejected";
+export type PurchaseOrderStatus = "not-ordered" | "ordered" | "shipped" | "delivered" | "cancelled";
+export type CadSource = "manual" | "step" | "onshape";
+export type CadImportSource = "MANUAL" | "STEP_UPLOAD" | "ONSHAPE_API" | "ONSHAPE_BOM_CSV" | "MANUAL_BOM_CSV";
+export type RiskSeverity = "low" | "medium" | "high" | "critical";
+export type RiskStatus = "open" | "mitigating" | "accepted" | "resolved";
 export type QaResult = "pass" | "minor-fix" | "iteration-worthy";
+
+export interface Season {
+  id: string;
+  teamId: string;
+  name: string;
+  type: "season" | "offseason" | "initiative";
+  startDate: string;
+  endDate: string;
+}
+
+export interface Project {
+  id: string;
+  teamId: string;
+  seasonId: string;
+  name: "Robot" | "Media" | "Outreach" | "Operations" | "Strategy" | "Training";
+  projectType: ProjectType;
+  description: string;
+  status: "planned" | "active" | "paused" | "complete";
+}
+
+export interface WorkType {
+  id: string;
+  projectType: ProjectType;
+  code: string;
+  name: string;
+  isActive: boolean;
+}
+
+export interface ResponsibleGroup {
+  id: string;
+  seasonId: string;
+  name: string;
+  projectIds: string[];
+  memberIds: string[];
+  isArchived: boolean;
+}
+
+export interface Workstream {
+  id: string;
+  projectId: string;
+  name: string;
+  color?: string;
+  description: string;
+  isArchived: boolean;
+}
 
 export interface Member {
   id: string;
   name: string;
-  role: MemberRole;
-  email?: string;
+  email: string;
   photoUrl?: string;
-  elevated?: boolean;
-  disciplineId?: string | null;
-  seasonId?: string;
+  role: MemberRole;
+  elevated: boolean;
+  seasonId: string;
+  activeSeasonIds: string[];
   plannedWeeklyAttendanceHours?: number;
   plannedAttendanceDays?: PlannedAttendanceDay[];
   plannedAttendanceNotes?: string;
@@ -64,20 +77,13 @@ export interface Member {
 
 export interface Subsystem {
   id: string;
-  projectId?: string;
+  projectId: string;
   name: string;
   description: string;
   isCore: boolean;
   parentSubsystemId: string | null;
   responsibleEngineerId: string | null;
   mentorIds: string[];
-  risks: string[];
-}
-
-export interface Discipline {
-  id: string;
-  code: DisciplineCode;
-  name: string;
 }
 
 export interface Mechanism {
@@ -92,262 +98,353 @@ export interface Requirement {
   subsystemId: string;
   title: string;
   description: string;
-  moscowPriority: MoscowPriority;
-  status: RequirementStatus;
+  moscowPriority: "must" | "should" | "could" | "wont";
+  status: "planned" | "in-progress" | "complete";
+}
+
+export interface Material {
+  id: string;
+  name: string;
+  category: "metal" | "plastic" | "filament" | "electronics" | "hardware" | "consumable" | "other";
+  unit: string;
+  onHandQuantity: number;
+  reorderPoint: number;
+  location: string;
+  preferredVendorId: string | null;
+  notes: string;
+  photoUrl?: string;
 }
 
 export interface PartDefinition {
   id: string;
+  seasonId: string;
+  activeSeasonIds: string[];
   name: string;
   partNumber: string;
   revision: string;
+  iteration: number;
+  isArchived: boolean;
+  isHardware?: boolean;
   type: string;
-  source: string;
-  materialId?: string | null;
-  description?: string;
+  defaultAcquisitionMethod: AcquisitionMethod;
+  materialId: string | null;
+  description: string;
+  cadSource: CadSource;
+  cadImportSource: CadImportSource;
+  cadEditedAfterImport: boolean;
+  cadSourceLabel?: string;
+  cadUpdatedAt?: string | null;
+  photoUrl?: string;
 }
+
+export type PartInstanceLocation =
+  | { kind: "stock"; location: string }
+  | { kind: "installed"; subsystemId: string; mechanismId: string | null }
+  | { kind: "repair"; location: string }
+  | { kind: "retired"; location: string | null }
+  | { kind: "lost" }
+  | { kind: "unlocated" };
 
 export interface PartInstance {
   id: string;
-  subsystemId: string;
-  mechanismId: string | null;
   partDefinitionId: string;
-  name: string;
-  quantity: number;
-  trackIndividually: boolean;
-  status?: PartInstanceStatus;
+  intendedSubsystemId: string | null;
+  intendedMechanismId: string | null;
+  location: PartInstanceLocation;
+  readinessStatus?: ReadinessStatus;
+  photoUrl?: string;
+  cadSource: CadSource;
+  cadImportSource: CadImportSource;
+  cadEditedAfterImport: boolean;
+  cadSourceLabel?: string;
+  cadUpdatedAt?: string | null;
 }
 
-export interface TaskDependency {
+export type ScheduleReference =
+  | { kind: "meeting"; id: string }
+  | { kind: "event"; id: string }
+  | { kind: "milestone"; id: string };
+
+export type TaskDependency =
+  | { id: string; taskId: string; kind: "task"; refId: string; requiredState: TaskStatus; dependencyType: "hard" | "soft"; createdAt: string }
+  | { id: string; taskId: string; kind: "milestone"; refId: string; requiredState: ReadinessStatus; dependencyType: "hard" | "soft"; createdAt: string }
+  | { id: string; taskId: string; kind: "part-instance"; refId: string; requiredCondition: { kind: "physical-location"; value: PartInstanceLocation["kind"] } | { kind: "derived-readiness"; value: ReadinessStatus }; dependencyType: "hard" | "soft"; createdAt: string };
+
+export type ManufacturedPartRef =
+  | { kind: "part-definition"; partDefinitionId: string }
+  | { kind: "provisional"; partNumber: string; revision: string };
+export type MaterialRequirement =
+  | { kind: "inventory-material"; materialId: string }
+  | { kind: "specified-material"; name: string };
+
+export interface ManufacturingProcess {
   id: string;
-  taskId: string;
-  kind: "task" | "milestone" | "part_instance";
-  refId: string;
-  requiredState: string;
-  dependencyType: "hard" | "soft";
-  createdAt: string;
+  code: string;
+  name: string;
+  isActive: boolean;
 }
-export interface TaskBlocker {
-  id: string;
-  blockedTaskId: string;
-  description: string;
-  status: "open" | "resolved";
+
+export interface ManufacturingDetails {
+  part: ManufacturedPartRef;
+  quantity: number;
+  processId: string;
+  fulfillmentSource: FulfillmentSource;
+  material: MaterialRequirement;
+  fileArtifactIds: string[];
+  tolerances: string[];
+  qaRequirements: string[];
+  batchLabel?: string;
 }
 
 export interface Task {
   id: string;
-  projectId?: string;
+  createdAt?: string;
+  serialNumber?: number;
+  serial?: string;
+  projectId: string;
+  workTypeId: string;
+  responsibleGroupId: string | null;
   workstreamIds: string[];
   title: string;
   summary: string;
+  photoUrl?: string;
   subsystemIds: string[];
-  disciplineId: string;
-  requirementId?: string | null;
   mechanismIds: string[];
   partInstanceIds: string[];
-  targetEventId: string | null;
-  artifactIds: string[];
+  scheduleRefs: ScheduleReference[];
+  requestedById: string | null;
   ownerId: string | null;
-  assigneeIds?: string[];
+  assigneeIds: string[];
   mentorId: string | null;
-  startDate?: string;
+  startDate: string;
   dueDate: string;
   priority: TaskPriority;
   status: TaskStatus;
-
   checklistItems: string[];
-  blockers: string[];
-  isBlocked: boolean;
-  isWaitingOnDependency: boolean;
-  linkedManufacturingIds: string[];
-  linkedPurchaseIds: string[];
   estimatedHours: number;
   actualHours: number;
-  requiresDocumentation?: boolean;
-  documentationLinked?: boolean;
+  requiresDocumentation: boolean;
+  manufacturingDetails: ManufacturingDetails | null;
+  isBlocked?: boolean;
+  isWaitingOnDependency?: boolean;
 }
 
-export type ServerTask = Omit<Task, "targetEventId"> & { targetMilestoneId: string | null };
+export type ManufacturingProcessRecord = ManufacturingProcess;
 
-export interface Event {
+export interface Vendor {
   id: string;
-  title: string;
-  type: EventType;
-  startDateTime: string;
-  endDateTime: string | null;
-  isExternal: boolean;
-  description: string;
-  relatedSubsystemIds: string[];
+  name: string;
+  website: string | null;
+  isArchived: boolean;
 }
 
-export interface Meeting {
-  id: string;
-  title: string;
-  date: string;
-  time: string;
-  rsvpsYes: number;
-  rsvpsMaybe: number;
-  openSignIns: number;
+export interface Money {
+  amount: number;
+  currency: string | null;
 }
 
-export interface WorkLog {
+export interface PurchaseQuote {
   id: string;
-  taskId: string;
-  date: string;
-  hours: number;
-  participantIds: string[];
-  notes: string;
-}
-
-export interface AttendanceRecord {
-  id: string;
-  memberId: string;
-  date: string;
-  totalHours: number;
-}
-
-export interface ManufacturingItem {
-  id: string;
-  title: string;
-  subsystemId: string;
-  requestedById: string | null;
-  process: ManufacturingProcess;
-  dueDate: string;
-  material: string;
-  partDefinitionId?: string | null;
-  quantity: number;
-  status: ManufacturingStatus;
-  mentorReviewed: boolean;
-  batchLabel?: string;
-  qaReviewCount: number;
+  vendorId: string;
+  reference: string | null;
+  amount: Money | null;
+  url?: string;
+  expiresAt?: string | null;
+  quotedAt: string | null;
 }
 
 export interface PurchaseItem {
   id: string;
+  taskId: string;
+  kind: PurchaseKind;
+  partDefinitionId: string | null;
+  materialId: string | null;
   title: string;
-  subsystemId: string;
-  requestedById: string | null;
-  partDefinitionId?: string | null;
   quantity: number;
-  vendor: string;
-  linkLabel: string;
-  estimatedCost: number;
-  finalCost?: number;
-  approvedByMentor: boolean;
-  status: PurchaseStatus;
-  createdAt?: string;
+  quotes: PurchaseQuote[];
+  selectedQuoteId: string | null;
+  approvalStatus: PurchaseApprovalStatus;
+  approvedById: string | null;
+  approvedAt: string | null;
+  purchaseOrderNumber: string | null;
+  orderStatus: PurchaseOrderStatus;
+  finalCost: Money | null;
+  expectedDeliveryDate: string | null;
+  trackingNumber: string | null;
+  trackingUrl: string | null;
+  orderedAt: string | null;
+  deliveredAt: string | null;
 }
 
-export interface QaReview {
+export type DomainReference =
+  | { kind: "project" | "workstream" | "responsible-group" | "task" | "subsystem" | "mechanism" | "part-definition" | "part-instance" | "material" | "vendor" | "manufacturing-details" | "purchase-item" | "meeting" | "event" | "milestone" | "qa-request" | "test-result" | "report" | "artifact" | "qa-finding" | "test-finding" | "task-dependency" | "risk" | "design-iteration"; id: string };
+
+export type RiskSource = { kind: "manual" } | { kind: "task" | "task-dependency" | "qa-finding" | "test-finding" | "qa-request" | "test-result" | "report" | "event" | "milestone" | "manufacturing-details" | "part-instance" | "material"; id: string };
+export type RiskCategory = "dependency" | "design" | "manufacturing" | "supply" | "schedule" | "qa" | "inventory" | "other";
+export interface Risk {
   id: string;
-  taskId?: string | null;
-  subjectId?: string | null;
-  subjectType?: "task" | "manufacturing" | string;
-  subjectTitle: string;
+  projectId: string;
+  title: string;
+  detail: string;
+  category: RiskCategory;
+  severity: RiskSeverity;
+  status: RiskStatus;
+  blocksWork: boolean;
+  source: RiskSource;
+  relatedTargets: DomainReference[];
+  mitigationTaskId: string | null;
+  ownerGroupId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  resolvedAt: string | null;
+}
+
+export interface Meeting {
+  id: string;
+  seasonId: string;
+  projectIds: string[];
+  title: string;
+  meetingType: "general" | "build" | "review" | "outreach" | "competition" | "other";
+  startAt: string;
+  endAt: string | null;
+  location: string;
+  description: string;
+}
+
+export interface Event {
+  id: string;
+  seasonId: string;
+  projectIds: string[];
+  eventType: "competition" | "practice" | "other";
+  title: string;
+  startAt: string;
+  endAt: string | null;
+  location: string;
+  description: string;
+}
+
+export interface Milestone {
+  id: string;
+  seasonId: string;
+  projectIds: string[];
+  type: "practice" | "competition" | "deadline" | "internal-review" | "demo";
+  title: string;
+  startAt: string;
+  endAt: string | null;
+  status: "planned" | "active" | "complete";
+  readinessStatus?: ReadinessStatus;
+  description: string;
+}
+
+export interface MilestoneRequirement {
+  id: string;
+  milestoneId: string;
+  targetRefs: DomainReference[];
+  conditionType: "iteration" | "workflow-state" | "custom";
+  conditionValue: string;
+  required: boolean;
+  sortOrder: number;
+  notes: string;
+}
+
+export interface ReportBase {
+  id: string;
+  projectId: string;
+  targetRefs: DomainReference[];
+  createdByMemberId: string | null;
   participantIds: string[];
-  requestedById?: string | null;
-  mentorId?: string | null;
-  result: QaResult;
-  mentorApproved: boolean;
+  mentorId: string | null;
+  requestedById: string | null;
+  summary: string;
   notes: string;
   evidenceNotes?: string;
+  photoUrl?: string;
+  createdAt: string;
+  status: "draft" | "submitted" | "reviewed";
 }
+export interface QaReport extends ReportBase { reportType: "qa"; result: QaResult; reviewedById: string | null; reviewedAt: string | null }
+export interface TeamReport extends ReportBase { reportType: "practice" | "competition" | "review"; result: string | null }
+export type Report = QaReport | TeamReport;
 
 export interface QaRequest {
   id: string;
-  taskId?: string | null;
+  projectId: string;
+  targetRefs: DomainReference[];
   subject: string;
-  mentorId: string;
   requestedById: string | null;
+  mentorId: string | null;
   createdAt: string;
-  status: "requested";
+  status: "requested" | "in-review" | "complete" | "cancelled";
 }
-
-export interface HelpRequest {
+export interface QaFinding {
   id: string;
-  taskId?: string | null;
-  workLogId?: string | null;
-  reason: string;
-  mentorId: string;
-  requestedById: string | null;
-  createdAt: string;
-  status: "requested";
-}
-
-export interface QAFinding {
-  id: string;
-  taskId?: string | null;
-  artifactId?: string | null;
-  artifactIds?: string[];
-  [key: string]: unknown;
-}
-
-export interface TestFinding {
-  id: string;
-  taskId?: string | null;
-  artifactId?: string | null;
-  artifactIds?: string[];
-  [key: string]: unknown;
-}
-
-export interface DesignIteration {
-  id: string;
-  taskId?: string | null;
-  artifactId?: string | null;
-  artifactIds?: string[];
-  [key: string]: unknown;
-}
-
-export interface Escalation {
+  reportId: string | null;
+  projectId: string;
+  targetRefs: DomainReference[];
   title: string;
   detail: string;
-  severity: "high" | "medium";
+  severity: RiskSeverity;
+  status: "open" | "in-progress" | "resolved";
+  createdAt: string;
+  updatedAt: string;
+}
+export interface TestResult { id: string; projectId: string; targetRefs: DomainReference[]; title: string; status: "pass" | "fail" | "blocked" }
+export interface TestFinding extends QaFinding { testResultId: string }
+export interface Artifact {
+  id: string;
+  projectId: string;
+  kind: "document" | "evidence" | "media" | "other";
+  title: string;
+  summary: string;
+  status: "draft" | "in-review" | "published" | "archived";
+  uri: string;
+  targetRefs: DomainReference[];
+  updatedAt: string;
+  photoUrl?: string;
 }
 
-export interface BootstrapMilestone {
-  id: string;
-  title: string;
-  type?: string;
-  startDateTime: string;
-  endDateTime: string | null;
-  isExternal: boolean;
-  description: string;
-  projectIds?: string[];
-  relatedSubsystemIds?: string[];
-}
+export interface WorkLog { id: string; taskId: string; date: string; hours: number; participantIds: string[]; notes: string }
+export interface AttendanceRecord { id: string; memberId: string; date: string; totalHours: number }
+export interface HelpRequest { id: string; taskId?: string | null; workLogId?: string | null; reason: string; mentorId: string; requestedById: string | null; createdAt: string; status: "requested" }
+export interface DesignIteration { id: string; taskId?: string | null; artifactId?: string | null; artifactIds?: string[]; [key: string]: unknown }
 
 export interface PlatformBootstrapPayload {
-  members?: Member[];
-  subsystems?: Subsystem[];
-  disciplines?: Discipline[];
-  mechanisms?: Mechanism[];
-  partDefinitions?: PartDefinition[];
-  partInstances?: PartInstance[];
-  tasks?: ServerTask[];
-  taskDependencies?: TaskDependency[];
-  taskBlockers?: TaskBlocker[];
-  events?: Event[];
-  milestones?: BootstrapMilestone[];
-  meetings?: Meeting[];
-  workLogs?: WorkLog[];
-  manufacturingItems?: ManufacturingItem[];
-  purchaseItems?: PurchaseItem[];
-  qaRequests?: QaRequest[];
-  qaReports?: (Omit<QaReview, "subjectTitle"> & { taskId: string })[];
+  x_contract: { contractVersion: "v1" };
+  seasons: Season[];
+  projects: Project[];
+  workTypes: WorkType[];
+  responsibleGroups: ResponsibleGroup[];
+  workstreams: Workstream[];
+  vendors: Vendor[];
+  members: Member[];
+  subsystems: Subsystem[];
+  mechanisms: Mechanism[];
+  requirements: Requirement[];
+  tasks: Task[];
+  taskDependencies: TaskDependency[];
+  manufacturingProcesses: ManufacturingProcess[];
+  purchaseItems: PurchaseItem[];
+  materials: Material[];
+  partDefinitions: PartDefinition[];
+  partInstances: PartInstance[];
+  meetings: Meeting[];
+  events: Event[];
+  milestones: Milestone[];
+  risks: Risk[];
+  reports: Report[];
+  qaRequests: QaRequest[];
+  qaFindings: QaFinding[];
+  testResults: TestResult[];
+  testFindings: TestFinding[];
+  artifacts: Artifact[];
+  workLogs: WorkLog[];
+  attendanceRecords: AttendanceRecord[];
+  milestoneRequirements: MilestoneRequirement[];
   helpRequests?: HelpRequest[];
-  qaFindings?: QAFinding[];
-  testFindings?: TestFinding[];
   designIterations?: DesignIteration[];
 }
 
-export interface PublicAuthConfig {
-  enabled: boolean;
-  googleClientId: string | null;
-  hostedDomain: string;
-  emailEnabled: boolean;
-  devBypassAvailable?: boolean;
-}
-
+export interface PublicAuthConfig { enabled: boolean; googleClientId: string | null; hostedDomain: string; emailEnabled: boolean; devBypassAvailable?: boolean }
 export interface SessionUser {
   accountId: string;
   authProvider: "google" | "email";
@@ -355,31 +452,10 @@ export interface SessionUser {
   name: string;
   picture: string | null;
   hostedDomain: string;
-  taskSubteamIds?: (
-    | "programming"
-    | "mechanical"
-    | "electrical"
-    | "media-marketing"
-    | "business"
-    | "scouting"
-  )[];
   role?: MemberRole;
 }
-
-export interface SessionResponse {
-  token: string;
-  user: SessionUser;
-}
-
-export interface MobileDeviceSessionSummary {
-  createdAt: string;
-  current: boolean;
-  deviceName?: string | null;
-  expiresAt: string;
-  id: string;
-  lastUsedAt: string;
-}
-
+export interface SessionResponse { token: string; user: SessionUser }
+export interface MobileDeviceSessionSummary { createdAt: string; current: boolean; deviceName?: string | null; expiresAt: string; id: string; lastUsedAt: string }
 export interface MobileSessionResponse extends SessionResponse {
   accessTokenExpiresAt: string;
   refreshToken: string;

@@ -1,112 +1,43 @@
 import { mecoSnapshot } from "./fixtures/mockData";
 
-function ids<T extends { id: string }>(items: T[]) {
-  return new Set(items.map((item) => item.id));
-}
+const ids = <T extends { id: string }>(items: T[]) => new Set(items.map(({ id }) => id));
 
-function expectKnownId(linkedId: string | null | undefined, knownIds: Set<string>) {
-  if (linkedId) {
-    expect(knownIds.has(linkedId)).toBe(true);
-  }
-}
-
-describe("mobile fallback data integrity", () => {
-  const memberIds = ids(mecoSnapshot.members);
-  const subsystemIds = ids(mecoSnapshot.subsystems);
-  const disciplineIds = ids(mecoSnapshot.disciplines);
-  const mechanismIds = ids(mecoSnapshot.mechanisms);
-  const requirementIds = ids(mecoSnapshot.requirements);
-  const partDefinitionIds = ids(mecoSnapshot.partDefinitions);
-  const partInstanceIds = ids(mecoSnapshot.partInstances);
-  const eventIds = ids(mecoSnapshot.events);
-  const taskIds = ids(mecoSnapshot.tasks);
-  const manufacturingIds = ids(mecoSnapshot.manufacturingItems);
-  const purchaseIds = ids(mecoSnapshot.purchaseItems);
-  const workLogIds = ids(mecoSnapshot.workLogs);
-
-  it("links fallback records only to known members, subsystems, mechanisms, parts, events, and tasks", () => {
-    for (const member of mecoSnapshot.members) {
-      expectKnownId(member.disciplineId, disciplineIds);
-    }
-
-    for (const subsystem of mecoSnapshot.subsystems) {
-      expectKnownId(subsystem.parentSubsystemId, subsystemIds);
-      expectKnownId(subsystem.responsibleEngineerId, memberIds);
-      subsystem.mentorIds.forEach((mentorId) => expectKnownId(mentorId, memberIds));
-    }
-
-    for (const mechanism of mecoSnapshot.mechanisms) {
-      expectKnownId(mechanism.subsystemId, subsystemIds);
-    }
-
-    for (const requirement of mecoSnapshot.requirements) {
-      expectKnownId(requirement.subsystemId, subsystemIds);
-    }
-
-    for (const partInstance of mecoSnapshot.partInstances) {
-      expectKnownId(partInstance.subsystemId, subsystemIds);
-      expectKnownId(partInstance.mechanismId, mechanismIds);
-      expectKnownId(partInstance.partDefinitionId, partDefinitionIds);
-    }
-
-    for (const event of mecoSnapshot.events) {
-      event.relatedSubsystemIds.forEach((subsystemId) => expectKnownId(subsystemId, subsystemIds));
-    }
-
+describe("canonical mobile FRC fixtures", () => {
+  it("uses the six season projects and links Tasks to independent work type and responsible group dimensions", () => {
+    expect(mecoSnapshot.projects.map(({ name }) => name)).toEqual(["Robot", "Media", "Outreach", "Operations", "Strategy", "Training"]);
+    const projectIds = ids(mecoSnapshot.projects);
+    const workTypeIds = ids(mecoSnapshot.workTypes);
+    const responsibleGroupIds = ids(mecoSnapshot.responsibleGroups);
     for (const task of mecoSnapshot.tasks) {
-      task.subsystemIds.forEach((id) => expectKnownId(id, subsystemIds));
-      expectKnownId(task.disciplineId, disciplineIds);
-      expectKnownId(task.requirementId, requirementIds);
-      task.mechanismIds.forEach((id) => expectKnownId(id, mechanismIds));
-      task.partInstanceIds.forEach((id) => expectKnownId(id, partInstanceIds));
-      expectKnownId(task.targetEventId, eventIds);
-      expectKnownId(task.ownerId, memberIds);
-      expectKnownId(task.mentorId, memberIds);
-      task.linkedManufacturingIds.forEach((manufacturingId) =>
-        expectKnownId(manufacturingId, manufacturingIds),
-      );
-      task.linkedPurchaseIds.forEach((purchaseId) => expectKnownId(purchaseId, purchaseIds));
+      expect(projectIds.has(task.projectId)).toBe(true);
+      expect(workTypeIds.has(task.workTypeId)).toBe(true);
+      if (task.responsibleGroupId) expect(responsibleGroupIds.has(task.responsibleGroupId)).toBe(true);
+      expect(task).not.toHaveProperty("disciplineId");
+      expect(task).not.toHaveProperty("blockers");
     }
+  });
 
-    for (const edge of mecoSnapshot.taskDependencies) {
-      expectKnownId(edge.taskId, taskIds);
-      if (edge.kind === "task") expectKnownId(edge.refId, taskIds);
+  it("keeps purchasing, inventory location, schedule and evidence references in their owning domains", () => {
+    const taskIds = ids(mecoSnapshot.tasks);
+    const partDefinitionIds = ids(mecoSnapshot.partDefinitions);
+    const subsystemIds = ids(mecoSnapshot.subsystems);
+    for (const purchase of mecoSnapshot.purchaseItems) {
+      expect(taskIds.has(purchase.taskId)).toBe(true);
+      if (purchase.partDefinitionId) expect(partDefinitionIds.has(purchase.partDefinitionId)).toBe(true);
     }
-
-    for (const workLog of mecoSnapshot.workLogs) {
-      expectKnownId(workLog.taskId, taskIds);
-      workLog.participantIds.forEach((participantId) => expectKnownId(participantId, memberIds));
+    for (const instance of mecoSnapshot.partInstances) {
+      expect(partDefinitionIds.has(instance.partDefinitionId)).toBe(true);
+      if (instance.location.kind === "installed") expect(subsystemIds.has(instance.location.subsystemId)).toBe(true);
     }
-
-    for (const attendanceRecord of mecoSnapshot.attendanceRecords) {
-      expectKnownId(attendanceRecord.memberId, memberIds);
-    }
-
-    for (const manufacturingItem of mecoSnapshot.manufacturingItems) {
-      expectKnownId(manufacturingItem.subsystemId, subsystemIds);
-      expectKnownId(manufacturingItem.requestedById, memberIds);
-      expectKnownId(manufacturingItem.partDefinitionId, partDefinitionIds);
-    }
-
-    for (const purchaseItem of mecoSnapshot.purchaseItems) {
-      expectKnownId(purchaseItem.subsystemId, subsystemIds);
-      expectKnownId(purchaseItem.requestedById, memberIds);
-      expectKnownId(purchaseItem.partDefinitionId, partDefinitionIds);
-    }
-
-    for (const qaReview of mecoSnapshot.qaReviews) {
-      expectKnownId(qaReview.taskId, taskIds);
-      if (qaReview.subjectType === "task") {
-        expectKnownId(qaReview.subjectId, taskIds);
+    for (const report of mecoSnapshot.qaReports) {
+      expect(report.targetRefs.length).toBeGreaterThan(0);
+      for (const target of report.targetRefs) {
+        if (target.kind === "task") expect(taskIds.has(target.id)).toBe(true);
       }
-      if (qaReview.subjectType === "manufacturing") {
-        expectKnownId(qaReview.subjectId, manufacturingIds);
-      }
-      qaReview.participantIds.forEach((participantId) => expectKnownId(participantId, memberIds));
-      expectKnownId(qaReview.requestedById, memberIds);
-      expectKnownId(qaReview.mentorId, memberIds);
     }
-
-    expect(workLogIds.size).toBe(mecoSnapshot.workLogs.length);
+    for (const dependency of mecoSnapshot.taskDependencies) {
+      expect(taskIds.has(dependency.taskId)).toBe(true);
+      if (dependency.kind === "task") expect(taskIds.has(dependency.refId)).toBe(true);
+    }
   });
 });

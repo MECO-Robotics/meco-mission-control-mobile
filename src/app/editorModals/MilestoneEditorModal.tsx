@@ -1,10 +1,9 @@
 import { Callout } from "../../ui/Callout";
 import type { useMilestoneEditor } from "./useMilestoneEditor";
 
-import { EVENT_TYPE_OPTIONS } from "../../ui/constants";
+import { MILESTONE_TYPE_OPTIONS } from "../../ui/constants";
 import { localTodayDate } from "../../ui/helpers";
-import { AdvancedOptions, DropdownField, EditorModal, ModalField, ToggleField } from "../../ui/ui";
-import type { EventType } from "../../types/domain";
+import { AdvancedOptions, DropdownField, EditorModal, ModalField } from "../../ui/ui";
 import type { ResponsiveScreenStyles } from "../../screens/types";
 
 type MilestoneEditorModalProps = {
@@ -41,8 +40,8 @@ export function MilestoneEditorModal({
       />
       <DropdownField
         label="Type"
-        onChange={(value) => updateDraft({ type: value as EventType })}
-        options={EVENT_TYPE_OPTIONS}
+        onChange={(value) => updateDraft({ type: value as "practice" | "competition" | "deadline" | "internal-review" | "demo" })}
+        options={MILESTONE_TYPE_OPTIONS}
         value={draft.type}
       />
       <ModalField
@@ -78,15 +77,10 @@ export function MilestoneEditorModal({
           value={draft.description}
         />
         <ModalField
-          label="Related subsystem IDs (comma separated)"
-          onChangeText={(value) => updateDraft({ relatedSubsystemIdsText: value })}
-          placeholder="drive, controls"
-          value={draft.relatedSubsystemIdsText}
-        />
-        <ToggleField
-          label="External milestone"
-          onToggle={(value) => updateDraft({ isExternal: value })}
-          value={draft.isExternal}
+          label="Project IDs (comma separated)"
+          onChangeText={(value) => updateDraft({ projectIdsText: value })}
+          placeholder="robot-project-id"
+          value={draft.projectIdsText}
         />
       </AdvancedOptions>
     </EditorModal>

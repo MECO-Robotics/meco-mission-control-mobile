@@ -1,21 +1,18 @@
 import type { MemberRole } from "../types/domain";
 export type ViewTab =
   | "home"
-  | "work-tasks" | "work-schedule" | "work-risks" | "work-activity"
+  | "work-tasks" | "work-schedule" | "work-risks" | "work-activity" | "work-documents"
   | "resources-materials" | "resources-parts" | "resources-purchases"
-  | "resources-manufacturing" | "resources-structure"
+  | "resources-structure"
   | "team-people";
 
 export type TaskViewTab = "timeline" | "queue" | "milestones";
-export type TaskSubteamTab = "programming" | "mechanical" | "electrical";
-export type ManufacturingViewTab = "all" | "cnc" | "prints" | "fabrication";
+export type ResponsibleGroupFilter = string;
 
 export type StatusGroup = "success" | "info" | "warning" | "danger" | "neutral";
 
-export type PartLifecycleStatus = "planned" | "needed" | "available" | "installed" | "retired";
-
 export type WorkLogSortMode = "recent" | "oldest" | "longest" | "shortest";
-export type AcquisitionMethod = "manufacture" | "purchase" | "stock";
+export type AcquisitionMethod = "stock" | "purchase-cots" | "manufacture";
 
 export type Option = {
   id: string;
@@ -57,7 +54,6 @@ export type MemberDraft = {
   name: string;
   role: MemberRole;
   elevated: boolean;
-  disciplineId: string;
   plannedWeeklyAttendanceHours: string;
   plannedAttendanceDays: string[];
   plannedAttendanceNotes: string;
@@ -68,7 +64,6 @@ export type SubsystemDraft = {
   description: string;
   responsibleEngineerId: string;
   mentorIdsText: string;
-  risksText: string;
 };
 
 export type MilestoneSortField = "startDateTime" | "title" | "type";
