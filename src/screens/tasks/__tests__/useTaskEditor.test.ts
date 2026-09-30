@@ -2,6 +2,7 @@ import { act, renderHook } from "@testing-library/react-native";
 import { useTaskEditor } from "../useTaskEditor";
 import { mecoSnapshot } from "../../../data/__tests__/fixtures/mockData";
 import type { TaskDependency } from "../../../types/domain";
+import { projectWorkItems } from "../../../data/workItems";
 
 function setup(failRelation = false, deletion?: Promise<void>) {
   const task = mecoSnapshot.tasks[0];
@@ -17,7 +18,7 @@ function setup(failRelation = false, deletion?: Promise<void>) {
   };
   const inputs = {
     mechanisms: mecoSnapshot.mechanisms, partInstances: mecoSnapshot.partInstances,
-    tasks: mecoSnapshot.tasks, taskById: Object.fromEntries(mecoSnapshot.tasks.map((row) => [row.id, row])), taskDependencies: [relation],
+    tasks: mecoSnapshot.tasks, taskById: Object.fromEntries(mecoSnapshot.tasks.map((row) => [row.id, row])), taskDependencies: [relation], workItems: projectWorkItems(mecoSnapshot.tasks, mecoSnapshot.manufacturingItems),
     members: mecoSnapshot.members, membersById: Object.fromEntries(mecoSnapshot.members.map((row) => [row.id, row])), disciplines: mecoSnapshot.disciplines,
     subsystemsById: Object.fromEntries(mecoSnapshot.subsystems.map((row) => [row.id, row])), taskSubsystemOptions: mecoSnapshot.subsystems.map((row) => ({ id: row.id, name: row.name })),
     activeTaskSubteam: "programming" as const, setActiveTaskSubteam: jest.fn(), request, refresh: jest.fn(async () => undefined),

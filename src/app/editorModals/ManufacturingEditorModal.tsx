@@ -8,7 +8,7 @@ import { MANUFACTURING_VIEW_OPTIONS } from "../../ui/constants";
 import { styles } from "../../ui/styles";
 import type { Option } from "../../ui/types";
 import { AdvancedOptions, DropdownField, EditorModal, ModalField } from "../../ui/ui";
-import type { ManufacturingItem } from "../../types/domain";
+import type { ManufacturingItem, ResponsibleGroup } from "../../types/domain";
 import type { ResponsiveScreenStyles } from "../../screens/types";
 
 type ManufacturingEditorModalProps = {
@@ -96,6 +96,10 @@ export function ManufacturingEditorModal({
         }))}
         value={draft.process}
       />
+      <DropdownField label="Responsible group" clearLabel="Unassigned"
+        onChange={(value) => updateDraft({ responsibleGroup: (value || null) as ResponsibleGroup | null })}
+        options={["Mechanical", "Electrical", "Programming"].map((id) => ({ id, name: id }))}
+        value={draft.responsibleGroup ?? ""} />
       <ModalField
         label="Material"
         onChangeText={(value) => updateDraft({ material: value })}

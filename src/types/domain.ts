@@ -34,6 +34,8 @@ export type ManufacturingStatus =
   | "qa"
   | "complete";
 export type ManufacturingProcess = "3d-print" | "cnc" | "fabrication";
+export type RobotWorkType = "Design" | "Manufacturing" | "Assembly" | "Electrical/Wiring" | "Programming" | "Testing" | "Driving";
+export type ResponsibleGroup = "Mechanical" | "Electrical" | "Programming";
 export type PurchaseStatus =
   | "requested"
   | "approved"
@@ -120,8 +122,12 @@ export interface PartInstance {
 
 export interface TaskDependency {
   id: string;
-  taskId: string;
-  kind: "task" | "milestone" | "part_instance";
+  /** Canonical dependency owner fields; legacy taskId is accepted only in seeded fixtures during migration. */
+  workItemId?: string;
+  sourceType?: "task" | "manufacturing";
+  taskId?: string;
+  kind: "work_item" | "task" | "milestone" | "part_instance";
+  refType?: "task" | "manufacturing";
   refId: string;
   requiredState: string;
   dependencyType: "hard" | "soft";
@@ -139,6 +145,8 @@ export interface Task {
   projectId?: string;
   workstreamIds: string[];
   title: string;
+  workType?: RobotWorkType;
+  responsibleGroup?: ResponsibleGroup | null;
   summary: string;
   subsystemIds: string[];
   disciplineId: string;
@@ -209,6 +217,7 @@ export interface AttendanceRecord {
 export interface ManufacturingItem {
   id: string;
   title: string;
+  responsibleGroup?: ResponsibleGroup | null;
   subsystemId: string;
   requestedById: string | null;
   process: ManufacturingProcess;
@@ -220,6 +229,27 @@ export interface ManufacturingItem {
   mentorReviewed: boolean;
   batchLabel?: string;
   qaReviewCount: number;
+}
+
+export interface WorkItem {
+  id: string;
+  sourceType: "task" | "manufacturing";
+  sourceId: string;
+  taskId: string | null;
+  title: string;
+  workType: RobotWorkType;
+  responsibleGroup: ResponsibleGroup | null;
+  manufacturingProcess: ManufacturingProcess | null;
+  subsystemId: string;
+  dueDate: string;
+  status: string;
+  quantity: number | null;
+  material: string | null;
+  materialId: string | null;
+  partDefinitionId: string | null;
+  partInstanceIds: string[];
+  batchLabel: string | null;
+  mentorReviewed: boolean | null;
 }
 
 export interface PurchaseItem {
@@ -324,6 +354,7 @@ export interface PlatformBootstrapPayload {
   partDefinitions?: PartDefinition[];
   partInstances?: PartInstance[];
   tasks?: ServerTask[];
+  workItems?: WorkItem[];
   taskDependencies?: TaskDependency[];
   taskBlockers?: TaskBlocker[];
   events?: Event[];

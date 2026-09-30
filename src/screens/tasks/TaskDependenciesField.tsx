@@ -2,18 +2,17 @@ import { Pressable, View } from "react-native";
 
 import { Text } from "../../i18n";
 import type { AppThemeColors } from "../../theme";
-import { STATUS_LABELS } from "../../ui/constants";
 import { formatDate } from "../../ui/helpers";
 import { styles } from "../../ui/styles";
 import { SearchField } from "../../ui/selectionWidgets";
-import type { Subsystem, Task } from "../../types/domain";
+import type { Subsystem, WorkItem } from "../../types/domain";
 
 type TaskDependenciesFieldProps = {
-  addTaskDependency: (dependencyId: string) => void;
-  availableTaskDependencyOptions: Task[];
-  downstreamTaskDependencies: Task[];
-  removeTaskDependency: (dependencyId: string) => void;
-  selectedTaskDependencies: Task[];
+  addTaskDependency: (dependency: WorkItem) => void;
+  availableTaskDependencyOptions: WorkItem[];
+  downstreamTaskDependencies: WorkItem[];
+  removeTaskDependency: (dependencyId: string, sourceType: "task" | "manufacturing") => void;
+  selectedTaskDependencies: WorkItem[];
   setTaskDependencySearch: (value: string) => void;
   subsystemsById: Record<string, Subsystem | undefined>;
   taskDependencySearch: string;
@@ -28,7 +27,7 @@ function DependencyMeta({
 }: {
   showRemove?: boolean;
   subsystemsById: Record<string, Subsystem | undefined>;
-  task: Task;
+  task: WorkItem;
   themeColors: AppThemeColors;
 }) {
   return (
@@ -36,7 +35,7 @@ function DependencyMeta({
       numberOfLines={2}
       style={{ color: themeColors.subtleText, fontSize: 11, fontWeight: "700" }}
     >
-      {`${STATUS_LABELS[task.status]} | due ${formatDate(task.dueDate)} | ${subsystemsById[(task.subsystemIds[0] ?? "")]?.name ?? "No subsystem"}${showRemove ? " | remove" : ""}`}
+      {`${task.workType} | ${task.status} | due ${formatDate(task.dueDate)} | ${subsystemsById[task.subsystemId]?.name ?? "No subsystem"}${showRemove ? " | remove" : ""}`}
     </Text>
   );
 }
@@ -50,7 +49,7 @@ function DependencyChip({
 }: {
   onPress?: () => void;
   subsystemsById: Record<string, Subsystem | undefined>;
-  task: Task;
+  task: WorkItem;
   themeColors: AppThemeColors;
   variant: "selected" | "available" | "downstream";
 }) {
@@ -103,7 +102,7 @@ export function TaskDependenciesField({
             {selectedTaskDependencies.map((dependency) => (
               <DependencyChip
                 key={dependency.id}
-                onPress={() => removeTaskDependency(dependency.id)}
+                onPress={() => removeTaskDependency(dependency.sourceId, dependency.sourceType)}
                 subsystemsById={subsystemsById}
                 task={dependency}
                 themeColors={themeColors}
@@ -145,7 +144,7 @@ export function TaskDependenciesField({
       {availableTaskDependencyOptions.length > 0 ? (
         <View style={styles.quickActionRow}>
             {availableTaskDependencyOptions.map((dependency) => (
-              <DependencyChip key={dependency.id} onPress={() => addTaskDependency(dependency.id)} subsystemsById={subsystemsById} task={dependency} themeColors={themeColors} variant="available" />
+              <DependencyChip key={dependency.id} onPress={() => addTaskDependency(dependency)} subsystemsById={subsystemsById} task={dependency} themeColors={themeColors} variant="available" />
             ))}
         </View>
       ) : null}

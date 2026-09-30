@@ -8,7 +8,7 @@ import type { StyleProp, TextStyle, ViewStyle } from "react-native";
 
 import type { AppThemeColors } from "../theme";
 import type { WorkLogDraftSyncStatus } from "../services/workLogDraftSync";
-import type { Discipline, HelpRequest, ManufacturingItem, Mechanism, Member, PartDefinition, PurchaseItem, QaRequest, QaReview, Subsystem, Task, WorkLog } from "../types/domain";
+import type { Discipline, HelpRequest, ManufacturingItem, Mechanism, Member, PartDefinition, PurchaseItem, QaRequest, QaReview, Subsystem, Task, WorkItem, WorkLog } from "../types/domain";
 import type { MaterialRollup, SummaryChipData, ViewTab, WorkLogSortMode } from "../ui/types";
 import type { AttendanceStatus, RiskPriority } from "../types/status";
 export type { AttendanceStatus, RiskPriority } from "../types/status";
@@ -99,6 +99,7 @@ export interface AppScreenProps {
   openCreateQaReportEditor: (taskId?: string, qaRequestId?: string) => void;
   openCreateSubsystemEditor: () => void;
   openCreateWorkLogEditor: (taskId?: string) => void;
+  openCreateTaskEditor: () => void;
   openWorkLogFromTimer: () => void;
   approvePurchaseItem: (item: PurchaseItem, approved: boolean) => Promise<void>;
   createQaRequest: (subject: string, mentorId: string, taskId?: string | null) => void;
@@ -144,6 +145,7 @@ export interface AppScreenProps {
   taskById: Record<string, Task>;
   taskDependencies: import("../types/domain").TaskDependency[];
   tasks: Task[];
+  workItems: WorkItem[];
   themeColors: AppThemeColors;
   workLogSearch: string;
   workLogs: WorkLog[];

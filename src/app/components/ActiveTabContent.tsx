@@ -6,6 +6,7 @@ import { InventoryMaterialsScreen } from "../../screens/inventory/InventoryMater
 import { InventoryPartsScreen } from "../../screens/inventory/InventoryPartsScreen";
 import { InventoryPurchasesScreen } from "../../screens/inventory/InventoryPurchasesScreen";
 import { ManufacturingScreen } from "../../screens/manufacturing/ManufacturingScreen";
+import { WorkQueueScreen } from "../../screens/tasks/WorkQueueScreen";
 import { QaActivity } from "../../screens/reports/QaActivity";
 import { RisksScreen } from "../../screens/robot/RisksScreen";
 import { SubsystemsScreen } from "../../screens/robot/SubsystemsScreen";
@@ -26,15 +27,15 @@ type Props = {
 
 export function ActiveTabContent(props: Props) {
   const { activeTab, screenProps, taskContent } = props;
-  const [taskPreset, setTaskPreset] = useState<"queue" | "qa">("queue");
+  const [taskPreset, setTaskPreset] = useState<"work" | "queue" | "qa">("work");
   const [activityKind, setActivityKind] = useState<"logs" | "qa">("logs");
   switch (activeTab) {
     case "home": return <HomeScreen {...screenProps} />;
     case "work-tasks": return <>
       <View style={{ paddingHorizontal: 20 }}><DropdownField label="Show" value={taskPreset}
-        options={[{ id: "queue", name: "Task queue" }, { id: "qa", name: "Pending QA" }]}
-        onChange={(value) => setTaskPreset(value === "qa" ? "qa" : "queue")} /></View>
-      {taskPreset === "qa" ? <QaActivity {...screenProps} mode="pending" /> : taskContent}
+        options={[{ id: "work", name: "Work items" }, { id: "queue", name: "Task queue" }, { id: "qa", name: "Pending QA" }]}
+        onChange={(value) => setTaskPreset(value === "qa" ? "qa" : value === "queue" ? "queue" : "work")} /></View>
+      {taskPreset === "qa" ? <QaActivity {...screenProps} mode="pending" /> : taskPreset === "queue" ? taskContent : <WorkQueueScreen {...screenProps} />}
     </>;
     case "work-schedule": return <>
       <SectionTabs activeValue={props.scheduleView} onChange={props.onScheduleViewChange}

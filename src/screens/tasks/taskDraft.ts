@@ -1,8 +1,10 @@
-import type { Mechanism, PartInstance, Task, TaskDependency, TaskPriority, TaskStatus } from "../../types/domain";
+import type { Mechanism, PartInstance, Task, TaskDependency, TaskPriority, TaskStatus, RobotWorkType, ResponsibleGroup } from "../../types/domain";
 import { isoToday } from "../../ui/helpers";
 
 export type TaskDraft = Pick<Task, "workstreamIds" | "subsystemIds" | "mechanismIds" | "partInstanceIds" | "artifactIds"> & {
   title: string;
+  workType: RobotWorkType;
+  responsibleGroup: ResponsibleGroup | null;
   summary: string;
   disciplineId: string;
   ownerId: string;
@@ -13,7 +15,7 @@ export type TaskDraft = Pick<Task, "workstreamIds" | "subsystemIds" | "mechanism
   status: TaskStatus;
   targetEventId: string | null;
   estimatedHours: string;
-  dependencies: Omit<TaskDependency, "id" | "taskId" | "createdAt">[];
+  dependencies: Omit<TaskDependency, "id" | "taskId" | "workItemId" | "sourceType" | "createdAt">[];
 
   checklistItemsText: string;
   blockersText: string;
@@ -22,6 +24,8 @@ export type TaskDraft = Pick<Task, "workstreamIds" | "subsystemIds" | "mechanism
 export function buildTaskDraft(seed?: Partial<Task>): TaskDraft {
   return {
     title: seed?.title ?? "",
+    workType: seed?.workType ?? "Design",
+    responsibleGroup: seed?.responsibleGroup ?? null,
     summary: seed?.summary ?? "",
     subsystemIds: [...(seed?.subsystemIds ?? [])],
     workstreamIds: [...(seed?.workstreamIds ?? [])],

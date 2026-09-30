@@ -9,6 +9,7 @@ function buildDraft(
 ) {
   return {
     title: seed?.title ?? "",
+    responsibleGroup: seed?.responsibleGroup ?? null,
     subsystemId: seed?.subsystemId ?? "",
     requestedById: seed?.requestedById ?? "",
     process: seed?.process ?? process,
@@ -67,6 +68,7 @@ export function useManufacturingEditor({
 
     const payload = {
       title,
+      responsibleGroup: editor.draft.responsibleGroup,
       subsystemId: editor.draft.subsystemId,
       requestedById: editor.draft.requestedById,
       process: editor.draft.process,

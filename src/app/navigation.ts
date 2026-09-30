@@ -4,6 +4,7 @@ export const NAVIGATION = [
   { value: "home", label: "Home", views: [{ value: "home", label: "Home" }] },
   { value: "work", label: "Work", views: [
     { value: "work-tasks", label: "Tasks" },
+    { value: "resources-manufacturing", label: "Manufacturing" },
     { value: "work-schedule", label: "Schedule" },
     { value: "work-risks", label: "Risks" },
     { value: "work-activity", label: "Activity" },
@@ -13,7 +14,6 @@ export const NAVIGATION = [
     { value: "resources-materials", label: "Materials" },
     { value: "resources-parts", label: "Parts" },
     { value: "resources-purchases", label: "Purchases" },
-    { value: "resources-manufacturing", label: "Manufacturing" },
     { value: "resources-structure", label: "Structure" },
   ] },
 ] satisfies { value: string; label: string; views: { value: ViewTab; label: string }[] }[];

@@ -9,6 +9,7 @@ import { getAutoTaskStatus, isTaskBlocked, isTaskReadyForQaPass } from "./src/da
 import { useTaskEditor } from "./src/screens/tasks/useTaskEditor";
 import { createWorkLogQueue } from "./src/services/workLogQueue";
 import { createTaskState } from "./src/screens/tasks/taskState";
+import { resolveWorkItems } from "./src/data/workItems";
 import { getSessionPermissions } from "./src/data/sessionPermissions";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -97,6 +98,7 @@ import type {
   Task,
   TaskBlocker,
   TaskDependency,
+  WorkItem,
   WorkLog,
 } from "./src/types/domain";
 import {
@@ -393,6 +395,7 @@ export default function App() {
     return () => workLogQueue.dispose();
   }, [workLogQueue]);
   const [manufacturingItems, setManufacturingItems] = useState<ManufacturingItem[]>([]);
+  const [workItems, setWorkItems] = useState<WorkItem[]>([]);
   const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([]);
   const [partDefinitions, setPartDefinitions] = useState<PartDefinition[]>([]);
   const [partInstances, setPartInstances] = useState<PartInstance[]>([]);
@@ -459,12 +462,14 @@ export default function App() {
     setDisciplines(ensureArray(payload.disciplines));
     setMechanisms(ensureArray(payload.mechanisms));
     setTasks(tasks);
+    const payloadManufacturingItems = ensureArray(payload.manufacturingItems);
+    setWorkItems(resolveWorkItems(payload.workItems, tasks, payloadManufacturingItems));
     setTaskDependencies(ensureArray(payload.taskDependencies));
     setTaskBlockers(ensureArray(payload.taskBlockers));
     setEvents(events.length > 0 ? events : mapMilestonesToEvents(payload));
     workLogsRef.current = payloadWorkLogs;
     setWorkLogs(payloadWorkLogs);
-    setManufacturingItems(ensureArray(payload.manufacturingItems));
+    setManufacturingItems(payloadManufacturingItems);
     setPurchaseItems(ensureArray(payload.purchaseItems));
     setQaRequests(ensureArray(payload.qaRequests));
     setQaReviews(ensureArray(payload.qaReports).map((report) => ({ ...report,
@@ -1053,7 +1058,7 @@ export default function App() {
   const taskById = useMemo(() => {
     return buildTaskById(tasks);
   }, [tasks]);
-  const taskEditor = useTaskEditor({ mechanisms, partInstances, tasks, taskById, taskDependencies, members, membersById, disciplines,
+  const taskEditor = useTaskEditor({ mechanisms, partInstances, tasks, taskById, taskDependencies, workItems, members, membersById, disciplines,
     subsystemsById, taskSubsystemOptions, activeTaskSubteam, setActiveTaskSubteam,
     request: authenticatedRequestJson, refresh: () => refreshWorkspaceFromServer(apiToken),
   });
@@ -2690,6 +2695,7 @@ export default function App() {
     isLandscapeCardLayout,
     isSyncing,
     manufacturingItems,
+    workItems,
     mechanismsById,
     meetingAttendance,
     members,
@@ -2703,6 +2709,7 @@ export default function App() {
     openCreateSubsystemEditor: () => subsystemEditor.open(),
     openCreateWorkLogEditor,
     openWorkLogFromTimer,
+    openCreateTaskEditor,
     openEditManufacturingEditor: manufacturingEditor.open,
     openEditMemberEditor: memberEditor.edit,
     openEditPartDefinitionEditor: partDefinitionEditor.edit,

@@ -6,6 +6,7 @@ import { mecoSnapshot } from "../../../data/__tests__/fixtures/mockData";
 import { useAppTheme } from "../../../ui/themeContext";
 import { TaskEditorModal } from "../TaskEditorModal";
 import { useTaskEditor } from "../useTaskEditor";
+import { projectWorkItems } from "../../../data/workItems";
 
 const subsystems = ["a", "b", "c"].map((id) => ({ ...mecoSnapshot.subsystems[0], id, name: `Subsystem ${id}` }));
 const mechanisms = ["a", "b", "c", "a2"].map((id) => ({
@@ -26,7 +27,7 @@ function setup(taskToEdit = task) {
   let editor!: ReturnType<typeof useTaskEditor>;
   function Harness() {
     editor = useTaskEditor({
-      tasks: [taskToEdit], taskById: { [taskToEdit.id]: taskToEdit }, taskDependencies: [], mechanisms, partInstances: parts,
+      tasks: [taskToEdit], taskById: { [taskToEdit.id]: taskToEdit }, taskDependencies: [], workItems: projectWorkItems([taskToEdit], []), mechanisms, partInstances: parts,
       members: mecoSnapshot.members, membersById: index(mecoSnapshot.members), disciplines: mecoSnapshot.disciplines,
       subsystemsById: index(subsystems), taskSubsystemOptions: subsystems,
       activeTaskSubteam: "programming", setActiveTaskSubteam: jest.fn(), refresh: async () => undefined,

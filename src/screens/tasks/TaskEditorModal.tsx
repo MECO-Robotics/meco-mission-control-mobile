@@ -20,6 +20,8 @@ import type {
   Subsystem,
   TaskPriority,
   TaskStatus,
+  RobotWorkType,
+  ResponsibleGroup,
 } from "../../types/domain";
 import { TaskDependenciesField } from "./TaskDependenciesField";
 
@@ -111,6 +113,19 @@ export function TaskEditorModal({
             onChangeText={(value) => setTaskDraft((current) => ({ ...current, summary: value }))}
             placeholder="Task summary"
             value={taskDraft.summary}
+          />
+          <DropdownField
+            label="Work type"
+            onChange={(value) => setTaskDraft((current) => ({ ...current, workType: value as RobotWorkType }))}
+            options={["Design", "Manufacturing", "Assembly", "Electrical/Wiring", "Programming", "Testing", "Driving"].map((id) => ({ id, name: id }))}
+            value={taskDraft.workType}
+          />
+          <DropdownField
+            clearLabel="Unassigned"
+            label="Responsible group"
+            onChange={(value) => setTaskDraft((current) => ({ ...current, responsibleGroup: (value || null) as ResponsibleGroup | null }))}
+            options={["Mechanical", "Electrical", "Programming"].map((id) => ({ id, name: id }))}
+            value={taskDraft.responsibleGroup ?? ""}
           />
           <ModalField
             label="Start date (YYYY-MM-DD)"
