@@ -2662,13 +2662,6 @@
             "minLength": 1
           }
         },
-        "artifactIds": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
         "projectId": {
           "type": "string",
           "minLength": 1
@@ -3008,10 +3001,6 @@
         "requiresDocumentation": {
           "default": false,
           "type": "boolean"
-        },
-        "documentationLinked": {
-          "default": false,
-          "type": "boolean"
         }
       },
       "required": [
@@ -3054,13 +3043,6 @@
           }
         },
         "partInstanceIds": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "artifactIds": {
           "type": "array",
           "items": {
             "type": "string",
@@ -3397,9 +3379,6 @@
           }
         },
         "requiresDocumentation": {
-          "type": "boolean"
-        },
-        "documentationLinked": {
           "type": "boolean"
         }
       },
