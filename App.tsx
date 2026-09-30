@@ -2299,7 +2299,8 @@ export default function App() {
 
   const manufacturingEditor = useManufacturingEditor({
     manufacturingView: manufacturingBrowse.filters.view, subsystems, members, signedInMember,
-    canMentorApprove, mutate: runMutation,
+    canMentorApprove, mutate: runMutation, request: authenticatedRequestJson,
+    refresh: () => refreshWorkspaceFromServer(apiToken), workItems, taskDependencies,
   });
 
   const patchManufacturingItem = async (

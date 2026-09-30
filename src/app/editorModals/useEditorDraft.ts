@@ -25,9 +25,12 @@ export function useEditorDraft<Draft>(buildDraft: () => Draft) {
   const setError = (error: string) => {
     setState((current) => ({ ...current, error }));
   };
+  const retainId = (id: string) => {
+    setState((current) => ({ ...current, id }));
+  };
   const complete = (ok: boolean, failureMessage: string) => {
     setState((current) => {
-      if (current !== state) return current;
+      if (!current.visible || current.draft !== state.draft) return current;
       return ok
         ? { ...current, id: null, visible: false, error: null }
         : { ...current, error: failureMessage };
@@ -39,6 +42,7 @@ export function useEditorDraft<Draft>(buildDraft: () => Draft) {
     view: { ...state, draft, close, updateDraft } as const,
     open,
     setError,
+    retainId,
     complete,
   };
 }

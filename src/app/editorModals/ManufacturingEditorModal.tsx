@@ -1,6 +1,6 @@
 import { Callout } from "../../ui/Callout";
 import type { useManufacturingEditor } from "./useManufacturingEditor";
-import { View } from "react-native";
+import { Pressable, View } from "react-native";
 
 import { Text } from "../../i18n";
 import type { AppThemeColors } from "../../theme";
@@ -100,6 +100,15 @@ export function ManufacturingEditorModal({
         onChange={(value) => updateDraft({ responsibleGroup: (value || null) as ResponsibleGroup | null })}
         options={["Mechanical", "Electrical", "Programming"].map((id) => ({ id, name: id }))}
         value={draft.responsibleGroup ?? ""} />
+      <DropdownField label="Add dependency" value=""
+        options={editor.dependencyOptions.map((item) => ({ id: `${item.sourceType}:${item.sourceId}`, name: `${item.title} · ${item.workType}` }))}
+        onChange={(value) => {
+          const target = editor.dependencyOptions.find((item) => `${item.sourceType}:${item.sourceId}` === value);
+          if (target) updateDraft({ dependencies: [...draft.dependencies, { kind: "work_item", refType: target.sourceType, refId: target.sourceId, requiredState: "complete", dependencyType: "hard" }] });
+        }} />
+      {editor.selectedDependencies.map(({ edge, item }) => <Pressable key={`${edge.refType}:${edge.refId}`} onPress={() => updateDraft({ dependencies: draft.dependencies.filter((current) => current.refType !== edge.refType || current.refId !== edge.refId) })}>
+        <Text style={{ color: themeColors.ink }}>Waiting on {item?.title ?? edge.refId} · tap to remove</Text>
+      </Pressable>)}
       <ModalField
         label="Material"
         onChangeText={(value) => updateDraft({ material: value })}
