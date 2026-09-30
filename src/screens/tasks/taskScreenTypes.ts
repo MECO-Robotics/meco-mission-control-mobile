@@ -4,7 +4,7 @@ import type { StyleProp, TextStyle } from "react-native";
 import type { AppThemeColors } from "../../theme";
 import type { HelpRequestInput } from "../../data/helpRequests";
 import type { useTaskQueue } from "./useTaskQueue";
-import type { Mechanism, Member, PartDefinition, PartInstance, Project, QaReport, ResponsibleGroup, Subsystem, Task, WorkType } from "../../types/domain";
+import type { Mechanism, Member, PartDefinition, PartInstance, Project, QaReport, ResponsibleGroup, Subsystem, Task, Workstream, WorkType } from "../../types/domain";
 import type { ScheduleEntry } from "../../app/appModel";
 import type { MilestoneSortField, Option, SummaryChipData, ResponsibleGroupFilter, TaskViewTab } from "../../ui/types";
 
@@ -28,6 +28,7 @@ export interface TaskScreenProps {
   timelineTasks: Task[];
   activeResponsibleGroupLabel: string;
   responsibleGroups: ResponsibleGroup[];
+  workstreamsById: Record<string, Workstream>;
   projects: Project[];
   appResponsiveStyles: ResponsiveScreenStyles;
   canReassignTasks: boolean;

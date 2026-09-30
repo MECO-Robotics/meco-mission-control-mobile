@@ -35,11 +35,12 @@ function setup(deletion?: Promise<void>) {
 test("task edits keep execution data on Task and do not write a duplicate blocker store", async () => {
   const { task, calls, result } = setup();
   act(() => result.current.openEditTaskEditor(task));
-  act(() => result.current.setTaskDraft((draft) => ({ ...draft, summary: "Prepare and verify the bracket", checklistItemsText: "Measure bracket, Test fit" })));
+  act(() => result.current.setTaskDraft((draft) => ({ ...draft, summary: "Prepare and verify the bracket", checklistItemsText: "Measure bracket, Test fit", workstreamIds: ["robot-build"] })));
   await act(async () => result.current.saveTaskDraft());
   const taskWrite = calls.find((call) => call.path === `/api/tasks/${task.id}`)!;
   const body = JSON.parse(taskWrite.init.body as string);
   expect(body.checklistItems).toEqual(["Measure bracket", "Test fit"]);
+  expect(body.workstreamIds).toEqual(["robot-build"]);
   expect(body).not.toHaveProperty("blockers");
   expect(calls.some((call) => call.path.includes("blocker"))).toBe(false);
 });

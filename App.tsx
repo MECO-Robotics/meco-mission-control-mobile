@@ -1030,6 +1030,7 @@ export default function App() {
   const taskSubsystemOptions = useMemo(() => buildSubsystemOptions(subsystems), [subsystems]);
 
   const workTypesById = useMemo(() => Object.fromEntries(workTypes.map((workType) => [workType.id, workType])) as Record<string, WorkType>, [workTypes]);
+  const workstreamsById = useMemo(() => Object.fromEntries(workstreams.map((workstream) => [workstream.id, workstream])) as Record<string, Workstream>, [workstreams]);
 
   const mechanismsById = useMemo(() => {
     return Object.fromEntries(
@@ -2528,6 +2529,7 @@ export default function App() {
     timelineTasks,
     activeResponsibleGroupLabel,
     responsibleGroups,
+    workstreamsById,
     projects,
     appResponsiveStyles,
     canReassignTasks,
@@ -2670,6 +2672,7 @@ export default function App() {
     const projectOptions = projects.map((project) => ({ id: project.id, name: project.name }));
     const projectsById = Object.fromEntries(projects.map((project) => [project.id, project]));
     const responsibleGroupOptions = responsibleGroups.filter((group) => !group.projectIds.length || group.projectIds.includes(taskEditor.taskDraft.projectId)).map((group) => ({ id: group.id, name: group.name }));
+    const workstreamOptions = workstreams.filter((workstream) => workstream.projectId === taskEditor.taskDraft.projectId && !workstream.isArchived).map((workstream) => ({ id: workstream.id, name: workstream.name }));
     const scheduleOptions = scheduleEntries.map((entry) => ({ id: `${entry.recordType}:${entry.id}`, name: `${entry.title} (${formatDateTime(entry.startDateTime)})` }));
     const scheduleNamesByRef = Object.fromEntries(scheduleEntries.map((entry) => [`${entry.recordType}:${entry.id}`, entry.title]));
 
@@ -2683,6 +2686,7 @@ export default function App() {
           workTypeOptions={workTypeOptions}
           workTypesById={workTypesById}
           responsibleGroupOptions={responsibleGroupOptions}
+          workstreamOptions={workstreamOptions}
           scheduleOptions={scheduleOptions}
           scheduleNamesByRef={scheduleNamesByRef}
           manufacturingProcesses={manufacturingProcesses}

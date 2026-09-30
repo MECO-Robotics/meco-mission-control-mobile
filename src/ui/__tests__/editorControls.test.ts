@@ -54,6 +54,20 @@ test("participants display roster names and preserve IDs through toggles", () =>
   expect(onChange).toHaveBeenLastCalledWith("");
 });
 
+test("workstream multi-select labels its planning dimension separately", () => {
+  const onChange = jest.fn();
+  const view = render(createElement(ParticipantField, {
+    label: "Workstreams",
+    options: [{ id: "robot-build", name: "Robot build" }, { id: "drive-practice", name: "Drive practice" }],
+    value: "robot-build",
+    onChange,
+  }));
+  expect(view.getByText("Workstreams")).toBeTruthy();
+  expect(view.getByRole("checkbox", { name: "Robot build" }).props.accessibilityState.checked).toBe(true);
+  fireEvent.press(view.getByRole("checkbox", { name: "Drive practice" }));
+  expect(onChange).toHaveBeenCalledWith("robot-build,drive-practice");
+});
+
 test.each([320, 375, 430, 768])("search target does not shrink at width %s", (width) => {
   expect(getResponsiveMetrics(width).controlHeight).toBeGreaterThanOrEqual(48);
   const view = render(createElement(SearchField, { placeholder: "Search tasks", value: "", onChangeText: jest.fn() }));

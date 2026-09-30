@@ -10,7 +10,7 @@ import { isoToday } from "../../ui/helpers";
 import { styles } from "../../ui/styles";
 import type { Option } from "../../ui/types";
 import { AdvancedOptions, EditorModal } from "../../ui/editorWidgets";
-import { ModalField } from "../../ui/editorFieldWidgets";
+import { ModalField, ParticipantField } from "../../ui/editorFieldWidgets";
 import { DropdownField } from "../../ui/selectionFieldWidgets";
 import type {
   Mechanism,
@@ -34,6 +34,7 @@ type TaskEditorModalProps = {
   workTypeOptions: Option[];
   workTypesById: Record<string, import("../../types/domain").WorkType | undefined>;
   responsibleGroupOptions: Option[];
+  workstreamOptions: Option[];
   scheduleOptions: Option[];
   scheduleNamesByRef: Record<string, string | undefined>;
   manufacturingProcesses: ManufacturingProcess[];
@@ -58,6 +59,7 @@ export function TaskEditorModal({
   workTypeOptions,
   workTypesById,
   responsibleGroupOptions,
+  workstreamOptions,
   scheduleOptions,
   scheduleNamesByRef,
   manufacturingProcesses,
@@ -149,7 +151,7 @@ export function TaskEditorModal({
           <DropdownField label="Project" onChange={(projectId) => {
             const project = projectsById[projectId];
             const workTypeId = workTypesById[taskDraft.workTypeId]?.projectType === project?.projectType ? taskDraft.workTypeId : "";
-            setTaskDraft((current) => ({ ...current, projectId, workTypeId }));
+            setTaskDraft((current) => ({ ...current, projectId, workTypeId, workstreamIds: current.projectId === projectId ? current.workstreamIds : [] }));
           }} options={projectOptions} value={taskDraft.projectId} />
           <DropdownField
             label="Work type"
@@ -166,6 +168,12 @@ export function TaskEditorModal({
             onChange={(value) => setTaskDraft((current) => ({ ...current, responsibleGroupId: value }))}
             options={responsibleGroupOptions}
             value={taskDraft.responsibleGroupId}
+          />
+          <ParticipantField
+            label="Workstreams"
+            onChange={(value) => setTaskDraft((current) => ({ ...current, workstreamIds: value.split(",").map((id) => id.trim()).filter(Boolean) }))}
+            options={workstreamOptions}
+            value={taskDraft.workstreamIds.join(",")}
           />
         </View>
 

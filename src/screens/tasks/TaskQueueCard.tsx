@@ -17,7 +17,7 @@ import type { TaskScreenProps } from "./taskScreenTypes";
 
 type TaskQueueCardContext = Pick<TaskScreenProps,
   | "appResponsiveStyles" | "canReassignTasks" | "canSubmitQa"
-  | "claimTask" | "workTypesById" | "editTagStyle" | "eventsById"
+  | "claimTask" | "workTypesById" | "editTagStyle" | "eventsById" | "workstreamsById"
   | "isLandscapeCardLayout" | "mechanismsById" | "membersById"
   | "openCreateQaReportEditor" | "openCreateWorkLogEditor" | "openEditTaskEditor"
   | "partInstancesById" | "partDefinitionsById" | "qaRequests" | "qaReports" | "releaseTask"
@@ -46,6 +46,7 @@ export function TaskQueueCard({
     canSubmitQa,
     claimTask,
     workTypesById,
+    workstreamsById,
     editTagStyle,
     eventsById,
     isLandscapeCardLayout,
@@ -136,6 +137,7 @@ export function TaskQueueCard({
           {exceptionPills.length > 0 ? <View style={styles.queuePillRow}>{exceptionPills}</View> : null}
           <View style={styles.compactMetaGrid}>
             {renderMetaItem("Owner", ownerName)}
+            {task.workstreamIds.length ? renderMetaItem("Workstreams", task.workstreamIds.map((id) => workstreamsById[id]?.name ?? "Unknown workstream").join(", ")) : null}
             {renderMetaItem("Due", formatDate(task.dueDate))}
             {renderMetaItem("Logged", `${loggedHours.toFixed(1)}h / Est ${task.estimatedHours.toFixed(1)}h`)}
           </View>

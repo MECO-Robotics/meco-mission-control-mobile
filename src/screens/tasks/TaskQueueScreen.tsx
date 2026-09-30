@@ -30,7 +30,7 @@ import {
 type TaskQueueScreenProps = Pick<TaskScreenProps,
   | "queue" | "activeResponsibleGroupId" | "activeResponsibleGroupLabel" | "appResponsiveStyles"
   | "canReassignTasks" | "claimTask"
-  | "workTypesById" | "editTagStyle" | "eventsById"
+  | "workTypesById" | "editTagStyle" | "eventsById" | "workstreamsById"
   | "isCompactLayout" | "isLandscapeCardLayout"
   | "mechanismsById" | "members" | "membersById"
   | "openCreateTaskEditor" | "openCreateWorkLogEditor" | "openEditTaskEditor"
@@ -54,6 +54,7 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
     canReassignTasks,
     claimTask,
     workTypesById,
+    workstreamsById,
     editTagStyle,
     eventsById,
     isCompactLayout,
@@ -141,6 +142,7 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
     canSubmitQa,
     claimTask,
     workTypesById,
+    workstreamsById,
     editTagStyle,
     eventsById,
     isLandscapeCardLayout,
