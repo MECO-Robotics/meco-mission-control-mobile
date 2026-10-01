@@ -134,14 +134,13 @@ export function InventoryPartsScreen(props: AppScreenProps) {
                   {definition?.name ?? "Unknown definition"} - {locationLabel}
                 </Text>
               </View>
-              <StatusPill label={partInstance.readinessStatus ?? "readiness not set"} value={partInstance.readinessStatus ?? "neutral"} />
+              <StatusPill label={`Derived readiness: ${partInstance.readinessStatus ?? "not available"}`} value={partInstance.readinessStatus ?? "neutral"} />
             </View>
 
             <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
               Physical location
             </Text>
             <DropdownField label="Location state" value={locationKind} options={[{id:"stock",name:"Stock"},{id:"installed",name:"Installed"},{id:"repair",name:"Repair"},{id:"retired",name:"Retired"},{id:"lost",name:"Lost"},{id:"unlocated",name:"Unlocated"}]} onChange={nextLocation} />
-            <DropdownField label="Derived readiness" value={partInstance.readinessStatus ?? ""} options={[{id:"not-ready",name:"Not ready"},{id:"blocked",name:"Blocked"},{id:"qa",name:"QA"},{id:"ready",name:"Ready"}]} clearLabel="Not assessed" onChange={(readinessStatus) => void updatePartInstance(partInstance, { readinessStatus: (readinessStatus || undefined) as "not-ready" | "blocked" | "qa" | "ready" | undefined })} />
           </View>
         );
       })}

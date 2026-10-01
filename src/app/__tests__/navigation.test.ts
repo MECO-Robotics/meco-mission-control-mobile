@@ -35,6 +35,11 @@ test("all supported destinations are reachable using labeled controls without ge
   }
 });
 
+test("Schedule, QA / Reports and Documents have direct Work destinations", () => {
+  const workViews = NAVIGATION.find((section) => section.value === "work")?.views.map(({ label }) => label) ?? [];
+  expect(workViews).toEqual(expect.arrayContaining(["Schedule", "QA / Reports", "Documents"]));
+});
+
 test("switching domains returns to the last view and new Work starts on Kanban", () => {
   const view = render(createElement(Workspace));
   fireEvent.press(view.getByRole("tab", { name: "Work" }));

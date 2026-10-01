@@ -4,6 +4,7 @@ import { DropdownField } from "../../ui/ui";
 
 import type { TaskScreenProps } from "./taskScreenTypes";
 import { TaskMilestonesScreen } from "./TaskMilestonesScreen";
+import { ScheduleCalendarScreen } from "./ScheduleCalendarScreen";
 import { TaskQueueScreen } from "./TaskQueueScreen";
 import { TaskTimelineScreen } from "./TaskTimelineScreen";
 
@@ -22,6 +23,15 @@ export function TasksScreen(props: TaskScreenProps) {
     themeColors,
     timelineTasks,
   } = props;
+
+  if (taskView === "calendar") {
+    return <ScheduleCalendarScreen
+      appResponsiveStyles={props.appResponsiveStyles}
+      events={props.events}
+      openCreateMilestoneEditor={props.openCreateMilestoneEditor}
+      openEditMilestoneEditor={props.openEditMilestoneEditor}
+    />;
+  }
 
   if (isLandscapeTimelineLayout && taskView === "timeline") {
     return (

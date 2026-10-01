@@ -254,12 +254,12 @@ export const SUBVIEW_INTERACTION_GUIDANCE: Record<string, string[]> = {
   reports: [
     "Use QA reports to record pass, minor-fix, or iteration-worthy outcomes.",
     "Sort QA reports by recency, dependencies, and fix size when planning follow-up.",
-    "Iteration-worthy QA reports are surfaced in the risk register.",
+    "Iteration-worthy results can link to follow-up Tasks and canonical Risks.",
   ],
   risks: [
-    "Review task blockers, subsystem risks, and QA findings together.",
-    "High-priority blockers and iteration-worthy findings are marked high.",
-    "Resolve blockers from the task queue when the underlying issue is cleared.",
+    "Review persisted unresolved Risks and their linked project or Robot targets.",
+    "Use severity, mitigation, and status to coordinate follow-up.",
+    "Blocked state and readiness indicators are derived from domain records.",
   ],
   roster: [
     "People are grouped by role so ownership and mentor coverage are easy to scan.",

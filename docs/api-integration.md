@@ -105,7 +105,7 @@ Workspace data is loaded from:
 GET /api/bootstrap
 ```
 
-The payload may include:
+The generated bootstrap contract defines the payload collections. It includes:
 
 - members
 - subsystems
@@ -117,7 +117,8 @@ The payload may include:
 - events
 - milestones
 - workLogs
-- manufacturingItems
+- manufacturingProcesses
+- reports
 - purchaseItems
 - qaRequests
 - qaFindings
@@ -125,7 +126,7 @@ The payload may include:
 - designIterations
 - actions
 
-Milestones can be mapped into event-like records for mobile timeline behavior.
+The app presents Meetings, Events, Milestones, and dated Task deadlines through Schedule presentations: Calendar, Timeline, and Agenda. These presentations do not collapse the distinct stored record types. Manufacturing execution remains represented by Tasks with optional nested ManufacturingDetails; there is no standalone manufacturing queue or `manufacturingItems` collection. PurchaseItem owns the one-way `taskId` link to procurement work.
 
 `actions` are platform audit history. Automatic expiration and privacy maintenance are not implemented. Before deployment, establish the [platform audit retention policy](https://github.com/MECO-Robotics/meco-mission-control-platform/blob/development/docs/backend-overview.md) and its enforcement; the policy is a requirement, not an existing background process.
 

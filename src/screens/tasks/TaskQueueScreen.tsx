@@ -175,8 +175,8 @@ const renderScreen = () => {
   return (
     <WorkspacePanel
       compactActionsInline
-      title={`${activeResponsibleGroupLabel} task queue`}
-      subtitle="Search and filter queue cards for the selected subteam's work."
+      title={`${activeResponsibleGroupLabel} Kanban`}
+      subtitle="Search and filter executable work for the selected responsible group."
       actions={
         <View style={styles.taskQueueHeaderActions}>
           <Pressable

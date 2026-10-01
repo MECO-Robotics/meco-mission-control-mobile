@@ -8,10 +8,12 @@ import { TaskTimelineScreen } from "../TaskTimelineScreen";
 import { TaskMilestonesScreen } from "../TaskMilestonesScreen";
 import { LandscapeSubsystemTimeline } from "../../../ui/landscapeTimeline/LandscapeSubsystemTimeline";
 import { DropdownField } from "../../../ui/ui";
+import { ScheduleCalendarScreen } from "../ScheduleCalendarScreen";
 
 jest.mock("../TaskQueueScreen", () => ({ TaskQueueScreen: jest.fn(() => null) }));
 jest.mock("../TaskTimelineScreen", () => ({ TaskTimelineScreen: jest.fn(() => null) }));
 jest.mock("../TaskMilestonesScreen", () => ({ TaskMilestonesScreen: jest.fn(() => null) }));
+jest.mock("../ScheduleCalendarScreen", () => ({ ScheduleCalendarScreen: jest.fn(() => null) }));
 jest.mock("../../../ui/landscapeTimeline/LandscapeSubsystemTimeline", () => ({
   LandscapeSubsystemTimeline: jest.fn(() => null),
 }));
@@ -41,12 +43,13 @@ test.each([
   ["queue", TaskQueueScreen, true],
   ["timeline", TaskTimelineScreen, true],
   ["milestones", TaskMilestonesScreen, false],
+  ["calendar", ScheduleCalendarScreen, false],
 ] as const)("routes %s and shows responsible group as a filter", (view, child, tabsVisible) => {
   render(createElement(TasksScreen, routerProps(view)));
   expect(child).toHaveBeenCalledTimes(1);
   expect(DropdownField).toHaveBeenCalledTimes(tabsVisible ? 1 : 0);
   expect(LandscapeSubsystemTimeline).not.toHaveBeenCalled();
-  for (const other of [TaskQueueScreen, TaskTimelineScreen, TaskMilestonesScreen]) {
+  for (const other of [TaskQueueScreen, TaskTimelineScreen, TaskMilestonesScreen, ScheduleCalendarScreen]) {
     if (other !== child) expect(other).not.toHaveBeenCalled();
   }
 });

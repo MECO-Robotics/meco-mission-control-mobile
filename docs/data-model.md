@@ -70,7 +70,7 @@ Event types:
 - internal review
 - demo
 
-`BootstrapMilestone` is the server-side milestone shape that can be mapped into mobile events.
+Meeting, Event, and Milestone retain their distinct record identities and are presented together in the Schedule domain. Tasks can also appear there by due date.
 
 ## Work Logs And Attendance
 
@@ -82,29 +82,13 @@ The app also keeps meeting RSVP/sign-in status for attendance views.
 
 ## Manufacturing
 
-`ManufacturingItem` represents work that needs to be made by CNC, 3D printing, or fabrication.
-
-Manufacturing statuses:
-
-- `requested`
-- `approved`
-- `in-progress`
-- `qa`
-- `complete`
-
-Manufacturing process values:
-
-- `3d-print`
-- `cnc`
-- `fabrication`
-
-Mentor review is tracked with `mentorReviewed`.
+`Task` is the only human execution identity. A Robot Task with work type `Manufacturing` may have one nested `ManufacturingDetails` technical record. Its process references the extensible platform manufacturing-process catalog, while fulfillment source independently selects in-house or outsourced work. ManufacturingDetails has no separate owner, status, deadline, or workflow. Outsourced custom work links its Task to a PurchaseItem; COTS acquisition is Purchasing work and has no ManufacturingDetails.
 
 ## Inventory And Purchases
 
 `PartDefinition` describes a reusable part, including name, part number, revision, type, source, material, and description.
 
-`PartInstance` places a part definition into a subsystem/mechanism context with quantity and lifecycle status.
+`PartInstance` represents one physical finished unit, with its physical location and lifecycle state. Readiness is derived from dependencies and is not canonical stored state. `Material` represents raw or bulk stock and its storage location.
 
 Part instance statuses:
 
@@ -114,7 +98,7 @@ Part instance statuses:
 - `installed`
 - `retired`
 
-`PurchaseItem` tracks vendor, quantity, estimated/final cost, mentor approval, and delivery state.
+`PurchaseItem` owns its optional `taskId` relationship to the human procurement Task and tracks vendor, quote, approval, purchase-order/order state, cost, expected delivery, and tracking. Task has no purchase ID array. `inHouse` is modeled as fulfillment source rather than a process or acquisition method.
 
 Purchase statuses:
 
@@ -126,9 +110,9 @@ Purchase statuses:
 
 ## QA
 
-`QaRequest` asks a mentor to review a task or subject.
+`QaRequest` asks for review of typed domain targets. `Report` is the canonical QA, practice, competition, or review report and links typed evidence targets. Findings and TestResults use typed target references rather than duplicate scalar links. Artifacts use `uri` and typed target references.
 
-`QaReview` records the result, participants, mentor approval, notes, and evidence notes.
+QA and report records retain their owning domain; evidence can link to Tasks, Robot entities, Schedule records, ManufacturingDetails, Projects, and other appropriate targets.
 
 QA results:
 
@@ -140,5 +124,4 @@ Iteration-worthy findings can drive follow-up task creation.
 
 ## Bootstrap Payload
 
-`PlatformBootstrapPayload` is intentionally optional by field so the app can accept partial server snapshots during development. Missing collections are filled from local defaults or treated as empty depending on the workflow.
-
+`PlatformBootstrapPayload` is generated from the platform contract. Mobile consumes the same required collection shapes and field semantics; it does not maintain a divergent compatibility schema.

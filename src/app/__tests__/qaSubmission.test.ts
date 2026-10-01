@@ -16,7 +16,7 @@ jest.mock("@react-native-async-storage/async-storage", () => ({ getItem: jest.fn
 jest.mock("../../services/authSessionStorage", () => ({ getOrCreateAuthDeviceNumber: jest.fn(async () => "test"), loadPersistedAuthSession: jest.fn(async () => null), clearPersistedAuthSession: jest.fn(async () => undefined) }));
 jest.mock("../../services/workLogTimerNotifications", () => ({ cancelWorkLogTimerReminders: jest.fn(async () => undefined), clearPersistedWorkLogTimerState: jest.fn(async () => undefined), restorePersistedWorkLogTimerReminder: jest.fn(async () => null), persistWorkLogTimerState: jest.fn(async () => undefined), schedulePersistedWorkLogTimerReminders: jest.fn(async () => []) }));
 
-const task = { ...mecoSnapshot.tasks[0], status: "waiting-for-qa", blockers: [], isBlocked: false, isWaitingOnDependency: false };
+const task = { ...mecoSnapshot.tasks[0], status: "waiting-for-qa", isBlocked: false, isWaitingOnDependency: false };
 let reports: object[];
 let failSave: boolean;
 let failRefresh: boolean;

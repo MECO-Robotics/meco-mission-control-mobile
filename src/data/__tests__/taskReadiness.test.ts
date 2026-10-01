@@ -8,7 +8,7 @@ test.each([
   { isBlocked: true, isWaitingOnDependency: false },
   { isBlocked: false, isWaitingOnDependency: true },
 ])("queue and controls respect separate server readiness flags: %o", (readiness) => {
-  const task = { ...mecoSnapshot.tasks[0], ownerId: member.id, blockers: [], ...readiness, status: "not-started" as const };
+  const task = { ...mecoSnapshot.tasks[0], ownerId: member.id, ...readiness, status: "not-started" as const };
   expect(isTaskBlocked(task)).toBe(true);
   expect(hasOpenTaskDependency(task)).toBe(readiness.isWaitingOnDependency);
   expect(getAutoTaskStatus(task)).toBe("not-started");

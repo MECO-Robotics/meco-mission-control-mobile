@@ -87,6 +87,7 @@ import type {
   QaFinding,
   Report,
   Risk,
+  RiskMutationPayload,
   ResponsibleGroup,
   MobileSessionResponse,
   SessionResponse,
@@ -336,7 +337,7 @@ export default function App() {
   );
 
   const [activeTab, setActiveTab] = useState<ViewTab>("home");
-  const [scheduleView, setScheduleView] = useState<"milestones" | "timeline">("milestones");
+  const [scheduleView, setScheduleView] = useState<Exclude<TaskViewTab, "queue">>("milestones");
   const taskView: TaskViewTab = activeTab === "work-schedule" ? scheduleView : "queue";
   const [activeResponsibleGroupId, setActiveResponsibleGroupId] =
     useState<ResponsibleGroupFilter>("all");
@@ -942,6 +943,14 @@ export default function App() {
     ],
   );
 
+  const persistRisk = useCallback((id: string | null, payload: RiskMutationPayload) =>
+    runMutation(id ? `/api/risks/${id}` : "/api/risks", {
+      method: id ? "PATCH" : "POST",
+      body: JSON.stringify(payload),
+    }), [runMutation]);
+  const deleteRisk = useCallback((id: string) =>
+    runMutation(`/api/risks/${id}`, { method: "DELETE" }), [runMutation]);
+
   const runTaskAssignmentMutation = useCallback(
     async (mutation: () => Promise<unknown>) => {
       setIsSyncing(true);
@@ -1292,7 +1301,7 @@ export default function App() {
     subsystems, mechanisms, tasks, purchaseItems, risks, qaFindings, membersById, taskById,
   });
 
-  const riskRows = useMemo(() => risks.filter((risk) => risk.status === "open" || risk.status === "mitigating")
+  const riskRows = useMemo(() => risks.filter((risk) => risk.status !== "resolved")
     .map((risk) => ({ id: risk.id, title: risk.title, detail: risk.detail,
       subsystemId: risk.relatedTargets.find((target) => target.kind === "subsystem")?.id ?? "",
       source: risk.source.kind, priority: risk.severity }))
@@ -1301,7 +1310,7 @@ export default function App() {
   const riskSummary = useMemo(() => {
     const highCount = riskRows.filter((risk) => risk.priority === "high" || risk.priority === "critical").length;
     return [
-      { label: "Open risks", value: String(riskRows.length) },
+      { label: "Unresolved risks", value: String(riskRows.length) },
       { label: "High", value: String(highCount) },
       { label: "Mitigating", value: String(risks.filter((risk) => risk.status === "mitigating").length) },
     ] satisfies SummaryChipData[];
@@ -2231,7 +2240,7 @@ export default function App() {
     mutate: runMutation,
   });
 
-  const updatePartInstance = async (item: PartInstance, patch: Partial<Pick<PartInstance, "location" | "readinessStatus">>) => {
+  const updatePartInstance = async (item: PartInstance, patch: Partial<Pick<PartInstance, "location">>) => {
     await runMutation(`/api/part-instances/${item.id}`, { method: "PATCH", body: JSON.stringify(patch) });
   };
 
@@ -2613,6 +2622,7 @@ export default function App() {
     openCreateSubsystemEditor: () => subsystemEditor.open(),
     openCreateWorkLogEditor,
     openWorkLogFromTimer,
+    projects,
     openEditMemberEditor: memberEditor.edit,
     openEditPartDefinitionEditor: partDefinitionEditor.edit,
     updatePartInstance,
@@ -2629,7 +2639,10 @@ export default function App() {
     qaRequests,
     qaReports,
     riskRows,
+    risks,
     riskSummary,
+    saveRisk: persistRisk,
+    deleteRisk,
     rosterAdmins,
     rosterExternal,
     rosterMentors,
