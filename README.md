@@ -68,7 +68,7 @@ Four bottom tabs organize the workspace:
 - **Home:** a bounded attention list and shortcuts to tasks, schedule, activity, purchasing and session attendance.
 - **Work:** Tasks (queue or Pending QA), Schedule (Agenda or Timeline), Risks (including help requests), and Activity (work logs or QA results).
 - **Resources:** Materials, Parts, Purchases, Manufacturing, and Structure. Manufacturing uses a process filter; Structure owns subsystems and mechanisms.
-- **Team:** People (availability, assigned workload and role editing) and Attendance.
+- **Team:** People (roster, attendance, class-year cohorts, availability and individual workload) and Teams (responsible groups, membership and derived capacity/workload).
 
 All views use visible labeled controls; horizontal swipes are not required. Switching bottom tabs restores the last selected view. Task and record editors retain their own fields and permissions; QA details open in context. Work-log timers and offline drafts retain their existing owners.
 

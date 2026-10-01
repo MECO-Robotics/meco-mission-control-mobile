@@ -41,6 +41,7 @@ export function useMemberEditor({ members, canMentorApprove, mutate }: Inputs) {
     }
 
     const payload = {
+      classYear: editor.draft.role === "student" || editor.draft.role === "lead" ? (editor.draft.classYear || null) : null,
       elevated: editor.draft.role === "lead" || editor.draft.role === "admin",
       email,
       name,

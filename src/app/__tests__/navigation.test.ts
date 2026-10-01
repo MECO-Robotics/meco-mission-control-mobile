@@ -60,3 +60,7 @@ test("account utilities have an explicit close action and no local season reset"
   fireEvent.press(view.getByRole("button", { name: "Close" }));
   expect(view.queryByRole("button", { name: "Signed-in devices" })).toBeNull();
 });
+
+test("Team contains People and Teams as compact views", () => {
+  expect(NAVIGATION.find((section) => section.value === "team")?.views.map((view) => view.value)).toEqual(["team-people", "team-teams"]);
+});

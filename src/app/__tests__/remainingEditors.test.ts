@@ -17,6 +17,18 @@ test("member edits retain normalized profile and attendance fields", async () =>
   expect(body(mutate)).toMatchObject({ email: "person@example.com", plannedWeeklyAttendanceHours: 0, photoUrl: "https://example.com/p.jpg" });
 });
 
+test("class year is sent for students and cleared for non-students", async () => {
+  const mutate = mutation();
+  const { result } = renderHook(() => useMemberEditor({ members: mecoSnapshot.members, canMentorApprove: true, mutate }));
+  act(() => result.current.edit("ava"));
+  act(() => result.current.updateDraft({ classYear: "junior", role: "lead" }));
+  await act(async () => { await result.current.save(); });
+  expect(body(mutate)).toHaveProperty("classYear", "junior");
+  act(() => result.current.edit("jordan"));
+  await act(async () => { await result.current.save(); });
+  expect(body(mutate, 1)).toHaveProperty("classYear", null);
+});
+
 test("subsystem editing has no duplicate free-text risk field", async () => {
   const mutate = mutation();
   const { result } = renderHook(() => useSubsystemEditor({ members: mecoSnapshot.members, mutate }));

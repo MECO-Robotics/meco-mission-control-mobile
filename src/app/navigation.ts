@@ -10,8 +10,11 @@ export const NAVIGATION = [
     { value: "work-reports", label: "QA / Reports" },
     { value: "work-activity", label: "Activity" },
   ] },
-  { value: "resources", label: "Resources", views: [
+  { value: "team", label: "Team", views: [
     { value: "team-people", label: "People" },
+    { value: "team-teams", label: "Teams" },
+  ] },
+  { value: "resources", label: "Resources", views: [
     { value: "resources-materials", label: "Materials" },
     { value: "resources-parts", label: "Parts" },
     { value: "resources-purchases", label: "Purchases" },

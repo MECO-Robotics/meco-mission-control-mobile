@@ -4,7 +4,7 @@ export type ViewTab =
   | "work-tasks" | "work-schedule" | "work-risks" | "work-activity" | "work-documents" | "work-reports"
   | "resources-materials" | "resources-parts" | "resources-purchases"
   | "resources-structure"
-  | "team-people";
+  | "team-people" | "team-teams";
 
 export type KanbanView = "queue";
 export type SchedulePresentation = "agenda" | "calendar" | "timeline";
@@ -51,6 +51,7 @@ export type WorkLogDraft = {
 };
 
 export type MemberDraft = {
+  classYear: "" | "freshman" | "sophomore" | "junior" | "senior";
   email: string;
   photoUrl: string;
   name: string;

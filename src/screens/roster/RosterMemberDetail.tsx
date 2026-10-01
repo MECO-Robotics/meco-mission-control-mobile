@@ -128,6 +128,10 @@ export function RosterMemberDetail({
             {member.name}
           </Text>
         </View>
+        {member.role === "student" || member.role === "lead" ? <View style={styles.field}>
+          <Text style={[styles.label, { color: themeColors.subtleText }]}>Class year</Text>
+          <Text style={[styles.value, { color: themeColors.ink }]}>{member.classYear ? capitalize(member.classYear) : "Not set"}</Text>
+        </View> : null}
         <View style={styles.field}>
           <Text style={[styles.label, { color: themeColors.subtleText }]}>
             Email

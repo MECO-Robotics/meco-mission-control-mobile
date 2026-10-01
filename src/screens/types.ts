@@ -92,6 +92,8 @@ export interface AppScreenProps {
   members: Member[];
   membersById: Record<string, Member>;
   openCreateMemberEditor: (role?: Member["role"]) => void;
+  mutate: (path: string, init: RequestInit) => Promise<boolean>;
+  projects: Project[];
   openCreatePartDefinitionEditor: () => void;
   openCreatePurchaseEditor: () => void;
   openCreateQaReportEditor: (taskId?: string, qaRequestId?: string) => void;
@@ -119,7 +121,6 @@ export interface AppScreenProps {
   riskRows: RiskRow[];
   risks: Risk[];
   riskSummary: SummaryChipData[];
-  projects: Project[];
   saveRisk: (id: string | null, payload: RiskMutationPayload) => Promise<boolean>;
   deleteRisk: (id: string) => Promise<boolean>;
   rosterAdmins: Member[];
