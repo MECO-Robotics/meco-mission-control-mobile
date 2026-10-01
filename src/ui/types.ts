@@ -6,7 +6,9 @@ export type ViewTab =
   | "resources-structure"
   | "team-people";
 
-export type TaskViewTab = "timeline" | "queue" | "milestones" | "calendar";
+export type KanbanView = "queue";
+export type SchedulePresentation = "agenda" | "calendar" | "timeline";
+export type TaskWorkspaceView = { domain: "kanban"; view: KanbanView } | { domain: "schedule"; presentation: SchedulePresentation };
 export type ResponsibleGroupFilter = string;
 
 export type StatusGroup = "success" | "info" | "warning" | "danger" | "neutral";

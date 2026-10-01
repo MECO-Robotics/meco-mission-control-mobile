@@ -21,15 +21,15 @@ import type { MilestoneSortField } from "../../ui/types";
 
 import type { TaskScreenProps } from "./taskScreenTypes";
 
-type TaskMilestonesScreenProps = Pick<TaskScreenProps,
+type ScheduleAgendaScreenProps = Pick<TaskScreenProps,
   | "appResponsiveStyles" | "filteredMilestones" | "isCompactLayout"
   | "milestoneSearch" | "milestoneSortField" | "milestoneSortOrder"
   | "milestoneSummary" | "milestoneTypeFilter" | "openCreateMilestoneEditor"
   | "openEditMilestoneEditor" | "setMilestoneSearch" | "setMilestoneSortField"
-  | "setMilestoneSortOrder" | "setMilestoneTypeFilter" | "projects"
+  | "setMilestoneSortOrder" | "setMilestoneTypeFilter" | "projects" | "tasks" | "membersById" | "openEditTaskEditor"
 >;
 
-export function TaskMilestonesScreen(props: TaskMilestonesScreenProps) {
+export function ScheduleAgendaScreen(props: ScheduleAgendaScreenProps) {
   const {
     appResponsiveStyles,
     filteredMilestones,
@@ -46,9 +46,16 @@ export function TaskMilestonesScreen(props: TaskMilestonesScreenProps) {
     setMilestoneSortOrder,
     setMilestoneTypeFilter,
     projects,
+    tasks,
+    membersById,
   } = props;
 
   const milestoneTypeOptions = [...new Set(filteredMilestones.map((item) => item.type))].map((type) => ({ id: type, name: type.replaceAll("-", " ") }));
+  const today = new Date().toISOString().slice(0, 10);
+  const agendaItems = [
+    ...filteredMilestones.filter((entry) => entry.startDateTime.slice(0, 10) >= today).map((entry) => ({ kind: "schedule" as const, date: entry.startDateTime, entry })),
+    ...tasks.filter((task) => task.dueDate >= today).map((task) => ({ kind: "task-deadline" as const, date: task.dueDate, task })),
+  ].sort((left, right) => left.date.localeCompare(right.date));
 
   const getMilestoneSortIcon = (field: MilestoneSortField) => {
     if (milestoneSortField !== field) {
@@ -70,8 +77,8 @@ export function TaskMilestonesScreen(props: TaskMilestonesScreenProps) {
 
   return (
     <WorkspacePanel
-      title="Schedule"
-      subtitle="Meetings, competitions, practices, deadlines, milestones, and reviews across all projects."
+      title="Schedule agenda"
+      subtitle="Upcoming meetings, events, milestones, and Task deadlines across projects."
       actions={
         <ActionButton
           onPress={openCreateMilestoneEditor}
@@ -132,59 +139,29 @@ export function TaskMilestonesScreen(props: TaskMilestonesScreenProps) {
         </View>
       ) : null}
 
-      {filteredMilestones.map((milestone) => {
-        const eventStyle = EVENT_TYPE_STYLES[milestone.type] ?? EVENT_TYPE_STYLES["internal-review"];
-        const projectNames = milestone.projectIds
-          .map((projectId) => projects.find((project) => project.id === projectId)?.name ?? "Unknown project")
-          .join(", ");
+      {agendaItems.map((item) => item.kind === "schedule" ? (() => {
+        const entry = item.entry;
+        const eventStyle = EVENT_TYPE_STYLES[entry.type] ?? EVENT_TYPE_STYLES["internal-review"];
+        const projectNames = entry.projectIds.map((projectId) => projects.find((project) => project.id === projectId)?.name ?? "Unknown project").join(", ");
+        const content = <View style={[styles.queueRowCard, { backgroundColor: eventStyle.rowBackground, borderColor: eventStyle.borderColor }, appResponsiveStyles.rowCard]}>
+          <Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>{entry.title}</Text>
+          <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>{entry.recordType} · {entry.type} · {formatDateTime(entry.startDateTime)}{entry.endAt ? ` – ${formatDateTime(entry.endAt)}` : ""}</Text>
+          <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>{projectNames || "All projects"}</Text>
+        </View>;
+        return entry.recordType === "milestone"
+          ? <Pressable key={`${entry.recordType}:${entry.id}`} onPress={() => openEditMilestoneEditor(entry)}>{content}</Pressable>
+          : <View key={`${entry.recordType}:${entry.id}`}>{content}</View>;
+      })() : (() => {
+        const task = item.task;
+        const projectName = projects.find((project) => project.id === task.projectId)?.name ?? "Unknown project";
+        const ownerName = membersById[task.ownerId ?? ""]?.name ?? "Unassigned";
+        return <Pressable key={`task-deadline:${task.id}`} onPress={() => props.openEditTaskEditor(task)} style={[styles.queueRowCard, appResponsiveStyles.rowCard]}>
+          <Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>{task.title}</Text>
+          <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>Task deadline · {task.dueDate} · {projectName} · {ownerName} · {task.status}{task.isWaitingOnDependency ? " · readiness: waiting on dependency" : task.isBlocked ? " · readiness: blocked" : ""}</Text>
+        </Pressable>;
+      })())}
 
-        return (
-          <Pressable
-            key={milestone.id}
-            onPress={() => openEditMilestoneEditor(milestone)}
-            style={[
-              styles.queueRowCard,
-              { backgroundColor: eventStyle.rowBackground, borderColor: eventStyle.borderColor },
-              appResponsiveStyles.rowCard,
-            ]}
-          >
-            <View style={styles.queueRowHeader}>
-              <View style={styles.queueRowPrimaryText}>
-                <Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>{milestone.title}</Text>
-                <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
-                  {milestone.description || "No description provided."}
-                </Text>
-              </View>
-              <View
-                style={{
-                  borderRadius: 999,
-                  borderWidth: 1,
-                  borderColor: eventStyle.borderColor,
-                  backgroundColor: eventStyle.chipBackground,
-                  paddingHorizontal: 8,
-                  paddingVertical: 4,
-                }}
-              >
-                <Text style={{ color: eventStyle.chipText, fontSize: 11, fontWeight: "700" }}>
-                  {eventStyle.label}
-                </Text>
-              </View>
-            </View>
-
-            <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
-              Start {formatDateTime(milestone.startDateTime)} | End{" "}
-              {milestone.endAt ? formatDateTime(milestone.endAt) : "No end"}
-            </Text>
-            <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
-              {milestone.recordType} | Projects {projectNames || "All projects"}
-            </Text>
-          </Pressable>
-        );
-      })}
-
-      {filteredMilestones.length === 0 ? (
-        <EmptyState text="No schedule items match the current filters." />
-      ) : null}
+      {agendaItems.length === 0 ? <EmptyState text="No upcoming meetings, events, milestones, or Task deadlines match these filters." /> : null}
 
       <InteractionNote steps={SUBVIEW_INTERACTION_GUIDANCE.milestones} />
     </WorkspacePanel>

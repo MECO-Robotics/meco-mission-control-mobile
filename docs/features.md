@@ -12,7 +12,7 @@ Robot work types include Design, Manufacturing, Assembly, Electrical/Wiring, Pro
 
 ## Schedule
 
-Agenda, Calendar, and Timeline are projections of the Schedule domain. They include meetings, competitions and other events, practices, deadlines, milestones, and reviews. Selecting a milestone edits a Milestone; the combined views do not collapse Meeting, Event, and Milestone identities.
+Agenda, Calendar, and Timeline are Schedule presentations. They include upcoming Meetings, Events, Milestones, and Task deadlines while preserving stored record identities. Task deadlines project from `Task.dueDate`; selecting a Milestone opens its Milestone editor.
 
 ## Attendance
 
@@ -55,7 +55,7 @@ PartDefinition records the reusable part and its default acquisition method (Sto
 
 ## Subsystems and Robot structure
 
-The subsystem manager tracks ownership, mentor coverage, descriptions, hierarchy, mechanisms, and risks. Subsystem cards can expand to show related context and can be edited from the card.
+The subsystem manager tracks ownership, mentor coverage, descriptions, hierarchy, and mechanisms. Canonical Risk records may link to Robot entities; Subsystems do not store separate free-text risk lists.
 
 ## QA / Reports
 

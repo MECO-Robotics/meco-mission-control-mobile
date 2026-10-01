@@ -1,127 +1,41 @@
-# Data Model
+# Mobile domain model
 
-Domain types live in `src/types/domain.ts`. This document summarizes the entities that matter to mobile workflows.
+Mobile consumes the platform's generated bootstrap contract. The checked-in contract copy is generated from the platform repository; do not add client-only aliases or stored compatibility fields.
 
-## People
+## FRC season and project scope
 
-`Member` represents a workspace person.
+Each season has exactly one project of each canonical type: Robot, Media, Outreach, Operations, Strategy, and Training. A Project owns its project-scoped records. WorkType is specific to a Project type; ResponsibleGroup is a separate season-scoped assignment and may apply to selected projects; Workstream is project-scoped planning/reporting. They are separate dimensions.
 
-Roles:
+## Task and Kanban
 
-- student
-- lead
-- mentor
-- admin
+`Task` is the sole human execution entity; the user-facing workflow is Kanban. Its project-specific `workTypeId`, optional `responsibleGroupId`, `workstreamIds`, individual owner/assignees, dates, status, dependency links, and related Robot/schedule targets retain separate meanings. Robot work types include Design, Manufacturing, Assembly, Electrical/Wiring, Programming, Testing, Driving, and Planning. Robot Planning covers technical/build planning; game and scouting strategy belongs to the Strategy project.
 
-Members can be linked to tasks as owners or mentors, manufacturing/purchase requests as requesters, work logs as participants, and subsystems as responsible engineers or mentors.
+Task dependencies are typed links to Tasks, Milestones, or PartInstances. A PartInstance dependency explicitly asks for either a physical location or derived readiness. `isBlocked` and `isWaitingOnDependency` are read-only derived projections; free-text blocker arrays are not stored. Risk records are the canonical persisted unresolved-risk model.
 
-## Subsystems And Design Structure
+## Robot and manufacturing
 
-`Subsystem` represents a robot/system area. It can have a parent subsystem, responsible engineer, mentor IDs, and risk notes.
+Subsystem → Mechanism → PartDefinition describes robot structure. Subsystems do not own free-text risk collections. CAD and other evidence use typed Artifact references.
 
-`Discipline` represents work type, such as mechanical, electrical, software, integration, or QA/test.
+A Robot Task with the Manufacturing work type may contain one nested `manufacturingDetails` technical extension. It contains the part/revision reference, quantity, `processId`, `fulfillmentSource`, material requirement, file Artifact IDs, tolerances, and QA requirements. The process is resolved through the extensible ManufacturingProcess catalog (initially CNC, 3D Print, Fabrication); fulfillment source is independently `in-house` or `outsourced`. Task owns execution status, assignments, and due date. ManufacturingDetails has no independent lifecycle or identity.
 
-`Mechanism` belongs to a subsystem and provides a more specific design/work area.
+COTS acquisition uses Purchasing only. Custom outsourced fabrication uses a manufacturing Task with ManufacturingDetails and linked commercial PurchaseItem records. There is no ManufacturingItem collection or manufacturing queue.
 
-`Requirement` belongs to a subsystem and tracks MoSCoW priority plus requirement status.
+## Inventory and Purchasing
 
-## Tasks
+Material represents raw/bulk stock and its storage location. PartDefinition is a reusable part design and owns a default acquisition method (`stock`, `purchase-cots`, or `manufacture`). PartInstance represents one physical finished/installed unit and owns physical location and lifecycle state. PartInstance readiness is derived and is not persisted as canonical state.
 
-`Task` is the core execution unit.
+PurchaseItem owns commercial state: vendor, quotes, approval, purchase order/order status, cost, expected delivery, and tracking. `PurchaseItem.taskId` owns the one-way optional relationship to the human procurement Task; Tasks do not contain purchase ID arrays. For manufacturing-service purchases, the referenced Task is a Robot Manufacturing Task with ManufacturingDetails. COTS purchases do not require ManufacturingDetails.
 
-Important fields:
+## Schedule
 
-- title and summary
-- subsystem, discipline, mechanism, requirement, part, and target event links
-- owner and mentor
-- start date and due date
-- priority
-- status
-- dependency IDs
-- checklist items
-- blockers and `isBlocked`
-- linked manufacturing and purchase IDs
-- estimated and actual hours
-- documentation requirements
+Meeting, Event, and Milestone remain distinct stored record types and are presented in Schedule through Calendar, Timeline, and Agenda. Task deadlines are projected from `Task.dueDate`; they are not copied into another stored schedule record. Schedule record wire fields are `startAt` and `endAt`.
 
-Task statuses:
+## QA, Reports, Risks, and Documents
 
-- `not-started`
-- `in-progress`
-- `waiting-for-qa`
-- `complete`
+QaRequest, TestResult, QaFinding, TestFinding, and Report keep platform-defined typed target references. Report supports QA, practice, competition, and review types. A typed target link preserves the target domain as owner; duplicate scalar links are not maintained. Artifacts use `uri` and typed `targetRefs` and may link to Tasks, Robot entities, Schedule records, ManufacturingDetails, projects, or other supported entities.
 
-Task priorities:
+Risk is the canonical stored unresolved-risk record. Dependency, schedule, QA, inventory, and subsystem signals may surface or create Risks; free-text subsystem/task blocker or risk arrays are not parallel stores.
 
-- `critical`
-- `high`
-- `medium`
-- `low`
+## Bootstrap and prototype state
 
-## Events And Milestones
-
-`Event` represents calendar items visible to planning flows.
-
-Event types:
-
-- drive practice
-- competition
-- deadline
-- internal review
-- demo
-
-Meeting, Event, and Milestone retain their distinct record identities and are presented together in the Schedule domain. Tasks can also appear there by due date.
-
-## Work Logs And Attendance
-
-`WorkLog` links date, hours, participants, notes, and a task.
-
-`AttendanceRecord` links a member, date, and total hours.
-
-The app also keeps meeting RSVP/sign-in status for attendance views.
-
-## Manufacturing
-
-`Task` is the only human execution identity. A Robot Task with work type `Manufacturing` may have one nested `ManufacturingDetails` technical record. Its process references the extensible platform manufacturing-process catalog, while fulfillment source independently selects in-house or outsourced work. ManufacturingDetails has no separate owner, status, deadline, or workflow. Outsourced custom work links its Task to a PurchaseItem; COTS acquisition is Purchasing work and has no ManufacturingDetails.
-
-## Inventory And Purchases
-
-`PartDefinition` describes a reusable part, including name, part number, revision, type, source, material, and description.
-
-`PartInstance` represents one physical finished unit, with its physical location and lifecycle state. Readiness is derived from dependencies and is not canonical stored state. `Material` represents raw or bulk stock and its storage location.
-
-Part instance statuses:
-
-- `planned`
-- `needed`
-- `available`
-- `installed`
-- `retired`
-
-`PurchaseItem` owns its optional `taskId` relationship to the human procurement Task and tracks vendor, quote, approval, purchase-order/order state, cost, expected delivery, and tracking. Task has no purchase ID array. `inHouse` is modeled as fulfillment source rather than a process or acquisition method.
-
-Purchase statuses:
-
-- `requested`
-- `approved`
-- `purchased`
-- `shipped`
-- `delivered`
-
-## QA
-
-`QaRequest` asks for review of typed domain targets. `Report` is the canonical QA, practice, competition, or review report and links typed evidence targets. Findings and TestResults use typed target references rather than duplicate scalar links. Artifacts use `uri` and typed target references.
-
-QA and report records retain their owning domain; evidence can link to Tasks, Robot entities, Schedule records, ManufacturingDetails, Projects, and other appropriate targets.
-
-QA results:
-
-- `pass`
-- `minor-fix`
-- `iteration-worthy`
-
-Iteration-worthy findings can drive follow-up task creation.
-
-## Bootstrap Payload
-
-`PlatformBootstrapPayload` is generated from the platform contract. Mobile consumes the same required collection shapes and field semantics; it does not maintain a divergent compatibility schema.
+Bootstrap collection names and every wire field come from `contracts/platform/bootstrap/v1/contract.json`. Snapshot schema versioning and reset are platform-owned. An older or incompatible local prototype snapshot is archived and replaced with canonical seed data; mobile does not migrate ambiguous legacy Tasks, ManufacturingItems, Purchases, blockers, risks, PartInstances, project types, or acquisition state.

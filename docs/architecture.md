@@ -50,7 +50,7 @@ Screens are mostly presentational. They receive:
 - action callbacks for create/edit/status transitions,
 - shared responsive styles and theme colors.
 
-Task queue filters belong to `useTaskQueue`; `useTaskEditor` owns Kanban draft state, relationship commands, and optional nested ManufacturingDetails. Manufacturing has no second mobile work queue or independent status. `useMilestoneEditor` owns milestone editing; the Schedule projection combines meeting, event, and milestone records while preserving each `recordType` and ID. `usePurchaseEditor` edits PurchaseItem commercial state, including quotes, approval, orders, delivery, and tracking. The Risks screen edits canonical Risk records through the platform risk routes. Feature editors share only `useEditorDraft` lifecycle transitions; field validation and persistence stay with each owner. Part definitions keep the default acquisition method, while actual inventory, manufacturing Tasks, and PurchaseItems remain separate linked state.
+Kanban filters belong to `useTaskQueue`; `useTaskEditor` owns Task draft state, relationship commands, and optional nested ManufacturingDetails. Manufacturing has no second mobile work queue or independent status. `useMilestoneEditor` owns Milestone records; Schedule presentations combine Meeting, Event, and Milestone records while preserving each type and ID, and project Task deadlines from `dueDate`. `usePurchaseEditor` edits PurchaseItem commercial state, including quotes, approval, orders, delivery, and tracking. The Risks screen edits canonical Risk records through the platform risk routes. Feature editors share only `useEditorDraft` lifecycle transitions; field validation and persistence stay with each owner. Part definitions keep the default acquisition method, while actual inventory, manufacturing Tasks, and PurchaseItems remain separate linked state.
 
 ## Navigation
 
@@ -62,7 +62,7 @@ The app uses compact local navigation rather than a router. Bottom tabs group th
 
 Work exposes Kanban, Schedule, Risks, Documents, QA / Reports, and Activity. Schedule offers Agenda, Calendar, and Timeline; QA / Reports offers pending review, reports, and mentor-help requests. Resources contains People, Materials, Parts, Purchasing, and Robot structure.
 
-The Calendar and Agenda project a shared list of Meeting, Event, and Milestone records without merging their stored identities. Kanban remains the only human execution queue.
+Calendar, Timeline, and Agenda present Meeting, Event, and Milestone records plus dated Task work while retaining each stored identity. Kanban remains the only human execution queue.
 
 Swipe responders in `App.tsx` support tab/subtab gestures.
 
@@ -81,7 +81,7 @@ shown for a newly restored account until bootstrap succeeds; authentication or
 authorization failure clears credentials and identity-scoped workspace state.
 
 Mutations use a shared `runMutation` path in `App.tsx`: submit the request,
-refresh `/api/bootstrap`, and update sync status. Task editor commands save the task and canonical dependency/blocker records, retain a newly created ID on partial failure, and refresh the snapshot after success. Work-log queue operations use `workLogQueue.ts` for serialized durable writes and session-scoped upload ownership, `workLogDraftSync.ts` for ID transformations, and `workLogDraftStorage.ts` for owner-bound authenticated encryption and seven-day retention. Upload completion changes only the submitted ID; subsequent edits remain queued.
+refresh `/api/bootstrap`, and update sync status. Task editor commands save the Task and typed dependency relationships, retain a newly created ID on partial failure, and refresh the snapshot after success. Blocked/readiness state is derived; canonical unresolved problems are Risk records. Work-log queue operations use `workLogQueue.ts` for serialized durable writes and session-scoped upload ownership, `workLogDraftSync.ts` for ID transformations, and `workLogDraftStorage.ts` for owner-bound authenticated encryption and seven-day retention. Upload completion changes only the submitted ID; subsequent edits remain queued.
 
 ## Work Timer Services
 

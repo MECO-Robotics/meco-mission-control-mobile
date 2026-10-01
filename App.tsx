@@ -35,7 +35,8 @@ import type {
   QaReportDraft,
   SummaryChipData,
   ResponsibleGroupFilter,
-  TaskViewTab,
+  TaskWorkspaceView,
+  SchedulePresentation,
   ViewTab,
   WorkLogDraft,
   WorkLogSortMode,
@@ -337,8 +338,10 @@ export default function App() {
   );
 
   const [activeTab, setActiveTab] = useState<ViewTab>("home");
-  const [scheduleView, setScheduleView] = useState<Exclude<TaskViewTab, "queue">>("milestones");
-  const taskView: TaskViewTab = activeTab === "work-schedule" ? scheduleView : "queue";
+  const [schedulePresentation, setSchedulePresentation] = useState<SchedulePresentation>("agenda");
+  const workspaceView: TaskWorkspaceView = activeTab === "work-schedule"
+    ? { domain: "schedule", presentation: schedulePresentation }
+    : { domain: "kanban", view: "queue" };
   const [activeResponsibleGroupId, setActiveResponsibleGroupId] =
     useState<ResponsibleGroupFilter>("all");
   const [isPersonMenuVisible, setIsPersonMenuVisible] = useState(false);
@@ -2533,7 +2536,8 @@ export default function App() {
     openEditTaskEditor,
     setActiveResponsibleGroupId,
     subsystems,
-    taskView,
+    workspaceView,
+    tasks,
     themeColors,
     timelineTasks,
     activeResponsibleGroupLabel,
@@ -2818,7 +2822,7 @@ export default function App() {
             activeTab={activeTab}
             activeTabContent={<ActiveTabContent activeTab={activeTab} screenProps={screenProps}
               taskContent={<TasksScreen {...taskScreenProps} />}
-              scheduleView={scheduleView} onScheduleViewChange={setScheduleView} />}
+              schedulePresentation={schedulePresentation} onSchedulePresentationChange={setSchedulePresentation} />}
             deviceSessions={deviceSessions}
             deviceSessionsError={deviceSessionsError}
             editorModals={renderEditorModals()}

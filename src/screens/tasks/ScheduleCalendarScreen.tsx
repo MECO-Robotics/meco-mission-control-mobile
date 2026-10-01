@@ -9,9 +9,10 @@ import { ActionButton } from "../../ui/ActionButton";
 import { EmptyState, WorkspacePanel } from "../../ui/ui";
 import { useAppTheme } from "../../ui/themeContext";
 import type { TaskScreenProps } from "./taskScreenTypes";
+import type { Task } from "../../types/domain";
 
 type Props = Pick<TaskScreenProps,
-  "appResponsiveStyles" | "events" | "openCreateMilestoneEditor" | "openEditMilestoneEditor"
+  "appResponsiveStyles" | "events" | "openCreateMilestoneEditor" | "openEditMilestoneEditor" | "tasks" | "membersById" | "projects"
 >;
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -20,17 +21,21 @@ function dateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-function monthStartFor(entries: ScheduleEntry[]) {
-  const firstDate = entries.map((entry) => new Date(entry.startDateTime)).filter((date) => !Number.isNaN(date.getTime())).sort((a, b) => a.getTime() - b.getTime())[0];
+function localDate(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00`) : new Date(value);
+}
+
+function monthStartFor(entries: ScheduleEntry[], tasks: Task[]) {
+  const firstDate = [...entries.map((entry) => entry.startDateTime), ...tasks.map((task) => task.dueDate)].map(localDate).filter((date) => !Number.isNaN(date.getTime())).sort((a, b) => a.getTime() - b.getTime())[0];
   const date = firstDate ?? new Date();
   return new Date(date.getFullYear(), date.getMonth(), 1);
 }
 
-export function ScheduleCalendarScreen({ appResponsiveStyles, events, openCreateMilestoneEditor, openEditMilestoneEditor }: Props) {
+export function ScheduleCalendarScreen({ appResponsiveStyles, events, tasks, membersById, projects, openCreateMilestoneEditor, openEditMilestoneEditor }: Props) {
   const { colors } = useAppTheme();
-  const [visibleMonth, setVisibleMonth] = useState(() => monthStartFor(events));
+  const [visibleMonth, setVisibleMonth] = useState(() => monthStartFor(events, tasks));
   const [selectedDate, setSelectedDate] = useState(() => {
-    const firstDate = events.map((entry) => new Date(entry.startDateTime)).filter((date) => !Number.isNaN(date.getTime())).sort((a, b) => a.getTime() - b.getTime())[0];
+    const firstDate = [...events.map((entry) => entry.startDateTime), ...tasks.map((task) => task.dueDate)].map(localDate).filter((date) => !Number.isNaN(date.getTime())).sort((a, b) => a.getTime() - b.getTime())[0];
     return dateKey(firstDate ?? new Date());
   });
   const days = useMemo(() => {
@@ -46,6 +51,10 @@ export function ScheduleCalendarScreen({ appResponsiveStyles, events, openCreate
     if (!Number.isNaN(date.getTime())) (grouped[dateKey(date)] ??= []).push(entry);
     return grouped;
   }, {}), [events]);
+  const tasksByDate = useMemo(() => tasks.reduce<Record<string, Task[]>>((grouped, task) => {
+    if (task.dueDate) (grouped[task.dueDate.slice(0, 10)] ??= []).push(task);
+    return grouped;
+  }, {}), [tasks]);
   const selectedEntries = entriesByDate[selectedDate] ?? [];
 
   const changeMonth = (delta: number) => {
@@ -70,21 +79,23 @@ export function ScheduleCalendarScreen({ appResponsiveStyles, events, openCreate
         {days.map((day, index) => {
           const key = day ? dateKey(day) : `empty-${index}`;
           const items = day ? entriesByDate[key] ?? [] : [];
+          const deadlines = day ? tasksByDate[key] ?? [] : [];
           return <Pressable key={key} accessibilityRole={day ? "button" : undefined}
-            accessibilityLabel={day ? `${day.toLocaleDateString()}, ${items.length} schedule items` : undefined}
+            accessibilityLabel={day ? `${day.toLocaleDateString()}, ${items.length + deadlines.length} schedule items` : undefined}
             accessibilityState={day ? { selected: selectedDate === key } : undefined}
             onPress={day ? () => setSelectedDate(key) : undefined}
             style={{ width: `${100 / 7}%`, minHeight: 58, padding: 4, borderWidth: 0.5, borderColor: colors.border, backgroundColor: selectedDate === key ? colors.navySurface : "transparent" }}>
             {day ? <>
               <Text style={{ fontWeight: selectedDate === key ? "700" : "400" }}>{day.getDate()}</Text>
               {items.slice(0, 2).map((entry) => <Text key={`${entry.recordType}:${entry.id}`} numberOfLines={1} style={{ fontSize: 9 }}>{entry.title}</Text>)}
-              {items.length > 2 ? <Text style={{ fontSize: 9 }}>+{items.length - 2} more</Text> : null}
+              {deadlines.slice(0, Math.max(0, 2 - items.length)).map((task) => <Text key={`task:${task.id}`} numberOfLines={1} style={{ fontSize: 9 }}>Due: {task.title}</Text>)}
+              {items.length + deadlines.length > 2 ? <Text style={{ fontSize: 9 }}>+{items.length + deadlines.length - 2} more</Text> : null}
             </> : null}
           </Pressable>;
         })}
       </View>
       <Text accessibilityRole="header" style={{ fontWeight: "700", marginTop: 16, marginBottom: 8 }}>{new Date(`${selectedDate}T12:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</Text>
-      {selectedEntries.length ? selectedEntries.map((entry) => {
+      {selectedEntries.length || tasksByDate[selectedDate]?.length ? <>{selectedEntries.map((entry) => {
         const content = <View style={[styles.queueRowCard, appResponsiveStyles.rowCard]}>
           <Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>{entry.title}</Text>
           <Text style={[styles.queueRowSubtitle, appResponsiveStyles.rowSubtitle]}>{entry.recordType} · {entry.type} · {formatDateTime(entry.startDateTime)}</Text>
@@ -92,7 +103,14 @@ export function ScheduleCalendarScreen({ appResponsiveStyles, events, openCreate
         return entry.recordType === "milestone"
           ? <Pressable key={`${entry.recordType}:${entry.id}`} onPress={() => openEditMilestoneEditor(entry)}>{content}</Pressable>
           : <View key={`${entry.recordType}:${entry.id}`}>{content}</View>;
-      }) : <EmptyState text="No meetings, events, or milestones on this day." />}
+      })}{(tasksByDate[selectedDate] ?? []).map((task) => {
+        const project = projects.find((item) => item.id === task.projectId)?.name ?? "Unknown project";
+        const owner = membersById[task.ownerId ?? ""]?.name ?? "Unassigned";
+        return <View key={`task:${task.id}`} style={[styles.queueRowCard, appResponsiveStyles.rowCard]}>
+          <Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>{task.title}</Text>
+          <Text style={[styles.queueRowSubtitle, appResponsiveStyles.rowSubtitle]}>Task deadline · {project} · {owner} · {task.status}{task.isWaitingOnDependency ? " · readiness: waiting on dependency" : task.isBlocked ? " · readiness: blocked" : ""}</Text>
+        </View>;
+      })}</> : <EmptyState text="No schedule items or task deadlines on this day." />}
     </WorkspacePanel>
   );
 }

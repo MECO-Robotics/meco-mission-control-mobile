@@ -11,15 +11,15 @@ import { SubsystemsScreen } from "../../screens/robot/SubsystemsScreen";
 import { RosterScreen } from "../../screens/roster/RosterScreen";
 import { WorkLogsScreen } from "../../screens/worklogs/WorkLogsScreen";
 import type { AppScreenProps } from "../../screens/types";
-import type { TaskViewTab, ViewTab } from "../../ui/types";
+import type { SchedulePresentation, ViewTab } from "../../ui/types";
 import { SectionTabs } from "../../ui/ui";
 
 type Props = {
   activeTab: ViewTab;
   screenProps: AppScreenProps;
   taskContent: ReactNode;
-  scheduleView: Exclude<TaskViewTab, "queue">;
-  onScheduleViewChange: (view: Exclude<TaskViewTab, "queue">) => void;
+  schedulePresentation: SchedulePresentation;
+  onSchedulePresentationChange: (view: SchedulePresentation) => void;
 };
 
 export function ActiveTabContent(props: Props) {
@@ -29,8 +29,8 @@ export function ActiveTabContent(props: Props) {
     case "home": return <HomeScreen {...screenProps} />;
     case "work-tasks": return taskContent;
     case "work-schedule": return <>
-      <SectionTabs activeValue={props.scheduleView} onChange={props.onScheduleViewChange}
-        options={[{ value: "milestones", label: "Agenda" }, { value: "calendar", label: "Calendar" }, { value: "timeline", label: "Timeline" }]} />
+      <SectionTabs activeValue={props.schedulePresentation} onChange={props.onSchedulePresentationChange}
+        options={[{ value: "agenda", label: "Agenda" }, { value: "calendar", label: "Calendar" }, { value: "timeline", label: "Timeline" }]} />
       {taskContent}
     </>;
     case "work-activity": return <WorkLogsScreen {...screenProps} />;
