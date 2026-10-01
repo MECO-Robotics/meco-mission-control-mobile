@@ -27,6 +27,7 @@ export function buildWorkLogDraft(seed?: Partial<WorkLog>): WorkLogDraft {
 export function buildMemberDraft(
   seed?: Partial<{
     email: string;
+    classYear: "" | "freshman" | "sophomore" | "junior" | "senior" | null;
     photoUrl: string;
     name: string;
     role: MemberRole;
@@ -37,6 +38,7 @@ export function buildMemberDraft(
   }>,
 ): MemberDraft {
   return {
+    classYear: seed?.classYear ?? "",
     email: seed?.email ?? "",
     photoUrl: seed?.photoUrl ?? "",
     name: seed?.name ?? "",

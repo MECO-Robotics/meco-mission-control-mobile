@@ -5,6 +5,9 @@ Mobile consumes the platform's generated bootstrap contract. The checked-in cont
 ## FRC season and project scope
 
 Each season has exactly one project of each canonical type: Robot, Media, Outreach, Operations, Strategy, and Training. A Project owns its project-scoped records. WorkType is specific to a Project type; ResponsibleGroup is a separate season-scoped assignment and may apply to selected projects; Workstream is project-scoped planning/reporting. They are separate dimensions.
+Students may have an optional class year (freshman, sophomore, junior, senior). It is an analytics dimension only and never owns a task. Responsible groups remain the canonical, arbitrary team-defined subteams/domains that may own tasks through `responsibleGroupId`.
+
+`Member` represents a workspace person.
 
 ## Task and Kanban
 
@@ -39,3 +42,4 @@ Risk is the canonical stored unresolved-risk record. Dependency, schedule, QA, i
 ## Bootstrap and prototype state
 
 Bootstrap collection names and every wire field come from `contracts/platform/bootstrap/v1/contract.json`. Snapshot schema versioning and reset are platform-owned. An older or incompatible local prototype snapshot is archived and replaced with canonical seed data; mobile does not migrate ambiguous legacy Tasks, ManufacturingItems, Purchases, blockers, risks, PartInstances, project types, or acquisition state.
+Team group workload and capacity summaries are derived from members, group-owned tasks, work logs, and planned weekly attendance hours. These totals are not persisted. Student cohort summaries group students by optional class year and remain separate from task ownership.

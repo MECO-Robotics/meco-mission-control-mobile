@@ -9,6 +9,7 @@ import { QaActivity } from "../../screens/reports/QaActivity";
 import { RisksScreen } from "../../screens/robot/RisksScreen";
 import { SubsystemsScreen } from "../../screens/robot/SubsystemsScreen";
 import { RosterScreen } from "../../screens/roster/RosterScreen";
+import { TeamsScreen } from "../../screens/roster/TeamsScreen";
 import { WorkLogsScreen } from "../../screens/worklogs/WorkLogsScreen";
 import type { AppScreenProps } from "../../screens/types";
 import type { SchedulePresentation, ViewTab } from "../../ui/types";
@@ -49,5 +50,6 @@ export function ActiveTabContent(props: Props) {
     case "resources-structure": return <SubsystemsScreen {...screenProps} />;
     case "work-risks": return <RisksScreen {...screenProps} />;
     case "team-people": return <RosterScreen {...screenProps} />;
+    case "team-teams": return <TeamsScreen {...screenProps} />;
   }
 }

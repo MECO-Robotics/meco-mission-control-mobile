@@ -1,4 +1,5 @@
 export type MemberRole = "student" | "lead" | "mentor" | "admin" | "external";
+export type ClassYear = "freshman" | "sophomore" | "junior" | "senior";
 export type PlannedAttendanceDay =
   | "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday";
 export type ProjectType = "robot" | "media" | "outreach" | "operations" | "strategy" | "training";
@@ -67,6 +68,7 @@ export interface Member {
   email: string;
   photoUrl?: string;
   role: MemberRole;
+  classYear?: ClassYear | null;
   elevated: boolean;
   seasonId: string;
   activeSeasonIds: string[];

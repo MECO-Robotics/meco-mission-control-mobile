@@ -88,3 +88,8 @@ Selecting a member opens a pop-out card with basic roster details such as name, 
 The app supports English plus Turkish, Hebrew, French, Chinese, Spanish, Portuguese, Dutch, German, and Arabic translations. RTL text direction is enabled for RTL languages.
 
 The UI uses `AppThemeProvider` and app theme tokens from `src/theme.ts`, with automatic color-scheme awareness.
+
+
+## Team
+
+People owns the roster, attendance, availability, and individual workload. Student class year is optional and supports cohort summaries only. Teams manages arbitrary ResponsibleGroups and derives member capacity and task workload from the bootstrap data; group metrics are never stored separately.

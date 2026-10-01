@@ -105,6 +105,11 @@ export function MemberEditorModal({
         ]}
         value={editor.draft.role}
       />
+      {editor.draft.role === "student" || editor.draft.role === "lead" ? (
+        <DropdownField label="Class year" value={editor.draft.classYear || "unknown"}
+          onChange={(value) => editor.updateDraft({ classYear: value === "unknown" ? "" : value as typeof editor.draft.classYear })}
+          options={[{ id: "unknown", name: "Unknown / not set" }, { id: "freshman", name: "Freshman" }, { id: "sophomore", name: "Sophomore" }, { id: "junior", name: "Junior" }, { id: "senior", name: "Senior" }]} />
+      ) : null}
       <ModalField
         keyboardType="numeric"
         label="Planned weekly attendance"
