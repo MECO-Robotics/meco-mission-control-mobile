@@ -1,6 +1,6 @@
 # App Overview
 
-MECO Mission Control Mobile is an Expo/React Native app for robotics team operations. It gives students, leads, mentors, and admins a shared workspace for planning work, tracking execution, surfacing blockers, logging effort, and preparing parts or purchases before build sessions.
+MECO Mission Control Mobile is an Expo/React Native app for FRC teams. It gives students, leads, mentors, and admins a shared workspace for season projects, execution, schedule, robot readiness, inventory, purchasing, QA/reports, risks, team, and documents.
 
 The app is the mobile companion to the hosted platform backend. It can run from seeded local data when the backend is unavailable, but its intended production mode is to bootstrap workspace data from the platform API and submit mutations back to that server.
 
@@ -14,15 +14,16 @@ The app is the mobile companion to the hosted platform backend. It can run from 
 ## Core Workflows
 
 - Review the home dashboard for priority work, blocked tasks, due-soon items, and inventory needs.
-- Navigate by task discipline: programming, mechanical, or electrical.
+- Use Kanban as the single execution workflow, with project-specific work types and responsible groups.
 - Move tasks through `not-started`, `in-progress`, `waiting-for-qa`, and `complete`.
-- Track dependencies, blockers, estimates, actual hours, owner, mentor, subsystem, mechanism, part, and event links.
+- Track dependency relationships, derived blocked state, estimates, actual hours, owner, mentor, Robot targets, and Schedule links.
 - Create milestones and deadlines that affect task planning.
 - Log work manually or use the work timer, then convert elapsed time into a work-log entry.
-- Manage manufacturing jobs by process: CNC, 3D print, or fabrication.
-- Manage materials, part definitions, part instances, and purchases.
-- Capture QA reports, including iteration-worthy follow-up tasks.
-- Use risk management to combine active blockers, subsystem risks, and QA findings into one view.
+- View meetings, events, milestones, and Task deadlines in Schedule's Calendar, Timeline, and Agenda presentations.
+- Manage manufacturing through Robot Tasks with technical ManufacturingDetails; keep outsourced purchasing state in Purchasing.
+- Manage raw/bulk materials separately from individual part instances and purchasing.
+- Capture QA reports and evidence with typed domain targets.
+- Maintain canonical unresolved Risks; readiness and blocked indicators are derived.
 
 ## Runtime Modes
 

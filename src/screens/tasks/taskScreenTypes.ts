@@ -6,7 +6,7 @@ import type { HelpRequestInput } from "../../data/helpRequests";
 import type { useTaskQueue } from "./useTaskQueue";
 import type { Mechanism, Member, PartDefinition, PartInstance, Project, QaReport, ResponsibleGroup, Subsystem, Task, Workstream, WorkType } from "../../types/domain";
 import type { ScheduleEntry } from "../../app/appModel";
-import type { MilestoneSortField, Option, SummaryChipData, ResponsibleGroupFilter, TaskViewTab } from "../../ui/types";
+import type { MilestoneSortField, Option, SummaryChipData, ResponsibleGroupFilter, TaskWorkspaceView } from "../../ui/types";
 
 import type { ResponsiveScreenStyles } from "../types";
 
@@ -23,7 +23,8 @@ export interface TaskScreenProps {
   openEditTaskEditor: (task: Task) => void;
   setActiveResponsibleGroupId: StateSetter<ResponsibleGroupFilter>;
   subsystems: Subsystem[];
-  taskView: TaskViewTab;
+  workspaceView: TaskWorkspaceView;
+  tasks: Task[];
   themeColors: AppThemeColors;
   timelineTasks: Task[];
   activeResponsibleGroupLabel: string;

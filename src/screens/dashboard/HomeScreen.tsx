@@ -105,7 +105,7 @@ const renderScreen = () => {
       <SummaryRow chips={homeTaskSummary} />
       <View style={styles.quickActionRow}>
         {([
-          ["work-tasks", "Open task queue"], ["work-schedule", "View schedule"],
+          ["work-tasks", "Open Kanban"], ["work-schedule", "View schedule"],
           ["work-activity", "Activity"], ["resources-purchases", "Purchasing"],
         ] as const).map(([destination, label]) => <Pressable key={destination} accessibilityRole="button"
           onPress={() => setActiveTab(destination)} style={[styles.quickActionButton, appResponsiveStyles.quickActionButton, { minHeight: 44 }]}>

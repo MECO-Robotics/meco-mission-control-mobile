@@ -53,7 +53,7 @@ export function TaskTimelineScreen(props: TaskTimelineScreenProps) {
   return (
     <WorkspacePanel
       title={`${activeResponsibleGroupLabel} timeline`}
-      subtitle="Calendar-ordered milestones and ownership cues for the selected subteam."
+      subtitle="Schedule-ordered milestones and ownership cues for the selected responsible group."
       actions={
         <ActionButton
           onPress={openCreateTaskEditor}

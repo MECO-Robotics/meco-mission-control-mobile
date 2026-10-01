@@ -7,7 +7,7 @@ import type { StyleProp, TextStyle, ViewStyle } from "react-native";
 
 import type { AppThemeColors } from "../theme";
 import type { WorkLogDraftSyncStatus } from "../services/workLogDraftSync";
-import type { Artifact, HelpRequest, Mechanism, Member, PartDefinition, PartInstance, Project, PurchaseItem, QaRequest, QaReport, ResponsibleGroup, RiskSeverity, Subsystem, Task, WorkLog, WorkType } from "../types/domain";
+import type { Artifact, HelpRequest, Mechanism, Member, PartDefinition, PartInstance, Project, PurchaseItem, QaRequest, QaReport, ResponsibleGroup, Risk, RiskMutationPayload, RiskSeverity, Subsystem, Task, WorkLog, WorkType } from "../types/domain";
 import type { MaterialRollup, SummaryChipData, ViewTab, WorkLogSortMode } from "../ui/types";
 import type { AttendanceStatus } from "../types/status";
 export type { AttendanceStatus } from "../types/status";
@@ -102,7 +102,7 @@ export interface AppScreenProps {
   createQaRequest: (subject: string, mentorId: string, taskId?: string | null) => void;
   openEditMemberEditor: (memberId: string) => void;
   openEditPartDefinitionEditor: (partDefinitionId: string) => void;
-  updatePartInstance: (item: PartInstance, patch: Partial<Pick<PartInstance, "location" | "readinessStatus">>) => Promise<void>;
+  updatePartInstance: (item: PartInstance, patch: Partial<Pick<PartInstance, "location">>) => Promise<void>;
   openEditPurchaseEditor: (item: PurchaseItem) => void;
   openEditSubsystemEditor: (subsystem: Subsystem) => void;
   openEditTaskEditor: (task: Task) => void;
@@ -117,7 +117,11 @@ export interface AppScreenProps {
   qaRequests: QaRequest[];
   qaReports: QaReport[];
   riskRows: RiskRow[];
+  risks: Risk[];
   riskSummary: SummaryChipData[];
+  projects: Project[];
+  saveRisk: (id: string | null, payload: RiskMutationPayload) => Promise<boolean>;
+  deleteRisk: (id: string) => Promise<boolean>;
   rosterAdmins: Member[];
   rosterExternal: Member[];
   rosterMentors: Member[];

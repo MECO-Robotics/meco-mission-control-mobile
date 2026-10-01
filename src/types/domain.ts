@@ -299,6 +299,8 @@ export interface Risk {
   resolvedAt: string | null;
 }
 
+export type RiskMutationPayload = Omit<Risk, "id" | "createdAt" | "updatedAt" | "resolvedAt">;
+
 export interface Meeting {
   id: string;
   seasonId: string;

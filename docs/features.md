@@ -1,38 +1,22 @@
 # Feature Guide
 
-This guide describes the behavior visible in the mobile client. Most screens share the same interaction model: summary chips, search/filter controls, cards or rows, and editor modals for create/edit actions.
+This guide describes the mobile domain views. Home provides cross-project triage; Kanban is the single human execution workflow. Schedule presents meetings, events, and milestones together while retaining their distinct records.
 
-## Home
+## Home and Kanban
 
-The home screen is the operations snapshot for the next execution window. It highlights priority tasks, blocked or overdue work, waiting QA, manufacturing needs, purchase requests, and attendance context.
+Home highlights attention across the season's Robot, Media, Outreach, Operations, Strategy, and Training projects. Kanban presents executable work as Tasks with project-specific work types, responsible groups, and workstreams as separate dimensions.
 
-Typical actions:
+Task actions include create, edit, claim, unclaim, mentor reassign, start work, log work, request QA, and delete. Dependencies remain linked across valid project and work-type boundaries. Blocked state and readiness are derived from dependencies, risk, QA, schedule, and inventory context rather than maintained as duplicate free-text blockers.
 
-- Open a priority task card directly from Home, or tap the Tasks section header to jump to the task queue.
-- Jump to inventory purchases when a needed item requires action.
-- Start from visible summary counts before standup or shop time.
+Robot work types include Design, Manufacturing, Assembly, Electrical/Wiring, Programming, Testing, Driving, and Planning. Robot Planning is technical/build planning; game and scouting strategy belongs to the Strategy project.
+
+## Schedule
+
+Agenda, Calendar, and Timeline are Schedule presentations. They include upcoming Meetings, Events, Milestones, and Task deadlines while preserving stored record identities. Task deadlines project from `Task.dueDate`; selecting a Milestone opens its Milestone editor.
 
 ## Attendance
 
-Attendance shows meeting participation status for loaded workspace members. It supports the app's RSVP/sign-in visibility model with status marks for coming, maybe, and out.
-
-## Tasks
-
-Tasks are organized by subteam:
-
-- Programming
-- Mechanical
-- Electrical
-
-Task views:
-
-- Timeline: calendar-ordered tasks and milestones with ownership cues.
-- Queue: task cards for execution with search and filtering collected behind the Filters action.
-- Milestones: event/deadline management with sorting and subsystem context.
-
-Task queue filters include subteam, subsystem, owner, status, priority, blocked, no blockers, over estimate, overdue, due soon, dependency wait, ready now, ready for QA, needs fabrication, needs purchase, unassigned, and archive mode.
-
-Task actions include create, edit, claim, unclaim, mentor reassign, start work, log work, request QA, resolve blockers, and delete. Start work can claim an unowned task first and open a prefilled work log; if another student claimed first, the queue refreshes and shows the conflict. Tasks with an existing QA report no longer show request QA or log-work actions from the queue.
+Attendance shows meeting participation status for loaded workspace members, with RSVP/sign-in status for coming, maybe, and out.
 
 ## Work Logs
 
@@ -47,36 +31,17 @@ The work timer can be started from the work-log flow. Timer state is persisted l
 
 Work-log note templates cover CAD, machining, wiring, programming, testing, and meeting notes.
 
-## Manufacturing
+## Robot and Manufacturing
 
-Manufacturing jobs are grouped by process:
-
-- CNC
-- 3D print
-- Fabrication
-
-Each row tracks title, subsystem, requester, material, quantity, due date, status, mentor review, batch label, and QA review count.
-
-Manufacturing statuses:
-
-- Requested
-- Approved
-- In progress
-- QA
-- Complete
-
-Mentors/admins explicitly review requested work. After review, any internal user
-may progress only the adjacent Approved → In progress → QA → Complete states.
-Completion does not create or bypass mentor review, and deletion remains a
-mentor/admin action.
+Robot Kanban Tasks are the human execution identity. A Manufacturing Task may have one ManufacturingDetails technical extension for part/revision, quantity, extensible process, material, files/tolerances, due date, and QA requirements. In-house versus outsourced fulfillment is independent of process. Outsourced custom work links to Purchasing for commercial state; COTS acquisition is a PurchaseItem without ManufacturingDetails. There is no separate manufacturing human work queue.
 
 ## Inventory
 
-Inventory has three views:
+Inventory covers physical stock, not documents or procurement workflows:
 
 - Materials manager: material demand, inferred on-hand stock, reorder points, open demand, vendor, and suggested order quantity.
 - Part manager: part definitions plus subsystem part instances and lifecycle state.
-- Purchase list: purchase request status, vendor, approval state, purchase state, estimated cost, and quantity, with vendor/status/approval filters collected behind the Filters action.
+- Materials represent raw/bulk stock and its storage location. PartInstance represents an individual finished or installed part and its physical location/state; readiness is derived separately.
 
 Part lifecycle statuses:
 
@@ -86,27 +51,15 @@ Part lifecycle statuses:
 - Installed
 - Retired
 
-Purchase statuses:
+PartDefinition records the reusable part and its default acquisition method (Stock, Purchase COTS, or Manufacture). A PurchaseItem owns its procurement Task relationship and commercial fields such as vendor, quote, approval, order, cost, expected delivery, and tracking.
 
-- Requested
-- Purchased
-- Shipped
-- Delivered
+## Subsystems and Robot structure
 
-Mentor approval is shown separately as Mentor Approved when a request is
-approved but not yet purchased. Pending request details may be edited by any
-internal user; approval, purchase-state transitions, final cost, and deletion
-remain mentor/admin actions.
+The subsystem manager tracks ownership, mentor coverage, descriptions, hierarchy, and mechanisms. Canonical Risk records may link to Robot entities; Subsystems do not store separate free-text risk lists.
 
-Creating a part definition can also generate acquisition work through manufacturing, purchase, or stock workflows.
+## QA / Reports
 
-## Subsystems
-
-The subsystem manager tracks ownership, mentor coverage, descriptions, hierarchy, mechanisms, and risks. Subsystem cards can expand to show related context and can be edited from the card.
-
-## QA And Reports
-
-Reports combine help requests, QA requests, QA reports, and iteration-worthy outcomes.
+QA results and reports are a first-class domain view. Typed targets connect QA evidence to the owning Task, Robot entity, schedule record, manufacturing technical record, project, or other supported domain entity.
 
 QA results:
 
@@ -114,11 +67,15 @@ QA results:
 - Minor fix
 - Iteration-worthy
 
-Iteration-worthy QA can generate follow-up tasks. QA reports are sorted by recency, dependency count, and fix size to keep follow-up work visible.
+Iteration-worthy QA can generate follow-up Tasks. QA outcomes remain owned by QA and link to the target records they verify.
 
 ## Risks
 
-Risk management combines active task blockers, subsystem risks, dependency delays, overdue work, and iteration-worthy QA findings into a single register. Risks are grouped by priority so leads and mentors can focus on high-impact issues first.
+Risk is the canonical stored unresolved-problem record. Derived dependency, readiness, schedule, and QA signals may surface or create a Risk, but they are not separate persisted blocker/risk stores.
+
+## Documents
+
+Documents and evidence are accessible independently from Inventory and can carry typed links to Tasks, Robot entities, Schedule records, ManufacturingDetails, projects, QA targets, and other supported domain entities.
 
 ## Roster
 

@@ -1,12 +1,14 @@
 import type { MemberRole } from "../types/domain";
 export type ViewTab =
   | "home"
-  | "work-tasks" | "work-schedule" | "work-risks" | "work-activity" | "work-documents"
+  | "work-tasks" | "work-schedule" | "work-risks" | "work-activity" | "work-documents" | "work-reports"
   | "resources-materials" | "resources-parts" | "resources-purchases"
   | "resources-structure"
   | "team-people";
 
-export type TaskViewTab = "timeline" | "queue" | "milestones";
+export type KanbanView = "queue";
+export type SchedulePresentation = "agenda" | "calendar" | "timeline";
+export type TaskWorkspaceView = { domain: "kanban"; view: KanbanView } | { domain: "schedule"; presentation: SchedulePresentation };
 export type ResponsibleGroupFilter = string;
 
 export type StatusGroup = "success" | "info" | "warning" | "danger" | "neutral";

@@ -7,6 +7,7 @@ export const NAVIGATION = [
     { value: "work-schedule", label: "Schedule" },
     { value: "work-risks", label: "Risks" },
     { value: "work-documents", label: "Documents" },
+    { value: "work-reports", label: "QA / Reports" },
     { value: "work-activity", label: "Activity" },
   ] },
   { value: "resources", label: "Resources", views: [
