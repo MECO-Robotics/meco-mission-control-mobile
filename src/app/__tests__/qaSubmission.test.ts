@@ -412,3 +412,35 @@ test("successful mobile email sign-in durably saves its session and loads theme 
   expect(request.mock.calls.find(([, path]) => path === "/api/bootstrap")?.[3]).toBe("new-mobile-token");
   expect(taskProps().signedInMember?.id).toBe("ava");
 });
+
+test.each(["maya", "inactive-mentor", null, "preferred-mentor"])("QA selection skips admins and inactive assigned mentors (%s)", async (assignedMentor) => {
+  const admin = mecoSnapshot.members.find((member) => member.role === "admin")!;
+  const mentor = mecoSnapshot.members.find((member) => member.role === "mentor")!;
+  const preferred = { ...mentor, id: "preferred-mentor" };
+  const inactive = { ...mentor, id: "inactive-mentor", seasonId: "past-season", activeSeasonIds: ["past-season"] };
+  const originalRequest = request.getMockImplementation()!;
+  request.mockImplementation((base, path, ...rest) => path === "/api/bootstrap"
+    ? Promise.resolve({ ...mecoSnapshot, members: [admin, inactive, mentor, preferred], tasks: [{ ...task, status: "in-progress", mentorId: assignedMentor }], reports: [], taskDependencies: [] })
+    : originalRequest(base, path, ...rest));
+  render(createElement(App));
+  await signIn();
+  await act(async () => { await taskProps().requestTaskQa(screenProps().tasks[0]); });
+  const create = request.mock.calls.find(([, path, init]) => path === "/api/qa-requests" && init?.method === "POST");
+  expect(JSON.parse(String(create?.[2]?.body)).mentorId).toBe(assignedMentor === preferred.id ? preferred.id : mentor.id);
+});
+
+test("QA selection reports missing eligible mentors without issuing a write", async () => {
+  const admin = mecoSnapshot.members.find((member) => member.role === "admin")!;
+  const mentor = mecoSnapshot.members.find((member) => member.role === "mentor")!;
+  const inactive = { ...mentor, seasonId: "past-season", activeSeasonIds: ["past-season"] };
+  const originalRequest = request.getMockImplementation()!;
+  request.mockImplementation((base, path, ...rest) => path === "/api/bootstrap"
+    ? Promise.resolve({ ...mecoSnapshot, members: [admin, inactive], tasks: [{ ...task, status: "in-progress", mentorId: inactive.id }], reports: [], taskDependencies: [] })
+    : originalRequest(base, path, ...rest));
+  render(createElement(App));
+  await signIn();
+  await act(async () => { await taskProps().requestTaskQa(screenProps().tasks[0]); });
+  expect(request.mock.calls.some(([, path, init]) => path === "/api/qa-requests" && init?.method === "POST")).toBe(false);
+  expect(shell().syncError).toBe("Assign an active mentor in this task's season before requesting QA.");
+  expect(screenProps().tasks[0].status).toBe("in-progress");
+});

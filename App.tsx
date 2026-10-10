@@ -1882,10 +1882,17 @@ export default function App() {
   startTaskRef.current = startTask;
 
   const requestTaskQa = async (task: Task) => {
+    if (authSessionVersionRef.current !== activeSessionVersion) return;
     const currentTask = taskState.getSnapshot().find((candidate) => candidate.id === task.id);
-    const mentorId = currentTask?.mentorId ||
-      members.find((member) => member.role === "mentor" || member.role === "admin")?.id;
-    if (!currentTask || !mentorId || currentTask.status !== "in-progress" || isTaskBlocked(currentTask)) return;
+    if (!currentTask || currentTask.status !== "in-progress" || isTaskBlocked(currentTask)) return;
+    const seasonId = projects.find((project) => project.id === currentTask.projectId)?.seasonId;
+    const eligibleMentors = members.filter((member) => member.role === "mentor" &&
+      (member.seasonId === seasonId || (seasonId !== undefined && member.activeSeasonIds?.includes(seasonId))));
+    const mentorId = eligibleMentors.find((member) => member.id === currentTask.mentorId)?.id ?? eligibleMentors[0]?.id;
+    if (!mentorId) {
+      setSyncError("Assign an active mentor in this task's season before requesting QA.");
+      return;
+    }
     await runMutation("/api/qa-requests", {
       method: "POST", body: JSON.stringify({
         targetRefs: [{ kind: "task", id: currentTask.id }], subject: currentTask.title, mentorId,
