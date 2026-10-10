@@ -34,16 +34,16 @@ test("creates a manual risk through the canonical risk payload", async () => {
 test("resolves an existing risk without changing its source or targets", async () => {
   const risk: Risk = {
     id: "risk-1", projectId: "robot", title: "Sensor drift", detail: "Encoder readings vary.",
-    category: "design", severity: "high", status: "mitigating", blocksWork: true,
+    category: "design", severity: "high", status: "in-progress", blocksWork: true,
     source: { kind: "task", id: "task-1" }, relatedTargets: [{ kind: "subsystem", id: "drive" }],
-    mitigationTaskId: "task-1", ownerGroupId: null, createdAt: "2026-04-20", updatedAt: "2026-04-20", resolvedAt: null,
+    mitigationTaskId: "task-1", ownerGroupId: null, ownerMemberId: "ava", mitigationDueDate: "2026-10-15", createdAt: "2026-04-20", updatedAt: "2026-04-20", resolvedAt: null,
   };
   const { view, onSave } = renderEditor(risk);
-  fireEvent.press(view.getByRole("button", { name: "Status: mitigating" }));
+  fireEvent.press(view.getByRole("button", { name: "Status: in-progress" }));
   fireEvent.press(view.getByText("resolved"));
   await act(async () => fireEvent.press(view.getByRole("button", { name: "Update risk" })));
   expect(onSave).toHaveBeenCalledWith("risk-1", expect.objectContaining({
     status: "resolved", source: { kind: "task", id: "task-1" },
-    relatedTargets: [{ kind: "subsystem", id: "drive" }],
+    relatedTargets: [{ kind: "subsystem", id: "drive" }], ownerMemberId: "ava", mitigationDueDate: "2026-10-15",
   }));
 });

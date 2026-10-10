@@ -51,7 +51,6 @@ export type WorkLogDraft = {
 };
 
 export type MemberDraft = {
-  classYear: "" | "freshman" | "sophomore" | "junior" | "senior";
   email: string;
   photoUrl: string;
   name: string;

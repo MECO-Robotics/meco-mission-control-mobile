@@ -12,7 +12,7 @@ function queueProps(count: number, taskSearch = "", dueDate = "2026-10-01") {
     dueDate, status: "not-started", priority: "medium", estimatedHours: 1, actualHours: 0,
   }));
   return {
-    activeResponsibleGroupLabel: "Robot Build", activeResponsibleGroupId: "robot-build", responsibleGroups: [{ id: "robot-build", seasonId: "season", name: "Robot Build", projectIds: ["robot-project"], memberIds: [], isArchived: false }],
+    activeResponsibleGroupLabel: "Robot Build", activeResponsibleGroupId: "robot-build", responsibleGroups: [{ id: "robot-build", seasonId: "season", name: "Robot Build", projectIds: ["robot-project"], workTypeIds: [], primaryMemberIds: [], memberIds: [], isArchived: false }],
     appResponsiveStyles: {}, themeColors: {}, members: [], membersById: {},
     rosterMentors: [], rosterStudents: [], subsystems: [], subsystemsById: {},
     workTypesById: {}, mechanismsById: {}, partInstancesById: {}, eventsById: {},
@@ -59,7 +59,7 @@ test("search and both reset controls restore the first page without changing the
     const props = queueProps(40);
     const tasks = props.queue.filteredTaskQueue.map((task) => ({ ...task, ownerId: "student" }));
     tasks.push({ ...tasks[0], id: "other", title: "Another person's task", ownerId: "other" });
-    const queue = useTaskQueue({ tasks, activePersonFilter: "student", activeResponsibleGroupId: "robot-build", responsibleGroups: [{ id: "robot-build", seasonId: "season", name: "Robot Build", projectIds: ["robot-project"], memberIds: [], isArchived: false }], purchaseTaskIds: new Set(),
+    const queue = useTaskQueue({ tasks, activePersonFilter: "student", activeResponsibleGroupId: "robot-build", responsibleGroups: [{ id: "robot-build", seasonId: "season", name: "Robot Build", projectIds: ["robot-project"], workTypeIds: [], primaryMemberIds: [], memberIds: [], isArchived: false }], purchaseTaskIds: new Set(),
       canMentorApprove: false, taskLoggedHoursById: {}, membersById: {}, mechanismsById: {}, subsystemsById: {} });
     return createElement(TaskQueueScreen, { ...props, queue });
   }

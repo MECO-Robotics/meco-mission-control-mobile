@@ -43,6 +43,7 @@ export function RiskEditorModal({ visible, appResponsiveStyles, risk, projects, 
       projectId, title: title.trim(), detail: detail.trim(), category, severity, status, blocksWork,
       source: risk?.source ?? { kind: "manual" }, relatedTargets,
       mitigationTaskId: mitigationTaskId || null, ownerGroupId: ownerGroupId || null,
+      ownerMemberId: risk?.ownerMemberId ?? null, mitigationDueDate: risk?.mitigationDueDate ?? null,
     };
     if (await onSave(risk?.id ?? null, payload)) onCancel();
   };
@@ -64,7 +65,7 @@ export function RiskEditorModal({ visible, appResponsiveStyles, risk, projects, 
       "critical", "high", "medium", "low",
     ].map((value) => ({ id: value, name: value }))} />
     {risk ? <DropdownField label="Status" value={status} onChange={(value) => setStatus(value as RiskStatus)} options={[
-      "open", "mitigating", "accepted", "resolved",
+      "open", "in-progress", "blocked", "resolved",
     ].map((value) => ({ id: value, name: value }))} /> : null}
     <ToggleField label="Blocks work" value={blocksWork} onToggle={setBlocksWork} />
     <DropdownField label="Subsystem" value={subsystemId} onChange={setSubsystemId} clearLabel="No subsystem" options={subsystems.map((item) => ({ id: item.id, name: item.name }))} />

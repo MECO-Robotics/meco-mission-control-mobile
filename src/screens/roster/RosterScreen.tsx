@@ -1,17 +1,15 @@
-import { useState } from "react";
 import { Image, Modal, Pressable, ScrollView, View } from "react-native";
 
 import { Text } from "../../i18n";
 import { capitalize } from "../../ui/helpers";
 import { styles } from "../../ui/styles";
-import { DropdownField, SummaryRow, WorkspacePanel } from "../../ui/ui";
+import { SummaryRow, WorkspacePanel } from "../../ui/ui";
 
 import type { Member } from "../../types/domain";
 import type { AppScreenProps } from "../types";
 import { RosterMemberDetail } from "./RosterMemberDetail";
 import { rosterMemberDetailStyles } from "./rosterMemberDetailStyles";
 import { AttendanceScreen } from "../dashboard/AttendanceScreen";
-import { getCohortMetrics } from "./teamMetrics";
 
 function getInitials(name: string) {
   const initials = name
@@ -29,7 +27,6 @@ function formatRole(role: string) {
 }
 
 export function RosterScreen(props: AppScreenProps) {
-  const [classYearFilter, setClassYearFilter] = useState("all");
   const {
     appResponsiveStyles,
     canMentorApprove,
@@ -51,8 +48,6 @@ export function RosterScreen(props: AppScreenProps) {
     : null;
   const selectedMemberResponsibleGroups = selectedMember ? responsibleGroups.filter((group) => group.memberIds.includes(selectedMember.id)).map((group) => group.name).join(", ") : "";
   const closeMemberDetails = () => setSelectedMemberId(null);
-  const cohortMetrics = getCohortMetrics(props.members, tasks, props.workLogs);
-  const visibleStudents = classYearFilter === "all" ? rosterStudents : rosterStudents.filter((member) => classYearFilter === "unknown" ? !member.classYear : member.classYear === classYearFilter);
 
   const renderRosterSection = (
     title: string,
@@ -125,7 +120,6 @@ export function RosterScreen(props: AppScreenProps) {
                   <Text style={[styles.memberRole, { color: themeColors.subtleText }]}>
                     {member.email || groupNames || formatRole(member.role)}
                   </Text>
-                  {(member.role === "student" || member.role === "lead") && member.classYear ? <Text style={[styles.memberRole, { color: themeColors.subtleText }]}>{capitalize(member.classYear)}</Text> : null}
                   <Text style={[styles.memberRole, { color: themeColors.subtleText }]}>
                     {tasks.filter((task) => (task.ownerId === member.id || task.assigneeIds.includes(member.id)) && task.status !== "complete").length} open tasks · {member.plannedWeeklyAttendanceHours === undefined ? "Availability not set" : `${member.plannedWeeklyAttendanceHours}h/week availability`}
                   </Text>
@@ -155,17 +149,7 @@ export function RosterScreen(props: AppScreenProps) {
           { label: "External access", value: String(rosterExternal.length) },
         ]}
       />
-      <Text style={[styles.subsectionLabel, { color: themeColors.ink, marginTop: 8 }]}>Student cohorts</Text>
-      <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-        {cohortMetrics.map((cohort) => <Pressable key={cohort.classYear} onPress={() => setClassYearFilter(classYearFilter === cohort.classYear ? "all" : cohort.classYear)} style={{ minWidth: "46%", padding: 8, margin: 3, borderWidth: 1, borderColor: themeColors.border, borderRadius: 8, backgroundColor: classYearFilter === cohort.classYear ? themeColors.navySurface : themeColors.surface }}>
-          <Text style={{ color: themeColors.ink, fontWeight: "700" }}>{capitalize(cohort.classYear)}</Text>
-          <Text style={{ color: themeColors.subtleText }}>{cohort.members} members · {cohort.openTasks} open tasks</Text>
-          <Text style={{ color: themeColors.subtleText }}>{cohort.remainingHours.toFixed(1)}h remaining · {cohort.loggedHours.toFixed(1)}h logged</Text>
-        </Pressable>)}
-      </View>
-      <DropdownField label="Filter students" value={classYearFilter} onChange={setClassYearFilter} options={[{ id: "all", name: "All students" }, { id: "unknown", name: "Class year not set" }, { id: "freshman", name: "Freshman" }, { id: "sophomore", name: "Sophomore" }, { id: "junior", name: "Junior" }, { id: "senior", name: "Senior" }]} />
-
-      {renderRosterSection("Students", visibleStudents, "student")}
+      {renderRosterSection("Students", rosterStudents, "student")}
       {renderRosterSection("Mentors", rosterMentors, "mentor")}
       {renderRosterSection("External access", rosterExternal, "external")}
 

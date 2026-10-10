@@ -27,7 +27,7 @@ type MobileSessionClientOptions = {
 };
 
 export class MobileSessionClient {
-  private refreshPromise: Promise<PersistedAuthSession> | null = null;
+  private refreshOperation: { version: number; promise: Promise<PersistedAuthSession> } | null = null;
 
   constructor(private readonly options: MobileSessionClientOptions) {}
 
@@ -36,16 +36,14 @@ export class MobileSessionClient {
   }
 
   async refresh() {
-    if (this.refreshPromise) {
-      return this.refreshPromise;
-    }
-
     const session = this.requireSession();
-    const sessionVersion = this.options.getSessionVersion();
-    this.refreshPromise = this.rotate(session, sessionVersion).finally(() => {
-      this.refreshPromise = null;
+    const version = this.options.getSessionVersion();
+    if (this.refreshOperation?.version === version) return this.refreshOperation.promise;
+    const promise = this.rotate(session, version).finally(() => {
+      if (this.refreshOperation?.promise === promise) this.refreshOperation = null;
     });
-    return this.refreshPromise;
+    this.refreshOperation = { version, promise };
+    return promise;
   }
 
   async request<T>(path: string, init: RequestInit = {}, timeoutMs?: number) {
@@ -57,13 +55,15 @@ export class MobileSessionClient {
 
     this.requireVersion(requestVersion);
     try {
-      return await requestJson<T>(
+      const result = await requestJson<T>(
         this.options.baseUrl,
         path,
         init,
         session.token,
         timeoutMs,
       );
+      this.requireVersion(requestVersion);
+      return result;
     } catch (error) {
       if (!(error instanceof ApiRequestError) || error.status !== 401) {
         throw error;
@@ -76,13 +76,15 @@ export class MobileSessionClient {
           ? await this.refresh()
           : currentSession;
       this.requireVersion(requestVersion);
-      return requestJson<T>(
+      const result = await requestJson<T>(
         this.options.baseUrl,
         path,
         init,
         refreshedSession.token,
         timeoutMs,
       );
+      this.requireVersion(requestVersion);
+      return result;
     }
   }
 
@@ -131,4 +133,4 @@ export class MobileSessionClient {
   }
 }
 
-export { REFRESH_EARLY_MS };
+export { REFRESH_EARLY_MS, SessionChangedError };

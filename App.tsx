@@ -168,7 +168,7 @@ import {
   type PersistedAuthSession,
 } from "./src/services/authSessionStorage";
 import { ActiveMobileSessionCoordinator } from "./src/services/activeMobileSession";
-import { MobileSessionClient } from "./src/services/mobileSessionClient";
+import { MobileSessionClient, SessionChangedError } from "./src/services/mobileSessionClient";
 import { revokeThenClearMobileSession } from "./src/services/mobileLogout";
 import {
   cancelWorkLogTimerReminders,
@@ -177,6 +177,8 @@ import {
   restorePersistedWorkLogTimerReminder,
   schedulePersistedWorkLogTimerReminders,
 } from "./src/services/workLogTimerNotifications";
+
+class SupersededWorkspaceRefreshError extends Error {}
 
 export default function App() {
   const { height, width } = useWindowDimensions();
@@ -209,6 +211,7 @@ export default function App() {
   const [syncError, setSyncError] = useState<string | null>(null);
   const mobileSessionRef = useRef<PersistedAuthSession | null>(null);
   const authSessionVersionRef = useRef(0);
+  const workspaceRefreshVersionRef = useRef(0);
   const authSessionCoordinatorRef = useRef(
     new ActiveMobileSessionCoordinator({
       clear: clearPersistedAuthSession,
@@ -231,6 +234,7 @@ export default function App() {
     setAuthCode("");
     setHasRequestedEmailCode(false);
     setIsAuthenticating(false);
+    setIsSyncing(false);
     setSyncError(null);
     setAuthNotice(null);
     setAuthErrorState("expired-session");
@@ -274,23 +278,32 @@ export default function App() {
     [apiBaseUrl, endSessionForAuthFailure, saveActiveMobileSession],
   );
 
+  const activeSessionVersion = authSessionVersionRef.current;
   const authenticatedRequestJson = useCallback(
-    <T,>(
+    async <T,>(
       path: string,
       init: RequestInit = {},
       timeoutMs?: number,
       fallbackToken: string | null = apiToken,
+      version = activeSessionVersion,
     ) => {
-      if (mobileSessionRef.current) {
-        return mobileSessionClient.request<T>(path, init, timeoutMs);
+      if (authSessionVersionRef.current !== version) throw new SessionChangedError();
+      try {
+        const result = mobileSessionRef.current
+          ? await mobileSessionClient.request<T>(path, init, timeoutMs)
+          : await requestJson<T>(apiBaseUrl, path, init, fallbackToken, timeoutMs);
+        if (authSessionVersionRef.current !== version) throw new SessionChangedError();
+        return result;
+      } catch (error) {
+        if (authSessionVersionRef.current !== version) throw new SessionChangedError();
+        throw error;
       }
-      return requestJson<T>(apiBaseUrl, path, init, fallbackToken, timeoutMs);
     },
-    [apiBaseUrl, apiToken, mobileSessionClient],
+    [activeSessionVersion, apiBaseUrl, apiToken, mobileSessionClient],
   );
 
   const applyThemePreferenceFromServer = useCallback(
-    async (token: string | null) => {
+    async (token: string | null, version = activeSessionVersion) => {
       if (!token) {
         setThemeOverride(null);
         return;
@@ -302,14 +315,15 @@ export default function App() {
           undefined,
           undefined,
           token,
+          version,
         );
 
         setThemeOverride(normalizeThemeModeFromResponse(preferences.themeMode));
       } catch {
-        setThemeOverride(null);
+        if (authSessionVersionRef.current === version) setThemeOverride(null);
       }
     },
-    [authenticatedRequestJson],
+    [activeSessionVersion, authenticatedRequestJson],
   );
 
   const updateThemePreference = useCallback(
@@ -382,9 +396,9 @@ export default function App() {
   );
   const activeMobileSessionId = mobileSessionRef.current?.session.id ?? activeWorkLogDraftOwnerKey;
   const workLogSession = useMemo(() => {
-    const version = authSessionVersionRef.current;
+    const version = activeSessionVersion;
     return { id: activeMobileSessionId, queue: createWorkLogQueue(activeWorkLogDraftOwnerKey, undefined, () => authSessionVersionRef.current === version) };
-  }, [activeWorkLogDraftOwnerKey, activeMobileSessionId]);
+  }, [activeWorkLogDraftOwnerKey, activeMobileSessionId, activeSessionVersion]);
   const workLogQueue = workLogSession.queue;
   const pendingWorkLogDrafts = useSyncExternalStore(workLogQueue.subscribe, workLogQueue.getSnapshot);
   useEffect(() => {
@@ -490,17 +504,25 @@ export default function App() {
   }, [setTasks]);
 
   const refreshWorkspaceFromServer = useCallback(
-    async (token: string | null) => {
-      const payload = await authenticatedRequestJson<PlatformBootstrapPayload>(
-        "/api/bootstrap",
-        undefined,
-        undefined,
-        token,
-      );
-      applyBootstrapPayload(payload);
-      return payload;
+    async (token: string | null, canPublish: () => boolean = () => true, version = activeSessionVersion) => {
+      const refreshVersion = ++workspaceRefreshVersionRef.current;
+      const assertPublicationCurrent = () => {
+        if (authSessionVersionRef.current !== version) throw new SessionChangedError();
+        if (workspaceRefreshVersionRef.current !== refreshVersion || !canPublish()) throw new SupersededWorkspaceRefreshError();
+      };
+      try {
+        const payload = await authenticatedRequestJson<PlatformBootstrapPayload>(
+          "/api/bootstrap", undefined, undefined, token, version,
+        );
+        assertPublicationCurrent();
+        applyBootstrapPayload(payload);
+        return payload;
+      } catch (error) {
+        assertPublicationCurrent();
+        throw error;
+      }
     },
-    [applyBootstrapPayload, authenticatedRequestJson],
+    [activeSessionVersion, applyBootstrapPayload, authenticatedRequestJson],
   );
 
   const syncPendingWorkLogDrafts = useCallback(async (
@@ -519,14 +541,14 @@ export default function App() {
       if (task) await startTaskRef.current(task, { openWorkLog: false });
     }, (failure) => classifyMobileAuthError(failure, "authenticated") === "expired-session", getClientErrorMessage);
     if (!result || !workLogQueue.isActive()) return null;
-    const payload = await authenticatedRequestJson<PlatformBootstrapPayload>("/api/bootstrap", undefined, undefined, token);
+    const payload = await refreshWorkspaceFromServer(token, workLogQueue.isActive);
     if (!workLogQueue.isActive()) return null;
-    applyBootstrapPayload(payload);
     await workLogQueue.update((current) => reconcilePendingWorkLogDrafts(current, ensureArray(payload.workLogs), ownerKey));
     return result.error;
-  }, [activeWorkLogDraftOwnerKey, workLogQueue, authenticatedRequestJson, taskState, applyBootstrapPayload]);
+  }, [activeWorkLogDraftOwnerKey, workLogQueue, authenticatedRequestJson, taskState, refreshWorkspaceFromServer]);
 
   const loadPublicAuthConfig = useCallback(async () => {
+    const version = authSessionVersionRef.current;
     setBackendStatus("connecting");
     setBackendReachability("unknown");
     setSyncError(null);
@@ -539,6 +561,7 @@ export default function App() {
         undefined,
         AUTH_REQUEST_TIMEOUT_MS,
       );
+      if (authSessionVersionRef.current !== version) return null;
       setAuthConfig(config);
       setAuthErrorState(null);
       setAuthError(null);
@@ -546,6 +569,7 @@ export default function App() {
       setBackendReachability("reachable");
       return config;
     } catch (error) {
+      if (authSessionVersionRef.current !== version) return null;
       setBackendStatus("offline");
       setBackendReachability(backendReachabilityAfterError(error));
       setAuthConfig({
@@ -572,6 +596,8 @@ export default function App() {
       user: SessionUser,
       mobileSession?: MobileSessionResponse | PersistedAuthSession,
     ) => {
+      const version = ++authSessionVersionRef.current;
+      setIsRestoringAuthSession(false);
       if (sessionUser && sessionUser.accountId !== user.accountId) {
         clearIdentityScopedStateRef.current();
       }
@@ -587,38 +613,42 @@ export default function App() {
           const sessionSaved = await saveActiveMobileSession({
             ...mobileSession,
             deviceNumber,
-          });
+          }, version);
           if (!sessionSaved) {
-            setIsSyncing(false);
+            if (authSessionVersionRef.current === version) setIsSyncing(false);
             return;
           }
         } catch (error) {
+          if (authSessionVersionRef.current !== version) return;
           setAuthError(getClientErrorMessage(error));
           setAuthErrorState(classifyMobileAuthError(error));
           setIsSyncing(false);
           return;
         }
       } else {
-        authSessionVersionRef.current += 1;
         mobileSessionRef.current = null;
         setApiToken(token);
         setSessionUser(user);
         await authSessionCoordinatorRef.current.clear().catch(() => undefined);
       }
 
+      if (authSessionVersionRef.current !== version) return;
       try {
-        await applyThemePreferenceFromServer(token);
-        const payload = await refreshWorkspaceFromServer(token);
+        await applyThemePreferenceFromServer(token, version);
+        if (authSessionVersionRef.current !== version) return;
+        const payload = await refreshWorkspaceFromServer(token, undefined, version);
         const draftSyncError = await syncPendingWorkLogDrafts(
           token,
           ensureArray(payload.workLogs),
           getWorkLogDraftOwnerKey(user),
         );
+        if (authSessionVersionRef.current !== version) return;
         setBackendStatus(draftSyncError ? "offline" : "connected");
         setBackendReachability("reachable");
         setSyncError(draftSyncError);
         setHasAuthenticated(true);
       } catch (error) {
+        if (authSessionVersionRef.current !== version || error instanceof SessionChangedError) return;
         if (
           (error instanceof ApiRequestError &&
             (error.status === 401 || error.status === 403)) ||
@@ -635,7 +665,7 @@ export default function App() {
           "Your session is saved, but workspace data could not be loaded. Check your connection and try again.",
         );
       } finally {
-        setIsSyncing(false);
+        if (authSessionVersionRef.current === version) setIsSyncing(false);
       }
     },
     [
@@ -656,6 +686,7 @@ export default function App() {
   }, [authEmail, finishSignIn, requiredEmailDomain]);
 
   const signInWithDevBypass = useCallback(async () => {
+    let version = authSessionVersionRef.current;
     setIsAuthenticating(true);
     setAuthError(null);
     setAuthErrorState(null);
@@ -663,7 +694,9 @@ export default function App() {
 
     try {
       if (isLocalDevBypassAvailable) {
-        await finishLocalDevBypass();
+        const completion = finishLocalDevBypass();
+        version = authSessionVersionRef.current;
+        await completion;
         return;
       }
 
@@ -677,11 +710,15 @@ export default function App() {
         "/api/auth/dev-bypass",
         { method: "POST" },
       );
-      await finishSignIn(session.token, session.user);
+      if (authSessionVersionRef.current !== version) return;
+      const completion = finishSignIn(session.token, session.user);
+      version = authSessionVersionRef.current;
+      await completion;
     } catch (error) {
+      if (authSessionVersionRef.current !== version) return;
       setAuthError(getClientErrorMessage(error));
     } finally {
-      setIsAuthenticating(false);
+      if (authSessionVersionRef.current === version) setIsAuthenticating(false);
     }
   }, [
     apiBaseUrl,
@@ -700,29 +737,32 @@ export default function App() {
     let isActive = true;
 
     async function restorePersistedAuthSession() {
+      let version = authSessionVersionRef.current;
       try {
         const deviceNumber = await getOrCreateAuthDeviceNumber();
         const persistedSession = await loadPersistedAuthSession(deviceNumber);
 
-        if (!isActive || !persistedSession) {
+        if (!isActive || authSessionVersionRef.current !== version || !persistedSession) {
           return;
         }
 
         // Let the app shell appear immediately while the restored token refreshes
         // workspace data and validates that the backend still accepts it.
         setAuthNotice(DEVICE_SESSION_RESTORED_NOTICE);
-        await finishSignIn(
+        const completion = finishSignIn(
           persistedSession.token,
           persistedSession.user,
           persistedSession,
         );
+        version = authSessionVersionRef.current;
+        await completion;
       } catch (error) {
-        if (isActive) {
+        if (isActive && authSessionVersionRef.current === version) {
           setAuthError(getClientErrorMessage(error));
           setAuthErrorState(classifyMobileAuthError(error));
         }
       } finally {
-        if (isActive) {
+        if (isActive && authSessionVersionRef.current === version) {
           setIsRestoringAuthSession(false);
         }
       }
@@ -736,6 +776,7 @@ export default function App() {
   }, [finishSignIn]);
 
   const signInWithEmail = useCallback(async () => {
+    let version = authSessionVersionRef.current;
     const email = authEmail.trim().toLowerCase();
     const code = authCode.trim();
 
@@ -749,10 +790,10 @@ export default function App() {
       try {
         currentAuthConfig = await loadPublicAuthConfig();
       } finally {
-        setIsAuthenticating(false);
+        if (authSessionVersionRef.current === version) setIsAuthenticating(false);
       }
 
-      if (!currentAuthConfig) {
+      if (authSessionVersionRef.current !== version || !currentAuthConfig) {
         return;
       }
     }
@@ -782,6 +823,7 @@ export default function App() {
     try {
       if (emailSignInOperation === "verify-code") {
         const deviceNumber = await getOrCreateAuthDeviceNumber();
+        if (authSessionVersionRef.current !== version) return;
         const session = await requestJson<MobileSessionResponse>(
           apiBaseUrl,
           "/api/auth/mobile/email/verify",
@@ -797,8 +839,11 @@ export default function App() {
           undefined,
           AUTH_REQUEST_TIMEOUT_MS,
         );
+        if (authSessionVersionRef.current !== version) return;
         setAuthCode("");
-        await finishSignIn(session.token, session.user, session);
+        const completion = finishSignIn(session.token, session.user, session);
+        version = authSessionVersionRef.current;
+        await completion;
         return;
       }
 
@@ -819,6 +864,7 @@ export default function App() {
         undefined,
         AUTH_REQUEST_TIMEOUT_MS,
       );
+      if (authSessionVersionRef.current !== version) return;
       setHasRequestedEmailCode(true);
       setAuthNotice(
         response.expiresInMinutes
@@ -826,13 +872,14 @@ export default function App() {
           : `Code sent to ${response.sentTo ?? email}.`,
       );
     } catch (error) {
+      if (authSessionVersionRef.current !== version) return;
       setAuthError(
         hasRequestedEmailCode
           ? getEmailCodeVerificationErrorMessage(error)
           : getClientErrorMessage(error),
       );
     } finally {
-      setIsAuthenticating(false);
+      if (authSessionVersionRef.current === version) setIsAuthenticating(false);
     }
   }, [
     apiBaseUrl,
@@ -847,6 +894,7 @@ export default function App() {
   ]);
 
   const syncFromBackend = useCallback(async () => {
+    const version = authSessionVersionRef.current;
     setIsSyncing(true);
     setBackendStatus("connecting");
     setBackendReachability("unknown");
@@ -858,6 +906,7 @@ export default function App() {
         "/api/auth/config",
       );
 
+      if (authSessionVersionRef.current !== version) return;
       let token = "";
       let syncSessionUser = sessionUser;
 
@@ -867,6 +916,7 @@ export default function App() {
           "/api/auth/dev-bypass",
           { method: "POST" },
         );
+        if (authSessionVersionRef.current !== version) return;
         token = session.token;
         syncSessionUser = session.user;
         setSessionUser(session.user);
@@ -880,10 +930,12 @@ export default function App() {
         ensureArray(payload.workLogs),
         getWorkLogDraftOwnerKey(syncSessionUser),
       );
+      if (authSessionVersionRef.current !== version) return;
       setBackendStatus(draftSyncError ? "offline" : "connected");
       setBackendReachability("reachable");
       setSyncError(draftSyncError);
     } catch (error) {
+      if (authSessionVersionRef.current !== version || error instanceof SessionChangedError || error instanceof SupersededWorkspaceRefreshError) return;
       if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
         endSessionForAuthFailure(getMobileAuthErrorMessage("expired-session"));
         return;
@@ -893,7 +945,7 @@ export default function App() {
       setBackendReachability(backendReachabilityAfterError(error));
       setSyncError(getClientErrorMessage(error));
     } finally {
-      setIsSyncing(false);
+      if (authSessionVersionRef.current === version) setIsSyncing(false);
     }
   }, [
     apiBaseUrl,
@@ -903,20 +955,31 @@ export default function App() {
     syncPendingWorkLogDrafts,
   ]);
 
+  // An accepted write remains successful even when subsequent reconciliation fails.
   const completeMutation = useCallback(async () => {
-    const payload = await refreshWorkspaceFromServer(apiToken);
-    const draftSyncError = await syncPendingWorkLogDrafts(
-      apiToken,
-      ensureArray(payload.workLogs),
-      activeWorkLogDraftOwnerKey,
-    );
-    setBackendStatus(draftSyncError ? "offline" : "connected");
-    setBackendReachability("reachable");
-    setSyncError(draftSyncError);
+    const version = authSessionVersionRef.current;
+    try {
+      const payload = await refreshWorkspaceFromServer(apiToken);
+      const draftSyncError = await syncPendingWorkLogDrafts(
+        apiToken, ensureArray(payload.workLogs), activeWorkLogDraftOwnerKey,
+      );
+      if (authSessionVersionRef.current !== version) throw new SessionChangedError();
+      setBackendStatus(draftSyncError ? "offline" : "connected");
+      setBackendReachability("reachable");
+      setSyncError(draftSyncError);
+    } catch (error) {
+      if (error instanceof SupersededWorkspaceRefreshError) return;
+      if (authSessionVersionRef.current !== version) throw new SessionChangedError();
+      if (error instanceof SessionChangedError || classifyMobileAuthError(error, "authenticated") === "expired-session") throw error;
+      setBackendStatus("offline");
+      setBackendReachability(backendReachabilityAfterError(error));
+      setSyncError(`Saved. Workspace refresh failed: ${getClientErrorMessage(error)}`);
+    }
   }, [activeWorkLogDraftOwnerKey, apiToken, refreshWorkspaceFromServer, syncPendingWorkLogDrafts]);
 
   const runMutation = useCallback(
     async (path: string, init: RequestInit) => {
+      const version = authSessionVersionRef.current;
       setIsSyncing(true);
       setSyncError(null);
 
@@ -925,6 +988,7 @@ export default function App() {
         await completeMutation();
         return true;
       } catch (error) {
+        if (authSessionVersionRef.current !== version || error instanceof SessionChangedError) return false;
         if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
           endSessionForAuthFailure(getMobileAuthErrorMessage("expired-session"));
           return false;
@@ -935,7 +999,7 @@ export default function App() {
         setSyncError(getClientErrorMessage(error));
         return false;
       } finally {
-        setIsSyncing(false);
+        if (authSessionVersionRef.current === version) setIsSyncing(false);
       }
     },
     [
@@ -956,6 +1020,7 @@ export default function App() {
 
   const runTaskAssignmentMutation = useCallback(
     async (mutation: () => Promise<unknown>) => {
+      const version = authSessionVersionRef.current;
       setIsSyncing(true);
       setSyncError(null);
 
@@ -964,6 +1029,7 @@ export default function App() {
         await completeMutation();
         return true;
       } catch (error) {
+        if (authSessionVersionRef.current !== version || error instanceof SessionChangedError) return false;
         if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
           endSessionForAuthFailure(getMobileAuthErrorMessage("expired-session"));
           return false;
@@ -982,6 +1048,7 @@ export default function App() {
             refreshError = error;
             refreshed = false;
           }
+          if (authSessionVersionRef.current !== version) return false;
           setBackendStatus(refreshed ? "connected" : "offline");
           setBackendReachability(
             refreshed
@@ -1003,7 +1070,7 @@ export default function App() {
         setSyncError(getClientErrorMessage(error));
         return false;
       } finally {
-        setIsSyncing(false);
+        if (authSessionVersionRef.current === version) setIsSyncing(false);
       }
     },
     [
@@ -1315,7 +1382,7 @@ export default function App() {
     return [
       { label: "Unresolved risks", value: String(riskRows.length) },
       { label: "High", value: String(highCount) },
-      { label: "Mitigating", value: String(risks.filter((risk) => risk.status === "mitigating").length) },
+      { label: "In progress", value: String(risks.filter((risk) => risk.status === "in-progress").length) },
     ] satisfies SummaryChipData[];
   }, [riskRows, risks]);
 
@@ -1639,18 +1706,12 @@ export default function App() {
       return;
     }
 
-    setTasks((current) =>
-      current.map((task) =>
-        openTasksToShift.some((taskToShift) => taskToShift.id === task.id)
-          ? { ...task, dueDate: shiftDateByDays(task.dueDate, dayDelta) }
-          : task,
-      ),
-    );
+    const version = authSessionVersionRef.current;
     setIsSyncing(true);
     setSyncError(null);
 
     try {
-      await Promise.all(
+      const results = await Promise.allSettled(
         openTasksToShift.map((task) =>
           authenticatedRequestJson(
             `/api/tasks/${task.id}`,
@@ -1663,10 +1724,17 @@ export default function App() {
           ),
         ),
       );
+      if (authSessionVersionRef.current !== version) throw new SessionChangedError();
+      const failure = results.find((result) => result.status === "rejected");
+      const sessionFailure = results.find((result) => result.status === "rejected" &&
+        (result.reason instanceof SessionChangedError || classifyMobileAuthError(result.reason, "authenticated") === "expired-session"));
+      if (sessionFailure?.status === "rejected") throw sessionFailure.reason;
       await refreshWorkspaceFromServer(apiToken);
+      if (failure?.status === "rejected") throw failure.reason;
       setBackendStatus("connected");
       setBackendReachability("reachable");
     } catch (error) {
+      if (authSessionVersionRef.current !== version || error instanceof SessionChangedError || error instanceof SupersededWorkspaceRefreshError) return;
       if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
         endSessionForAuthFailure(getMobileAuthErrorMessage("expired-session"));
         return;
@@ -1676,7 +1744,7 @@ export default function App() {
       setBackendReachability(backendReachabilityAfterError(error));
       setSyncError(getClientErrorMessage(error));
     } finally {
-      setIsSyncing(false);
+      if (authSessionVersionRef.current === version) setIsSyncing(false);
     }
   };
 
@@ -1694,37 +1762,10 @@ export default function App() {
     setDeadlineError(null);
   };
 
-  const persistMilestone = async (id: string | null, payload: MilestonePayload) => {
-    setIsSyncing(true);
-    setSyncError(null);
-
-    try {
-      await authenticatedRequestJson<unknown>(
-        id ? `/api/milestones/${id}` : "/api/milestones",
-        {
-          method: id ? "PATCH" : "POST",
-          body: JSON.stringify(payload),
-        },
-      );
-
-      await refreshWorkspaceFromServer(apiToken);
-      setBackendStatus("connected");
-      setBackendReachability("reachable");
-      return true;
-    } catch (error) {
-      if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
-        endSessionForAuthFailure(getMobileAuthErrorMessage("expired-session"));
-        return false;
-      }
-
-      setBackendStatus("offline");
-      setBackendReachability(backendReachabilityAfterError(error));
-      setSyncError(getClientErrorMessage(error));
-      return false;
-    } finally {
-      setIsSyncing(false);
-    }
-  };
+  const persistMilestone = (id: string | null, payload: MilestonePayload) =>
+    runMutation(id ? `/api/milestones/${id}` : "/api/milestones", {
+      method: id ? "PATCH" : "POST", body: JSON.stringify(payload),
+    });
 
   const saveDeadlineDraft = async () => {
     const title = deadlineTitle.trim();
@@ -1823,18 +1864,12 @@ export default function App() {
       return;
     }
 
-    if (task.status === "in-progress") {
+    if (currentTask.status === "in-progress") {
       if (openWorkLog) {
         openCreateWorkLogEditor(task.id);
       }
       return;
     }
-
-    setTasks((current) =>
-      current.map((candidate) =>
-        candidate.id === task.id ? { ...candidate, status } : candidate,
-      ),
-    );
 
     const ok = await runMutation(`/api/tasks/${task.id}`, {
       method: "PATCH",
@@ -1847,60 +1882,22 @@ export default function App() {
   startTaskRef.current = startTask;
 
   const requestTaskQa = async (task: Task) => {
-    const mentorId =
-      task.mentorId ||
-      members.find((member) => member.role === "mentor" || member.role === "admin")?.id ||
-      task.ownerId ||
-      members[0]?.id ||
-      "";
-
-    if (
-      !mentorId ||
-      task.status !== "in-progress" ||
-      isTaskBlocked(task)
-    ) {
+    if (authSessionVersionRef.current !== activeSessionVersion) return;
+    const currentTask = taskState.getSnapshot().find((candidate) => candidate.id === task.id);
+    if (!currentTask || currentTask.status !== "in-progress" || isTaskBlocked(currentTask)) return;
+    const seasonId = projects.find((project) => project.id === currentTask.projectId)?.seasonId;
+    const eligibleMentors = members.filter((member) => member.role === "mentor" &&
+      (member.seasonId === seasonId || (seasonId !== undefined && member.activeSeasonIds?.includes(seasonId))));
+    const mentorId = eligibleMentors.find((member) => member.id === currentTask.mentorId)?.id ?? eligibleMentors[0]?.id;
+    if (!mentorId) {
+      setSyncError("Assign an active mentor in this task's season before requesting QA.");
       return;
     }
-
-    setTasks((current) =>
-      current.map((candidate) =>
-        candidate.id === task.id
-          ? { ...candidate, mentorId, status: "waiting-for-qa" }
-          : candidate,
-      ),
-    );
-
-    const ok = await runMutation(`/api/tasks/${task.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({
-        mentorId,
-        status: "waiting-for-qa",
+    await runMutation("/api/qa-requests", {
+      method: "POST", body: JSON.stringify({
+        targetRefs: [{ kind: "task", id: currentTask.id }], subject: currentTask.title, mentorId,
       }),
     });
-
-    if (ok) {
-      setQaRequests((current) => [
-        {
-        id: `qa-request-local-${Date.now()}`,
-          projectId: task.projectId,
-          targetRefs: [{ kind: "task", id: task.id }],
-          subject: task.title,
-          mentorId,
-          requestedById: signedInMember?.id ?? null,
-          createdAt: new Date().toISOString(),
-          status: "requested",
-        },
-        ...current,
-      ]);
-    } else {
-      setTasks((current) =>
-        current.map((candidate) =>
-          candidate.id === task.id && candidate.status === "waiting-for-qa"
-            ? { ...candidate, mentorId: task.mentorId, status: task.status }
-            : candidate,
-        ),
-      );
-    }
   };
 
   const openCreateWorkLogEditor = (taskId?: string) => {
@@ -2378,10 +2375,9 @@ export default function App() {
     }
     // The command is acknowledged: refresh errors must not invite a duplicate submission.
     try {
-      const payload = await authenticatedRequestJson<PlatformBootstrapPayload>("/api/bootstrap");
-      if (authSessionVersionRef.current === sessionVersion) applyBootstrapPayload(payload);
+      await refreshWorkspaceFromServer(apiToken);
     } catch (error) {
-      if (authSessionVersionRef.current === sessionVersion) setSyncError(getClientErrorMessage(error));
+      if (authSessionVersionRef.current === sessionVersion && !(error instanceof SupersededWorkspaceRefreshError)) setSyncError(getClientErrorMessage(error));
     }
   };
 
@@ -2430,9 +2426,11 @@ export default function App() {
   clearIdentityScopedStateRef.current = clearIdentityScopedState;
 
   const finishLocalSignOut = async (serverSignOutConfirmed: boolean) => {
-    authSessionVersionRef.current += 1;
+    const version = ++authSessionVersionRef.current;
     mobileSessionRef.current = null;
     await authSessionCoordinatorRef.current.clear().catch(() => undefined);
+    if (authSessionVersionRef.current !== version) return;
+    setIsSyncing(false);
     setApiToken(null);
     setSessionUser(null);
     setHasAuthenticated(false);

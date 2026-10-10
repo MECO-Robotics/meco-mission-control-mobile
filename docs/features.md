@@ -92,4 +92,4 @@ The UI uses `AppThemeProvider` and app theme tokens from `src/theme.ts`, with au
 
 ## Team
 
-People owns the roster, attendance, availability, and individual workload. Student class year is optional and supports cohort summaries only. Teams manages arbitrary ResponsibleGroups and derives member capacity and task workload from the bootstrap data; group metrics are never stored separately.
+People owns the roster, attendance, availability, and individual workload. Teams manages arbitrary ResponsibleGroups and derives member capacity and task workload from the bootstrap data; group metrics are never stored separately.
