@@ -1,0 +1,18 @@
+[
+  {
+    "id": "GHSA-vfj7-8cjw-p6xm",
+    "package": "braces",
+    "version": "3.0.3",
+    "severity": "high",
+    "expires": "2026-11-10",
+    "reason": "Metro/Jest build-time pattern parsing; not present in Android/iOS exports. No patched release exists. See docs/security-dependencies.md."
+  },
+  {
+    "id": "GHSA-86w9-cpqp-85rv",
+    "package": "node-forge",
+    "version": "1.4.0",
+    "severity": "high",
+    "expires": "2026-11-10",
+    "reason": "Expo CLI certificate/signing tooling; not present in Android/iOS exports. No patched release exists. See docs/security-dependencies.md."
+  }
+]

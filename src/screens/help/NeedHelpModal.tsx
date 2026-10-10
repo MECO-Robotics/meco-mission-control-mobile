@@ -32,7 +32,7 @@ export function NeedHelpModal({
   defaultMentorId: string;
   mentorOptions: Option[];
   onCancel: () => void;
-  onSubmit: (input: NeedHelpSubmitInput) => boolean;
+  onSubmit: (input: NeedHelpSubmitInput) => Promise<boolean>;
   visible: boolean;
 }) {
   const [reason, setReason] = useState("");
@@ -49,7 +49,7 @@ export function NeedHelpModal({
     setError(null);
   }, [defaultMentorId, visible]);
 
-  const submit = () => {
+  const submit = async () => {
     const input = { reason, mentorId };
     const validationError = getHelpRequestValidationError({
       ...input,
@@ -61,9 +61,11 @@ export function NeedHelpModal({
       return;
     }
 
-    if (onSubmit(input)) {
+    if (await onSubmit(input)) {
       setReason("");
       setError(null);
+    } else {
+      setError("Could not save the help request. Your draft is still here.");
     }
   };
 

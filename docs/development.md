@@ -60,7 +60,9 @@ EXPO_PUBLIC_DEV_AUTH_BYPASS=true
 ```
 
 `EXPO_PUBLIC_DEV_AUTH_BYPASS=true` exposes a development-only local sign-in
-bypass for backend-offline simulator work.
+bypass for simulator work against a reachable development backend. Sign-in
+requires a successful workspace bootstrap; it does not provide an offline
+snapshot or authenticate when the backend is unavailable.
 
 Do not place bearer tokens or service credentials in `EXPO_PUBLIC_` variables;
 they are embedded in the Expo bundle. Use normal sign-in or the backend-issued
@@ -111,3 +113,21 @@ Android development defaults to `http://10.0.2.2:8080`; iOS simulator developmen
 The direct `expo-splash-screen` dependency is retained for native launch lifecycle ownership: Expo autolinking registers its iOS app-delegate subscriber and Android splash module even without a JavaScript import. No custom splash wrapper is needed.
 
 Ordinary iOS startup delegates to Expo without resetting the simulator or killing processes on port 8081. Resolve a port conflict explicitly or select another Expo port.
+
+## Help and catalog writes
+
+Task help requests persist as Risks with category `help`, a Task source, the
+selected mentor as owner, and server-assigned requester attribution. The Help
+view reads those records; changing a help risk title or resolving it keeps the
+same persisted request. Failed writes retain the help draft, and accepted
+writes remain successful even if the following workspace refresh fails.
+
+Catalog editing sends only fields owned by its form. Subsystem edits preserve
+parents; part-definition edits preserve archive, iteration and import provenance;
+purchase edits preserve approval, order state, final cost and unrelated quotes.
+Approval and order transitions use their dedicated commands. Calendar-date
+defaults and overdue cutoffs follow the device's local date.
+
+The release workflow offers only the committed `production` EAS profile.
+No database reset or reseed is needed for these client changes. Old local-only
+help request records were never durable and are not imported.

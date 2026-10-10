@@ -26,6 +26,8 @@ test("editing and deleting retain record identity and permission", async () => {
   await act(async () => { await result.current.save(); });
   expect(mutate.mock.calls[0][0]).toBe(`/api/purchases/${purchase.id}`);
   expect(mutate.mock.calls[0][1].method).toBe("PATCH");
+  const payload = JSON.parse(mutate.mock.calls[0][1].body as string);
+  for (const field of ["partDefinitionId", "approvalStatus", "approvedById", "orderStatus", "finalCost", "deliveredAt"]) expect(payload).not.toHaveProperty(field);
   act(() => result.current.open(purchase));
   await act(async () => { await result.current.deletePurchase(); });
   expect(mutate.mock.calls[1][1].method).toBe("DELETE");
@@ -45,4 +47,18 @@ test("invalid drafts are retained until required procurement ownership is suppli
   expect(mutate).not.toHaveBeenCalled();
   expect(result.current.error).toContain("procurement task");
   expect(result.current.visible).toBe(true);
+});
+
+test("an unrelated purchase edit preserves alternative quote, reference, currency and dates", async () => {
+  const item = { ...purchase, quotes: [{ id: "quote", vendorId: mecoSnapshot.vendors[0].id, reference: "RFQ-12", amount: { amount: 40, currency: "EUR" }, quotedAt: "2026-01-01T00:00:00Z" }], selectedQuoteId: "quote" };
+  const mutate = jest.fn(async (_path: string, _init: RequestInit) => true);
+  const { result } = renderHook(() => usePurchaseEditor({ tasks: mecoSnapshot.tasks, materials: [], vendors: mecoSnapshot.vendors, purchaseItems: [item], canMentorApprove: true, mutate }));
+  act(() => result.current.open(item));
+  act(() => result.current.updateDraft({ title: "Updated title" }));
+  await act(async () => { await result.current.save(); });
+  expect(JSON.parse(mutate.mock.calls[0][1].body as string)).not.toHaveProperty("quotes");
+  act(() => result.current.open(item));
+  act(() => result.current.updateDraft({ amount: "45" }));
+  await act(async () => { await result.current.save(); });
+  expect(JSON.parse(mutate.mock.calls[1][1].body as string).quotes[0]).toMatchObject({ id: "quote", reference: "RFQ-12", amount: { amount: 45, currency: "EUR" }, quotedAt: "2026-01-01T00:00:00Z" });
 });

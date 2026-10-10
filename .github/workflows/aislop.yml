@@ -22,6 +22,8 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
+      - name: Verify dependency security
+        run: npm run verify:dependencies
       - name: Run Aislop on pull-request changes
         if: github.event_name == 'pull_request'
         run: npx --yes aislop@latest ci --changes --base "origin/${{ github.base_ref }}"

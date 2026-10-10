@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
 set -eu
 
+npm run verify:dependencies
 exec npx --yes aislop@latest ci
-

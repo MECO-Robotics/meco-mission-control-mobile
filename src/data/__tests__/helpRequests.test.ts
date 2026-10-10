@@ -1,114 +1,25 @@
-import {
-  buildHelpRequest,
-  buildHelpRequestDisplayRows,
-  getDefaultHelpMentorId,
-} from "../helpRequests";
-import type { Member, Task, WorkLog } from "../../types/domain";
+import { helpRequestsFromRisks, buildHelpRequestDisplayRows, getDefaultHelpMentorId, getHelpRequestValidationError } from "../helpRequests";
+import type { Risk } from "../../types/domain";
 import { makeMember, makeTask } from "./fixtures/factories";
 
-const mentors: Member[] = [
-  makeMember({ id: "jordan", name: "Jordan Lee", role: "mentor" }),
-  makeMember({ id: "riley", name: "Riley Kim", role: "mentor" }),
-];
+const student = makeMember({ id: "ava", name: "Ava Chen", role: "student" });
+const mentor = makeMember({ id: "riley", name: "Riley Kim", role: "mentor" });
+const task = makeTask({ id: "task", title: "Validate sensors", mentorId: mentor.id });
+const risk: Risk = { id: "persisted-risk", projectId: task.projectId, title: "Help requested: Validate sensors", detail: "Verify the calibration output.", category: "help", severity: "medium", status: "open", blocksWork: false, source: { kind: "task", id: task.id }, relatedTargets: [{ kind: "task", id: task.id }], ownerMemberId: mentor.id, ownerGroupId: null, createdByMemberId: student.id, mitigationTaskId: null, mitigationDueDate: null, createdAt: "2026-10-10T12:00:00Z", updatedAt: "2026-10-10T12:00:00Z", resolvedAt: null };
 
-const student: Member = makeMember({ id: "ava", name: "Ava Chen", role: "student" });
-
-const task: Task = makeTask({
-  id: "swerve-sensor-bundle",
-  title: "Validate swerve sensors",
-  summary: "Confirm encoder zeroing before QA.",
-  subsystemIds: ["drive"],
-  ownerId: student.id,
-  mentorId: "riley",
-  dueDate: "2026-04-24",
-  priority: "high",
-  status: "in-progress",
-  estimatedHours: 2,
-  actualHours: 0,
+test("persisted mentor-owned risks drive help rows and preserve requester and resolution", () => {
+  const requests = helpRequestsFromRisks([risk, { ...risk, id: "ordinary", category: "other", title: "Help requested: Another task" }]);
+  expect(requests).toHaveLength(1);
+  expect(helpRequestsFromRisks([{ ...risk, title: "Updated calibration context" }])[0].id).toBe(risk.id);
+  expect(helpRequestsFromRisks([{ ...risk, ownerMemberId: null }])[0]).toMatchObject({ id: risk.id, mentorId: "" });
+  const rows = buildHelpRequestDisplayRows({ helpRequests: requests, membersById: { ava: student, riley: mentor }, taskById: { task }, workLogsById: {} });
+  expect(rows[0]).toMatchObject({ id: risk.id, requesterName: student.name, mentorName: mentor.name, taskTitle: task.title, status: "open", reason: risk.detail });
+  expect(helpRequestsFromRisks([{ ...risk, status: "resolved" }])[0].status).toBe("resolved");
+  expect(task.status).toBe("not-started");
 });
 
-const workLog: WorkLog = {
-  id: "log-1",
-  taskId: task.id,
-  date: "2026-04-22",
-  hours: 1.5,
-  participantIds: [student.id],
-  notes: "Checked sensor harness routing.",
-};
-
-describe("need help request state", () => {
-  it("captures the reason and selected mentor", () => {
-    const request = buildHelpRequest({
-      id: "help-1",
-      taskId: task.id,
-      reason: "Need a mentor to verify the encoder reading before we keep going.",
-      mentorId: "riley",
-      requestedById: student.id,
-      createdAt: "2026-04-22T18:30:00.000Z",
-    });
-
-    expect(request).toMatchObject({
-      id: "help-1",
-      taskId: task.id,
-      reason: "Need a mentor to verify the encoder reading before we keep going.",
-      mentorId: "riley",
-      requestedById: student.id,
-      status: "requested",
-    });
-  });
-
-  it("does not change an active task status when help is requested", () => {
-    const beforeStatus = task.status;
-    const request = buildHelpRequest({
-      id: "help-2",
-      taskId: task.id,
-      reason: "Stuck on calibration output.",
-      mentorId: getDefaultHelpMentorId(task, mentors),
-      requestedById: student.id,
-      createdAt: "2026-04-22T18:35:00.000Z",
-    });
-
-    expect(request?.status).toBe("requested");
-    expect(task.status).toBe(beforeStatus);
-    expect(task.status).toBe("in-progress");
-  });
-
-  it("falls back when a task mentor is no longer in the mentor roster", () => {
-    expect(getDefaultHelpMentorId({ mentorId: "former-mentor" }, mentors)).toBe("jordan");
-  });
-
-  it("builds mentor-visible help queue rows with requester and work context", () => {
-    const request = buildHelpRequest({
-      id: "help-3",
-      taskId: task.id,
-      workLogId: workLog.id,
-      reason: "Need help interpreting the logged sensor check.",
-      mentorId: "riley",
-      requestedById: student.id,
-      createdAt: "2026-04-22T18:40:00.000Z",
-    });
-
-    const rows = buildHelpRequestDisplayRows({
-      helpRequests: request ? [request] : [],
-      membersById: {
-        [student.id]: student,
-        jordan: mentors[0],
-        riley: mentors[1],
-      },
-      taskById: { [task.id]: task },
-      workLogsById: { [workLog.id]: workLog },
-    });
-
-    expect(rows).toEqual([
-      expect.objectContaining({
-        id: "help-3",
-        mentorName: "Riley Kim",
-        requesterName: "Ava Chen",
-        reason: "Need help interpreting the logged sensor check.",
-        taskTitle: "Validate swerve sensors",
-        workLogLabel: "2026-04-22 - 1.5h",
-        status: "requested",
-      }),
-    ]);
-  });
+test("missing mentor and empty reason fail before requesting persistence", () => {
+  expect(getHelpRequestValidationError({ reason: " ", mentorId: mentor.id, requestedById: null })).toMatch(/reason/);
+  expect(getHelpRequestValidationError({ reason: "Help", mentorId: "", requestedById: null })).toMatch(/mentor/);
+  expect(getDefaultHelpMentorId({ mentorId: "former" }, [mentor])).toBe(mentor.id);
 });

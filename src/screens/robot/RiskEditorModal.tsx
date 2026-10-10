@@ -59,7 +59,7 @@ export function RiskEditorModal({ visible, appResponsiveStyles, risk, projects, 
     <ModalField label="Detail" placeholder="Describe the unresolved risk" value={detail} onChangeText={setDetail} multiline />
     <DropdownField label="Project" value={projectId} onChange={setProjectId} options={projects.map((item) => ({ id: item.id, name: item.name }))} />
     <DropdownField label="Category" value={category} onChange={(value) => setCategory(value as RiskCategory)} options={[
-      "dependency", "design", "manufacturing", "supply", "schedule", "qa", "inventory", "other",
+      "dependency", "design", "manufacturing", "supply", "schedule", "qa", "inventory", "other", "help",
     ].map((value) => ({ id: value, name: value }))} />
     <DropdownField label="Severity" value={severity} onChange={(value) => setSeverity(value as Risk["severity"])} options={[
       "critical", "high", "medium", "low",

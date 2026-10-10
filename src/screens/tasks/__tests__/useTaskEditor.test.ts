@@ -42,6 +42,7 @@ test("task edits keep execution data on Task and do not write a duplicate blocke
   expect(body.checklistItems).toEqual(["Measure bracket", "Test fit"]);
   expect(body.workstreamIds).toEqual(["robot-build"]);
   expect(body).not.toHaveProperty("blockers");
+  expect(body).not.toHaveProperty("actualHours");
   expect(calls.some((call) => call.path.includes("blocker"))).toBe(false);
 });
 
@@ -56,6 +57,7 @@ test("creating a work item sends one canonical Task payload", async () => {
   expect(writes).toHaveLength(1);
   expect(JSON.parse(writes[0].init.body as string)).toMatchObject({ projectId: task.projectId, workTypeId: task.workTypeId, responsibleGroupId: "robot-build", title: "New task" });
   expect(JSON.parse(writes[0].init.body as string)).not.toHaveProperty("disciplineId");
+  expect(JSON.parse(writes[0].init.body as string)).not.toHaveProperty("actualHours");
 });
 
 test.each(["resolve", "reject"])("deleting an old task cannot change a newer editor on %s", async (outcome) => {

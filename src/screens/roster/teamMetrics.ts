@@ -1,4 +1,5 @@
 import { isTaskBlocked } from "../../data/taskReadiness";
+import { localTodayDate } from "../../ui/helpers";
 import type { ResponsibleGroup, Task } from "../../types/domain";
 
 export type TeamTaskMetrics = { open: number; blocked: number; overdue: number; remainingHours: number };
@@ -9,7 +10,7 @@ export function getGroupTasks(group: ResponsibleGroup, tasks: Task[]) {
   return tasks.filter((task) => task.responsibleGroupId === group.id);
 }
 
-export function getTaskMetrics(tasks: Task[], today = new Date().toISOString().slice(0, 10)): TeamTaskMetrics {
+export function getTaskMetrics(tasks: Task[], today = localTodayDate()): TeamTaskMetrics {
   const open = tasks.filter((task) => task.status !== "complete");
   return {
     open: open.length,
