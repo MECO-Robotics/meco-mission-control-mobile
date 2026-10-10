@@ -1,151 +1,86 @@
-import type { Dispatch, SetStateAction } from "react";
+import { Callout } from "../../ui/Callout";
+import type { useMilestoneEditor } from "./useMilestoneEditor";
 
-import { EVENT_TYPE_OPTIONS } from "../../ui/constants";
+import { MILESTONE_TYPE_OPTIONS } from "../../ui/constants";
 import { localTodayDate } from "../../ui/helpers";
-import type { EditorMode, MilestoneDraft } from "../../ui/types";
-import { AdvancedOptions, DropdownField, EditorModal, ModalField, ToggleField } from "../../ui/ui";
-import type { EventType } from "../../types/domain";
+import { AdvancedOptions, DropdownField, EditorModal, ModalField } from "../../ui/ui";
 import type { ResponsiveScreenStyles } from "../../screens/types";
-import { EditorCallout } from "./EditorCallout";
 
 type MilestoneEditorModalProps = {
   appResponsiveStyles: Pick<ResponsiveScreenStyles, "calloutBody" | "calloutBox" | "calloutTitle">;
-  deleteMilestoneDraft: () => void;
-  milestoneDraft: MilestoneDraft;
-  milestoneEditorMode: EditorMode | null;
-  milestoneEndDate: string;
-  milestoneEndTime: string;
-  milestoneError: string | null;
-  milestoneStartDate: string;
-  milestoneStartTime: string;
-  onCancel: () => void;
-  onSave: () => void;
-  setMilestoneDraft: Dispatch<SetStateAction<MilestoneDraft>>;
-  setMilestoneEndDate: (value: string) => void;
-  setMilestoneEndTime: (value: string) => void;
-  setMilestoneError: (value: string | null) => void;
-  setMilestoneStartDate: (value: string) => void;
-  setMilestoneStartTime: (value: string) => void;
+  editor: ReturnType<typeof useMilestoneEditor>;
 };
 
 export function MilestoneEditorModal({
   appResponsiveStyles,
-  deleteMilestoneDraft,
-  milestoneDraft,
-  milestoneEditorMode,
-  milestoneEndDate,
-  milestoneEndTime,
-  milestoneError,
-  milestoneStartDate,
-  milestoneStartTime,
-  onCancel,
-  onSave,
-  setMilestoneDraft,
-  setMilestoneEndDate,
-  setMilestoneEndTime,
-  setMilestoneError,
-  setMilestoneStartDate,
-  setMilestoneStartTime,
+  editor,
 }: MilestoneEditorModalProps) {
+  const { draft, id, error, visible, close, save, deleteMilestone, updateDraft } = editor;
   return (
     <EditorModal
-      onCancel={onCancel}
-      onDelete={milestoneEditorMode === "edit" ? deleteMilestoneDraft : undefined}
-      onSave={onSave}
-      saveLabel={milestoneEditorMode === "edit" ? "Update milestone" : "Create milestone"}
-      title={milestoneEditorMode === "edit" ? "Edit milestone" : "Create milestone"}
-      visible={Boolean(milestoneEditorMode)}
+      onCancel={close}
+      onDelete={id ? deleteMilestone : undefined}
+      onSave={save}
+      saveLabel={id ? "Update milestone" : "Create milestone"}
+      title={id ? "Edit milestone" : "Create milestone"}
+      visible={visible}
     >
-      {milestoneError ? (
-        <EditorCallout
-          body={milestoneError}
-          bodyStyle={appResponsiveStyles.calloutBody}
-          boxStyle={appResponsiveStyles.calloutBox}
-          title="Missing milestone details"
-          titleStyle={appResponsiveStyles.calloutTitle}
+      {error ? (
+        <Callout
+          body={error}
+          title="Milestone needs attention"
+          responsiveStyles={appResponsiveStyles}
         />
       ) : null}
       <ModalField
         label="Title"
-        onChangeText={(value) => {
-          setMilestoneError(null);
-          setMilestoneDraft((current) => ({ ...current, title: value }));
-        }}
+        onChangeText={(value) => updateDraft({ title: value })}
         placeholder="Milestone title"
-        value={milestoneDraft.title}
+        value={draft.title}
       />
       <DropdownField
         label="Type"
-        onChange={(value) => {
-          setMilestoneError(null);
-          setMilestoneDraft((current) => ({ ...current, type: value as EventType }));
-        }}
-        options={EVENT_TYPE_OPTIONS}
-        value={milestoneDraft.type}
+        onChange={(value) => updateDraft({ type: value as "practice" | "competition" | "deadline" | "internal-review" | "demo" })}
+        options={MILESTONE_TYPE_OPTIONS}
+        value={draft.type}
       />
       <ModalField
         label="Start date (YYYY-MM-DD)"
-        onChangeText={(value) => {
-          setMilestoneError(null);
-          setMilestoneStartDate(value);
-        }}
+        onChangeText={(value) => updateDraft({ startDate: value })}
         placeholder={localTodayDate()}
-        value={milestoneStartDate}
+        value={draft.startDate}
       />
       <ModalField
         label="Start time (HH:mm)"
-        onChangeText={(value) => {
-          setMilestoneError(null);
-          setMilestoneStartTime(value);
-        }}
+        onChangeText={(value) => updateDraft({ startTime: value })}
         placeholder="18:00"
-        value={milestoneStartTime}
+        value={draft.startTime}
       />
       <AdvancedOptions>
         <ModalField
           label="End date (optional, YYYY-MM-DD)"
-          onChangeText={(value) => {
-            setMilestoneError(null);
-            setMilestoneEndDate(value);
-          }}
+          onChangeText={(value) => updateDraft({ endDate: value })}
           placeholder="2026-04-30"
-          value={milestoneEndDate}
+          value={draft.endDate}
         />
         <ModalField
           label="End time (optional, HH:mm)"
-          onChangeText={(value) => {
-            setMilestoneError(null);
-            setMilestoneEndTime(value);
-          }}
+          onChangeText={(value) => updateDraft({ endTime: value })}
           placeholder="20:00"
-          value={milestoneEndTime}
+          value={draft.endTime}
         />
         <ModalField
           label="Description"
           multiline
-          onChangeText={(value) => {
-            setMilestoneError(null);
-            setMilestoneDraft((current) => ({ ...current, description: value }));
-          }}
+          onChangeText={(value) => updateDraft({ description: value })}
           placeholder="Milestone details"
-          value={milestoneDraft.description}
+          value={draft.description}
         />
         <ModalField
-          label="Related subsystem IDs (comma separated)"
-          onChangeText={(value) => {
-            setMilestoneError(null);
-            setMilestoneDraft((current) => ({ ...current, relatedSubsystemIdsText: value }));
-          }}
-          placeholder="drive, controls"
-          value={milestoneDraft.relatedSubsystemIdsText}
-        />
-        <ToggleField
-          label="External milestone"
-          onToggle={(value) => {
-            setMilestoneError(null);
-            setMilestoneDraft((current) => ({ ...current, isExternal: value }));
-          }}
-          value={milestoneDraft.isExternal}
+          label="Project IDs (comma separated)"
+          onChangeText={(value) => updateDraft({ projectIdsText: value })}
+          placeholder="robot-project-id"
+          value={draft.projectIdsText}
         />
       </AdvancedOptions>
     </EditorModal>

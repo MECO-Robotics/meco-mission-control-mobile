@@ -36,7 +36,7 @@ function DependencyMeta({
       numberOfLines={2}
       style={{ color: themeColors.subtleText, fontSize: 11, fontWeight: "700" }}
     >
-      {`${STATUS_LABELS[task.status]} | due ${formatDate(task.dueDate)} | ${subsystemsById[task.subsystemId]?.name ?? "No subsystem"}${showRemove ? " | remove" : ""}`}
+      {`${STATUS_LABELS[task.status]} | due ${formatDate(task.dueDate)} | ${subsystemsById[(task.subsystemIds[0] ?? "")]?.name ?? "No subsystem"}${showRemove ? " | remove" : ""}`}
     </Text>
   );
 }

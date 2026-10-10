@@ -1,3 +1,4 @@
+import { ActionButton } from "../../ui/ActionButton";
 import { Pressable, View } from "react-native";
 
 import { Text } from "../../i18n";
@@ -20,9 +21,7 @@ export function HomeScreen(props: AppScreenProps) {
     homeActionItems,
     homeTaskSummary,
     isSyncing,
-    manufacturingItems,
     openEditTaskEditor,
-    openEditManufacturingEditor,
     openEditPurchaseEditor,
     purchaseItems,
     setActiveTab,
@@ -48,12 +47,7 @@ const renderScreen = () => {
       return;
     }
 
-    const manufacturingItem = manufacturingItems.find(
-      (candidate) => candidate.id === item.onPressTargetId,
-    );
-    if (manufacturingItem) {
-      openEditManufacturingEditor(manufacturingItem);
-    }
+    setActiveTab("work-tasks");
   };
 
   return (
@@ -61,11 +55,13 @@ const renderScreen = () => {
       title="Home"
       subtitle="Priority tasks and workspace status for the next execution window."
       actions={
-        <Pressable onPress={syncFromBackend} style={[styles.primaryAction, appResponsiveStyles.primaryAction]}>
-          <Text style={[styles.primaryActionLabel, appResponsiveStyles.primaryActionLabel]}>
-            {isSyncing ? "Refreshing" : "Refresh"}
-          </Text>
-        </Pressable>
+        <ActionButton
+          onPress={syncFromBackend}
+          variant="primary"
+          responsiveStyles={appResponsiveStyles}
+        >
+          {isSyncing ? "Refreshing" : "Refresh"}
+        </ActionButton>
       }
     >
       <View style={styles.homeSection}>
@@ -78,7 +74,7 @@ const renderScreen = () => {
             Needs attention
           </Text>
           <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
-            The highest-risk work across tasks, manufacturing, and purchases.
+            The highest-risk work and unresolved risks across projects.
           </Text>
         </Pressable>
         {homeActionItems.map((item) => (
@@ -109,7 +105,7 @@ const renderScreen = () => {
       <SummaryRow chips={homeTaskSummary} />
       <View style={styles.quickActionRow}>
         {([
-          ["work-tasks", "Open task queue"], ["work-schedule", "View schedule"],
+          ["work-tasks", "Open Kanban"], ["work-schedule", "View schedule"],
           ["work-activity", "Activity"], ["resources-purchases", "Purchasing"],
         ] as const).map(([destination, label]) => <Pressable key={destination} accessibilityRole="button"
           onPress={() => setActiveTab(destination)} style={[styles.quickActionButton, appResponsiveStyles.quickActionButton, { minHeight: 44 }]}>
@@ -119,7 +115,7 @@ const renderScreen = () => {
 
       <Pressable
         accessibilityRole="button"
-        onPress={() => setActiveTab("team-attendance")}
+        onPress={() => setActiveTab("team-people")}
         style={styles.homeSection}
       >
         <View style={styles.homeSectionHeader}>

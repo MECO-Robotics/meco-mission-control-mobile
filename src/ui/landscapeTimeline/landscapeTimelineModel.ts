@@ -1,5 +1,5 @@
 import type { Subsystem, Task } from "../../types/domain";
-import { timelineAccentColors, timelineDisciplineColors } from "../../theme";
+import { timelineAccentColors } from "../../theme";
 
 export const DAY_WIDTH = 46;
 
@@ -9,15 +9,6 @@ const TASK_BAR_GAP = 7;
 const TASK_BAR_TOP_PADDING = 10;
 const SUBSYSTEM_COLORS = timelineAccentColors.subsystems;
 const TASK_COLORS = timelineAccentColors.tasks;
-
-const MOBILE_DISCIPLINE_TIMELINE_COLORS: Record<string, string> = {
-  mechanical: timelineDisciplineColors.manufacturing,
-  electrical: timelineDisciplineColors.electrical,
-  software: timelineDisciplineColors.programming,
-  programming: timelineDisciplineColors.programming,
-  integration: timelineDisciplineColors.testing,
-  "qa-test": timelineDisciplineColors.testing,
-};
 
 function getStableColorIndex(value: string, colorCount: number) {
   let hash = 0;
@@ -58,6 +49,15 @@ function getTaskStartDate(task: Task) {
 
   const estimatedDays = Math.max(1, Math.min(5, Math.ceil(task.estimatedHours / 4)));
   return addDays(parseDate(task.dueDate), -estimatedDays + 1);
+}
+
+function compareTasksByTimelineDate(left: Task, right: Task) {
+  const leftRange = getTaskDateRange(left);
+  const rightRange = getTaskDateRange(right);
+  return (
+    leftRange.start.getTime() - rightRange.start.getTime() ||
+    leftRange.end.getTime() - rightRange.end.getTime()
+  );
 }
 
 export function getTaskDateRange(task: Task) {
@@ -124,7 +124,7 @@ function getLaneHeight(trackCount: number) {
 }
 
 function getTaskTimelineColor(task: Task, fallbackIndex: number) {
-  return MOBILE_DISCIPLINE_TIMELINE_COLORS[task.disciplineId] ?? TASK_COLORS[fallbackIndex % TASK_COLORS.length];
+  return TASK_COLORS[fallbackIndex % TASK_COLORS.length];
 }
 
 export function buildLanes(tasks: Task[], subsystems: Subsystem[], monthStart: Date, dayCount: number) {
@@ -137,29 +137,30 @@ export function buildLanes(tasks: Task[], subsystems: Subsystem[], monthStart: D
 
   [...tasks]
     .sort((left, right) => {
-      const subsystemDelta = left.subsystemId.localeCompare(right.subsystemId);
+      const subsystemDelta = (left.subsystemIds[0] ?? "").localeCompare((right.subsystemIds[0] ?? ""));
       if (subsystemDelta !== 0) {
         return subsystemDelta;
       }
 
-      return (
-        getTaskStartDate(left).getTime() - getTaskStartDate(right).getTime() ||
-        left.dueDate.localeCompare(right.dueDate)
-      );
+      return compareTasksByTimelineDate(left, right);
     })
     .forEach((task) => {
-      const lane = lanesBySubsystem.get(task.subsystemId) ?? {
-        subsystem: subsystemsById[task.subsystemId] ?? null,
-        tasks: [],
-      };
-      lane.tasks.push(task);
-      lanesBySubsystem.set(task.subsystemId, lane);
+      for (const subsystemId of new Set(task.subsystemIds.length ? task.subsystemIds : [""])) {
+        const lane = lanesBySubsystem.get(subsystemId) ?? {
+          subsystem: subsystemsById[subsystemId] ?? null,
+          tasks: [],
+        };
+        lane.tasks.push(task);
+        lanesBySubsystem.set(subsystemId, lane);
+      }
     });
 
   return Array.from(lanesBySubsystem.entries()).map(([subsystemId, lane]) => {
     const trackEndIndexes: number[] = [];
     const taskColorOffset = getStableColorIndex(subsystemId, TASK_COLORS.length);
-    const visibleTasks = lane.tasks.filter((task) => getLaneTaskRange(task, monthStart, dayCount) !== null);
+    const visibleTasks = lane.tasks
+      .filter((task) => getLaneTaskRange(task, monthStart, dayCount) !== null)
+      .sort(compareTasksByTimelineDate);
     const packedTasks = visibleTasks.map((task, taskIndex) => {
       const dateIndexes = getTaskDateIndexes(task, monthStart);
       const trackIndex = trackEndIndexes.findIndex((endIndex) => endIndex < dateIndexes.firstIndex);

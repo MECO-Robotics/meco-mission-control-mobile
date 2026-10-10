@@ -5,7 +5,7 @@ export const TASK_QUEUE_PAGE_SIZE = 30;
 export function getVisibleTaskQueueSections(
   sections: TaskQueueSection[],
   page: number,
-): Array<TaskQueueSection & { totalTasks: number }> {
+): (TaskQueueSection & { totalTasks: number })[] {
   let sectionOffset = 0;
 
   return sections.map((section) => {

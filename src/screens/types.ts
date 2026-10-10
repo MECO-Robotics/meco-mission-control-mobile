@@ -1,27 +1,26 @@
+import type { useSubsystemBrowse } from "./robot/useSubsystemBrowse";
+import type { useMaterialsBrowse } from "./inventory/useMaterialsBrowse";
+import type { usePartsBrowse } from "./inventory/usePartsBrowse";
+import type { usePurchaseBrowse } from "./inventory/usePurchaseBrowse";
 import type { Dispatch, SetStateAction } from "react";
 import type { StyleProp, TextStyle, ViewStyle } from "react-native";
 
 import type { AppThemeColors } from "../theme";
 import type { WorkLogDraftSyncStatus } from "../services/workLogDraftSync";
-import type { Discipline, HelpRequest, ManufacturingItem, Mechanism, Member, PartDefinition, PartInstance, PurchaseItem, QaRequest, QaReview, Subsystem, Task, WorkLog } from "../types/domain";
-import type { ArchiveFilterMode, ManufacturingViewTab, MaterialRollup, PartLifecycleStatus, SummaryChipData, ViewTab, WorkLogSortMode } from "../ui/types";
-import type { AttendanceStatus, RiskPriority } from "../types/status";
-export type { AttendanceStatus, RiskPriority } from "../types/status";
+import type { Artifact, HelpRequest, Mechanism, Member, PartDefinition, PartInstance, Project, PurchaseItem, QaRequest, QaReport, ResponsibleGroup, Risk, RiskMutationPayload, RiskSeverity, Subsystem, Task, WorkLog, WorkType } from "../types/domain";
+import type { MaterialRollup, SummaryChipData, ViewTab, WorkLogSortMode } from "../ui/types";
+import type { AttendanceStatus } from "../types/status";
+export type { AttendanceStatus } from "../types/status";
 
 export type AttendanceRow = {
   member: Member;
   status: AttendanceStatus;
 };
 
-export type PartInstanceStatusRow = {
-  partInstance: PartInstance;
-  status: PartLifecycleStatus;
-};
-
 export type RiskRow = {
   detail: string;
   id: string;
-  priority: RiskPriority;
+  priority: RiskSeverity;
   source: string;
   subsystemId: string;
   title: string;
@@ -33,21 +32,8 @@ export type HomeActionItem = {
   label: string;
   onPressTargetId: string;
   priority: "critical" | "high" | "medium";
-  source: "manufacturing" | "purchase" | "task";
+  source: "purchase" | "task";
   title: string;
-};
-
-export type SubsystemCounts = {
-  blockedTasks: number;
-  health: "good" | "watch" | "risk";
-  mechanisms: number;
-  openTasks: number;
-  openPurchases: number;
-  overdueTasks: number;
-  qaFindings: number;
-  waitingQa: number;
-  risks: number;
-  tasks: number;
 };
 
 export type WorkLogListItem = WorkLog & {
@@ -82,45 +68,32 @@ export type ResponsiveScreenStyles = {
 };
 
 export interface AppScreenProps {
+  materialsBrowse: ReturnType<typeof useMaterialsBrowse>;
+  subsystemBrowse: ReturnType<typeof useSubsystemBrowse>;
+  partsBrowse: ReturnType<typeof usePartsBrowse>;
+  purchaseBrowse: ReturnType<typeof usePurchaseBrowse>;
   appResponsiveStyles: ResponsiveScreenStyles;
+  artifacts: Artifact[];
+  projectsById: Record<string, Project>;
   attendancePreview: AttendanceRow[];
   attendanceSummary: SummaryChipData[];
   canMentorApprove: boolean;
   canSubmitQa: boolean;
-  disciplinesById: Record<string, Discipline>;
+  workTypesById: Record<string, WorkType>;
   editTagStyle: StyleProp<TextStyle>;
-  filteredManufacturing: ManufacturingItem[];
-  filteredMaterialRollups: MaterialRollup[];
-  filteredPartDefinitions: PartDefinition[];
-  filteredPartInstances: PartInstanceStatusRow[];
-  filteredPurchases: PurchaseItem[];
-  filteredSubsystems: Subsystem[];
   filteredWorkLogs: WorkLogListItem[];
   helpRequests: HelpRequest[];
   homeActionItems: HomeActionItem[];
   homeTaskSummary: SummaryChipData[];
   isLandscapeCardLayout: boolean;
   isSyncing: boolean;
-  manufacturingItems: ManufacturingItem[];
-  manufacturingArchiveFilter: ArchiveFilterMode;
-  manufacturingMaterialFilter: string;
-  manufacturingMaterialOptions: { id: string; name: string }[];
-  manufacturingRequesterFilter: string;
-  manufacturingSearch: string;
-  manufacturingStatusFilter: string;
-  manufacturingSubsystemFilter: string;
-  manufacturingSummary: SummaryChipData[];
-  manufacturingView: ManufacturingViewTab;
-  materialsCategoryFilter: string;
-  materialsSearch: string;
-  materialsStockFilter: string;
-  mechanisms: Mechanism[];
   mechanismsById: Record<string, Mechanism>;
   meetingAttendance: AttendanceRow[];
   members: Member[];
   membersById: Record<string, Member>;
-  openCreateManufacturingEditor: () => void;
   openCreateMemberEditor: (role?: Member["role"]) => void;
+  mutate: (path: string, init: RequestInit) => Promise<boolean>;
+  projects: Project[];
   openCreatePartDefinitionEditor: () => void;
   openCreatePurchaseEditor: () => void;
   openCreateQaReportEditor: (taskId?: string, qaRequestId?: string) => void;
@@ -129,9 +102,9 @@ export interface AppScreenProps {
   openWorkLogFromTimer: () => void;
   approvePurchaseItem: (item: PurchaseItem, approved: boolean) => Promise<void>;
   createQaRequest: (subject: string, mentorId: string, taskId?: string | null) => void;
-  openEditManufacturingEditor: (item: ManufacturingItem) => void;
   openEditMemberEditor: (memberId: string) => void;
   openEditPartDefinitionEditor: (partDefinitionId: string) => void;
+  updatePartInstance: (item: PartInstance, patch: Partial<Pick<PartInstance, "location">>) => Promise<void>;
   openEditPurchaseEditor: (item: PurchaseItem) => void;
   openEditSubsystemEditor: (subsystem: Subsystem) => void;
   openEditTaskEditor: (task: Task) => void;
@@ -139,67 +112,29 @@ export interface AppScreenProps {
   openDuplicateTaskEditor: (task: Task) => void;
   openMaterialRestockEditor: (row: MaterialRollup) => void;
   openTaskQueueFromTask: (task: Task) => void;
-  partDefinitions: PartDefinition[];
   partDefinitionsById: Record<string, PartDefinition>;
-  partInstancesWithStatus: PartInstanceStatusRow[];
-  partsSearch: string;
-  partsStatusFilter: string;
-  partsSubsystemFilter: string;
-  patchManufacturingItem: (
-    item: ManufacturingItem,
-    patch: Partial<Pick<ManufacturingItem, "mentorReviewed" | "status">>,
-  ) => Promise<void>;
-  transitionPurchaseItem: (
-    item: PurchaseItem,
-    status: PurchaseItem["status"],
-  ) => Promise<void>;
-  purchaseApprovalFilter: string;
+  transitionPurchaseItem: (item: PurchaseItem, status: PurchaseItem["orderStatus"]) => Promise<void>;
   purchaseItems: PurchaseItem[];
-  purchaseArchiveFilter: ArchiveFilterMode;
-  purchaseRequesterFilter: string;
-  purchaseSearch: string;
-  purchaseStatusFilter: string;
-  purchaseVendorFilter: string;
-  purchaseVendorOptions: { id: string; name: string }[];
+  responsibleGroups: ResponsibleGroup[];
   qaRequests: QaRequest[];
-  qaReviews: QaReview[];
+  qaReports: QaReport[];
   riskRows: RiskRow[];
+  risks: Risk[];
   riskSummary: SummaryChipData[];
+  saveRisk: (id: string | null, payload: RiskMutationPayload) => Promise<boolean>;
+  deleteRisk: (id: string) => Promise<boolean>;
   rosterAdmins: Member[];
   rosterExternal: Member[];
   rosterMentors: Member[];
   rosterStudents: Member[];
   selectedMemberId: string | null;
-  selectedSubsystem: Subsystem | null;
   setActiveTab: StateSetter<ViewTab>;
   setAttendanceStatusByMemberId: StateSetter<Record<string, AttendanceStatus>>;
-  setManufacturingArchiveFilter: StateSetter<ArchiveFilterMode>;
-  setManufacturingMaterialFilter: TextSetter;
-  setManufacturingRequesterFilter: TextSetter;
-  setManufacturingSearch: TextSetter;
-  setManufacturingStatusFilter: TextSetter;
-  setManufacturingSubsystemFilter: TextSetter;
-  setMaterialsCategoryFilter: TextSetter;
-  setMaterialsSearch: TextSetter;
-  setMaterialsStockFilter: TextSetter;
-  setPartsSearch: TextSetter;
-  setPartsStatusFilter: TextSetter;
-  setPartsSubsystemFilter: TextSetter;
-  setPurchaseApprovalFilter: TextSetter;
-  setPurchaseArchiveFilter: StateSetter<ArchiveFilterMode>;
-  setPurchaseRequesterFilter: TextSetter;
-  setPurchaseSearch: TextSetter;
-  setPurchaseStatusFilter: TextSetter;
-  setPurchaseVendorFilter: TextSetter;
   setSelectedMemberId: StateSetter<string | null>;
-  setSelectedSubsystemId: StateSetter<string>;
-  setSubsystemSearch: TextSetter;
   setWorkLogSearch: TextSetter;
   setWorkLogSortMode: StateSetter<WorkLogSortMode>;
   setWorkLogSubsystemFilter: TextSetter;
   shiftTaskDueDates: (tasksToShift: Task[], dayDelta: number) => Promise<void>;
-  subsystemCountsById: Record<string, SubsystemCounts>;
-  subsystemSearch: string;
   subsystems: Subsystem[];
   subsystemsById: Record<string, Subsystem>;
   syncFromBackend: () => Promise<void>;

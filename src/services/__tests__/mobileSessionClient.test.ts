@@ -252,3 +252,61 @@ test("does not replay an old account's mutation with a newly signed-in account t
   await expect(pending).rejects.toMatchObject({ name: "SessionChangedError" });
   expect(fetchMock).toHaveBeenCalledTimes(1);
 });
+
+test.each([false, true])("discards a successful response after account change (retry=%s)", async (retry) => {
+  let session = buildSession({ accessTokenExpiresAt: "2099-01-01T00:00:00Z" });
+  let version = 0;
+  let respond!: (value: Response) => void;
+  const pendingResponse = new Promise<Response>((resolve) => { respond = resolve; });
+  fetchMock.mockReset();
+  if (retry) {
+    fetchMock.mockReturnValueOnce(jsonResponse({ message: "expired" }, 401));
+    fetchMock.mockReturnValueOnce(jsonResponse(session));
+  }
+  fetchMock.mockReturnValueOnce(pendingResponse);
+  const client = new MobileSessionClient({
+    baseUrl: "https://api.example.test", getSession: () => session, getSessionVersion: () => version,
+    onSessionExpired: jest.fn(), saveSession: jest.fn(async () => true),
+  });
+  const pending = client.request("/api/bootstrap");
+  if (retry) {
+    while (fetchMock.mock.calls.length < 3) await Promise.resolve();
+  }
+  session = buildSession({ token: "other-account-token" });
+  version += 1;
+  respond(await jsonResponse({ tasks: [{ id: "old-account-task" }] }));
+  await expect(pending).rejects.toMatchObject({ name: "SessionChangedError" });
+});
+
+test("a newer session refresh proceeds independently of an older pending rotation", async () => {
+  let session = buildSession();
+  let version = 0;
+  let respondOld!: (value: Response) => void;
+  let respondNew!: (value: Response) => void;
+  fetchMock.mockReset()
+    .mockReturnValueOnce(new Promise<Response>((resolve) => { respondOld = resolve; }))
+    .mockReturnValueOnce(new Promise<Response>((resolve) => { respondNew = resolve; }))
+    .mockReturnValueOnce(jsonResponse({ ok: true }));
+  const client = new MobileSessionClient({
+    baseUrl: "https://api.example.test", getSession: () => session, getSessionVersion: () => version,
+    onSessionExpired: jest.fn(), saveSession: jest.fn(async (next, expected) => {
+      if (expected !== version) return false;
+      session = next;
+      return true;
+    }),
+  });
+  const oldRotation = client.refresh();
+  session = buildSession({ token: "new-account", refreshToken: "new-refresh", accessTokenExpiresAt: "2000-01-01T00:00:00Z" });
+  version += 1;
+  const request = client.request("/api/bootstrap");
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  respondOld(await jsonResponse(buildSession({ token: "old-rotated" })));
+  await expect(oldRotation).rejects.toMatchObject({ name: "SessionChangedError" });
+  const concurrentRotation = client.refresh();
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  respondNew(await jsonResponse(buildSession({ token: "new-rotated", refreshToken: "new-rotated-refresh" })));
+  await expect(request).resolves.toEqual({ ok: true });
+  await expect(concurrentRotation).resolves.toMatchObject({ token: "new-rotated" });
+  expect(fetchMock).toHaveBeenCalledTimes(3);
+  expect(fetchMock.mock.calls[2][1]?.headers.get("Authorization")).toBe("Bearer new-rotated");
+});

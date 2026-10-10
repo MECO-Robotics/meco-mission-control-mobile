@@ -18,8 +18,7 @@ the relevant data, setters, and action callbacks into each screen.
 
 Shared UI primitives, form widgets, responsive helpers, constants, and styles
 live under `src/ui/`. Domain data contracts live in `src/types/domain.ts`.
-Feature data seeds live in `src/data/`, including `mockData.ts` and task seed
-modules under `src/data/tasks/`.
+Shared editor and screen test data lives under `src/data/__tests__/fixtures/`; it is not imported by the application bundle.
 
 Follow [CONTRIBUTING.md](../CONTRIBUTING.md) for contribution workflow and review criteria. Prefer cohesive feature ownership and explicit dependencies over arbitrary file-size splits.
 
@@ -29,15 +28,26 @@ The app currently lifts most shared state into `App.tsx`. This includes
 workspace arrays, active navigation tabs, filters, selected IDs, editor drafts,
 sync/auth status, and timer state.
 
-Workspace arrays initialize from `mecoSnapshot` in `src/data/mockData.ts`, with
-additional seeded tasks from `src/data/tasks`. Bootstrap responses replace those
-workspace arrays when a backend is available.
+Workspace arrays start empty and are populated only after authentication succeeds and the backend bootstrap response arrives. Test fixtures under `src/data/__tests__/fixtures/` provide representative graph data for isolated feature tests.
 
-Derived state is computed in `App.tsx` with `useMemo`. Common derived shapes
-include ID maps, filtered screen rows, summaries, current member/session
-resolution, subsystem counts, timeline data, inventory rollups, and home-screen
-priority lists. Screens should consume these prepared values through
-`AppScreenProps` rather than reimplementing the same cross-domain calculations.
+`usePurchaseBrowse`, `useMaterialsBrowse`, and `usePartsBrowse` own their
+feature filters and derived browse data. Manufacturing requirements are edited
+as Task.ManufacturingDetails from the Kanban task editor; there is no separate
+manufacturing work queue.
+`useSubsystemBrowse` also owns expansion, grouped mechanisms and subsystem health;
+search hiding a card retains its expansion, while explicit collapse survives refresh. App mounts
+these hooks above tab switching, so filters survive screen unmounts and bootstrap
+refreshes. Screens receive readonly filters and explicit `updateFilters` commands;
+canonical workspace collections remain in App for other consumers.
+
+Materials owns bulk stock quantity and location. Part definitions own design/CAD
+identity and default acquisition method; each PartInstance records one physical
+unit's tagged location and derived readiness separately. Parts filters
+definitions by search while instance rows also use location filters.
+
+App retains shared projections such as ID maps, current member/session resolution,
+timeline data and home priority lists. Screens consume prepared
+values through `AppScreenProps` rather than duplicating cross-domain calculations.
 
 Mutations use the shared `runMutation` helper in `App.tsx`. After a successful
 mutation, the app refreshes workspace state from `GET /api/bootstrap` so all
@@ -66,16 +76,20 @@ The mobile app expects these bootstrap and auth endpoints:
   /api/auth/mobile/sessions/:sessionId` support the Personal settings device
   manager.
 
-`PlatformBootstrapPayload` is defined in `src/types/domain.ts`. It can include
-members, subsystems, disciplines, mechanisms, part definitions, part instances,
-tasks, events or milestones, work logs, manufacturing items, purchases, and QA
-requests. The app normalizes server tasks, maps milestones to events when
-events are absent, and treats missing arrays as empty arrays.
+`PlatformBootstrapPayload` is defined in `src/types/domain.ts` and verified
+against `contracts/platform/bootstrap/v1/contract.json`, copied from the
+platform contract. It carries seasons, projects, work types, responsible groups,
+workstreams, vendors, members, robot structure, inventory, Tasks with optional
+ManufacturingDetails, dependencies, PurchaseItems, meetings, events, milestones,
+Risks, reports, QA records, artifacts, work logs, and attendance. Schedule
+projections retain each record's meeting/event/milestone identity.
 
-Mutating flows use `POST`, `PATCH`, and `DELETE` endpoints for tasks,
-milestones, work logs, manufacturing items, purchases, members, subsystems, and
-part definitions. Mutations should return successfully before the mobile app
-refreshes from `/api/bootstrap`.
+Mutating flows use `POST`, `PATCH`, and `DELETE` endpoints for Tasks (including
+ManufacturingDetails), manufacturing-process catalog records, milestones,
+Risks, work logs, purchases, members, subsystems, and part definitions. Purchase
+records own commercial state and link to procurement Tasks; Task has no purchase
+or manufacturing ID arrays. Mutations refresh from `/api/bootstrap` after
+success.
 
 Requests go through `requestJson` in `src/data/api.ts`. Authenticated requests
 are coordinated by `MobileSessionClient`, which refreshes five minutes before

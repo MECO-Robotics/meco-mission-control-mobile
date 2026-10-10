@@ -24,7 +24,7 @@ npm run verify
 
 This owns ESLint, Jest (including role permissions and approval controls), workflow security tests, TypeScript and bootstrap contract verification. Run the relevant existing command while iterating; do not rerun its constituent checks after a successful full verification on the same revision. Documentation-only changes need link/command review and `git diff --check`.
 
-For coordinated contract work, set `PLATFORM_BOOTSTRAP_CONTRACT_SOURCE_PATH` to the platform checkout's `contracts/platform/bootstrap/v1/contract.json`. Otherwise verification compares the published platform development contract (with existing main/sibling fallbacks). CI fails when no source is available; local verification reports a skipped remote check. Report that limitation rather than claiming drift was checked.
+For coordinated contract work, set `PLATFORM_BOOTSTRAP_CONTRACT_SOURCE_PATH` to the platform checkout's `contracts/platform/bootstrap/v1/contract.json`. Otherwise verification compares the published platform development contract. An explicitly selected branch, revision, URL or local source is authoritative: a missing source fails verification without falling back. CI also fails when the default source is unavailable; local verification without an explicit source reports a skipped remote check. Report that limitation rather than claiming drift was checked.
 
 For changed device behavior, record the tested OS/device and relevant lifecycle, offline or permission scenarios. Include screenshots or recordings when they help assess a UI change; identify platforms not exercised.
 
@@ -41,3 +41,5 @@ The merge gate owns branch, CI and snapshot checks, plus the cross-repository pr
 The ignored `skills/` directory is an optional local import, not an application dependency. Import explicitly with `bash scripts/sync-skills.sh`; compare an existing import with `bash scripts/check-skills-current.sh`. `SKILLS_REPO` and `SKILLS_REF` select the source. CI's separate import smoke check uses `SYNC_MISSING_SKILLS=true`; local comparison defaults to failing on missing imports. No context engine or generated index is required for contributions.
 
 CI renders Expo public configuration after verification and reuses that same-run artifact for snapshot packaging; the snapshot job does not reinstall dependencies.
+
+Keep Graphify artifacts local and ignored. When `graphify-out/graph.json` exists, use a scoped `graphify query "question"` before browsing source, then run `graphify update .` after code changes. Generated graphs, reports and dated archives are not application source or review artifacts.

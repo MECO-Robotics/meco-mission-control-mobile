@@ -9,6 +9,7 @@ import type { Member } from "../../types/domain";
 import type { AppScreenProps } from "../types";
 import { RosterMemberDetail } from "./RosterMemberDetail";
 import { rosterMemberDetailStyles } from "./rosterMemberDetailStyles";
+import { AttendanceScreen } from "../dashboard/AttendanceScreen";
 
 function getInitials(name: string) {
   const initials = name
@@ -29,7 +30,7 @@ export function RosterScreen(props: AppScreenProps) {
   const {
     appResponsiveStyles,
     canMentorApprove,
-    disciplinesById,
+    responsibleGroups,
     openCreateMemberEditor,
     openEditMemberEditor,
     rosterExternal,
@@ -45,9 +46,7 @@ export function RosterScreen(props: AppScreenProps) {
         (member) => member.id === selectedMemberId,
       )
     : null;
-  const selectedMemberDisciplineName = selectedMember?.disciplineId
-    ? disciplinesById[selectedMember.disciplineId]?.name ?? null
-    : null;
+  const selectedMemberResponsibleGroups = selectedMember ? responsibleGroups.filter((group) => group.memberIds.includes(selectedMember.id)).map((group) => group.name).join(", ") : "";
   const closeMemberDetails = () => setSelectedMemberId(null);
 
   const renderRosterSection = (
@@ -89,9 +88,7 @@ export function RosterScreen(props: AppScreenProps) {
 
         {memberList.map((member) => {
           const isSelected = selectedMemberId === member.id;
-          const disciplineName = member.disciplineId
-            ? disciplinesById[member.disciplineId]?.name
-            : null;
+          const groupNames = responsibleGroups.filter((group) => group.memberIds.includes(member.id)).map((group) => group.name).join(", ");
 
           return (
             <View key={member.id} style={rosterMemberDetailStyles.rosterItem}>
@@ -121,10 +118,10 @@ export function RosterScreen(props: AppScreenProps) {
                     {member.name}
                   </Text>
                   <Text style={[styles.memberRole, { color: themeColors.subtleText }]}>
-                    {member.email || disciplineName || formatRole(member.role)}
+                    {member.email || groupNames || formatRole(member.role)}
                   </Text>
                   <Text style={[styles.memberRole, { color: themeColors.subtleText }]}>
-                    {tasks.filter((task) => task.ownerId === member.id && task.status !== "complete").length} open tasks · {member.plannedWeeklyAttendanceHours === undefined ? "Availability not set" : `${member.plannedWeeklyAttendanceHours}h/week availability`}
+                    {tasks.filter((task) => (task.ownerId === member.id || task.assigneeIds.includes(member.id)) && task.status !== "complete").length} open tasks · {member.plannedWeeklyAttendanceHours === undefined ? "Availability not set" : `${member.plannedWeeklyAttendanceHours}h/week availability`}
                   </Text>
                 </View>
                 {member.role === "lead" || member.role === "admin" ? (
@@ -152,10 +149,11 @@ export function RosterScreen(props: AppScreenProps) {
           { label: "External access", value: String(rosterExternal.length) },
         ]}
       />
-
       {renderRosterSection("Students", rosterStudents, "student")}
       {renderRosterSection("Mentors", rosterMentors, "mentor")}
       {renderRosterSection("External access", rosterExternal, "external")}
+
+      <AttendanceScreen {...props} />
 
       <Modal
         animationType="fade"
@@ -176,9 +174,9 @@ export function RosterScreen(props: AppScreenProps) {
               {selectedMember ? (
                 <RosterMemberDetail
                   canMentorApprove={canMentorApprove}
-                  disciplineName={selectedMemberDisciplineName}
+                  responsibleGroupNames={selectedMemberResponsibleGroups}
                   member={selectedMember}
-                  tasks={tasks.filter((task) => task.ownerId === selectedMember.id && task.status !== "complete")}
+                  tasks={tasks.filter((task) => (task.ownerId === selectedMember.id || task.assigneeIds.includes(selectedMember.id)) && task.status !== "complete")}
                   onClose={closeMemberDetails}
                   onEdit={openEditMemberEditor}
                   themeColors={themeColors}

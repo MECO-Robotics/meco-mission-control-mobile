@@ -54,5 +54,5 @@ yarn-error.*
 !.codex/environments/environment.toml
 .codex_*.json
 
-# Graphify semantic extraction cache
-/graphify-out/cache/
+# Local Graphify knowledge graph and extraction cache
+/graphify-out/

@@ -50,18 +50,6 @@ async function readRemoteContract(url, token) {
   }
 }
 
-function uniqueBranches(branches) {
-  const seen = new Set();
-  const out = [];
-  for (const branch of branches) {
-    if (!seen.has(branch)) {
-      seen.add(branch);
-      out.push(branch);
-    }
-  }
-  return out;
-}
-
 async function resolvePlatformSourceContract() {
   const explicitPath = process.env.PLATFORM_BOOTSTRAP_CONTRACT_SOURCE_PATH;
   if (explicitPath) {
@@ -83,43 +71,12 @@ async function resolvePlatformSourceContract() {
     process.env.PLATFORM_BOOTSTRAP_CONTRACT_URL ??
     `https://raw.githubusercontent.com/MECO-Robotics/meco-mission-control-platform/%s/contracts/platform/bootstrap/v1/contract.json`;
 
-  const primaryBranch = process.env.PLATFORM_BOOTSTRAP_CONTRACT_BRANCH ?? "development";
-  const fallbackBranches = uniqueBranches([primaryBranch, "development", "main"]);
+  const branch = process.env.PLATFORM_BOOTSTRAP_CONTRACT_BRANCH ?? "development";
+  const remoteUrl = remoteContractUrlTemplate.includes("%s")
+    ? remoteContractUrlTemplate.replace("%s", encodeURIComponent(branch))
+    : `${remoteContractUrlTemplate}${remoteContractUrlTemplate.includes("?") ? "&" : "?"}ref=${encodeURIComponent(branch)}`;
+  return { source: `remote ${remoteUrl}`, contract: await readRemoteContract(remoteUrl, token) };
 
-  const errors = [];
-  for (const branch of fallbackBranches) {
-    const remoteUrl = remoteContractUrlTemplate.includes("%s")
-      ? remoteContractUrlTemplate.replace("%s", encodeURIComponent(branch))
-      : `${remoteContractUrlTemplate}${remoteContractUrlTemplate.includes("?") ? "&" : "?"}ref=${encodeURIComponent(branch)}`;
-
-    try {
-      const contract = await readRemoteContract(remoteUrl, token);
-      return {
-        source: `remote ${remoteUrl}`,
-        contract,
-      };
-    } catch (error) {
-      errors.push(error.message ?? String(error));
-    }
-  }
-
-  const siblingPath = path.resolve(
-    process.cwd(),
-    "..",
-    "meco-mission-control-platform",
-    "contracts/platform/bootstrap/v1/contract.json",
-  );
-  try {
-    const contract = await readJson(siblingPath);
-    return {
-      source: `local sibling ${siblingPath}`,
-      contract,
-    };
-  } catch (error) {
-    errors.push(error.message ?? String(error));
-  }
-
-  throw new Error(errors.join("; "));
 }
 
 async function main() {
@@ -128,7 +85,8 @@ async function main() {
   try {
     source = await resolvePlatformSourceContract();
   } catch (error) {
-    if (process.env.CI === "true") {
+    if (process.env.CI === "true" || process.env.PLATFORM_BOOTSTRAP_CONTRACT_SOURCE_PATH ||
+        process.env.PLATFORM_BOOTSTRAP_CONTRACT_BRANCH || process.env.PLATFORM_BOOTSTRAP_CONTRACT_URL) {
       throw error;
     }
 

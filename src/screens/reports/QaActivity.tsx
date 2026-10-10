@@ -1,3 +1,5 @@
+import { Callout } from "../../ui/Callout";
+import { ActionButton } from "../../ui/ActionButton";
 import { useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
 
@@ -16,6 +18,7 @@ import {
 
 import type { AppScreenProps } from "../types";
 import { QaReviewDetail } from "./QaReviewDetail";
+import { getQaReviewTaskId } from "../../app/appModel";
 
 const QA_FIX_SIZE_RANK: Record<string, number> = {
   "iteration-worthy": 0,
@@ -38,7 +41,7 @@ export function QaActivity(props: AppScreenProps & { mode: "pending" | "history"
     membersById,
     openCreateQaReportEditor,
     qaRequests,
-    qaReviews,
+    qaReports,
     rosterMentors,
     taskById,
     taskDependencies,
@@ -66,10 +69,10 @@ export function QaActivity(props: AppScreenProps & { mode: "pending" | "history"
   const canSubmitQaRequest = Boolean(
     (qaRequestDraft.subject.trim() || qaRequestDraft.taskId) && qaRequestDraft.mentorId,
   );
-  const selectedQaReview = qaReviews.find((review) => review.id === selectedQaReviewId);
+  const selectedQaReview = qaReports.find((review) => review.id === selectedQaReviewId);
   const sortedQaReviews = useMemo(
     () =>
-      [...qaReviews].sort((left, right) => {
+      [...qaReports].sort((left, right) => {
         const createdDelta =
           ((right as typeof right & { createdAt?: string }).createdAt ?? right.id)
             .localeCompare((left as typeof left & { createdAt?: string }).createdAt ?? left.id);
@@ -77,8 +80,10 @@ export function QaActivity(props: AppScreenProps & { mode: "pending" | "history"
           return createdDelta;
         }
 
-        const leftTask = left.taskId ? taskById[left.taskId] : null;
-        const rightTask = right.taskId ? taskById[right.taskId] : null;
+        const leftTaskId = getQaReviewTaskId(left);
+        const rightTaskId = getQaReviewTaskId(right);
+        const leftTask = leftTaskId ? taskById[leftTaskId] : null;
+        const rightTask = rightTaskId ? taskById[rightTaskId] : null;
         const dependencyDelta =
           taskDependencies.filter((edge) => edge.taskId === rightTask?.id).length - taskDependencies.filter((edge) => edge.taskId === leftTask?.id).length;
         if (dependencyDelta !== 0) {
@@ -90,9 +95,9 @@ export function QaActivity(props: AppScreenProps & { mode: "pending" | "history"
           return fixSizeDelta;
         }
 
-        return left.subjectTitle.localeCompare(right.subjectTitle);
+        return left.summary.localeCompare(right.summary);
       }),
-    [qaReviews, taskById, taskDependencies],
+    [qaReports, taskById, taskDependencies],
   );
   const submitQaRequest = () => {
     if (!canSubmitQaRequest) {
@@ -110,9 +115,13 @@ const renderScreen = () => {
       title={props.mode === "pending" ? "Pending QA" : props.mode === "history" ? "QA results" : "Help requests"}
       subtitle={props.mode === "pending" ? "Requests awaiting review." : props.mode === "history" ? "Review outcomes, evidence, and follow-up." : "Requests for mentor support."}
       actions={props.mode === "pending" ?
-        <Pressable onPress={() => setIsQaRequestOpen(true)} style={[styles.primaryAction, appResponsiveStyles.primaryAction]}>
-          <Text style={[styles.primaryActionLabel, appResponsiveStyles.primaryActionLabel]}>Request QA</Text>
-        </Pressable> : undefined
+        <ActionButton
+          onPress={() => setIsQaRequestOpen(true)}
+          variant="primary"
+          responsiveStyles={appResponsiveStyles}
+        >
+          Request QA
+        </ActionButton> : undefined
       }
     >
 
@@ -208,12 +217,13 @@ const renderScreen = () => {
       <Text style={[styles.subsectionLabel, appResponsiveStyles.subsectionLabel]}>QA requests</Text>
       <View style={styles.reportGrid}>
         {qaRequests.map((request) => {
-          const mentor = membersById[request.mentorId]?.name ?? "Unassigned mentor";
+          const mentor = request.mentorId ? membersById[request.mentorId]?.name ?? "Unknown mentor" : "Unassigned mentor";
           const requester = request.requestedById
             ? membersById[request.requestedById]?.name
             : null;
           const requesterLabel = requester ?? "Unknown student";
-          const linkedTask = request.taskId ? taskById[request.taskId] : null;
+          const linkedTaskId = request.targetRefs.find((target) => target.kind === "task")?.id;
+          const linkedTask = linkedTaskId ? taskById[linkedTaskId] : null;
 
           return (
             <View key={request.id} style={[styles.queueRowCard, appResponsiveStyles.rowCard]}>
@@ -286,9 +296,9 @@ const renderScreen = () => {
             >
               <View style={styles.queueRowHeader}>
                 <View style={styles.queueRowPrimaryText}>
-                  <Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>{review.subjectTitle}</Text>
+                  <Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>{review.summary || getQaReviewTaskId(review) || "QA report"}</Text>
                   <Text style={[styles.queueRowSubtitle, appResponsiveStyles.rowSubtitle]}>
-                    {requester} - mentor {review.mentorApproved ? "approved" : "pending"}
+                    {requester} - {review.status}
                   </Text>
                 </View>
                 <StatusPill label={formatQaStatus(review.result)} value={review.result} />
@@ -300,12 +310,11 @@ const renderScreen = () => {
                 </Text>
               ) : null}
               {review.result === "iteration-worthy" ? (
-                <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-                  <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>Iteration</Text>
-                  <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                    This finding should create or anchor a design iteration.
-                  </Text>
-                </View>
+                <Callout
+                  responsiveStyles={appResponsiveStyles}
+                  title="Iteration"
+                  body="This finding should create or anchor a design iteration."
+                />
               ) : null}
             </Pressable>
           );

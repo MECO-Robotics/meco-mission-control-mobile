@@ -1,8 +1,7 @@
 import type { Task, TaskDependency } from "../types/domain";
 
 export function isTaskBlocked(task: Pick<Task, "isBlocked" | "isWaitingOnDependency">) {
-  // Missing projection is not permission to start work.
-  return task.isBlocked !== false || task.isWaitingOnDependency !== false;
+  return task.isBlocked === true || task.isWaitingOnDependency === true;
 }
 export function hasOpenTaskDependency(task: Pick<Task, "isWaitingOnDependency">) {
   return task.isWaitingOnDependency === true;

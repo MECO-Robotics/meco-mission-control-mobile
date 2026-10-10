@@ -6,12 +6,11 @@ The app is an Expo/React Native application with TypeScript. `App.tsx` composes 
 
 - `App.tsx`: auth, bootstrap loading, mutation orchestration, navigation state, editor modal orchestration, derived summaries, and root workspace state.
 - `index.ts`: Expo entry point.
-- `src/screens/`: shared screen prop types plus feature folders for dashboard, tasks, work logs, manufacturing, inventory, reports, robot systems/risks, attendance, and roster screens.
+- `src/screens/`: shared screen prop types plus feature folders for dashboard, Kanban, Schedule, Documents, QA/Reports, Risks, inventory, robot structure, work logs, and roster screens.
 - `src/app/`: app-shell helpers, root-level presentation components, and editor modal components extracted from `App.tsx`.
 - `src/ui/`: shared UI components, editor widgets, selection widgets, helpers, responsive metrics, theme context, constants, and styles.
 - `src/ui/landscapeTimeline/`: landscape timeline and calendar-specific model, palette, components, and styles.
-- `src/data/`: API helper, mock snapshot, and seeded task data.
-- `src/data/tasks/`: seeded discipline-specific tasks.
+- `src/data/`: API helpers; representative workspace fixtures live under `src/data/__tests__/fixtures/` and are excluded from runtime bundles.
 - `src/types/`: domain types for API payloads and in-app entities.
 - `src/services/`: auth-session storage, work-log draft sync, work-log timer notifications, and durable work-log queue ownership.
 - `src/i18n/`: localization provider, dictionaries, and demo dictionaries.
@@ -19,20 +18,24 @@ The app is an Expo/React Native application with TypeScript. `App.tsx` composes 
 
 ## State Ownership
 
-The workspace composition retains these arrays; task updates go through the task snapshot owner:
+The workspace composition retains canonical platform collections; Task updates go through the task snapshot owner:
 
+- seasons and projects
+- work types, responsible groups, and workstreams
 - members
 - subsystems
-- disciplines
 - mechanisms
+- materials
 - part definitions
 - part instances
 - tasks
-- events/milestones
+- task dependencies
+- meetings, events, and milestones
+- manufacturing process catalog
+- purchase items and vendors
+- risks
+- reports, QA requests, findings, and artifacts
 - work logs
-- manufacturing items
-- purchase items
-- QA requests and reports
 
 It then derives filtered lists, lookup maps, summary chips, and navigation counts before passing them into screens.
 
@@ -47,28 +50,19 @@ Screens are mostly presentational. They receive:
 - action callbacks for create/edit/status transitions,
 - shared responsive styles and theme colors.
 
-Task queue filters belong to `useTaskQueue`; the task editor owns draft state, relationship commands and save errors. The root passes the editor owner directly to its modal rather than forwarding individual setters.
+Kanban filters belong to `useTaskQueue`; `useTaskEditor` owns Task draft state, relationship commands, and optional nested ManufacturingDetails. Manufacturing has no second mobile work queue or independent status. `useMilestoneEditor` owns Milestone records; Schedule presentations combine Meeting, Event, and Milestone records while preserving each type and ID, and project Task deadlines from `dueDate`. `usePurchaseEditor` edits PurchaseItem commercial state, including quotes, approval, orders, delivery, and tracking. The Risks screen edits canonical Risk records through the platform risk routes. Feature editors share only `useEditorDraft` lifecycle transitions; field validation and persistence stay with each owner. Part definitions keep the default acquisition method, while actual inventory, manufacturing Tasks, and PurchaseItems remain separate linked state.
 
 ## Navigation
 
-The app uses local state for navigation rather than a router. Primary tabs are:
+The app uses compact local navigation rather than a router. Bottom tabs group the domains:
 
 - Home
-- Attendance
-- Tasks
-- Logs
-- Manufacturing
-- Inventory
-- QA
-- Risks
-- Subsystems
-- Roster
+- Work
+- Resources
 
-Some tabs expose subtabs:
+Work exposes Kanban, Schedule, Risks, Documents, QA / Reports, and Activity. Schedule offers Agenda, Calendar, and Timeline; QA / Reports offers pending review, reports, and mentor-help requests. Resources contains People, Materials, Parts, Purchasing, and Robot structure.
 
-- Tasks: timeline, queue, milestones.
-- Manufacturing: CNC, 3D print, fabrication.
-- Inventory: materials, parts, purchases.
+Calendar, Timeline, and Agenda present Meeting, Event, and Milestone records plus dated Task work while retaining each stored identity. Kanban remains the only human execution queue.
 
 Swipe responders in `App.tsx` support tab/subtab gestures.
 
@@ -87,7 +81,7 @@ shown for a newly restored account until bootstrap succeeds; authentication or
 authorization failure clears credentials and identity-scoped workspace state.
 
 Mutations use a shared `runMutation` path in `App.tsx`: submit the request,
-refresh `/api/bootstrap`, and update sync status. Task editor commands save the task and canonical dependency/blocker records, retain a newly created ID on partial failure, and refresh the snapshot after success. Work-log queue operations use `workLogQueue.ts` for serialized durable writes and session-scoped upload ownership, `workLogDraftSync.ts` for ID transformations, and `workLogDraftStorage.ts` for owner-bound authenticated encryption and seven-day retention. Upload completion changes only the submitted ID; subsequent edits remain queued.
+refresh `/api/bootstrap`, and update sync status. Task editor commands save the Task and typed dependency relationships, retain a newly created ID on partial failure, and refresh the snapshot after success. Blocked/readiness state is derived; canonical unresolved problems are Risk records. Work-log queue operations use `workLogQueue.ts` for serialized durable writes and session-scoped upload ownership, `workLogDraftSync.ts` for ID transformations, and `workLogDraftStorage.ts` for owner-bound authenticated encryption and seven-day retention. Upload completion changes only the submitted ID; subsequent edits remain queued.
 
 ## Work Timer Services
 
@@ -99,4 +93,14 @@ Timer elapsed-time formatting and display ticking belong to `src/screens/worklog
 
 Most shared styles live in `src/ui/styles.ts`. Feature-specific styles can live with their component, such as the login screen styles under `src/app/components/`. Landscape timeline styles are split into dedicated modules under `src/ui/landscapeTimeline/`. Responsive sizing comes from `src/ui/responsive.ts`, and theme values come from `src/theme.ts` plus `src/ui/themeContext.tsx`.
 
+`src/ui/ActionButton.tsx` owns shared primary and quick-action markup and responsive style composition. `src/ui/Callout.tsx` owns the shared title/body presentation used by screens and editors. Both are stateless and retain localized text rendering; feature owners keep permissions, selection, navigation, mutation commands and failure lifetimes. Distinct approval and pagination controls retain their specialized presentation.
+
 Follow `AGENTS.md`: co-own feature state and commands, delete redundant layers and use cohesive responsibilities rather than file-size quotas.
+
+Editor lifecycle completion handles both success and failure only for the initiating draft. Feature controllers supply validation and operation messages; modal consumers receive draft state and user commands, not lifecycle completion or error setters.
+
+Tasks use required `workstreamIds`, `subsystemIds`, `mechanismIds`, `partInstanceIds` and `artifactIds` arrays throughout the domain, seeds, drafts and API writes. Singular task target fields are removed; other entities retain their own singular relationship fields. Filters, subsystem health, part lifecycle and timeline membership use all selected targets. The mobile editor displays the first target and preserves secondary branches during unrelated edits. Its explicit subsystem/mechanism selection commands prune children of a replaced primary branch while retaining other branches; clearing a primary promotes the remaining selection. Workstream and artifact selections are retained independently. This requires the coordinated array-only platform contract; no development-state reset is required by the mobile change.
+
+Authenticated responses and bootstrap publication both check the initiating session generation. Credential rotation coalesces only within that generation, so a previous account cannot hold up a new account’s refresh. Only the latest bootstrap request may publish; its superseded responses and errors are ignored. Shared bootstrap, refresh and mutation completion ignore responses and status updates from a previous session. Accepted mutations remain saved when a subsequent bootstrap refresh fails; the create draft closes and sync status reports the refresh error separately. Authentication rejection still clears identity-scoped editors. Batch task date shifts settle every write before refreshing the authoritative snapshot, including partial failures; unconfirmed dates are not shown optimistically.
+
+Task QA requests use one `POST /api/qa-requests` command with a task target. The client retains an assigned mentor only when eligible for the task’s season, otherwise selects an active mentor or reports that one must be assigned. The platform atomically creates the request and transitions the task to waiting for QA; bootstrap remains the owner of the persisted request identity. Task start also keeps the authoritative status until its write is accepted.

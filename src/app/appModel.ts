@@ -6,19 +6,16 @@ import {
 } from "../data/api";
 import type { PendingWorkLogDraft } from "../services/workLogDraftSync";
 import type {
-  BootstrapMilestone,
   Event,
-  EventType,
-  PlatformBootstrapPayload,
-  QaReview,
+  Meeting,
+  Milestone,
+  QaReport,
+  RiskSeverity,
   SessionUser,
   Subsystem,
   Task,
-  ServerTask,
-  TaskPriority,
   WorkLog,
 } from "../types/domain";
-import type { AttendanceStatus, RiskPriority } from "../types/status";
 import type { WorkLogListItem } from "../screens/types";
 
 export const REQUIRED_EMAIL_DOMAIN = "mecorobotics.org";
@@ -31,31 +28,11 @@ export type BackendReachability = "unknown" | "reachable" | "unreachable";
 export type WorkLogMutationResponse = {
   item?: WorkLog;
 };
-export type MilestoneMutationResponse = {
-  item?: BootstrapMilestone;
-};
-
-export const RISK_PRIORITY_RANK: Record<RiskPriority, number> = {
-  high: 0,
-  medium: 1,
-  low: 2,
-};
-
-export const ATTENDANCE_STATUS_BY_MEMBER_ID: Record<string, AttendanceStatus> = {
-  ava: "yes",
-  ethan: "maybe",
-  jordan: "yes",
-  lucas: "no",
-  maya: "yes",
-  priya: "maybe",
-  riley: "yes",
-  noah: "yes",
-  zoe: "maybe",
-  diego: "yes",
-  emma: "yes",
-  samira: "yes",
-  caleb: "maybe",
-  nina: "yes",
+export const RISK_PRIORITY_RANK: Record<RiskSeverity, number> = {
+  critical: 0,
+  high: 1,
+  medium: 2,
+  low: 3,
 };
 
 export const PLANNED_ATTENDANCE_DAY_OPTIONS = [
@@ -67,59 +44,6 @@ export const PLANNED_ATTENDANCE_DAY_OPTIONS = [
   { id: "saturday", label: "Sat" },
   { id: "sunday", label: "Sun" },
 ] as const;
-
-export const REQUIRED_TASK_SUBSYSTEMS: Subsystem[] = [
-  {
-    id: "climber",
-    name: "Climber",
-    description: "Endgame lift, latch, and climb release mechanisms.",
-    isCore: false,
-    parentSubsystemId: null,
-    responsibleEngineerId: "priya",
-    mentorIds: ["jordan"],
-    risks: ["Hook alignment", "Winch load margin"],
-  },
-  {
-    id: "controls",
-    name: "Controls",
-    description: "Robot software, safety, and autonomous logic.",
-    isCore: false,
-    parentSubsystemId: "drive",
-    responsibleEngineerId: "ethan",
-    mentorIds: ["riley"],
-    risks: ["Auto safety interlocks"],
-  },
-  {
-    id: "drive",
-    name: "Drivetrain",
-    description: "Core drivetrain, chassis interfaces, and shared base electronics.",
-    isCore: true,
-    parentSubsystemId: null,
-    responsibleEngineerId: "ava",
-    mentorIds: ["jordan"],
-    risks: ["Sensor drift", "Cable clearance"],
-  },
-  {
-    id: "manipulator",
-    name: "Manipulator",
-    description: "Intake, handling, and game-piece interaction hardware.",
-    isCore: false,
-    parentSubsystemId: "drive",
-    responsibleEngineerId: "lucas",
-    mentorIds: ["riley"],
-    risks: ["Chain wear", "Assembly tolerance"],
-  },
-  {
-    id: "vision",
-    name: "Vision",
-    description: "Camera targeting, pose estimation, and visual feedback.",
-    isCore: false,
-    parentSubsystemId: "drive",
-    responsibleEngineerId: "ethan",
-    mentorIds: ["riley"],
-    risks: ["Camera calibration", "Lighting variability"],
-  },
-];
 
 export function shouldQueueWorkLogDraftAfterError(error: unknown) {
   return (
@@ -151,10 +75,6 @@ export function buildSubsystemOptions(subsystems: Subsystem[]) {
     id: subsystem.id,
     name: subsystem.name,
   }));
-}
-
-export function normalizeTaskSubsystems(currentSubsystems: Subsystem[]) {
-  return currentSubsystems.length > 0 ? currentSubsystems : REQUIRED_TASK_SUBSYSTEMS;
 }
 
 export function parseClientError(error: unknown) {
@@ -214,61 +134,35 @@ export function buildTaskById(tasks: Task[]) {
   return Object.fromEntries(tasks.map((task) => [task.id, task])) as Record<string, Task>;
 }
 
-export function getQaReviewTaskId(review: QaReview) {
-  if (review.taskId) {
-    return review.taskId;
-  }
-
-  return review.subjectType === "task" && review.subjectId ? review.subjectId : null;
-}
-
-export function getOptionalCreatedAt(item: { id: string; createdAt?: string }) {
-  return item.createdAt ?? item.id;
+export function getQaReviewTaskId(report: QaReport) {
+  return report.targetRefs.find((target) => target.kind === "task")?.id ?? null;
 }
 
 export function ensureArray<T>(value: T[] | undefined | null): T[] {
   return Array.isArray(value) ? value : [];
 }
 
-export function normalizeTaskFromServer({ targetMilestoneId, ...task }: ServerTask): Task {
-  return { ...task, targetEventId: targetMilestoneId };
-}
+export function mapTaskPayloadToServer<T>(payload: T) { return payload; }
 
-export function mapTaskPayloadToServer<T extends { targetEventId?: string | null }>(
-  payload: T,
-) {
-  const { targetEventId, ...serverPayload } = payload;
+export type ScheduleEntry = {
+  id: string;
+  recordType: "meeting" | "event" | "milestone";
+  title: string;
+  type: string;
+  startDateTime: string;
+  endAt: string | null;
+  description: string;
+  projectIds: string[];
+};
 
-  return {
-    ...serverPayload,
-    targetMilestoneId: targetEventId ?? null,
-  };
-}
-
-export function mapTaskPriorityToRiskPriority(priority: TaskPriority): RiskPriority {
-  if (priority === "critical" || priority === "high") {
-    return "high";
-  }
-
-  return priority === "low" ? "low" : "medium";
-}
-
-export function mapMilestoneTypeToEventType(type: string | undefined): EventType {
-  switch (type) {
-    case "practice":
-      return "drive-practice";
-    case "competition":
-    case "deadline":
-    case "internal-review":
-    case "demo":
-      return type;
-    default:
-      return "deadline";
-  }
-}
-
-export function mapEventTypeToMilestoneType(type: EventType) {
-  return type === "drive-practice" ? "practice" : type;
+export function buildScheduleEntries(
+  meetings: Meeting[], events: Event[], milestones: Milestone[],
+): ScheduleEntry[] {
+  return [
+    ...meetings.map((item) => ({ id: item.id, recordType: "meeting" as const, title: item.title, type: item.meetingType, startDateTime: item.startAt, endAt: item.endAt, description: item.description, projectIds: item.projectIds })),
+    ...events.map((item) => ({ id: item.id, recordType: "event" as const, title: item.title, type: item.eventType, startDateTime: item.startAt, endAt: item.endAt, description: item.description, projectIds: item.projectIds })),
+    ...milestones.map((item) => ({ id: item.id, recordType: "milestone" as const, title: item.title, type: item.type, startDateTime: item.startAt, endAt: item.endAt, description: item.description, projectIds: item.projectIds })),
+  ];
 }
 
 export function getPhotoFileName(value: string) {
@@ -309,39 +203,4 @@ export function isWorkLogDraftOwnedBy(
   ownerKey: string | null,
 ) {
   return (draft.ownerKey ?? null) === ownerKey;
-}
-
-export function mapMilestonesToEvents(payload: PlatformBootstrapPayload): Event[] {
-  const subsystems = ensureArray(payload.subsystems);
-
-  return ensureArray(payload.milestones).map((milestone) => ({
-    id: milestone.id,
-    title: milestone.title,
-    type: mapMilestoneTypeToEventType(milestone.type),
-    startDateTime: milestone.startDateTime,
-    endDateTime: milestone.endDateTime,
-    isExternal: milestone.isExternal,
-    description: milestone.description,
-    relatedSubsystemIds:
-      milestone.relatedSubsystemIds ??
-      subsystems
-        .filter((subsystem) => ensureArray(milestone.projectIds).includes(subsystem.projectId ?? ""))
-        .map((subsystem) => subsystem.id),
-  }));
-}
-
-export function applyMilestoneSubsystemLinks(
-  currentEvents: Event[],
-  milestone: BootstrapMilestone | undefined,
-  fallbackMilestoneId: string | null,
-  relatedSubsystemIds: string[],
-) {
-  const milestoneId = milestone?.id ?? fallbackMilestoneId;
-  if (!milestoneId) {
-    return currentEvents;
-  }
-
-  return currentEvents.map((event) =>
-    event.id === milestoneId ? { ...event, relatedSubsystemIds } : event,
-  );
 }

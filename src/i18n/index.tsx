@@ -3,7 +3,7 @@ import { createContext, useContext, useMemo } from "react";
 import { Text as NativeText, type TextProps } from "react-native";
 
 import { getDeviceLocale, setAppLocaleOverride } from "../ui/helpers";
-import { languageNames, rtlLanguages, translations, type LanguageCode } from "./translations";
+import { rtlLanguages, translations, type LanguageCode } from "./translations";
 
 type I18nContextValue = {
   isRtl: boolean;
@@ -202,5 +202,4 @@ export function Text({ children, ...props }: TextProps) {
   );
 }
 
-export { languageNames };
 export type { LanguageCode };

@@ -10,3 +10,4 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) for commands and the shared contribution
 - Preserve intended behavior with relevant checks from CONTRIBUTING. Do not duplicate validation already performed by `verify`, invent test-count targets or claim checks that did not run.
 - Stage only in-scope changes. Report validation results, limitations and any development state discarded.
 - Shared skills and context engines are optional. Import or run them only when they help the task; never require generated context as onboarding.
+- Before making any code or configuration modification, invoke the Moyu skill and apply its scope checklist. This is mandatory for every LLM-assisted modification, regardless of size.

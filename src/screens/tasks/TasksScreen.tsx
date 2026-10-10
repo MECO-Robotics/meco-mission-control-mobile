@@ -1,29 +1,42 @@
 import { View } from "react-native";
-import { TASK_SUBTEAM_OPTIONS } from "../../ui/constants";
 import { LandscapeSubsystemTimeline } from "../../ui/landscapeTimeline/LandscapeSubsystemTimeline";
 import { DropdownField } from "../../ui/ui";
 
 import type { TaskScreenProps } from "./taskScreenTypes";
-import { TaskMilestonesScreen } from "./TaskMilestonesScreen";
+import { ScheduleAgendaScreen } from "./ScheduleAgendaScreen";
+import { ScheduleCalendarScreen } from "./ScheduleCalendarScreen";
 import { TaskQueueScreen } from "./TaskQueueScreen";
 import { TaskTimelineScreen } from "./TaskTimelineScreen";
 
 export function TasksScreen(props: TaskScreenProps) {
   const {
-    activeTaskSubteam,
+    activeResponsibleGroupId,
+    responsibleGroups,
     events,
     isLandscapeTimelineLayout,
     openCreateDeadlineEditor,
     openCreateTaskEditor,
     openEditTaskEditor,
-    setActiveTaskSubteam,
+    setActiveResponsibleGroupId,
     subsystems,
-    taskView,
+    workspaceView,
     themeColors,
     timelineTasks,
   } = props;
 
-  if (isLandscapeTimelineLayout && taskView === "timeline") {
+  if (workspaceView.domain === "schedule" && workspaceView.presentation === "calendar") {
+    return <ScheduleCalendarScreen
+      appResponsiveStyles={props.appResponsiveStyles}
+      events={props.events}
+      tasks={props.tasks}
+      membersById={props.membersById}
+      projects={props.projects}
+      openCreateMilestoneEditor={props.openCreateMilestoneEditor}
+      openEditMilestoneEditor={props.openEditMilestoneEditor}
+    />;
+  }
+
+  if (workspaceView.domain === "schedule" && workspaceView.presentation === "timeline" && isLandscapeTimelineLayout) {
     return (
       <LandscapeSubsystemTimeline
         colors={themeColors}
@@ -39,16 +52,16 @@ export function TasksScreen(props: TaskScreenProps) {
 
   return (
     <>
-      {taskView !== "milestones" ? <View style={{ paddingHorizontal: 20 }}>
-        <DropdownField label="Discipline" value={activeTaskSubteam}
-          onChange={(value) => setActiveTaskSubteam(value as typeof activeTaskSubteam)}
-          options={TASK_SUBTEAM_OPTIONS.map(({ value, label }) => ({ id: value, name: label }))} />
+      {workspaceView.domain === "schedule" && workspaceView.presentation === "timeline" ? <View style={{ paddingHorizontal: 20 }}>
+        <DropdownField label="Responsible group" value={activeResponsibleGroupId}
+          onChange={(value) => setActiveResponsibleGroupId(value as typeof activeResponsibleGroupId)}
+          options={[{ id: "all", name: "All groups" }, ...responsibleGroups.filter((group) => !group.isArchived).map((group) => ({ id: group.id, name: group.name }))]} />
       </View> : null}
-      {taskView === "timeline"
+      {workspaceView.domain === "schedule" && workspaceView.presentation === "timeline"
         ? <TaskTimelineScreen {...props} />
-        : taskView === "queue"
+        : workspaceView.domain === "kanban"
           ? <TaskQueueScreen {...props} />
-          : <TaskMilestonesScreen {...props} />}
+          : <ScheduleAgendaScreen {...props} />}
     </>
   );
 }

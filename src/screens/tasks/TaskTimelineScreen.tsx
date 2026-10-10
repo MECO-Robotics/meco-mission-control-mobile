@@ -1,3 +1,4 @@
+import { ActionButton } from "../../ui/ActionButton";
 import { Pressable, View } from "react-native";
 
 import { Text } from "../../i18n";
@@ -22,30 +23,28 @@ import type { ArchiveFilterMode } from "../../ui/types";
 import type { TaskScreenProps } from "./taskScreenTypes";
 
 type TaskTimelineScreenProps = Pick<TaskScreenProps,
-  | "activeTaskSubteamLabel" | "appResponsiveStyles" | "eventOptions"
+  | "activeResponsibleGroupLabel" | "appResponsiveStyles" | "eventOptions"
   | "eventsById" | "membersById" | "openCreateTaskEditor"
-  | "openEditTaskEditor" | "setTaskArchiveFilter" | "setTimelineMilestoneFilter"
+  | "openEditTaskEditor" | "setTimelineMilestoneFilter"
   | "setTimelineSubsystemFilter" | "subsystems" | "subsystemsById"
-  | "taskArchiveFilter" | "taskSummary" | "timelineMilestoneFilter"
+  | "queue" | "timelineMilestoneFilter"
   | "timelineSubsystemFilter" | "timelineTasks"
 >;
 
 export function TaskTimelineScreen(props: TaskTimelineScreenProps) {
   const {
-    activeTaskSubteamLabel,
+    activeResponsibleGroupLabel,
     appResponsiveStyles,
     eventOptions,
     eventsById,
     membersById,
     openCreateTaskEditor,
     openEditTaskEditor,
-    setTaskArchiveFilter,
     setTimelineMilestoneFilter,
     setTimelineSubsystemFilter,
     subsystems,
     subsystemsById,
-    taskArchiveFilter,
-    taskSummary,
+    queue,
     timelineMilestoneFilter,
     timelineSubsystemFilter,
     timelineTasks,
@@ -53,12 +52,16 @@ export function TaskTimelineScreen(props: TaskTimelineScreenProps) {
 
   return (
     <WorkspacePanel
-      title={`${activeTaskSubteamLabel} timeline`}
-      subtitle="Calendar-ordered milestones and ownership cues for the selected subteam."
+      title={`${activeResponsibleGroupLabel} timeline`}
+      subtitle="Schedule-ordered milestones and ownership cues for the selected responsible group."
       actions={
-        <Pressable onPress={openCreateTaskEditor} style={[styles.primaryAction, appResponsiveStyles.primaryAction]}>
-          <Text style={[styles.primaryActionLabel, appResponsiveStyles.primaryActionLabel]}>Add task</Text>
-        </Pressable>
+        <ActionButton
+          onPress={openCreateTaskEditor}
+          variant="primary"
+          responsiveStyles={appResponsiveStyles}
+        >
+          Add task
+        </ActionButton>
       }
     >
       <FilterToolbar>
@@ -79,20 +82,20 @@ export function TaskTimelineScreen(props: TaskTimelineScreenProps) {
         />
         <OptionChipRow
           allLabel="Any archive"
-          onChange={(value) => setTaskArchiveFilter(value as ArchiveFilterMode)}
+          onChange={(value) => queue.setFilter("taskArchiveFilter", value as ArchiveFilterMode)}
           options={ARCHIVE_FILTER_OPTIONS}
-          value={taskArchiveFilter}
+          value={queue.filters.taskArchiveFilter}
         />
       </FilterToolbar>
-      <SummaryRow chips={taskSummary} />
+      <SummaryRow chips={queue.taskSummary} />
 
       {timelineTasks.map((task) => {
         const progress = timelineProgress(task.status);
-        const subsystemName = subsystemsById[task.subsystemId]?.name ?? "Unknown";
+        const subsystemName = subsystemsById[(task.subsystemIds[0] ?? "")]?.name ?? "Unknown";
         const ownerName = task.ownerId
           ? (membersById[task.ownerId]?.name ?? "Unassigned")
           : "Unassigned";
-        const targetEvent = task.targetEventId ? eventsById[task.targetEventId]?.title : null;
+        const targetEvent = task.scheduleRefs[0] ? eventsById[`${task.scheduleRefs[0].kind}:${task.scheduleRefs[0].id}`]?.title : null;
 
         return (
           <Pressable

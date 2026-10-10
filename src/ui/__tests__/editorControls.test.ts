@@ -1,3 +1,6 @@
+import { ResolvedLocalizationProvider } from "../../i18n";
+import { ActionButton } from "../ActionButton";
+import { Callout } from "../Callout";
 import { createElement } from "react";
 import { act, fireEvent, render } from "@testing-library/react-native";
 import { EditorModal } from "../editorWidgets";
@@ -51,6 +54,20 @@ test("participants display roster names and preserve IDs through toggles", () =>
   expect(onChange).toHaveBeenLastCalledWith("");
 });
 
+test("workstream multi-select labels its planning dimension separately", () => {
+  const onChange = jest.fn();
+  const view = render(createElement(ParticipantField, {
+    label: "Workstreams",
+    options: [{ id: "robot-build", name: "Robot build" }, { id: "drive-practice", name: "Drive practice" }],
+    value: "robot-build",
+    onChange,
+  }));
+  expect(view.getByText("Workstreams")).toBeTruthy();
+  expect(view.getByRole("checkbox", { name: "Robot build" }).props.accessibilityState.checked).toBe(true);
+  fireEvent.press(view.getByRole("checkbox", { name: "Drive practice" }));
+  expect(onChange).toHaveBeenCalledWith("robot-build,drive-practice");
+});
+
 test.each([320, 375, 430, 768])("search target does not shrink at width %s", (width) => {
   expect(getResponsiveMetrics(width).controlHeight).toBeGreaterThanOrEqual(48);
   const view = render(createElement(SearchField, { placeholder: "Search tasks", value: "", onChangeText: jest.fn() }));
@@ -87,4 +104,34 @@ test("pending editors freeze field edits and reopening clears prior action error
   view.rerender(createElement(EditorModal, props, input));
   expect(view.queryByRole("alert")).toBeNull();
   expect(view.getByLabelText("Notes").props.editable).toBe(true);
+});
+
+function Spanish({ children }: { children?: React.ReactNode }) {
+  const props = { language: "es" as const, locale: "es-ES", children };
+  return createElement(ResolvedLocalizationProvider, props);
+}
+
+test("shared actions preserve localized labels and disabled command boundaries", () => {
+  const onPress = jest.fn();
+  const control = (disabled: boolean) => {
+    const props = {
+      variant: "quick" as const, responsiveStyles: {}, accessibilityRole: "button" as const,
+      accessibilityState: { disabled }, disabled, onPress, children: "Unassigned",
+    };
+    return createElement(ActionButton, props);
+  };
+  const view = render(control(true), { wrapper: Spanish });
+  fireEvent.press(view.getByRole("button", { name: "Sin asignar" }));
+  expect(onPress).not.toHaveBeenCalled();
+  view.rerender(control(false));
+  fireEvent.press(view.getByRole("button", { name: "Sin asignar" }));
+  expect(onPress).toHaveBeenCalledTimes(1);
+});
+
+test("shared callouts translate both plain and composed text", () => {
+  const view = render(createElement(Callout, {
+    responsiveStyles: { calloutTitle: {}, calloutBody: {}, calloutBox: {} },
+    title: "Unassigned", body: ["Un", "assigned"],
+  }), { wrapper: Spanish });
+  expect(view.getAllByText("Sin asignar")).toHaveLength(2);
 });

@@ -2,7 +2,8 @@ import { Pressable, ScrollView, View } from "react-native";
 
 import { Text, useTranslation } from "../../i18n";
 import type { AppThemeColors } from "../../theme";
-import type { Event, Subsystem, Task } from "../../types/domain";
+import type { Subsystem, Task } from "../../types/domain";
+import type { ScheduleEntry } from "../../app/appModel";
 import {
   DAY_WIDTH,
   daysBetween,
@@ -17,7 +18,7 @@ import { landscapeTimelineStyles as styles } from "./landscapeTimelineStyles";
 
 type Props = {
   colors: AppThemeColors;
-  events: Event[];
+  events: ScheduleEntry[];
   laneHeight: number;
   lanes: PackedLane[];
   locale: string;

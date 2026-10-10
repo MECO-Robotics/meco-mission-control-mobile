@@ -1,6 +1,9 @@
+import { useSubsystemBrowse } from "./src/screens/robot/useSubsystemBrowse";
+import { useMaterialsBrowse } from "./src/screens/inventory/useMaterialsBrowse";
+import { usePartsBrowse } from "./src/screens/inventory/usePartsBrowse";
+import { usePurchaseEditor } from "./src/app/editorModals/usePurchaseEditor";
+import { useMilestoneEditor, type MilestonePayload } from "./src/app/editorModals/useMilestoneEditor";
 import { formatHoursFromTimer, getWorkLogTimerElapsedMs, type WorkLogTimerState } from "./src/screens/worklogs/workLogTimer";
-import { taskBlockers as seededTaskBlockers } from "./src/data/tasks/blockers";
-import { taskDependencies as seededTaskDependencies } from "./src/data/tasks/dependencies";
 import { getAutoTaskStatus, isTaskBlocked, isTaskReadyForQaPass } from "./src/data/taskReadiness";
 import { useTaskEditor } from "./src/screens/tasks/useTaskEditor";
 import { createWorkLogQueue } from "./src/services/workLogQueue";
@@ -15,50 +18,25 @@ import {
 } from "react-native";
 
 import {
-  EVENT_TYPE_STYLES,
-  TASK_SUBTEAM_DISCIPLINE_IDS,
-  TASK_SUBTEAM_OPTIONS,
-} from "./src/ui/constants";
-import {
   buildDateTime,
-  buildManufacturingDraft,
-  buildMemberDraft,
-  buildMilestoneDraft,
-  buildPartDefinitionDraft,
-  buildPurchaseDraft,
-  buildSubsystemDraft,
   buildWorkLogDraft,
-  compareDateTimes,
-  datePortion,
-  derivePartLifecycleStatus,
   formatDate,
   formatDateTime,
-  inferMaterialCategory,
   isoToday,
   localTodayDate,
   splitList,
   shiftDateByDays,
-  timePortion,
 } from "./src/ui/helpers";
 import { getResponsiveMetrics, scaleFont } from "./src/ui/responsive";
 import { styles } from "./src/ui/styles";
 import type {
-  AcquisitionMethod,
-  ArchiveFilterMode,
   EditorMode,
-  ManufacturingDraft,
-  ManufacturingViewTab,
-  MaterialRollup,
-  MemberDraft,
-  MilestoneDraft,
   MilestoneSortField,
-  PartDefinitionDraft,
-  PurchaseDraft,
   QaReportDraft,
   SummaryChipData,
-  SubsystemDraft,
-  TaskSubteamTab,
-  TaskViewTab,
+  ResponsibleGroupFilter,
+  TaskWorkspaceView,
+  SchedulePresentation,
   ViewTab,
   WorkLogDraft,
   WorkLogSortMode,
@@ -89,58 +67,58 @@ import {
   reassignTaskRequest,
   releaseTaskRequest,
 } from "./src/data/taskAssignment";
-import {
-  getTaskSubteamForDisciplineId,
-} from "./src/data/taskQueueOrdering";
-import { mecoSnapshot } from "./src/data/mockData";
 import type {
+  Artifact,
   Event,
-  MemberRole,
-  ManufacturingItem,
+  Meeting,
+  Milestone,
+  ManufacturingProcess,
+  Member,
+  Mechanism,
+  Material,
+  Project,
+  PartDefinition,
+  PartInstance,
   MobileDeviceSessionSummary,
   HelpRequest,
   PlatformBootstrapPayload,
   PublicAuthConfig,
   PurchaseItem,
   QaRequest,
-  QaReview,
+  QaFinding,
+  Report,
+  Risk,
+  RiskMutationPayload,
+  ResponsibleGroup,
   MobileSessionResponse,
   SessionResponse,
   SessionUser,
   Subsystem,
   Task,
+  TaskDependency,
+  Workstream,
+  WorkType,
+  Vendor,
   WorkLog,
 } from "./src/types/domain";
 import {
-  ATTENDANCE_STATUS_BY_MEMBER_ID,
   AUTH_REQUEST_TIMEOUT_MS,
   RISK_PRIORITY_RANK,
-  applyMilestoneSubsystemLinks,
   backendReachabilityAfterError,
   buildSubsystemOptions,
   buildTaskById,
+  buildScheduleEntries,
   ensureArray,
   getClientErrorMessage,
   getEmailCodeVerificationErrorMessage,
-  getOptionalCreatedAt,
-  getQaReviewTaskId,
   getWorkLogDraftOwnerKey,
   hasRequiredEmailDomain,
-  isValidDateInput,
-  isValidTimeInput,
   isWorkLogDraftOwnedBy,
-  mapEventTypeToMilestoneType,
-  mapMilestonesToEvents,
   mapPendingWorkLogDraftToWorkLog,
-  mapTaskPayloadToServer,
-  mapTaskPriorityToRiskPriority,
   normalizeRequiredEmailDomain,
-  normalizeTaskFromServer,
-  normalizeTaskSubsystems,
   parseClientError,
   shouldQueueWorkLogDraftAfterError,
   type BackendReachability,
-  type MilestoneMutationResponse,
   type StartTaskOptions,
   type WorkLogMutationResponse,
 } from "./src/app/appModel";
@@ -158,7 +136,10 @@ import { ActiveTabContent } from "./src/app/components/ActiveTabContent";
 import { LoginScreen } from "./src/app/components/LoginScreen";
 import { WorkspaceShell } from "./src/app/components/WorkspaceShell";
 import { DeadlineEditorModal } from "./src/app/editorModals/DeadlineEditorModal";
-import { ManufacturingEditorModal } from "./src/app/editorModals/ManufacturingEditorModal";
+import { usePurchaseBrowse } from "./src/screens/inventory/usePurchaseBrowse";
+import { usePartDefinitionEditor } from "./src/app/editorModals/usePartDefinitionEditor";
+import { useSubsystemEditor } from "./src/app/editorModals/useSubsystemEditor";
+import { useMemberEditor } from "./src/app/editorModals/useMemberEditor";
 import { MemberEditorModal } from "./src/app/editorModals/MemberEditorModal";
 import { MilestoneEditorModal } from "./src/app/editorModals/MilestoneEditorModal";
 import { PartDefinitionEditorModal } from "./src/app/editorModals/PartDefinitionEditorModal";
@@ -169,7 +150,7 @@ import { TaskEditorModal } from "./src/screens/tasks/TaskEditorModal";
 import { WorkLogEditorModal } from "./src/app/editorModals/WorkLogEditorModal";
 
 import { appThemes, type AppThemeName } from "./src/theme";
-import type { AttendanceStatus, SubsystemCounts, WorkLogListItem } from "./src/screens/types";
+import type { AttendanceStatus, WorkLogListItem } from "./src/screens/types";
 import {
   buildWorkLogDraftFingerprint,
   enqueuePendingWorkLogDraft,
@@ -187,7 +168,7 @@ import {
   type PersistedAuthSession,
 } from "./src/services/authSessionStorage";
 import { ActiveMobileSessionCoordinator } from "./src/services/activeMobileSession";
-import { MobileSessionClient } from "./src/services/mobileSessionClient";
+import { MobileSessionClient, SessionChangedError } from "./src/services/mobileSessionClient";
 import { revokeThenClearMobileSession } from "./src/services/mobileLogout";
 import {
   cancelWorkLogTimerReminders,
@@ -196,6 +177,8 @@ import {
   restorePersistedWorkLogTimerReminder,
   schedulePersistedWorkLogTimerReminders,
 } from "./src/services/workLogTimerNotifications";
+
+class SupersededWorkspaceRefreshError extends Error {}
 
 export default function App() {
   const { height, width } = useWindowDimensions();
@@ -228,6 +211,7 @@ export default function App() {
   const [syncError, setSyncError] = useState<string | null>(null);
   const mobileSessionRef = useRef<PersistedAuthSession | null>(null);
   const authSessionVersionRef = useRef(0);
+  const workspaceRefreshVersionRef = useRef(0);
   const authSessionCoordinatorRef = useRef(
     new ActiveMobileSessionCoordinator({
       clear: clearPersistedAuthSession,
@@ -250,6 +234,7 @@ export default function App() {
     setAuthCode("");
     setHasRequestedEmailCode(false);
     setIsAuthenticating(false);
+    setIsSyncing(false);
     setSyncError(null);
     setAuthNotice(null);
     setAuthErrorState("expired-session");
@@ -293,23 +278,32 @@ export default function App() {
     [apiBaseUrl, endSessionForAuthFailure, saveActiveMobileSession],
   );
 
+  const activeSessionVersion = authSessionVersionRef.current;
   const authenticatedRequestJson = useCallback(
-    <T,>(
+    async <T,>(
       path: string,
       init: RequestInit = {},
       timeoutMs?: number,
       fallbackToken: string | null = apiToken,
+      version = activeSessionVersion,
     ) => {
-      if (mobileSessionRef.current) {
-        return mobileSessionClient.request<T>(path, init, timeoutMs);
+      if (authSessionVersionRef.current !== version) throw new SessionChangedError();
+      try {
+        const result = mobileSessionRef.current
+          ? await mobileSessionClient.request<T>(path, init, timeoutMs)
+          : await requestJson<T>(apiBaseUrl, path, init, fallbackToken, timeoutMs);
+        if (authSessionVersionRef.current !== version) throw new SessionChangedError();
+        return result;
+      } catch (error) {
+        if (authSessionVersionRef.current !== version) throw new SessionChangedError();
+        throw error;
       }
-      return requestJson<T>(apiBaseUrl, path, init, fallbackToken, timeoutMs);
     },
-    [apiBaseUrl, apiToken, mobileSessionClient],
+    [activeSessionVersion, apiBaseUrl, apiToken, mobileSessionClient],
   );
 
   const applyThemePreferenceFromServer = useCallback(
-    async (token: string | null) => {
+    async (token: string | null, version = activeSessionVersion) => {
       if (!token) {
         setThemeOverride(null);
         return;
@@ -321,14 +315,15 @@ export default function App() {
           undefined,
           undefined,
           token,
+          version,
         );
 
         setThemeOverride(normalizeThemeModeFromResponse(preferences.themeMode));
       } catch {
-        setThemeOverride(null);
+        if (authSessionVersionRef.current === version) setThemeOverride(null);
       }
     },
-    [authenticatedRequestJson],
+    [activeSessionVersion, authenticatedRequestJson],
   );
 
   const updateThemePreference = useCallback(
@@ -357,35 +352,40 @@ export default function App() {
   );
 
   const [activeTab, setActiveTab] = useState<ViewTab>("home");
-  const [scheduleView, setScheduleView] = useState<"milestones" | "timeline">("milestones");
-  const taskView: TaskViewTab = activeTab === "work-schedule" ? scheduleView : "queue";
-  const [activeTaskSubteam, setActiveTaskSubteam] =
-    useState<TaskSubteamTab>("programming");
-  const [manufacturingView, setManufacturingView] =
-    useState<ManufacturingViewTab>("all");
+  const [schedulePresentation, setSchedulePresentation] = useState<SchedulePresentation>("agenda");
+  const workspaceView: TaskWorkspaceView = activeTab === "work-schedule"
+    ? { domain: "schedule", presentation: schedulePresentation }
+    : { domain: "kanban", view: "queue" };
+  const [activeResponsibleGroupId, setActiveResponsibleGroupId] =
+    useState<ResponsibleGroupFilter>("all");
   const [isPersonMenuVisible, setIsPersonMenuVisible] = useState(false);
   const [isDeviceSessionsVisible, setIsDeviceSessionsVisible] = useState(false);
   const [deviceSessions, setDeviceSessions] = useState<MobileDeviceSessionSummary[]>([]);
   const [deviceSessionsError, setDeviceSessionsError] = useState<string | null>(null);
   const [isLoadingDeviceSessions, setIsLoadingDeviceSessions] = useState(false);
   const [attendanceStatusByMemberId, setAttendanceStatusByMemberId] =
-    useState<Record<string, AttendanceStatus>>(ATTENDANCE_STATUS_BY_MEMBER_ID);
+    useState<Record<string, AttendanceStatus>>({});
   const [themeOverride, setThemeOverride] = useState<AppThemeName | null>(null);
   const [languageOverride] = useState<LanguageCode | null>(null);
   const [activePersonFilter, setActivePersonFilter] = useState("all");
 
-  const [members, setMembers] = useState(() => mecoSnapshot.members);
-  const [subsystems, setSubsystems] = useState(() => normalizeTaskSubsystems(mecoSnapshot.subsystems));
-  const [disciplines, setDisciplines] = useState(() => mecoSnapshot.disciplines);
-  const [mechanisms, setMechanisms] = useState(() => mecoSnapshot.mechanisms);
-  const [taskState] = useState(() => createTaskState(mecoSnapshot.tasks));
+  const [members, setMembers] = useState<Member[]>([]);
+  const [subsystems, setSubsystems] = useState<Subsystem[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [workTypes, setWorkTypes] = useState<WorkType[]>([]);
+  const [responsibleGroups, setResponsibleGroups] = useState<ResponsibleGroup[]>([]);
+  const [workstreams, setWorkstreams] = useState<Workstream[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [mechanisms, setMechanisms] = useState<Mechanism[]>([]);
+  const [taskState] = useState(() => createTaskState([]));
   const tasks = useSyncExternalStore(taskState.subscribe, taskState.getSnapshot);
   const setTasks = taskState.replace;
-  const [taskDependencies, setTaskDependencies] = useState(seededTaskDependencies);
-  const [taskBlockers, setTaskBlockers] = useState(seededTaskBlockers);
-  const [events, setEvents] = useState(() => mecoSnapshot.events);
-  const [workLogs, setWorkLogs] = useState(() => mecoSnapshot.workLogs);
-  const workLogsRef = useRef<WorkLog[]>(mecoSnapshot.workLogs);
+  const [taskDependencies, setTaskDependencies] = useState<TaskDependency[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
+  const [workLogs, setWorkLogs] = useState<WorkLog[]>([]);
+  const workLogsRef = useRef<WorkLog[]>([]);
   const hasRestoredAuthSessionRef = useRef(false);
   const startTaskRef = useRef<(task: Task, options?: StartTaskOptions) => Promise<void>>(
     async () => undefined,
@@ -396,9 +396,9 @@ export default function App() {
   );
   const activeMobileSessionId = mobileSessionRef.current?.session.id ?? activeWorkLogDraftOwnerKey;
   const workLogSession = useMemo(() => {
-    const version = authSessionVersionRef.current;
+    const version = activeSessionVersion;
     return { id: activeMobileSessionId, queue: createWorkLogQueue(activeWorkLogDraftOwnerKey, undefined, () => authSessionVersionRef.current === version) };
-  }, [activeWorkLogDraftOwnerKey, activeMobileSessionId]);
+  }, [activeWorkLogDraftOwnerKey, activeMobileSessionId, activeSessionVersion]);
   const workLogQueue = workLogSession.queue;
   const pendingWorkLogDrafts = useSyncExternalStore(workLogQueue.subscribe, workLogQueue.getSnapshot);
   useEffect(() => {
@@ -408,15 +408,16 @@ export default function App() {
     });
     return () => workLogQueue.dispose();
   }, [workLogQueue]);
-  const [manufacturingItems, setManufacturingItems] = useState(
-    () => mecoSnapshot.manufacturingItems,
-  );
-  const [purchaseItems, setPurchaseItems] = useState(() => mecoSnapshot.purchaseItems);
-  const [partDefinitions, setPartDefinitions] = useState(
-    () => mecoSnapshot.partDefinitions,
-  );
-  const [partInstances, setPartInstances] = useState(() => mecoSnapshot.partInstances);
-  const [qaReviews, setQaReviews] = useState<QaReview[]>(() => mecoSnapshot.qaReviews);
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [manufacturingProcesses, setManufacturingProcesses] = useState<ManufacturingProcess[]>([]);
+  const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([]);
+  const [partDefinitions, setPartDefinitions] = useState<PartDefinition[]>([]);
+  const [partInstances, setPartInstances] = useState<PartInstance[]>([]);
+  const [risks, setRisks] = useState<Risk[]>([]);
+  const [reports, setReports] = useState<Report[]>([]);
+  const qaReports = useMemo(() => reports.filter((report): report is Extract<Report, { reportType: "qa" }> => report.reportType === "qa"), [reports]);
+  const [qaFindings, setQaFindings] = useState<QaFinding[]>([]);
+  const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [qaRequests, setQaRequests] = useState<QaRequest[]>([]);
   const [helpRequests, setHelpRequests] = useState<HelpRequest[]>([]);
   const systemThemeMode: AppThemeName = systemColorScheme === "dark" ? "dark" : "light";
@@ -438,51 +439,8 @@ export default function App() {
   const [workLogSortMode, setWorkLogSortMode] =
     useState<WorkLogSortMode>("recent");
 
-  const [manufacturingSearch, setManufacturingSearch] = useState("");
-  const [manufacturingSubsystemFilter, setManufacturingSubsystemFilter] =
-    useState("all");
-  const [manufacturingRequesterFilter, setManufacturingRequesterFilter] =
-    useState("all");
-  const [manufacturingStatusFilter, setManufacturingStatusFilter] =
-    useState("all");
-  const [manufacturingMaterialFilter, setManufacturingMaterialFilter] =
-    useState("all");
-  const [manufacturingArchiveFilter, setManufacturingArchiveFilter] =
-    useState<ArchiveFilterMode>("active");
-
-  const [materialsSearch, setMaterialsSearch] = useState("");
-  const [materialsCategoryFilter, setMaterialsCategoryFilter] = useState("all");
-  const [materialsStockFilter, setMaterialsStockFilter] = useState("all");
-
-  const [partsSearch, setPartsSearch] = useState("");
-  const [partsSubsystemFilter, setPartsSubsystemFilter] = useState("all");
-  const [partsStatusFilter, setPartsStatusFilter] = useState("all");
-
-  const [purchaseSearch, setPurchaseSearch] = useState("");
-  const [purchaseRequesterFilter, setPurchaseRequesterFilter] = useState("all");
-  const [purchaseStatusFilter, setPurchaseStatusFilter] = useState("all");
-  const [purchaseVendorFilter, setPurchaseVendorFilter] = useState("all");
-  const [purchaseApprovalFilter, setPurchaseApprovalFilter] = useState("all");
-  const [purchaseArchiveFilter, setPurchaseArchiveFilter] =
-    useState<ArchiveFilterMode>("active");
-
-  const [subsystemSearch, setSubsystemSearch] = useState("");
-  const [selectedSubsystemId, setSelectedSubsystemId] = useState<string>(
-    subsystems[0]?.id ?? "",
-  );
-
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
 
-  const [milestoneEditorMode, setMilestoneEditorMode] = useState<EditorMode | null>(null);
-  const [activeMilestoneId, setActiveMilestoneId] = useState<string | null>(null);
-  const [milestoneDraft, setMilestoneDraft] = useState<MilestoneDraft>(
-    buildMilestoneDraft(),
-  );
-  const [milestoneStartDate, setMilestoneStartDate] = useState("");
-  const [milestoneStartTime, setMilestoneStartTime] = useState("18:00");
-  const [milestoneEndDate, setMilestoneEndDate] = useState("");
-  const [milestoneEndTime, setMilestoneEndTime] = useState("");
-  const [milestoneError, setMilestoneError] = useState<string | null>(null);
   const [deadlineEditorVisible, setDeadlineEditorVisible] = useState(false);
   const [deadlineTitle, setDeadlineTitle] = useState("");
   const [deadlineDate, setDeadlineDate] = useState("");
@@ -497,40 +455,6 @@ export default function App() {
   const [workLogTimer, setWorkLogTimer] = useState<WorkLogTimerState | null>(null);
   const workLogTimerRef = useRef<WorkLogTimerState | null>(null);
 
-  const [manufacturingEditorMode, setManufacturingEditorMode] = useState<EditorMode | null>(
-    null,
-  );
-  const [activeManufacturingId, setActiveManufacturingId] = useState<string | null>(null);
-  const [manufacturingDraft, setManufacturingDraft] = useState<ManufacturingDraft>(
-    buildManufacturingDraft("cnc"),
-  );
-  const [manufacturingError, setManufacturingError] = useState<string | null>(null);
-
-  const [purchaseEditorMode, setPurchaseEditorMode] = useState<EditorMode | null>(null);
-  const [activePurchaseId, setActivePurchaseId] = useState<string | null>(null);
-  const [purchaseDraft, setPurchaseDraft] = useState<PurchaseDraft>(buildPurchaseDraft());
-  const [purchaseError, setPurchaseError] = useState<string | null>(null);
-
-  const [memberEditorMode, setMemberEditorMode] = useState<EditorMode | null>(null);
-  const [activeMemberId, setActiveMemberId] = useState<string | null>(null);
-  const [memberDraft, setMemberDraft] = useState<MemberDraft>(buildMemberDraft());
-  const [memberError, setMemberError] = useState<string | null>(null);
-
-  const [subsystemEditorMode, setSubsystemEditorMode] = useState<EditorMode | null>(null);
-  const [activeSubsystemId, setActiveSubsystemId] = useState<string | null>(null);
-  const [subsystemDraft, setSubsystemDraft] = useState<SubsystemDraft>(
-    buildSubsystemDraft(),
-  );
-  const [subsystemError, setSubsystemError] = useState<string | null>(null);
-
-  const [partDefinitionEditorMode, setPartDefinitionEditorMode] = useState<EditorMode | null>(
-    null,
-  );
-  const [activePartDefinitionId, setActivePartDefinitionId] = useState<string | null>(null);
-  const [partDefinitionDraft, setPartDefinitionDraft] = useState<PartDefinitionDraft>(
-    buildPartDefinitionDraft(),
-  );
-  const [partDefinitionError, setPartDefinitionError] = useState<string | null>(null);
   const [qaReportEditorMode, setQaReportEditorMode] = useState<EditorMode | null>(null);
   const [activeQaRequestId, setActiveQaRequestId] = useState<string | null>(null);
   const [qaReportDraft, setQaReportDraft] = useState<QaReportDraft>({
@@ -546,45 +470,59 @@ export default function App() {
 
   const applyBootstrapPayload = useCallback((payload: PlatformBootstrapPayload) => {
     const events = ensureArray(payload.events);
-    const tasks = ensureArray(payload.tasks).map((task) => normalizeTaskFromServer(task));
+    const tasks = ensureArray(payload.tasks);
     const payloadWorkLogs = ensureArray(payload.workLogs);
 
     // Keep refs and state in lockstep for async callbacks that need the latest
     // workspace snapshot without retriggering every callback when data changes.
     setMembers(ensureArray(payload.members));
-    setSubsystems(normalizeTaskSubsystems(ensureArray(payload.subsystems)));
-    setDisciplines(ensureArray(payload.disciplines));
+    setSubsystems(ensureArray(payload.subsystems));
+    setProjects(ensureArray(payload.projects));
+    setWorkTypes(ensureArray(payload.workTypes));
+    setResponsibleGroups(ensureArray(payload.responsibleGroups));
+    setWorkstreams(ensureArray(payload.workstreams));
+    setVendors(ensureArray(payload.vendors));
     setMechanisms(ensureArray(payload.mechanisms));
     setTasks(tasks);
     setTaskDependencies(ensureArray(payload.taskDependencies));
-    setTaskBlockers(ensureArray(payload.taskBlockers));
-    setEvents(events.length > 0 ? events : mapMilestonesToEvents(payload));
+    setEvents(events);
+    setMeetings(ensureArray(payload.meetings));
+    setMilestones(ensureArray(payload.milestones));
     workLogsRef.current = payloadWorkLogs;
     setWorkLogs(payloadWorkLogs);
-    setManufacturingItems(ensureArray(payload.manufacturingItems));
+    setMaterials(ensureArray(payload.materials));
+    setManufacturingProcesses(ensureArray(payload.manufacturingProcesses));
     setPurchaseItems(ensureArray(payload.purchaseItems));
     setQaRequests(ensureArray(payload.qaRequests));
-    setQaReviews(ensureArray(payload.qaReports).map((report) => ({ ...report,
-      subjectId: report.taskId, subjectType: "task",
-      subjectTitle: tasks.find((task) => task.id === report.taskId)?.title ?? report.taskId,
-    })));
+    setRisks(ensureArray(payload.risks));
+    setReports(ensureArray(payload.reports));
+    setQaFindings(ensureArray(payload.qaFindings));
+    setArtifacts(ensureArray(payload.artifacts));
     setHelpRequests(ensureArray(payload.helpRequests));
     setPartDefinitions(ensureArray(payload.partDefinitions));
     setPartInstances(ensureArray(payload.partInstances));
   }, [setTasks]);
 
   const refreshWorkspaceFromServer = useCallback(
-    async (token: string | null) => {
-      const payload = await authenticatedRequestJson<PlatformBootstrapPayload>(
-        "/api/bootstrap",
-        undefined,
-        undefined,
-        token,
-      );
-      applyBootstrapPayload(payload);
-      return payload;
+    async (token: string | null, canPublish: () => boolean = () => true, version = activeSessionVersion) => {
+      const refreshVersion = ++workspaceRefreshVersionRef.current;
+      const assertPublicationCurrent = () => {
+        if (authSessionVersionRef.current !== version) throw new SessionChangedError();
+        if (workspaceRefreshVersionRef.current !== refreshVersion || !canPublish()) throw new SupersededWorkspaceRefreshError();
+      };
+      try {
+        const payload = await authenticatedRequestJson<PlatformBootstrapPayload>(
+          "/api/bootstrap", undefined, undefined, token, version,
+        );
+        assertPublicationCurrent();
+        applyBootstrapPayload(payload);
+        return payload;
+      } catch (error) {
+        assertPublicationCurrent();
+        throw error;
+      }
     },
-    [applyBootstrapPayload, authenticatedRequestJson],
+    [activeSessionVersion, applyBootstrapPayload, authenticatedRequestJson],
   );
 
   const syncPendingWorkLogDrafts = useCallback(async (
@@ -603,14 +541,14 @@ export default function App() {
       if (task) await startTaskRef.current(task, { openWorkLog: false });
     }, (failure) => classifyMobileAuthError(failure, "authenticated") === "expired-session", getClientErrorMessage);
     if (!result || !workLogQueue.isActive()) return null;
-    const payload = await authenticatedRequestJson<PlatformBootstrapPayload>("/api/bootstrap", undefined, undefined, token);
+    const payload = await refreshWorkspaceFromServer(token, workLogQueue.isActive);
     if (!workLogQueue.isActive()) return null;
-    applyBootstrapPayload(payload);
     await workLogQueue.update((current) => reconcilePendingWorkLogDrafts(current, ensureArray(payload.workLogs), ownerKey));
     return result.error;
-  }, [activeWorkLogDraftOwnerKey, workLogQueue, authenticatedRequestJson, taskState, applyBootstrapPayload]);
+  }, [activeWorkLogDraftOwnerKey, workLogQueue, authenticatedRequestJson, taskState, refreshWorkspaceFromServer]);
 
   const loadPublicAuthConfig = useCallback(async () => {
+    const version = authSessionVersionRef.current;
     setBackendStatus("connecting");
     setBackendReachability("unknown");
     setSyncError(null);
@@ -623,6 +561,7 @@ export default function App() {
         undefined,
         AUTH_REQUEST_TIMEOUT_MS,
       );
+      if (authSessionVersionRef.current !== version) return null;
       setAuthConfig(config);
       setAuthErrorState(null);
       setAuthError(null);
@@ -630,6 +569,7 @@ export default function App() {
       setBackendReachability("reachable");
       return config;
     } catch (error) {
+      if (authSessionVersionRef.current !== version) return null;
       setBackendStatus("offline");
       setBackendReachability(backendReachabilityAfterError(error));
       setAuthConfig({
@@ -656,6 +596,8 @@ export default function App() {
       user: SessionUser,
       mobileSession?: MobileSessionResponse | PersistedAuthSession,
     ) => {
+      const version = ++authSessionVersionRef.current;
+      setIsRestoringAuthSession(false);
       if (sessionUser && sessionUser.accountId !== user.accountId) {
         clearIdentityScopedStateRef.current();
       }
@@ -671,38 +613,42 @@ export default function App() {
           const sessionSaved = await saveActiveMobileSession({
             ...mobileSession,
             deviceNumber,
-          });
+          }, version);
           if (!sessionSaved) {
-            setIsSyncing(false);
+            if (authSessionVersionRef.current === version) setIsSyncing(false);
             return;
           }
         } catch (error) {
+          if (authSessionVersionRef.current !== version) return;
           setAuthError(getClientErrorMessage(error));
           setAuthErrorState(classifyMobileAuthError(error));
           setIsSyncing(false);
           return;
         }
       } else {
-        authSessionVersionRef.current += 1;
         mobileSessionRef.current = null;
         setApiToken(token);
         setSessionUser(user);
         await authSessionCoordinatorRef.current.clear().catch(() => undefined);
       }
 
+      if (authSessionVersionRef.current !== version) return;
       try {
-        await applyThemePreferenceFromServer(token);
-        const payload = await refreshWorkspaceFromServer(token);
+        await applyThemePreferenceFromServer(token, version);
+        if (authSessionVersionRef.current !== version) return;
+        const payload = await refreshWorkspaceFromServer(token, undefined, version);
         const draftSyncError = await syncPendingWorkLogDrafts(
           token,
           ensureArray(payload.workLogs),
           getWorkLogDraftOwnerKey(user),
         );
+        if (authSessionVersionRef.current !== version) return;
         setBackendStatus(draftSyncError ? "offline" : "connected");
         setBackendReachability("reachable");
         setSyncError(draftSyncError);
         setHasAuthenticated(true);
       } catch (error) {
+        if (authSessionVersionRef.current !== version || error instanceof SessionChangedError) return;
         if (
           (error instanceof ApiRequestError &&
             (error.status === 401 || error.status === 403)) ||
@@ -719,7 +665,7 @@ export default function App() {
           "Your session is saved, but workspace data could not be loaded. Check your connection and try again.",
         );
       } finally {
-        setIsSyncing(false);
+        if (authSessionVersionRef.current === version) setIsSyncing(false);
       }
     },
     [
@@ -740,6 +686,7 @@ export default function App() {
   }, [authEmail, finishSignIn, requiredEmailDomain]);
 
   const signInWithDevBypass = useCallback(async () => {
+    let version = authSessionVersionRef.current;
     setIsAuthenticating(true);
     setAuthError(null);
     setAuthErrorState(null);
@@ -747,7 +694,9 @@ export default function App() {
 
     try {
       if (isLocalDevBypassAvailable) {
-        await finishLocalDevBypass();
+        const completion = finishLocalDevBypass();
+        version = authSessionVersionRef.current;
+        await completion;
         return;
       }
 
@@ -761,11 +710,15 @@ export default function App() {
         "/api/auth/dev-bypass",
         { method: "POST" },
       );
-      await finishSignIn(session.token, session.user);
+      if (authSessionVersionRef.current !== version) return;
+      const completion = finishSignIn(session.token, session.user);
+      version = authSessionVersionRef.current;
+      await completion;
     } catch (error) {
+      if (authSessionVersionRef.current !== version) return;
       setAuthError(getClientErrorMessage(error));
     } finally {
-      setIsAuthenticating(false);
+      if (authSessionVersionRef.current === version) setIsAuthenticating(false);
     }
   }, [
     apiBaseUrl,
@@ -784,29 +737,32 @@ export default function App() {
     let isActive = true;
 
     async function restorePersistedAuthSession() {
+      let version = authSessionVersionRef.current;
       try {
         const deviceNumber = await getOrCreateAuthDeviceNumber();
         const persistedSession = await loadPersistedAuthSession(deviceNumber);
 
-        if (!isActive || !persistedSession) {
+        if (!isActive || authSessionVersionRef.current !== version || !persistedSession) {
           return;
         }
 
         // Let the app shell appear immediately while the restored token refreshes
         // workspace data and validates that the backend still accepts it.
         setAuthNotice(DEVICE_SESSION_RESTORED_NOTICE);
-        await finishSignIn(
+        const completion = finishSignIn(
           persistedSession.token,
           persistedSession.user,
           persistedSession,
         );
+        version = authSessionVersionRef.current;
+        await completion;
       } catch (error) {
-        if (isActive) {
+        if (isActive && authSessionVersionRef.current === version) {
           setAuthError(getClientErrorMessage(error));
           setAuthErrorState(classifyMobileAuthError(error));
         }
       } finally {
-        if (isActive) {
+        if (isActive && authSessionVersionRef.current === version) {
           setIsRestoringAuthSession(false);
         }
       }
@@ -820,6 +776,7 @@ export default function App() {
   }, [finishSignIn]);
 
   const signInWithEmail = useCallback(async () => {
+    let version = authSessionVersionRef.current;
     const email = authEmail.trim().toLowerCase();
     const code = authCode.trim();
 
@@ -833,10 +790,10 @@ export default function App() {
       try {
         currentAuthConfig = await loadPublicAuthConfig();
       } finally {
-        setIsAuthenticating(false);
+        if (authSessionVersionRef.current === version) setIsAuthenticating(false);
       }
 
-      if (!currentAuthConfig) {
+      if (authSessionVersionRef.current !== version || !currentAuthConfig) {
         return;
       }
     }
@@ -866,6 +823,7 @@ export default function App() {
     try {
       if (emailSignInOperation === "verify-code") {
         const deviceNumber = await getOrCreateAuthDeviceNumber();
+        if (authSessionVersionRef.current !== version) return;
         const session = await requestJson<MobileSessionResponse>(
           apiBaseUrl,
           "/api/auth/mobile/email/verify",
@@ -881,8 +839,11 @@ export default function App() {
           undefined,
           AUTH_REQUEST_TIMEOUT_MS,
         );
+        if (authSessionVersionRef.current !== version) return;
         setAuthCode("");
-        await finishSignIn(session.token, session.user, session);
+        const completion = finishSignIn(session.token, session.user, session);
+        version = authSessionVersionRef.current;
+        await completion;
         return;
       }
 
@@ -903,6 +864,7 @@ export default function App() {
         undefined,
         AUTH_REQUEST_TIMEOUT_MS,
       );
+      if (authSessionVersionRef.current !== version) return;
       setHasRequestedEmailCode(true);
       setAuthNotice(
         response.expiresInMinutes
@@ -910,13 +872,14 @@ export default function App() {
           : `Code sent to ${response.sentTo ?? email}.`,
       );
     } catch (error) {
+      if (authSessionVersionRef.current !== version) return;
       setAuthError(
         hasRequestedEmailCode
           ? getEmailCodeVerificationErrorMessage(error)
           : getClientErrorMessage(error),
       );
     } finally {
-      setIsAuthenticating(false);
+      if (authSessionVersionRef.current === version) setIsAuthenticating(false);
     }
   }, [
     apiBaseUrl,
@@ -931,6 +894,7 @@ export default function App() {
   ]);
 
   const syncFromBackend = useCallback(async () => {
+    const version = authSessionVersionRef.current;
     setIsSyncing(true);
     setBackendStatus("connecting");
     setBackendReachability("unknown");
@@ -942,6 +906,7 @@ export default function App() {
         "/api/auth/config",
       );
 
+      if (authSessionVersionRef.current !== version) return;
       let token = "";
       let syncSessionUser = sessionUser;
 
@@ -951,6 +916,7 @@ export default function App() {
           "/api/auth/dev-bypass",
           { method: "POST" },
         );
+        if (authSessionVersionRef.current !== version) return;
         token = session.token;
         syncSessionUser = session.user;
         setSessionUser(session.user);
@@ -964,10 +930,12 @@ export default function App() {
         ensureArray(payload.workLogs),
         getWorkLogDraftOwnerKey(syncSessionUser),
       );
+      if (authSessionVersionRef.current !== version) return;
       setBackendStatus(draftSyncError ? "offline" : "connected");
       setBackendReachability("reachable");
       setSyncError(draftSyncError);
     } catch (error) {
+      if (authSessionVersionRef.current !== version || error instanceof SessionChangedError || error instanceof SupersededWorkspaceRefreshError) return;
       if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
         endSessionForAuthFailure(getMobileAuthErrorMessage("expired-session"));
         return;
@@ -977,7 +945,7 @@ export default function App() {
       setBackendReachability(backendReachabilityAfterError(error));
       setSyncError(getClientErrorMessage(error));
     } finally {
-      setIsSyncing(false);
+      if (authSessionVersionRef.current === version) setIsSyncing(false);
     }
   }, [
     apiBaseUrl,
@@ -987,20 +955,31 @@ export default function App() {
     syncPendingWorkLogDrafts,
   ]);
 
+  // An accepted write remains successful even when subsequent reconciliation fails.
   const completeMutation = useCallback(async () => {
-    const payload = await refreshWorkspaceFromServer(apiToken);
-    const draftSyncError = await syncPendingWorkLogDrafts(
-      apiToken,
-      ensureArray(payload.workLogs),
-      activeWorkLogDraftOwnerKey,
-    );
-    setBackendStatus(draftSyncError ? "offline" : "connected");
-    setBackendReachability("reachable");
-    setSyncError(draftSyncError);
+    const version = authSessionVersionRef.current;
+    try {
+      const payload = await refreshWorkspaceFromServer(apiToken);
+      const draftSyncError = await syncPendingWorkLogDrafts(
+        apiToken, ensureArray(payload.workLogs), activeWorkLogDraftOwnerKey,
+      );
+      if (authSessionVersionRef.current !== version) throw new SessionChangedError();
+      setBackendStatus(draftSyncError ? "offline" : "connected");
+      setBackendReachability("reachable");
+      setSyncError(draftSyncError);
+    } catch (error) {
+      if (error instanceof SupersededWorkspaceRefreshError) return;
+      if (authSessionVersionRef.current !== version) throw new SessionChangedError();
+      if (error instanceof SessionChangedError || classifyMobileAuthError(error, "authenticated") === "expired-session") throw error;
+      setBackendStatus("offline");
+      setBackendReachability(backendReachabilityAfterError(error));
+      setSyncError(`Saved. Workspace refresh failed: ${getClientErrorMessage(error)}`);
+    }
   }, [activeWorkLogDraftOwnerKey, apiToken, refreshWorkspaceFromServer, syncPendingWorkLogDrafts]);
 
   const runMutation = useCallback(
     async (path: string, init: RequestInit) => {
+      const version = authSessionVersionRef.current;
       setIsSyncing(true);
       setSyncError(null);
 
@@ -1009,6 +988,7 @@ export default function App() {
         await completeMutation();
         return true;
       } catch (error) {
+        if (authSessionVersionRef.current !== version || error instanceof SessionChangedError) return false;
         if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
           endSessionForAuthFailure(getMobileAuthErrorMessage("expired-session"));
           return false;
@@ -1019,7 +999,7 @@ export default function App() {
         setSyncError(getClientErrorMessage(error));
         return false;
       } finally {
-        setIsSyncing(false);
+        if (authSessionVersionRef.current === version) setIsSyncing(false);
       }
     },
     [
@@ -1030,8 +1010,17 @@ export default function App() {
     ],
   );
 
+  const persistRisk = useCallback((id: string | null, payload: RiskMutationPayload) =>
+    runMutation(id ? `/api/risks/${id}` : "/api/risks", {
+      method: id ? "PATCH" : "POST",
+      body: JSON.stringify(payload),
+    }), [runMutation]);
+  const deleteRisk = useCallback((id: string) =>
+    runMutation(`/api/risks/${id}`, { method: "DELETE" }), [runMutation]);
+
   const runTaskAssignmentMutation = useCallback(
     async (mutation: () => Promise<unknown>) => {
+      const version = authSessionVersionRef.current;
       setIsSyncing(true);
       setSyncError(null);
 
@@ -1040,6 +1029,7 @@ export default function App() {
         await completeMutation();
         return true;
       } catch (error) {
+        if (authSessionVersionRef.current !== version || error instanceof SessionChangedError) return false;
         if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
           endSessionForAuthFailure(getMobileAuthErrorMessage("expired-session"));
           return false;
@@ -1058,6 +1048,7 @@ export default function App() {
             refreshError = error;
             refreshed = false;
           }
+          if (authSessionVersionRef.current !== version) return false;
           setBackendStatus(refreshed ? "connected" : "offline");
           setBackendReachability(
             refreshed
@@ -1079,7 +1070,7 @@ export default function App() {
         setSyncError(getClientErrorMessage(error));
         return false;
       } finally {
-        setIsSyncing(false);
+        if (authSessionVersionRef.current === version) setIsSyncing(false);
       }
     },
     [
@@ -1117,11 +1108,8 @@ export default function App() {
   }, [subsystems]);
   const taskSubsystemOptions = useMemo(() => buildSubsystemOptions(subsystems), [subsystems]);
 
-  const disciplinesById = useMemo(() => {
-    return Object.fromEntries(
-      disciplines.map((discipline) => [discipline.id, discipline]),
-    ) as Record<string, (typeof disciplines)[number]>;
-  }, [disciplines]);
+  const workTypesById = useMemo(() => Object.fromEntries(workTypes.map((workType) => [workType.id, workType])) as Record<string, WorkType>, [workTypes]);
+  const workstreamsById = useMemo(() => Object.fromEntries(workstreams.map((workstream) => [workstream.id, workstream])) as Record<string, Workstream>, [workstreams]);
 
   const mechanismsById = useMemo(() => {
     return Object.fromEntries(
@@ -1141,20 +1129,21 @@ export default function App() {
     ) as Record<string, (typeof partInstances)[number]>;
   }, [partInstances]);
 
+  const scheduleEntries = useMemo(() => buildScheduleEntries(meetings, events, milestones), [events, meetings, milestones]);
   const eventsById = useMemo(() => {
     return Object.fromEntries(
-      events.map((event) => [event.id, event]),
-    ) as Record<string, (typeof events)[number]>;
-  }, [events]);
+      scheduleEntries.map((event) => [`${event.recordType}:${event.id}`, event]),
+    ) as Record<string, (typeof scheduleEntries)[number]>;
+  }, [scheduleEntries]);
 
   const taskById = useMemo(() => {
     return buildTaskById(tasks);
   }, [tasks]);
-  const taskEditor = useTaskEditor({ tasks, taskById, taskDependencies, members, membersById, disciplines,
-    subsystemsById, taskSubsystemOptions, activeTaskSubteam, setActiveTaskSubteam,
+  const taskEditor = useTaskEditor({ mechanisms, partInstances, projects, tasks, taskById, taskDependencies, members, membersById, workTypes,
+    subsystemsById, taskSubsystemOptions, activeResponsibleGroupId, setActiveResponsibleGroupId,
     request: authenticatedRequestJson, refresh: () => refreshWorkspaceFromServer(apiToken),
   });
-  const { taskDraft, openCreateTaskEditor, openEditTaskEditor, openDuplicateTaskEditor, closeTaskEditor } = taskEditor;
+  const { openCreateTaskEditor, openEditTaskEditor, openDuplicateTaskEditor, closeTaskEditor } = taskEditor;
   const workLogsForDisplay = useMemo<WorkLogListItem[]>(() => {
     const serverFingerprints = new Set(
       workLogs.map((workLog) => buildWorkLogDraftFingerprint(workLog)),
@@ -1172,14 +1161,10 @@ export default function App() {
     () => visiblePendingWorkLogDrafts.filter((draft) => draft.status === "failed").length,
     [visiblePendingWorkLogDrafts],
   );
-  const activeTaskSubteamTasks = useMemo(() => {
-    const disciplineIds = TASK_SUBTEAM_DISCIPLINE_IDS[activeTaskSubteam];
-
-    return tasks.filter((task) => disciplineIds.includes(task.disciplineId));
-  }, [activeTaskSubteam, tasks]);
-  const activeTaskSubteamLabel =
-    TASK_SUBTEAM_OPTIONS.find((option) => option.value === activeTaskSubteam)?.label ??
-    "Programming";
+  const activeResponsibleGroupIdTasks = useMemo(() => activeResponsibleGroupId === "all"
+    ? tasks : tasks.filter((task) => task.responsibleGroupId === activeResponsibleGroupId), [activeResponsibleGroupId, tasks]);
+  const activeResponsibleGroupLabel =
+    responsibleGroups.find((group) => group.id === activeResponsibleGroupId)?.name ?? "All groups";
   const taskLoggedHoursById = useMemo(() => {
     return workLogsForDisplay.reduce<Record<string, number>>((hoursByTaskId, workLog) => {
       hoursByTaskId[workLog.taskId] = (hoursByTaskId[workLog.taskId] ?? 0) + workLog.hours;
@@ -1187,14 +1172,15 @@ export default function App() {
     }, {});
   }, [workLogsForDisplay]);
 
-  const taskQueue = useTaskQueue({ tasks, taskLoggedHoursById, activeTaskSubteam,
+  const purchaseTaskIds = useMemo(() => new Set(purchaseItems.map((item) => item.taskId)), [purchaseItems]);
+  const taskQueue = useTaskQueue({ tasks, taskLoggedHoursById, activeResponsibleGroupId, responsibleGroups, purchaseTaskIds,
     canMentorApprove, activePersonFilter, membersById, mechanismsById, subsystemsById });
-  const { taskArchiveFilter } = taskQueue;
+  const { taskArchiveFilter } = taskQueue.filters;
 
   const filteredMilestones = useMemo(() => {
     const search = milestoneSearch.trim().toLowerCase();
 
-    return [...events]
+    return [...scheduleEntries]
       .filter((event) =>
         milestoneTypeFilter === "all" ? true : event.type === milestoneTypeFilter,
       )
@@ -1203,15 +1189,15 @@ export default function App() {
           return true;
         }
 
-        const relatedSubsystemNames = event.relatedSubsystemIds
-          .map((subsystemId) => subsystemsById[subsystemId]?.name ?? "")
+        const relatedProjectNames = event.projectIds
+          .map((projectId) => projects.find((project) => project.id === projectId)?.name ?? "")
           .join(" ")
           .toLowerCase();
 
         return (
           event.title.toLowerCase().includes(search) ||
           event.description.toLowerCase().includes(search) ||
-          relatedSubsystemNames.includes(search)
+          relatedProjectNames.includes(search)
         );
       })
       .sort((left, right) => {
@@ -1219,13 +1205,13 @@ export default function App() {
           milestoneSortField === "title"
             ? left.title.toLowerCase()
             : milestoneSortField === "type"
-              ? EVENT_TYPE_STYLES[left.type].label
+              ? left.type
               : left.startDateTime;
         const rightValue =
           milestoneSortField === "title"
             ? right.title.toLowerCase()
             : milestoneSortField === "type"
-              ? EVENT_TYPE_STYLES[right.type].label
+              ? right.type
               : right.startDateTime;
 
         if (leftValue < rightValue) {
@@ -1239,16 +1225,16 @@ export default function App() {
         return 0;
       });
   }, [
-    events,
+    scheduleEntries,
+    projects,
     milestoneSearch,
     milestoneSortField,
     milestoneSortOrder,
     milestoneTypeFilter,
-    subsystemsById,
   ]);
 
   const milestoneSummary = useMemo(() => {
-    const externalCount = filteredMilestones.filter((milestone) => milestone.isExternal).length;
+    const externalCount = filteredMilestones.filter((entry) => entry.recordType === "event").length;
 
     return [
       { label: "Milestones", value: String(filteredMilestones.length) },
@@ -1257,14 +1243,14 @@ export default function App() {
   }, [filteredMilestones]);
 
   const eventOptions = useMemo(() => {
-    return events.map((event) => ({
+    return scheduleEntries.map((event) => ({
       id: event.id,
       name: `${event.title} (${formatDateTime(event.startDateTime)})`,
     }));
-  }, [events]);
+  }, [scheduleEntries]);
 
   const timelineTasks = useMemo(() => {
-    return [...activeTaskSubteamTasks]
+    return [...activeResponsibleGroupIdTasks]
       .filter((task) => {
         if (activePersonFilter === "all") {
           return true;
@@ -1273,16 +1259,16 @@ export default function App() {
         return task.ownerId === activePersonFilter || task.mentorId === activePersonFilter;
       })
       .filter((task) =>
-        timelineSubsystemFilter === "all" ? true : task.subsystemId === timelineSubsystemFilter,
+        timelineSubsystemFilter === "all" ? true : task.subsystemIds.includes(timelineSubsystemFilter),
       )
       .filter((task) =>
-        timelineMilestoneFilter === "all" ? true : task.targetEventId === timelineMilestoneFilter,
+        timelineMilestoneFilter === "all" ? true : task.scheduleRefs.some((ref) => ref.id === timelineMilestoneFilter),
       )
       .filter((task) => taskArchiveFilter === "all" || task.status !== "complete")
       .sort((left, right) =>
       left.dueDate.localeCompare(right.dueDate),
     );
-  }, [activeTaskSubteamTasks, activePersonFilter, taskArchiveFilter, timelineMilestoneFilter, timelineSubsystemFilter]);
+  }, [activeResponsibleGroupIdTasks, activePersonFilter, taskArchiveFilter, timelineMilestoneFilter, timelineSubsystemFilter]);
 
   const filteredWorkLogs = useMemo(() => {
     const search = workLogSearch.trim().toLowerCase();
@@ -1297,7 +1283,7 @@ export default function App() {
         return false;
       }
 
-      if (workLogSubsystemFilter !== "all" && task?.subsystemId !== workLogSubsystemFilter) {
+      if (workLogSubsystemFilter !== "all" && !task?.subsystemIds.includes(workLogSubsystemFilter)) {
         return false;
       }
 
@@ -1309,7 +1295,7 @@ export default function App() {
         .map((participantId) => membersById[participantId]?.name ?? "")
         .join(" ");
       const taskText = `${task?.title ?? ""} ${task?.summary ?? ""}`;
-      const subsystemText = task ? (subsystemsById[task.subsystemId]?.name ?? "") : "";
+      const subsystemText = task?.subsystemIds.map((id) => subsystemsById[id]?.name ?? "").join(" ") ?? "";
 
       return `${workLog.notes} ${taskText} ${participantNames} ${subsystemText}`
         .toLowerCase()
@@ -1375,497 +1361,30 @@ export default function App() {
     return summary;
   }, [failedWorkLogDraftCount, filteredWorkLogs, visiblePendingWorkLogDrafts.length]);
 
-  const visibleManufacturingProcess: ManufacturingItem["process"] | null =
-    manufacturingView === "all"
-      ? null
-      : manufacturingView === "cnc"
-      ? "cnc"
-      : manufacturingView === "prints"
-        ? "3d-print"
-        : "fabrication";
-
-  const manufacturingMaterialOptions = useMemo(() => {
-    const uniqueMaterials = Array.from(
-      new Set(manufacturingItems.map((item) => item.material)),
-    ).sort((left, right) => left.localeCompare(right));
-
-    return uniqueMaterials.map((material) => ({ id: material, name: material }));
-  }, [manufacturingItems]);
-
-  const filteredManufacturing = useMemo(() => {
-    const search = manufacturingSearch.trim().toLowerCase();
-
-    return manufacturingItems
-      .filter((item) => !visibleManufacturingProcess || item.process === visibleManufacturingProcess)
-      .filter((item) => {
-        if (activePersonFilter !== "all" && item.requestedById !== activePersonFilter) {
-          return false;
-        }
-
-        if (
-          manufacturingSubsystemFilter !== "all" &&
-          item.subsystemId !== manufacturingSubsystemFilter
-        ) {
-          return false;
-        }
-
-        if (
-          manufacturingRequesterFilter !== "all" &&
-          item.requestedById !== manufacturingRequesterFilter
-        ) {
-          return false;
-        }
-
-        if (manufacturingStatusFilter !== "all" && item.status !== manufacturingStatusFilter) {
-          return false;
-        }
-
-        if (manufacturingArchiveFilter === "active" && item.status === "complete") {
-          return false;
-        }
-
-        if (manufacturingArchiveFilter === "archived" && item.status !== "complete") {
-          return false;
-        }
-
-        if (manufacturingMaterialFilter !== "all" && item.material !== manufacturingMaterialFilter) {
-          return false;
-        }
-
-        if (!search) {
-          return true;
-        }
-
-        const subsystemName = subsystemsById[item.subsystemId]?.name ?? "";
-        const requesterName = item.requestedById
-          ? (membersById[item.requestedById]?.name ?? "")
-          : "";
-
-        return `${item.title} ${item.material} ${subsystemName} ${requesterName}`
-          .toLowerCase()
-          .includes(search);
-      })
-      .sort((left, right) => left.dueDate.localeCompare(right.dueDate));
-  }, [
-    activePersonFilter,
-    manufacturingItems,
-    manufacturingMaterialFilter,
-    manufacturingArchiveFilter,
-    manufacturingRequesterFilter,
-    manufacturingSearch,
-    manufacturingStatusFilter,
-    manufacturingSubsystemFilter,
-    membersById,
-    subsystemsById,
-    visibleManufacturingProcess,
-  ]);
-
-  const manufacturingSummary = useMemo(() => {
-    const completeCount = filteredManufacturing.filter(
-      (item) => item.status === "complete",
-    ).length;
-    const qaCount = filteredManufacturing.filter((item) => item.status === "qa").length;
-    const reviewedCount = filteredManufacturing.filter(
-      (item) => item.mentorReviewed,
-    ).length;
-
-    return [
-      { label: "Queue", value: String(filteredManufacturing.length) },
-      { label: "In QA", value: String(qaCount) },
-      { label: "Mentor reviewed", value: String(reviewedCount) },
-      { label: "Complete", value: String(completeCount) },
-    ] satisfies SummaryChipData[];
-  }, [filteredManufacturing]);
-
-  const purchaseVendorOptions = useMemo(() => {
-    const vendors = Array.from(
-      new Set(purchaseItems.map((item) => item.vendor)),
-    ).sort((left, right) => left.localeCompare(right));
-
-    return vendors.map((vendor) => ({ id: vendor, name: vendor }));
-  }, [purchaseItems]);
-
-  const materialRollups = useMemo(() => {
-    const rows: MaterialRollup[] = [];
-
-    for (const materialName of manufacturingMaterialOptions.map((option) => option.id)) {
-      const relatedManufacturing = manufacturingItems.filter(
-        (item) => item.material === materialName,
-      );
-      const relatedPurchases = purchaseItems.filter((item) => {
-        const text = `${item.title} ${item.vendor} ${item.linkLabel}`.toLowerCase();
-        return materialName
-          .toLowerCase()
-          .split(" ")
-          .some((token) => token.length > 3 && text.includes(token));
-      });
-
-      const openDemand = relatedManufacturing
-        .filter((item) => item.status !== "complete")
-        .reduce((sum, item) => sum + item.quantity, 0);
-      const supplied = relatedPurchases
-        .filter((item) => item.status === "delivered" || item.status === "purchased")
-        .reduce((sum, item) => sum + item.quantity, 0);
-      const openPurchases = relatedPurchases.filter(
-        (item) => item.status !== "delivered",
-      );
-      const openPurchaseQuantity = openPurchases.reduce((sum, item) => sum + item.quantity, 0);
-      const reorderPoint = Math.max(1, Math.ceil(openDemand / 2));
-      const onHand = Math.max(0, supplied - Math.ceil(openDemand * 0.35));
-      const suggestedOrderQuantity = Math.max(
-        0,
-        reorderPoint + openDemand - onHand - openPurchaseQuantity,
-      );
-      const category = inferMaterialCategory(materialName);
-      const vendor = relatedPurchases[0]?.vendor ?? "Mixed";
-
-      rows.push({
-        id: materialName.toLowerCase().replace(/\s+/g, "-"),
-        name: materialName,
-        category,
-        onHand,
-        reorderPoint,
-        openDemand,
-        openPurchaseCount: openPurchases.length,
-        openPurchaseQuantity,
-        suggestedOrderQuantity,
-        vendor,
-        stock: onHand <= reorderPoint ? "low" : "ok",
-      });
-    }
-
-    return rows.sort((left, right) => left.name.localeCompare(right.name));
-  }, [manufacturingMaterialOptions, manufacturingItems, purchaseItems]);
-
-  const filteredMaterialRollups = useMemo(() => {
-    const search = materialsSearch.trim().toLowerCase();
-
-    return materialRollups.filter((row) => {
-      if (materialsCategoryFilter !== "all" && row.category !== materialsCategoryFilter) {
-        return false;
-      }
-
-      if (materialsStockFilter !== "all" && row.stock !== materialsStockFilter) {
-        return false;
-      }
-
-      if (!search) {
-        return true;
-      }
-
-      return `${row.name} ${row.vendor} ${row.category}`.toLowerCase().includes(search);
-    });
-  }, [materialRollups, materialsCategoryFilter, materialsSearch, materialsStockFilter]);
-
-  const partInstancesWithStatus = useMemo(() => {
-    return partInstances.map((partInstance) => ({
-      partInstance,
-      status: derivePartLifecycleStatus(partInstance, tasks),
-    }));
-  }, [partInstances, tasks]);
-
-  const filteredPartDefinitions = useMemo(() => {
-    const search = partsSearch.trim().toLowerCase();
-
-    return partDefinitions.filter((partDefinition) => {
-      if (!search) {
-        return true;
-      }
-
-      return `${partDefinition.name} ${partDefinition.partNumber} ${partDefinition.type} ${partDefinition.source}`
-        .toLowerCase()
-        .includes(search);
-    });
-  }, [partsSearch, partDefinitions]);
-
-  const filteredPartInstances = useMemo(() => {
-    const search = partsSearch.trim().toLowerCase();
-
-    return partInstancesWithStatus.filter(({ partInstance, status }) => {
-      if (partsSubsystemFilter !== "all" && partInstance.subsystemId !== partsSubsystemFilter) {
-        return false;
-      }
-
-      if (partsStatusFilter !== "all" && status !== partsStatusFilter) {
-        return false;
-      }
-
-      if (!search) {
-        return true;
-      }
-
-      const definition = partDefinitionsById[partInstance.partDefinitionId];
-      const mechanismName = partInstance.mechanismId
-        ? (mechanismsById[partInstance.mechanismId]?.name ?? "")
-        : "";
-
-      return `${partInstance.name} ${definition?.name ?? ""} ${definition?.partNumber ?? ""} ${mechanismName}`
-        .toLowerCase()
-        .includes(search);
-    });
-  }, [
-    mechanismsById,
-    partDefinitionsById,
-    partInstancesWithStatus,
-    partsSearch,
-    partsStatusFilter,
-    partsSubsystemFilter,
-  ]);
-
-  const filteredPurchases = useMemo(() => {
-    const search = purchaseSearch.trim().toLowerCase();
-
-    const statusRank: Record<string, number> = {
-      requested: 0,
-      approved: 1,
-      purchased: 2,
-      shipped: 3,
-      delivered: 4,
-    };
-
-    return purchaseItems.filter((item) => {
-      if (activePersonFilter !== "all" && item.requestedById !== activePersonFilter) {
-        return false;
-      }
-
-      if (purchaseRequesterFilter !== "all" && item.requestedById !== purchaseRequesterFilter) {
-        return false;
-      }
-
-      if (purchaseStatusFilter !== "all" && item.status !== purchaseStatusFilter) {
-        return false;
-      }
-
-      if (purchaseArchiveFilter === "active" && item.status === "delivered") {
-        return false;
-      }
-
-      if (purchaseArchiveFilter === "archived" && item.status !== "delivered") {
-        return false;
-      }
-
-      if (purchaseVendorFilter !== "all" && item.vendor !== purchaseVendorFilter) {
-        return false;
-      }
-
-      if (
-        purchaseApprovalFilter !== "all" &&
-        (purchaseApprovalFilter === "approved"
-          ? !item.approvedByMentor
-          : item.approvedByMentor)
-      ) {
-        return false;
-      }
-
-      if (!search) {
-        return true;
-      }
-
-      const requesterName = item.requestedById
-        ? (membersById[item.requestedById]?.name ?? "")
-        : "";
-      const subsystemName = subsystemsById[item.subsystemId]?.name ?? "";
-
-      return `${item.title} ${item.vendor} ${requesterName} ${subsystemName}`
-        .toLowerCase()
-        .includes(search);
-    }).sort((left, right) => {
-      const createdDelta = getOptionalCreatedAt(right).localeCompare(getOptionalCreatedAt(left));
-      if (createdDelta !== 0) {
-        return createdDelta;
-      }
-
-      const statusDelta = statusRank[left.status] - statusRank[right.status];
-      if (statusDelta !== 0) {
-        return statusDelta;
-      }
-
-      return left.title.localeCompare(right.title);
-    });
-  }, [
-    activePersonFilter,
-    membersById,
-    purchaseItems,
-    purchaseArchiveFilter,
-    purchaseApprovalFilter,
-    purchaseRequesterFilter,
-    purchaseSearch,
-    purchaseStatusFilter,
-    purchaseVendorFilter,
-    subsystemsById,
-  ]);
-
-  const subsystemCountsById = useMemo(() => {
-    const counts = Object.fromEntries(
-      subsystems.map((subsystem) => [
-        subsystem.id,
-        {
-          blockedTasks: 0,
-          health: "good" as const,
-          mechanisms: 0,
-          openPurchases: 0,
-          openTasks: 0,
-          overdueTasks: 0,
-          qaFindings: 0,
-          waitingQa: 0,
-          risks: subsystem.risks.length,
-          tasks: 0,
-        },
-      ]),
-    ) as Record<string, SubsystemCounts>;
-    const today = localTodayDate();
-
-    for (const mechanism of mechanisms) {
-      if (counts[mechanism.subsystemId]) {
-        counts[mechanism.subsystemId].mechanisms += 1;
-      }
-    }
-
-    for (const task of tasks) {
-      const bucket = counts[task.subsystemId];
-      if (!bucket) {
-        continue;
-      }
-
-      bucket.tasks += 1;
-      if (task.status !== "complete") {
-        bucket.openTasks += 1;
-      }
-      if (task.status !== "complete" && task.blockers.length > 0) {
-        bucket.blockedTasks += 1;
-      }
-      if (task.status !== "complete" && task.dueDate < today) {
-        bucket.overdueTasks += 1;
-      }
-      if (task.status === "waiting-for-qa") {
-        bucket.waitingQa += 1;
-      }
-    }
-
-    for (const purchase of purchaseItems) {
-      const bucket = counts[purchase.subsystemId];
-      if (bucket && purchase.status !== "delivered") {
-        bucket.openPurchases += 1;
-      }
-    }
-
-    for (const review of qaReviews) {
-      if (review.result === "pass") {
-        continue;
-      }
-
-      const taskId = getQaReviewTaskId(review);
-      const task = taskId ? taskById[taskId] : null;
-      const bucket = task ? counts[task.subsystemId] : null;
-      if (bucket) {
-        bucket.qaFindings += 1;
-      }
-    }
-
-    for (const bucket of Object.values(counts)) {
-      if (
-        bucket.blockedTasks > 0 ||
-        bucket.overdueTasks > 0 ||
-        bucket.qaFindings > 0 ||
-        bucket.risks > 1
-      ) {
-        bucket.health = "risk";
-      } else if (bucket.waitingQa > 0 || bucket.openPurchases > 0 || bucket.risks > 0) {
-        bucket.health = "watch";
-      }
-    }
-
-    return counts;
-  }, [mechanisms, purchaseItems, qaReviews, subsystems, taskById, tasks]);
-
-  const filteredSubsystems = useMemo(() => {
-    const search = subsystemSearch.trim().toLowerCase();
-
-    return subsystems.filter((subsystem) => {
-      if (!search) {
-        return true;
-      }
-
-      const leadName = subsystem.responsibleEngineerId
-        ? (membersById[subsystem.responsibleEngineerId]?.name ?? "")
-        : "";
-      const mentorNames = subsystem.mentorIds
-        .map((mentorId) => membersById[mentorId]?.name ?? "")
-        .join(" ");
-      const mechanismNames = mechanisms
-        .filter((mechanism) => mechanism.subsystemId === subsystem.id)
-        .map((mechanism) => mechanism.name)
-        .join(" ");
-
-      return `${subsystem.name} ${subsystem.description} ${leadName} ${mentorNames} ${mechanismNames} ${subsystem.risks.join(" ")}`
-        .toLowerCase()
-        .includes(search);
-    });
-  }, [mechanisms, membersById, subsystemSearch, subsystems]);
-
-  const selectedSubsystem =
-    filteredSubsystems.find((subsystem) => subsystem.id === selectedSubsystemId) ?? null;
-
-  const riskRows = useMemo(() => {
-    const subsystemRisks = subsystems.flatMap((subsystem) =>
-      subsystem.risks.map((risk, index) => ({
-        id: `${subsystem.id}-${index}`,
-        title: risk,
-        detail: subsystem.description,
-        subsystemId: subsystem.id,
-        source: "Subsystem",
-        priority: "medium" as const,
-      })),
-    );
-    const blockerRisks = tasks
-      .filter((task) => task.blockers.length > 0 && task.status !== "complete")
-      .map((task) => ({
-        id: `task-${task.id}`,
-        title: task.title,
-        detail: task.blockers.join(" | "),
-        subsystemId: task.subsystemId,
-        source: "Task blocker",
-        priority: mapTaskPriorityToRiskPriority(task.priority),
-      }));
-    const qaRisks = qaReviews
-      .filter((review) => review.result === "iteration-worthy" || review.result === "minor-fix")
-      .map((review) => {
-        const taskId = getQaReviewTaskId(review);
-        const task = taskId ? taskById[taskId] : null;
-
-        return {
-          id: `qa-${review.id}`,
-          title: review.subjectTitle,
-          detail: review.notes,
-          subsystemId: task?.subsystemId ?? "",
-          source: review.result === "iteration-worthy" ? "Iteration" : "QA finding",
-          priority: review.result === "iteration-worthy" ? "high" as const : "medium" as const,
-        };
-      });
-
-    return [...blockerRisks, ...qaRisks, ...subsystemRisks].sort((left, right) => {
-      const priorityDelta = RISK_PRIORITY_RANK[left.priority] - RISK_PRIORITY_RANK[right.priority];
-      if (priorityDelta !== 0) {
-        return priorityDelta;
-      }
-
-      const sourceDelta = left.source.localeCompare(right.source);
-      if (sourceDelta !== 0) {
-        return sourceDelta;
-      }
-
-      return left.title.localeCompare(right.title);
-    });
-  }, [qaReviews, subsystems, taskById, tasks]);
+  const vendorsById = useMemo(() => Object.fromEntries(vendors.map((vendor) => [vendor.id, vendor])), [vendors]);
+  const purchaseBrowse = usePurchaseBrowse({ items: purchaseItems, tasksById: taskById, vendorsById });
+
+  const materialsBrowse = useMaterialsBrowse({ materials, purchaseItems });
+  const partsBrowse = usePartsBrowse({ partDefinitions, partInstances, tasks, partDefinitionsById, mechanismsById });
+
+  const subsystemBrowse = useSubsystemBrowse({
+    subsystems, mechanisms, tasks, purchaseItems, risks, qaFindings, membersById, taskById,
+  });
+
+  const riskRows = useMemo(() => risks.filter((risk) => risk.status !== "resolved")
+    .map((risk) => ({ id: risk.id, title: risk.title, detail: risk.detail,
+      subsystemId: risk.relatedTargets.find((target) => target.kind === "subsystem")?.id ?? "",
+      source: risk.source.kind, priority: risk.severity }))
+    .sort((left, right) => RISK_PRIORITY_RANK[left.priority] - RISK_PRIORITY_RANK[right.priority] || left.title.localeCompare(right.title)), [risks]);
 
   const riskSummary = useMemo(() => {
-    const highCount = riskRows.filter((risk) => risk.priority === "high").length;
+    const highCount = riskRows.filter((risk) => risk.priority === "high" || risk.priority === "critical").length;
     return [
-      { label: "Open risks", value: String(riskRows.length) },
+      { label: "Unresolved risks", value: String(riskRows.length) },
       { label: "High", value: String(highCount) },
-      { label: "Subsystem risks", value: String(subsystems.reduce((sum, subsystem) => sum + subsystem.risks.length, 0)) },
+      { label: "In progress", value: String(risks.filter((risk) => risk.status === "in-progress").length) },
     ] satisfies SummaryChipData[];
-  }, [riskRows, subsystems]);
+  }, [riskRows, risks]);
 
   const rosterStudents = members.filter(
     (member) => member.role === "student" || member.role === "lead",
@@ -1882,20 +1401,20 @@ export default function App() {
     const taskActions = tasks
       .filter((task) => task.status !== "complete")
       .flatMap((task) => {
-        const subsystemName = subsystemsById[task.subsystemId]?.name ?? "Unknown subsystem";
+        const subsystemName = subsystemsById[(task.subsystemIds[0] ?? "")]?.name ?? "FRC work";
         const ownerName = task.ownerId
           ? (membersById[task.ownerId]?.name ?? "Unassigned")
           : "Unassigned";
-        const openDependencies = taskDependencies.filter((edge) => edge.taskId === task.id && edge.kind === "task" && edge.dependencyType === "hard")
+        const openDependencies = taskDependencies.filter((edge): edge is Extract<TaskDependency, { kind: "task" }> => edge.taskId === task.id && edge.kind === "task" && edge.dependencyType === "hard")
           .filter((edge) => taskById[edge.refId]?.status !== edge.requiredState)
           .map((edge) => taskById[edge.refId])
           .filter((dependency): dependency is Task => Boolean(dependency))
           .filter((dependency) => dependency.status !== "complete");
         const actions = [];
 
-        if (task.blockers.length > 0) {
+        if (task.isBlocked) {
           actions.push({
-            detail: `${subsystemName} - ${ownerName} - ${task.blockers.join(" | ")}`,
+            detail: `${subsystemName} - ${ownerName} - unresolved risk or dependency`,
             id: `blocked-${task.id}`,
             label: "Blocked task",
             onPressTargetId: task.id,
@@ -1948,40 +1467,27 @@ export default function App() {
         return actions;
       });
 
-    const manufacturingActions = manufacturingItems
-      .filter((item) => item.status !== "complete")
-      .filter((item) => item.dueDate <= dueSoonDate || item.status === "qa")
-      .map((item) => ({
-        detail: `${subsystemsById[item.subsystemId]?.name ?? "Unknown subsystem"} - ${item.material} - Qty ${item.quantity}`,
-        id: `manufacturing-${item.id}`,
-        label: item.status === "qa" ? "Manufacturing QA" : "Manufacturing due",
-        onPressTargetId: item.id,
-        priority: item.status === "qa" || item.dueDate < today ? "high" as const : "medium" as const,
-        source: "manufacturing" as const,
-        title: item.title,
-      }));
-
     const purchaseActions = purchaseItems
-      .filter((item) => item.status === "requested" || item.status === "approved")
+      .filter((item) => item.approvalStatus === "pending" || item.orderStatus === "not-ordered")
       .map((item) => ({
-        detail: `${subsystemsById[item.subsystemId]?.name ?? "Unknown subsystem"} - ${item.vendor} - Qty ${item.quantity}`,
-        id: `purchase-${item.id}`,
-        label: item.status === "approved" ? "Ready to buy" : "Purchase request",
-        onPressTargetId: item.id,
-        priority: item.status === "approved" ? "high" as const : "medium" as const,
+        detail: `${taskById[item.taskId]?.title ?? "Procurement work"} - Qty ${item.quantity} - ${item.approvalStatus}`,
+        id: `purchase-${item.taskId}`,
+        label: "Procurement work",
+        onPressTargetId: item.taskId,
+        priority: item.approvalStatus === "approved" ? "high" as const : "medium" as const,
         source: "purchase" as const,
-        title: item.title,
+        title: taskById[item.taskId]?.title ?? item.title,
       }));
 
     const priorityRank = { critical: 0, high: 1, medium: 2 };
 
-    return [...taskActions, ...manufacturingActions, ...purchaseActions]
+    return [...taskActions, ...purchaseActions]
       .sort((left, right) => priorityRank[left.priority] - priorityRank[right.priority])
       .slice(0, 8);
-  }, [manufacturingItems, membersById, purchaseItems, subsystemsById, taskById, taskDependencies, tasks]);
+  }, [membersById, purchaseItems, subsystemsById, taskById, taskDependencies, tasks]);
   const homeTaskSummary = useMemo(() => {
     const openTasks = tasks.filter((task) => task.status !== "complete");
-    const blockedTasks = openTasks.filter((task) => task.blockers.length > 0);
+    const blockedTasks = openTasks.filter((task) => task.isBlocked);
     const dueToday = openTasks.filter((task) => task.dueDate <= isoToday());
     const waitingQa = openTasks.filter((task) => task.status === "waiting-for-qa");
 
@@ -2187,16 +1693,8 @@ export default function App() {
     }
   }, [members, selectedMemberId]);
 
-  useEffect(() => {
-    if (selectedSubsystemId && !subsystems.some((subsystem) => subsystem.id === selectedSubsystemId)) {
-      setSelectedSubsystemId(subsystems[0]?.id ?? "");
-    }
-  }, [selectedSubsystemId, subsystems]);
-
   const openTaskQueueFromTask = (task: Task) => {
-    const nextSubteam = getTaskSubteamForDisciplineId(task.disciplineId, activeTaskSubteam);
-
-    setActiveTaskSubteam(nextSubteam);
+    setActiveResponsibleGroupId(task.responsibleGroupId ?? "all");
     taskQueue.resetFilters();
     setActiveTab("work-tasks");
   };
@@ -2208,18 +1706,12 @@ export default function App() {
       return;
     }
 
-    setTasks((current) =>
-      current.map((task) =>
-        openTasksToShift.some((taskToShift) => taskToShift.id === task.id)
-          ? { ...task, dueDate: shiftDateByDays(task.dueDate, dayDelta) }
-          : task,
-      ),
-    );
+    const version = authSessionVersionRef.current;
     setIsSyncing(true);
     setSyncError(null);
 
     try {
-      await Promise.all(
+      const results = await Promise.allSettled(
         openTasksToShift.map((task) =>
           authenticatedRequestJson(
             `/api/tasks/${task.id}`,
@@ -2232,10 +1724,17 @@ export default function App() {
           ),
         ),
       );
+      if (authSessionVersionRef.current !== version) throw new SessionChangedError();
+      const failure = results.find((result) => result.status === "rejected");
+      const sessionFailure = results.find((result) => result.status === "rejected" &&
+        (result.reason instanceof SessionChangedError || classifyMobileAuthError(result.reason, "authenticated") === "expired-session"));
+      if (sessionFailure?.status === "rejected") throw sessionFailure.reason;
       await refreshWorkspaceFromServer(apiToken);
+      if (failure?.status === "rejected") throw failure.reason;
       setBackendStatus("connected");
       setBackendReachability("reachable");
     } catch (error) {
+      if (authSessionVersionRef.current !== version || error instanceof SessionChangedError || error instanceof SupersededWorkspaceRefreshError) return;
       if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
         endSessionForAuthFailure(getMobileAuthErrorMessage("expired-session"));
         return;
@@ -2245,19 +1744,8 @@ export default function App() {
       setBackendReachability(backendReachabilityAfterError(error));
       setSyncError(getClientErrorMessage(error));
     } finally {
-      setIsSyncing(false);
+      if (authSessionVersionRef.current === version) setIsSyncing(false);
     }
-  };
-
-  const openCreateMilestoneEditor = () => {
-    setMilestoneEditorMode("create");
-    setActiveMilestoneId(null);
-    setMilestoneDraft(buildMilestoneDraft());
-    setMilestoneStartDate(localTodayDate());
-    setMilestoneStartTime("18:00");
-    setMilestoneEndDate("");
-    setMilestoneEndTime("");
-    setMilestoneError(null);
   };
 
   const openCreateDeadlineEditor = () => {
@@ -2267,29 +1755,6 @@ export default function App() {
     setDeadlineEditorVisible(true);
   };
 
-  const openEditMilestoneEditor = (event: Event) => {
-    setMilestoneEditorMode("edit");
-    setActiveMilestoneId(event.id);
-    setMilestoneDraft({
-      title: event.title,
-      type: event.type,
-      isExternal: event.isExternal,
-      description: event.description,
-      relatedSubsystemIdsText: event.relatedSubsystemIds.join(", "),
-    });
-    setMilestoneStartDate(datePortion(event.startDateTime));
-    setMilestoneStartTime(timePortion(event.startDateTime));
-    setMilestoneEndDate(event.endDateTime ? datePortion(event.endDateTime) : "");
-    setMilestoneEndTime(event.endDateTime ? timePortion(event.endDateTime) : "");
-    setMilestoneError(null);
-  };
-
-  const closeMilestoneEditor = () => {
-    setMilestoneEditorMode(null);
-    setActiveMilestoneId(null);
-    setMilestoneError(null);
-  };
-
   const closeDeadlineEditor = () => {
     setDeadlineEditorVisible(false);
     setDeadlineTitle("");
@@ -2297,108 +1762,10 @@ export default function App() {
     setDeadlineError(null);
   };
 
-  const saveMilestoneDraft = async () => {
-    const title = milestoneDraft.title.trim();
-    const startDate = milestoneStartDate.trim();
-    const startTime = milestoneStartTime.trim() || "12:00";
-    const endDate = milestoneEndDate.trim();
-    const endTime = milestoneEndTime.trim();
-    const hasEnd = endDate.length > 0 || endTime.length > 0;
-    const resolvedEndDate = endDate || startDate;
-    const resolvedEndTime = endTime || startTime;
-    const missingFields = [
-      !title ? "title" : null,
-      !isValidDateInput(startDate) ? "start date" : null,
-      !isValidTimeInput(startTime) ? "start time" : null,
-      hasEnd && !isValidDateInput(resolvedEndDate) ? "end date" : null,
-      hasEnd && !isValidTimeInput(resolvedEndTime) ? "end time" : null,
-    ].filter((field): field is string => Boolean(field));
-
-    if (missingFields.length > 0) {
-      setMilestoneError(`Add valid ${missingFields.join(", ")} before saving this milestone.`);
-      return;
-    }
-
-    const parsedSubsystemIds = splitList(milestoneDraft.relatedSubsystemIdsText)
-      .filter((subsystemId) => subsystemsById[subsystemId]);
-    const projectIds = Array.from(
-      new Set(
-        parsedSubsystemIds
-          .map((subsystemId) => subsystemsById[subsystemId]?.projectId)
-          .filter((projectId): projectId is string => Boolean(projectId)),
-      ),
-    );
-
-    const startDateTime = buildDateTime(startDate, startTime);
-    const endDateTime = hasEnd
-      ? buildDateTime(resolvedEndDate, resolvedEndTime)
-      : null;
-
-    if (endDateTime && compareDateTimes(endDateTime, startDateTime) < 0) {
-      setMilestoneError("End date/time must be after start date/time.");
-      return;
-    }
-
-    setMilestoneError(null);
-
-    const isEdit = milestoneEditorMode === "edit" && activeMilestoneId;
-    const payload: {
-      title: string;
-      type: ReturnType<typeof mapEventTypeToMilestoneType>;
-      startDateTime: string;
-      endDateTime: string | null;
-      isExternal: boolean;
-      description: string;
-      relatedSubsystemIds: string[];
-      projectIds: string[];
-    } = {
-      title,
-      type: mapEventTypeToMilestoneType(milestoneDraft.type),
-      startDateTime,
-      endDateTime,
-      isExternal: milestoneDraft.isExternal,
-      description: milestoneDraft.description.trim(),
-      relatedSubsystemIds: parsedSubsystemIds,
-      projectIds,
-    };
-
-    setIsSyncing(true);
-    setSyncError(null);
-
-    try {
-      const response = await authenticatedRequestJson<MilestoneMutationResponse>(
-        isEdit ? `/api/milestones/${activeMilestoneId}` : "/api/milestones",
-        {
-          method: isEdit ? "PATCH" : "POST",
-          body: JSON.stringify(payload),
-        },
-      );
-
-      await refreshWorkspaceFromServer(apiToken);
-      setEvents((currentEvents) =>
-        applyMilestoneSubsystemLinks(
-          currentEvents,
-          response.item,
-          isEdit ? activeMilestoneId : null,
-          parsedSubsystemIds,
-        ),
-      );
-      setBackendStatus("connected");
-      setBackendReachability("reachable");
-      closeMilestoneEditor();
-    } catch (error) {
-      if (classifyMobileAuthError(error, "authenticated") === "expired-session") {
-        endSessionForAuthFailure(getMobileAuthErrorMessage("expired-session"));
-        return;
-      }
-
-      setBackendStatus("offline");
-      setBackendReachability(backendReachabilityAfterError(error));
-      setSyncError(getClientErrorMessage(error));
-    } finally {
-      setIsSyncing(false);
-    }
-  };
+  const persistMilestone = (id: string | null, payload: MilestonePayload) =>
+    runMutation(id ? `/api/milestones/${id}` : "/api/milestones", {
+      method: id ? "PATCH" : "POST", body: JSON.stringify(payload),
+    });
 
   const saveDeadlineDraft = async () => {
     const title = deadlineTitle.trim();
@@ -2426,37 +1793,10 @@ export default function App() {
     }
   };
 
-  const deleteMilestoneDraft = async () => {
-    if (!activeMilestoneId) {
-      return;
-    }
-
-    const ok = await runMutation(`/api/milestones/${activeMilestoneId}`, {
-      method: "DELETE",
-    });
-
-    if (ok) {
-      closeMilestoneEditor();
-    }
-  };
-
-  const clearTaskBlockers = async (task: Task, resolutionNote: string) => {
-    const trimmedNote = resolutionNote.trim();
-    if (!trimmedNote) {
-      return;
-    }
-
-    for (const blocker of taskBlockers.filter((candidate) => candidate.blockedTaskId === task.id && candidate.status === "open")) {
-      const ok = await runMutation(`/api/task-blockers/${blocker.id}`, {
-        method: "PATCH", body: JSON.stringify({ status: "resolved" }),
-      });
-      if (!ok) throw new Error("Blocker resolution failed. Refresh and retry.");
-    }
-    const saved = await runMutation(`/api/tasks/${task.id}`, { method: "PATCH", body: JSON.stringify({
-      summary: `${task.summary.trim()}\n\nBlockers cleared ${isoToday()}: ${trimmedNote}`,
-    }) });
-    if (!saved) throw new Error("Blockers resolved, but the resolution note failed to save. Retry the note.");
-  };
+  const milestoneEditor = useMilestoneEditor({
+    persist: persistMilestone,
+    remove: (id) => runMutation(`/api/milestones/${id}`, { method: "DELETE" }),
+  });
 
   const claimTask = async (task: Task) => {
     if (!signedInMember || task.status === "complete") {
@@ -2524,18 +1864,12 @@ export default function App() {
       return;
     }
 
-    if (task.status === "in-progress") {
+    if (currentTask.status === "in-progress") {
       if (openWorkLog) {
         openCreateWorkLogEditor(task.id);
       }
       return;
     }
-
-    setTasks((current) =>
-      current.map((candidate) =>
-        candidate.id === task.id ? { ...candidate, status } : candidate,
-      ),
-    );
 
     const ok = await runMutation(`/api/tasks/${task.id}`, {
       method: "PATCH",
@@ -2548,60 +1882,22 @@ export default function App() {
   startTaskRef.current = startTask;
 
   const requestTaskQa = async (task: Task) => {
-    const mentorId =
-      task.mentorId ||
-      members.find((member) => member.role === "mentor" || member.role === "admin")?.id ||
-      task.ownerId ||
-      members[0]?.id ||
-      "";
-
-    if (
-      !mentorId ||
-      task.status !== "in-progress" ||
-      task.blockers.length > 0 ||
-      isTaskBlocked(task)
-    ) {
+    if (authSessionVersionRef.current !== activeSessionVersion) return;
+    const currentTask = taskState.getSnapshot().find((candidate) => candidate.id === task.id);
+    if (!currentTask || currentTask.status !== "in-progress" || isTaskBlocked(currentTask)) return;
+    const seasonId = projects.find((project) => project.id === currentTask.projectId)?.seasonId;
+    const eligibleMentors = members.filter((member) => member.role === "mentor" &&
+      (member.seasonId === seasonId || (seasonId !== undefined && member.activeSeasonIds?.includes(seasonId))));
+    const mentorId = eligibleMentors.find((member) => member.id === currentTask.mentorId)?.id ?? eligibleMentors[0]?.id;
+    if (!mentorId) {
+      setSyncError("Assign an active mentor in this task's season before requesting QA.");
       return;
     }
-
-    setTasks((current) =>
-      current.map((candidate) =>
-        candidate.id === task.id
-          ? { ...candidate, mentorId, status: "waiting-for-qa" }
-          : candidate,
-      ),
-    );
-
-    const ok = await runMutation(`/api/tasks/${task.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({
-        mentorId,
-        status: "waiting-for-qa",
+    await runMutation("/api/qa-requests", {
+      method: "POST", body: JSON.stringify({
+        targetRefs: [{ kind: "task", id: currentTask.id }], subject: currentTask.title, mentorId,
       }),
     });
-
-    if (ok) {
-      setQaRequests((current) => [
-        {
-          id: `qa-request-local-${Date.now()}`,
-          taskId: task.id,
-          subject: task.title,
-          mentorId,
-          requestedById: signedInMember?.id ?? null,
-          createdAt: new Date().toISOString(),
-          status: "requested",
-        },
-        ...current,
-      ]);
-    } else {
-      setTasks((current) =>
-        current.map((candidate) =>
-          candidate.id === task.id && candidate.status === "waiting-for-qa"
-            ? { ...candidate, mentorId: task.mentorId, status: task.status }
-            : candidate,
-        ),
-      );
-    }
   };
 
   const openCreateWorkLogEditor = (taskId?: string) => {
@@ -2917,248 +2213,10 @@ export default function App() {
     }
   };
 
-  const openCreateManufacturingEditor = () => {
-    const process =
-      manufacturingView === "cnc" || manufacturingView === "all"
-        ? "cnc"
-        : manufacturingView === "prints"
-          ? "3d-print"
-          : "fabrication";
-    const requesterId = signedInMember?.id ?? members[0]?.id ?? "";
-
-    setActiveManufacturingId(null);
-    setManufacturingError(null);
-    setManufacturingDraft(
-      buildManufacturingDraft(process, {
-        subsystemId: subsystems[0]?.id ?? "",
-        requestedById: requesterId,
-        dueDate: isoToday(),
-      }),
-    );
-    setManufacturingEditorMode("create");
-  };
-
-  const openEditManufacturingEditor = (item: ManufacturingItem) => {
-    setActiveManufacturingId(item.id);
-    setManufacturingDraft(buildManufacturingDraft(item.process, item));
-    setManufacturingError(null);
-    setManufacturingEditorMode("edit");
-  };
-
-  const closeManufacturingEditor = () => {
-    setManufacturingEditorMode(null);
-    setActiveManufacturingId(null);
-    setManufacturingError(null);
-  };
-
-  const saveManufacturingDraft = async () => {
-    const parsedQty = Number(manufacturingDraft.quantity);
-    const parsedQaReviewCount = Number(manufacturingDraft.qaReviewCount);
-    const title = manufacturingDraft.title.trim();
-    const material = manufacturingDraft.material.trim();
-    const missingFields = [
-      !title ? "title" : null,
-      !manufacturingDraft.subsystemId ? "subsystem" : null,
-      !manufacturingDraft.requestedById ? "requester" : null,
-      !material ? "material" : null,
-      Number.isNaN(parsedQty) || parsedQty <= 0 ? "quantity" : null,
-      Number.isNaN(parsedQaReviewCount) || parsedQaReviewCount < 0 ? "QA review count" : null,
-    ].filter((field): field is string => Boolean(field));
-
-    if (missingFields.length > 0) {
-      setManufacturingError(`Add ${missingFields.join(", ")} before saving this manufacturing item.`);
-      return;
-    }
-
-    setManufacturingError(null);
-
-    const payload = {
-      title,
-      subsystemId: manufacturingDraft.subsystemId,
-      requestedById: manufacturingDraft.requestedById,
-      process: manufacturingDraft.process,
-      dueDate: manufacturingDraft.dueDate || isoToday(),
-      material,
-      quantity: parsedQty,
-      batchLabel: manufacturingDraft.batchLabel.trim() || undefined,
-      qaReviewCount: parsedQaReviewCount,
-      ...(manufacturingEditorMode === "create"
-        ? { status: "requested", mentorReviewed: false }
-        : {}),
-    };
-
-    const isEdit = manufacturingEditorMode === "edit" && activeManufacturingId;
-    const ok = await runMutation(
-      isEdit ? `/api/manufacturing/${activeManufacturingId}` : "/api/manufacturing",
-      {
-        method: isEdit ? "PATCH" : "POST",
-        body: JSON.stringify(payload),
-      },
-    );
-
-    if (ok) {
-      closeManufacturingEditor();
-    }
-  };
-
-  const deleteManufacturingDraft = async () => {
-    if (!activeManufacturingId || !canMentorApprove) {
-      return;
-    }
-
-    const ok = await runMutation(`/api/manufacturing/${activeManufacturingId}`, {
-      method: "DELETE",
-    });
-
-    if (ok) {
-      closeManufacturingEditor();
-    }
-  };
-
-  const patchManufacturingItem = async (
-    item: ManufacturingItem,
-    patch: Partial<Pick<ManufacturingItem, "mentorReviewed" | "status">>,
-  ) => {
-    if (patch.mentorReviewed !== undefined) {
-      await runMutation(`/api/manufacturing/${item.id}/review`, {
-        method: "PUT",
-        body: JSON.stringify({ reviewed: patch.mentorReviewed }),
-      });
-      return;
-    }
-
-    if (patch.status !== undefined) {
-      await runMutation(`/api/manufacturing/${item.id}/transition`, {
-        method: "POST",
-        body: JSON.stringify({ status: patch.status }),
-      });
-    }
-  };
-
-  const openCreatePurchaseEditor = () => {
-    setActivePurchaseId(null);
-    setPurchaseError(null);
-    setPurchaseDraft(
-      buildPurchaseDraft({
-        subsystemId: subsystems[0]?.id ?? "",
-        requestedById: members[0]?.id ?? "",
-      }),
-    );
-    setPurchaseEditorMode("create");
-  };
-
-  const openMaterialRestockEditor = (row: MaterialRollup) => {
-    const relatedManufacturingItem = manufacturingItems.find(
-      (item) => item.material === row.name && item.status !== "complete",
-    );
-    const relatedPurchase = purchaseItems.find((item) => {
-      const text = `${item.title} ${item.vendor} ${item.linkLabel}`.toLowerCase();
-      return row.name
-        .toLowerCase()
-        .split(" ")
-        .some((token) => token.length > 3 && text.includes(token));
-    });
-
-    setActivePurchaseId(null);
-    setPurchaseError(null);
-    setPurchaseDraft(
-      buildPurchaseDraft({
-        title: `Restock ${row.name}`,
-        subsystemId: relatedManufacturingItem?.subsystemId ?? subsystems[0]?.id ?? "",
-        requestedById: signedInMember?.id ?? members[0]?.id ?? "",
-        quantity: Math.max(row.suggestedOrderQuantity, row.reorderPoint),
-        vendor: row.vendor === "Mixed" ? "" : row.vendor,
-        linkLabel: relatedPurchase?.linkLabel ?? "",
-        status: "requested",
-      }),
-    );
-    setPurchaseEditorMode("create");
-  };
-
-  const openEditPurchaseEditor = (item: PurchaseItem) => {
-    setActivePurchaseId(item.id);
-    setPurchaseDraft(buildPurchaseDraft(item));
-    setPurchaseError(null);
-    setPurchaseEditorMode("edit");
-  };
-
-  const closePurchaseEditor = () => {
-    setPurchaseEditorMode(null);
-    setActivePurchaseId(null);
-    setPurchaseError(null);
-  };
-
-  const savePurchaseDraft = async () => {
-    const parsedQty = Number(purchaseDraft.quantity);
-    const parsedEstimate = Number(purchaseDraft.estimatedCost);
-    const parsedFinal = purchaseDraft.finalCost.trim() ? Number(purchaseDraft.finalCost) : undefined;
-    const title = purchaseDraft.title.trim();
-    const vendor = purchaseDraft.vendor.trim();
-    const linkLabel = purchaseDraft.linkLabel.trim();
-    const invalidFinalCost =
-      purchaseDraft.finalCost.trim() &&
-      (typeof parsedFinal !== "number" || Number.isNaN(parsedFinal) || parsedFinal < 0);
-    const missingFields = [
-      !title ? "title" : null,
-      !purchaseDraft.subsystemId ? "subsystem" : null,
-      !purchaseDraft.requestedById ? "requester" : null,
-      !vendor ? "vendor" : null,
-      Number.isNaN(parsedQty) || parsedQty <= 0 ? "quantity" : null,
-      Number.isNaN(parsedEstimate) || parsedEstimate < 0 ? "estimated cost" : null,
-      invalidFinalCost ? "final cost" : null,
-    ].filter((field): field is string => Boolean(field));
-
-    if (missingFields.length > 0) {
-      setPurchaseError(`Add ${missingFields.join(", ")} before saving this purchase.`);
-      return;
-    }
-
-    setPurchaseError(null);
-
-    const payload = {
-      title,
-      subsystemId: purchaseDraft.subsystemId,
-      requestedById: purchaseDraft.requestedById,
-      quantity: parsedQty,
-      vendor,
-      linkLabel: linkLabel || "n/a",
-      estimatedCost: parsedEstimate,
-      finalCost:
-        canMentorApprove && typeof parsedFinal === "number" && !Number.isNaN(parsedFinal)
-          ? parsedFinal
-          : undefined,
-      ...(purchaseEditorMode === "create"
-        ? { approvedByMentor: false, status: "requested" }
-        : {}),
-    };
-
-    const isEdit = purchaseEditorMode === "edit" && activePurchaseId;
-    const ok = await runMutation(
-      isEdit ? `/api/purchases/${activePurchaseId}` : "/api/purchases",
-      {
-        method: isEdit ? "PATCH" : "POST",
-        body: JSON.stringify(payload),
-      },
-    );
-
-    if (ok) {
-      closePurchaseEditor();
-    }
-  };
-
-  const deletePurchaseDraft = async () => {
-    if (!activePurchaseId || !canMentorApprove) {
-      return;
-    }
-
-    const ok = await runMutation(`/api/purchases/${activePurchaseId}`, {
-      method: "DELETE",
-    });
-
-    if (ok) {
-      closePurchaseEditor();
-    }
-  };
+  const purchaseEditor = usePurchaseEditor({
+    tasks, materials, vendors, purchaseItems,
+    canMentorApprove, mutate: runMutation,
+  });
 
   const approvePurchaseItem = async (item: PurchaseItem, approved: boolean) => {
     await runMutation(`/api/purchases/${item.id}/approval`, {
@@ -3167,364 +2225,23 @@ export default function App() {
     });
   };
 
-  const transitionPurchaseItem = async (
-    item: PurchaseItem,
-    status: PurchaseItem["status"],
-  ) => {
+  const transitionPurchaseItem = async (item: PurchaseItem, status: PurchaseItem["orderStatus"]) => {
     await runMutation(`/api/purchases/${item.id}/transition`, {
       method: "POST",
       body: JSON.stringify({ status }),
     });
   };
 
-  const openCreateMemberEditor = (role: MemberRole = "student") => {
-    setActiveMemberId(null);
-    setMemberError(null);
-    setMemberDraft(buildMemberDraft({ role }));
-    setMemberEditorMode("create");
-  };
+  const memberEditor = useMemberEditor({ members, canMentorApprove, mutate: runMutation });
+  const subsystemEditor = useSubsystemEditor({ members, mutate: runMutation });
+  const partDefinitionEditor = usePartDefinitionEditor({
+    partDefinitions,
+    canCreateParts: ["lead", "mentor", "admin"].includes(sessionUser?.role ?? ""),
+    mutate: runMutation,
+  });
 
-  const openEditMemberEditor = (memberId: string) => {
-    const member = members.find((candidate) => candidate.id === memberId);
-    if (!member) {
-      return;
-    }
-
-    setActiveMemberId(member.id);
-    setMemberError(null);
-    setMemberDraft(buildMemberDraft(member));
-    setMemberEditorMode("edit");
-  };
-
-  const closeMemberEditor = () => {
-    setMemberEditorMode(null);
-    setActiveMemberId(null);
-    setMemberError(null);
-  };
-
-  const showProfilePhotoUrlOnlyMessage = () => {
-    setMemberError("Paste a hosted image URL below. Mobile file upload is not available yet.");
-  };
-
-  const saveMemberDraft = async () => {
-    if (!canMentorApprove) {
-      setMemberError("Only mentors can invite or edit people.");
-      return;
-    }
-
-    const name = memberDraft.name.trim();
-    const email = memberDraft.email.trim().toLowerCase();
-    const duplicateName = members.some(
-      (member) =>
-        member.id !== activeMemberId &&
-        member.name.trim().toLowerCase() === name.toLowerCase(),
-    );
-
-    if (!name) {
-      setMemberError("Add a name before saving this roster member.");
-      return;
-    }
-
-    if (duplicateName) {
-      setMemberError("A roster member with this name already exists.");
-      return;
-    }
-
-    setMemberError(null);
-
-    const payload = {
-      disciplineId: memberDraft.disciplineId || null,
-      elevated: memberDraft.role === "lead" || memberDraft.role === "admin",
-      email,
-      name,
-      photoUrl: memberDraft.photoUrl.trim(),
-      plannedAttendanceDays: memberDraft.plannedAttendanceDays,
-      plannedAttendanceNotes: memberDraft.plannedAttendanceNotes.trim(),
-      plannedWeeklyAttendanceHours: Math.max(
-        0,
-        Number(memberDraft.plannedWeeklyAttendanceHours) || 0,
-      ),
-      role: memberDraft.role,
-    };
-
-    const isEdit = memberEditorMode === "edit" && activeMemberId;
-    const ok = await runMutation(
-      isEdit ? `/api/members/${activeMemberId}` : "/api/members",
-      {
-        method: isEdit ? "PATCH" : "POST",
-        body: JSON.stringify(payload),
-      },
-    );
-
-    if (ok) {
-      closeMemberEditor();
-    }
-  };
-
-  const deleteMemberDraft = async () => {
-    if (!activeMemberId) {
-      return;
-    }
-
-    const ok = await runMutation(`/api/members/${activeMemberId}`, {
-      method: "DELETE",
-    });
-
-    if (ok) {
-      closeMemberEditor();
-    }
-  };
-
-  const openCreateSubsystemEditor = () => {
-    setActiveSubsystemId(null);
-    setSubsystemError(null);
-    setSubsystemDraft(
-      buildSubsystemDraft({
-        responsibleEngineerId: members[0]?.id ?? "",
-      }),
-    );
-    setSubsystemEditorMode("create");
-  };
-
-  const openEditSubsystemEditor = (subsystem: Subsystem) => {
-    setActiveSubsystemId(subsystem.id);
-    setSubsystemError(null);
-    setSubsystemDraft(buildSubsystemDraft(subsystem));
-    setSubsystemEditorMode("edit");
-  };
-
-  const closeSubsystemEditor = () => {
-    setSubsystemEditorMode(null);
-    setActiveSubsystemId(null);
-    setSubsystemError(null);
-  };
-
-  const saveSubsystemDraft = async () => {
-    const mentors = splitList(subsystemDraft.mentorIdsText).filter((mentorId) =>
-      members.some((member) => member.id === mentorId),
-    );
-    const risks = splitList(subsystemDraft.risksText);
-    const name = subsystemDraft.name.trim();
-    const description = subsystemDraft.description.trim();
-    const missingFields = [
-      !name ? "name" : null,
-      !description ? "description" : null,
-      !subsystemDraft.responsibleEngineerId || !membersById[subsystemDraft.responsibleEngineerId]
-        ? "responsible engineer"
-        : null,
-    ].filter((field): field is string => Boolean(field));
-
-    if (missingFields.length > 0) {
-      setSubsystemError(`Add ${missingFields.join(", ")} before saving this subsystem.`);
-      return;
-    }
-
-    setSubsystemError(null);
-
-    const payload = {
-      name,
-      description,
-      parentSubsystemId: null,
-      responsibleEngineerId: subsystemDraft.responsibleEngineerId,
-      mentorIds: mentors,
-      risks,
-    };
-
-    const isEdit = subsystemEditorMode === "edit" && activeSubsystemId;
-    const ok = await runMutation(
-      isEdit ? `/api/subsystems/${activeSubsystemId}` : "/api/subsystems",
-      {
-        method: isEdit ? "PATCH" : "POST",
-        body: JSON.stringify(payload),
-      },
-    );
-
-    if (ok) {
-      closeSubsystemEditor();
-    }
-  };
-
-  const deleteSubsystemDraft = async () => {
-    if (!activeSubsystemId) {
-      return;
-    }
-
-    const ok = await runMutation(`/api/subsystems/${activeSubsystemId}`, {
-      method: "DELETE",
-    });
-
-    if (ok) {
-      closeSubsystemEditor();
-    }
-  };
-
-  const openCreatePartDefinitionEditor = () => {
-    setActivePartDefinitionId(null);
-    setPartDefinitionError(null);
-    setPartDefinitionDraft(buildPartDefinitionDraft());
-    setPartDefinitionEditorMode("create");
-  };
-
-  const openEditPartDefinitionEditor = (partDefinitionId: string) => {
-    const partDefinition = partDefinitions.find((candidate) => candidate.id === partDefinitionId);
-    if (!partDefinition) {
-      return;
-    }
-
-    setActivePartDefinitionId(partDefinition.id);
-    setPartDefinitionError(null);
-    setPartDefinitionDraft(buildPartDefinitionDraft(partDefinition));
-    setPartDefinitionEditorMode("edit");
-  };
-
-  const closePartDefinitionEditor = () => {
-    setPartDefinitionEditorMode(null);
-    setActivePartDefinitionId(null);
-    setPartDefinitionError(null);
-  };
-
-  const createPartAcquisitionWork = async (
-    partName: string,
-    acquisitionMethod: AcquisitionMethod,
-  ) => {
-    if (acquisitionMethod === "stock") {
-      return;
-    }
-
-    const subsystemId = subsystems[0]?.id ?? "";
-    const requesterId = signedInMember?.id ?? members[0]?.id ?? "";
-    const ownerId = requesterId;
-    const mentorId =
-      members.find((member) => member.role === "mentor" || member.role === "admin")?.id ??
-      requesterId;
-    const dueDate = isoToday();
-
-    if (!subsystemId || !requesterId || !ownerId || !mentorId) {
-      return;
-    }
-
-    if (acquisitionMethod === "manufacture") {
-      await runMutation("/api/manufacturing", {
-        method: "POST",
-        body: JSON.stringify({
-          title: `Make ${partName}`,
-          subsystemId,
-          requestedById: requesterId,
-          process: "cnc",
-          dueDate,
-          material: partDefinitionDraft.source,
-          quantity: 1,
-          status: "requested",
-          mentorReviewed: false,
-          batchLabel: undefined,
-          qaReviewCount: 0,
-        }),
-      });
-    } else {
-      await runMutation("/api/purchases", {
-        method: "POST",
-        body: JSON.stringify({
-          title: `Buy ${partName}`,
-          subsystemId,
-          requestedById: requesterId,
-          quantity: 1,
-          vendor: partDefinitionDraft.source,
-          linkLabel: "n/a",
-          estimatedCost: 0,
-          approvedByMentor: false,
-          status: "requested",
-        }),
-      });
-    }
-
-    await runMutation("/api/tasks", {
-      method: "POST",
-      body: JSON.stringify(mapTaskPayloadToServer({
-        title: `Acquire ${partName}`,
-        summary:
-          acquisitionMethod === "manufacture"
-            ? `Manufacture ${partName} and move it through QA.`
-            : `Purchase ${partName} and confirm it is ready for installation.`,
-        subsystemId,
-        disciplineId: disciplines[0]?.id || "mechanical",
-        mechanismId: null,
-        partInstanceId: null,
-        targetEventId: null,
-        ownerId,
-        mentorId,
-        dueDate,
-        priority: "medium",
-        status: "not-started",
-
-        linkedManufacturingIds: [],
-        linkedPurchaseIds: [],
-        estimatedHours: 0,
-        actualHours: 0,
-      })),
-    });
-  };
-
-  const savePartDefinitionDraft = async () => {
-    const partName = partDefinitionDraft.name.trim();
-    const partNumber = partDefinitionDraft.partNumber.trim();
-    const revision = partDefinitionDraft.revision.trim();
-    const source = partDefinitionDraft.source.trim();
-    const missingFields = [
-      !partName ? "name" : null,
-      !partNumber ? "part number" : null,
-      !revision ? "revision" : null,
-      !source ? "source" : null,
-      !partDefinitionDraft.acquisitionMethod ? "acquisition method" : null,
-    ].filter((field): field is string => Boolean(field));
-
-    if (missingFields.length > 0) {
-      setPartDefinitionError(`Add ${missingFields.join(", ")} before saving this part definition.`);
-      return;
-    }
-
-    setPartDefinitionError(null);
-
-    const payload = {
-      name: partName,
-      partNumber,
-      revision,
-      type: partDefinitionDraft.source === "Onshape" ? "custom" : "cots",
-      source,
-      description: "",
-    };
-
-    const isEdit = partDefinitionEditorMode === "edit" && activePartDefinitionId;
-    const ok = await runMutation(
-      isEdit
-        ? `/api/part-definitions/${activePartDefinitionId}`
-        : "/api/part-definitions",
-      {
-        method: isEdit ? "PATCH" : "POST",
-        body: JSON.stringify(payload),
-      },
-    );
-
-    if (ok) {
-      if (!isEdit) {
-        await createPartAcquisitionWork(partName, partDefinitionDraft.acquisitionMethod);
-      }
-
-      closePartDefinitionEditor();
-    }
-  };
-
-  const deletePartDefinitionDraft = async () => {
-    if (!activePartDefinitionId) {
-      return;
-    }
-
-    const ok = await runMutation(`/api/part-definitions/${activePartDefinitionId}`, {
-      method: "DELETE",
-    });
-
-    if (ok) {
-      closePartDefinitionEditor();
-    }
+  const updatePartInstance = async (item: PartInstance, patch: Partial<Pick<PartInstance, "location">>) => {
+    await runMutation(`/api/part-instances/${item.id}`, { method: "PATCH", body: JSON.stringify(patch) });
   };
 
   const openCreateQaReportEditor = (taskId = tasks[0]?.id ?? "", qaRequestId?: string) => {
@@ -3563,7 +2280,8 @@ export default function App() {
     setQaRequests((current) => [
       {
         id: `qa-request-local-${Date.now()}`,
-        taskId: task?.id ?? null,
+        projectId: task?.projectId ?? projects[0]?.id ?? "",
+        targetRefs: task ? [{ kind: "task", id: task.id }] : [],
         subject: requestSubject,
         mentorId,
         requestedById: signedInMember?.id ?? null,
@@ -3623,21 +2341,29 @@ export default function App() {
       (activeQaRequestId
         ? qaRequests.find((request) => request.id === activeQaRequestId)
         : null) ??
-      qaRequests.find((request) => request.taskId === task.id);
+      qaRequests.find((request) => request.targetRefs.some((target) => target.kind === "task" && target.id === task.id));
     const sessionVersion = authSessionVersionRef.current;
     try {
-      const { item } = await authenticatedRequestJson<{ item: NonNullable<PlatformBootstrapPayload["qaReports"]>[number] }>("/api/qa-reports/submit", {
+      const { item } = await authenticatedRequestJson<{ item: Extract<Report, { reportType: "qa" }> }>("/api/qa-reports/submit", {
         method: "POST", body: JSON.stringify({
-          taskId: task.id, participantIds: participants,
-          result: qaReportDraft.result, mentorApproved: qaReportDraft.mentorApproved,
-          notes: qaReportDraft.notes.trim(), evidenceNotes: qaReportDraft.evidenceNotes.trim(),
-          followUpTaskTitle: qaReportDraft.followUpTaskTitle.trim(),
-          qaRequestId: linkedQaRequest?.id ?? null, reviewedAt: isoToday(),
+          projectId: task.projectId,
+          targetRefs: [{ kind: "task", id: task.id }],
+          participantIds: participants,
+          result: qaReportDraft.result,
+          summary: qaReportDraft.notes.trim(),
+          notes: qaReportDraft.notes.trim(),
+          evidenceNotes: qaReportDraft.evidenceNotes.trim(),
+          qaRequestId: linkedQaRequest?.id ?? null,
+          createdByMemberId: signedInMember?.id ?? null,
+          mentorId: linkedQaRequest?.mentorId ?? null,
+          requestedById: linkedQaRequest?.requestedById ?? signedInMember?.id ?? null,
+          status: "submitted",
+          reviewedById: canMentorApprove ? signedInMember?.id ?? null : null,
+          reviewedAt: canMentorApprove ? new Date().toISOString() : null,
         }),
       });
       if (authSessionVersionRef.current !== sessionVersion) return;
-      setQaReviews((current) => [{ ...item, subjectTitle: task.title, subjectType: "task", subjectId: task.id },
-        ...current.filter((review) => review.id !== item.id)]);
+      setReports((current) => [item, ...current.filter((report) => report.id !== item.id)]);
       closeQaReportEditor();
     } catch (error) {
       if (authSessionVersionRef.current !== sessionVersion) return;
@@ -3649,30 +2375,38 @@ export default function App() {
     }
     // The command is acknowledged: refresh errors must not invite a duplicate submission.
     try {
-      const payload = await authenticatedRequestJson<PlatformBootstrapPayload>("/api/bootstrap");
-      if (authSessionVersionRef.current === sessionVersion) applyBootstrapPayload(payload);
+      await refreshWorkspaceFromServer(apiToken);
     } catch (error) {
-      if (authSessionVersionRef.current === sessionVersion) setSyncError(getClientErrorMessage(error));
+      if (authSessionVersionRef.current === sessionVersion && !(error instanceof SupersededWorkspaceRefreshError)) setSyncError(getClientErrorMessage(error));
     }
   };
 
   const clearIdentityScopedState = () => {
     setMembers([]);
     setSubsystems([]);
-    setDisciplines([]);
+    setProjects([]);
+    setWorkTypes([]);
+    setResponsibleGroups([]);
+    setWorkstreams([]);
+    setVendors([]);
     setMechanisms([]);
     setTasks([]);
     setTaskDependencies([]);
-    setTaskBlockers([]);
     setEvents([]);
+    setMeetings([]);
+    setMilestones([]);
     workLogsRef.current = [];
     setWorkLogs([]);
     workLogQueue.dispose();
-    setManufacturingItems([]);
+    setMaterials([]);
+    setManufacturingProcesses([]);
     setPurchaseItems([]);
     setPartDefinitions([]);
     setPartInstances([]);
-    setQaReviews([]);
+    setRisks([]);
+    setReports([]);
+    setQaFindings([]);
+    setArtifacts([]);
     setQaRequests([]);
     setHelpRequests([]);
     setActivePersonFilter("all");
@@ -3680,22 +2414,23 @@ export default function App() {
     setIsPersonMenuVisible(false);
     closeTaskEditor();
     closeWorkLogEditor();
-    closeMilestoneEditor();
+    milestoneEditor.close();
     closeDeadlineEditor();
-    closeManufacturingEditor();
-    closePurchaseEditor();
-    closeMemberEditor();
-    closeSubsystemEditor();
-    closePartDefinitionEditor();
+    purchaseEditor.close();
+    memberEditor.close();
+    subsystemEditor.close();
+    partDefinitionEditor.close();
     closeQaReportEditor();
     clearWorkLogTimer();
   };
   clearIdentityScopedStateRef.current = clearIdentityScopedState;
 
   const finishLocalSignOut = async (serverSignOutConfirmed: boolean) => {
-    authSessionVersionRef.current += 1;
+    const version = ++authSessionVersionRef.current;
     mobileSessionRef.current = null;
     await authSessionCoordinatorRef.current.clear().catch(() => undefined);
+    if (authSessionVersionRef.current !== version) return;
+    setIsSyncing(false);
     setApiToken(null);
     setSessionUser(null);
     setHasAuthenticated(false);
@@ -3787,27 +2522,30 @@ export default function App() {
   };
 
   const taskScreenProps: TaskScreenProps = {
-    ...taskQueue,
+    queue: taskQueue,
     canSubmitQa,
     qaRequests,
     openCreateQaReportEditor,
-    activeTaskSubteam,
-    events,
+    activeResponsibleGroupId,
+    events: scheduleEntries,
     isLandscapeTimelineLayout,
     openCreateDeadlineEditor,
     openCreateTaskEditor,
     openEditTaskEditor,
-    setActiveTaskSubteam,
+    setActiveResponsibleGroupId,
     subsystems,
-    taskView,
+    workspaceView,
+    tasks,
     themeColors,
     timelineTasks,
-    activeTaskSubteamLabel,
+    activeResponsibleGroupLabel,
+    responsibleGroups,
+    workstreamsById,
+    projects,
     appResponsiveStyles,
     canReassignTasks,
     claimTask,
-    clearTaskBlockers,
-    disciplinesById,
+    workTypesById,
     editTagStyle,
     eventsById,
     isCompactLayout,
@@ -3817,6 +2555,7 @@ export default function App() {
     membersById,
     openCreateWorkLogEditor,
     partInstancesById,
+    partDefinitionsById,
     requestHelp,
     requestTaskQa,
     reassignTask,
@@ -3829,7 +2568,7 @@ export default function App() {
     taskById,
     taskDependencies,
     taskLoggedHoursById,
-    qaReviews,
+    qaReports,
     eventOptions,
     setTimelineMilestoneFilter,
     setTimelineSubsystemFilter,
@@ -3841,8 +2580,11 @@ export default function App() {
     milestoneSortOrder,
     milestoneSummary,
     milestoneTypeFilter,
-    openCreateMilestoneEditor,
-    openEditMilestoneEditor,
+    openCreateMilestoneEditor: () => milestoneEditor.open(),
+    openEditMilestoneEditor: (entry) => {
+      const milestone = milestones.find((item) => item.id === entry.id);
+      if (entry.recordType === "milestone" && milestone) milestoneEditor.open(milestone);
+    },
     setMilestoneSearch,
     setMilestoneSortField,
     setMilestoneSortOrder,
@@ -3850,118 +2592,73 @@ export default function App() {
   };
 
   const screenProps = {
+    artifacts,
+    projectsById: Object.fromEntries(projects.map((project) => [project.id, project])),
+    purchaseBrowse,
+    materialsBrowse,
+    partsBrowse,
+    subsystemBrowse,
     appResponsiveStyles,
     attendancePreview,
     attendanceSummary,
     approvePurchaseItem,
     canMentorApprove,
     canSubmitQa,
-    disciplinesById,
+    workTypesById,
     editTagStyle,
-    filteredManufacturing,
-    filteredMaterialRollups,
-    filteredPartDefinitions,
-    filteredPartInstances,
-    filteredPurchases,
-    filteredSubsystems,
     filteredWorkLogs,
     helpRequests,
     homeActionItems,
     homeTaskSummary,
     isLandscapeCardLayout,
     isSyncing,
-    manufacturingItems,
-    manufacturingArchiveFilter,
-    manufacturingMaterialFilter,
-    manufacturingMaterialOptions,
-    manufacturingRequesterFilter,
-    manufacturingSearch,
-    manufacturingStatusFilter,
-    manufacturingSubsystemFilter,
-    manufacturingSummary,
-    manufacturingView,
-    materialsCategoryFilter,
-    materialsSearch,
-    materialsStockFilter,
-    mechanisms,
     mechanismsById,
     meetingAttendance,
     members,
     membersById,
+    mutate: runMutation,
+    projects,
     createQaRequest,
-    openCreateManufacturingEditor,
-    openCreateMemberEditor,
-    openCreatePartDefinitionEditor,
-    openCreatePurchaseEditor,
+    openCreateMemberEditor: memberEditor.open,
+    openCreatePartDefinitionEditor: partDefinitionEditor.open,
+    openCreatePurchaseEditor: () => purchaseEditor.open(),
     openCreateQaReportEditor,
-    openCreateSubsystemEditor,
+    openCreateSubsystemEditor: () => subsystemEditor.open(),
     openCreateWorkLogEditor,
     openWorkLogFromTimer,
-    openEditManufacturingEditor,
-    openEditMemberEditor,
-    openEditPartDefinitionEditor,
-    openEditPurchaseEditor,
-    openEditSubsystemEditor,
+    openEditMemberEditor: memberEditor.edit,
+    openEditPartDefinitionEditor: partDefinitionEditor.edit,
+    updatePartInstance,
+    openEditPurchaseEditor: purchaseEditor.open,
+    openEditSubsystemEditor: subsystemEditor.open,
     openEditTaskEditor,
     openEditWorkLogEditor,
     openDuplicateTaskEditor,
-    openMaterialRestockEditor,
+    openMaterialRestockEditor: purchaseEditor.restock,
     openTaskQueueFromTask,
-    partDefinitions,
     partDefinitionsById,
-    partInstancesWithStatus,
-    partsSearch,
-    partsStatusFilter,
-    partsSubsystemFilter,
-    patchManufacturingItem,
-    purchaseApprovalFilter,
-    purchaseArchiveFilter,
     purchaseItems,
-    purchaseRequesterFilter,
-    purchaseSearch,
-    purchaseStatusFilter,
-    purchaseVendorFilter,
-    purchaseVendorOptions,
+    responsibleGroups,
     qaRequests,
-    qaReviews,
+    qaReports,
     riskRows,
+    risks,
     riskSummary,
+    saveRisk: persistRisk,
+    deleteRisk,
     rosterAdmins,
     rosterExternal,
     rosterMentors,
     rosterStudents,
     selectedMemberId,
-    selectedSubsystem,
     setActiveTab,
     setAttendanceStatusByMemberId,
-    setManufacturingArchiveFilter,
-    setManufacturingMaterialFilter,
-    setManufacturingRequesterFilter,
-    setManufacturingSearch,
-    setManufacturingStatusFilter,
-    setManufacturingSubsystemFilter,
-    setMaterialsCategoryFilter,
-    setMaterialsSearch,
-    setMaterialsStockFilter,
-    setPartsSearch,
-    setPartsStatusFilter,
-    setPartsSubsystemFilter,
-    setPurchaseApprovalFilter,
-    setPurchaseArchiveFilter,
-    setPurchaseRequesterFilter,
-    setPurchaseSearch,
-    setPurchaseStatusFilter,
-    setPurchaseVendorFilter,
     setSelectedMemberId,
-    setSelectedSubsystemId,
-    setSubsystemSearch,
     setWorkLogSearch,
     setWorkLogSortMode,
     setWorkLogSubsystemFilter,
     shiftTaskDueDates,
     startWorkLogTimer,
-    subsystemCountsById,
-    subsystemSearch,
     subsystems,
     subsystemsById,
     syncFromBackend,
@@ -3983,43 +2680,40 @@ export default function App() {
   const renderEditorModals = () => {
     const taskOptions = tasks.map((task) => ({ id: task.id, name: task.title }));
     const memberOptions = members.map((member) => ({ id: member.id, name: member.name }));
-    const subsystemOptions = taskSubsystemOptions;
-    const disciplineOptions = disciplines.map((discipline) => ({
-      id: discipline.id,
-      name: discipline.name,
+    const selectedProjectType = projects.find((project) => project.id === taskEditor.taskDraft.projectId)?.projectType;
+    const workTypeOptions = workTypes.filter((workType) => workType.projectType === selectedProjectType).map((workType) => ({
+      id: workType.id,
+      name: workType.name,
     }));
-    const mechanismOptions = mechanisms
-      .filter((mechanism) => mechanism.subsystemId === taskDraft.subsystemId)
-      .map((mechanism) => ({
-        id: mechanism.id,
-        name: mechanism.name,
-      }));
-    const mechanismAndTaskPartOptions = taskDraft.mechanismId
-      ? partInstances
-          .filter((partInstance) => partInstance.mechanismId === taskDraft.mechanismId)
-          .map((partInstance) => ({
-            id: partInstance.id,
-            name: `${partInstance.name} (${partDefinitionsById[partInstance.partDefinitionId]?.name ?? "part"})`,
-          }))
-      : [];
+    const projectOptions = projects.map((project) => ({ id: project.id, name: project.name }));
+    const projectsById = Object.fromEntries(projects.map((project) => [project.id, project]));
+    const responsibleGroupOptions = responsibleGroups.filter((group) => !group.projectIds.length || group.projectIds.includes(taskEditor.taskDraft.projectId)).map((group) => ({ id: group.id, name: group.name }));
+    const workstreamOptions = workstreams.filter((workstream) => workstream.projectId === taskEditor.taskDraft.projectId && !workstream.isArchived).map((workstream) => ({ id: workstream.id, name: workstream.name }));
+    const scheduleOptions = scheduleEntries.map((entry) => ({ id: `${entry.recordType}:${entry.id}`, name: `${entry.title} (${formatDateTime(entry.startDateTime)})` }));
+    const scheduleNamesByRef = Object.fromEntries(scheduleEntries.map((entry) => [`${entry.recordType}:${entry.id}`, entry.title]));
 
     return (
       <>
         <TaskEditorModal
           editor={taskEditor}
           appResponsiveStyles={appResponsiveStyles}
-          disciplineOptions={disciplineOptions}
-          disciplinesById={disciplinesById}
-          eventOptions={eventOptions}
-          eventsById={eventsById}
+          projectOptions={projectOptions}
+          projectsById={projectsById}
+          workTypeOptions={workTypeOptions}
+          workTypesById={workTypesById}
+          responsibleGroupOptions={responsibleGroupOptions}
+          workstreamOptions={workstreamOptions}
+          scheduleOptions={scheduleOptions}
+          scheduleNamesByRef={scheduleNamesByRef}
+          manufacturingProcesses={manufacturingProcesses}
+          materials={materials}
           isLandscapeCardLayout={isLandscapeCardLayout}
-          mechanismAndTaskPartOptions={mechanismAndTaskPartOptions}
-          mechanismOptions={mechanismOptions}
           mechanisms={mechanisms}
           mechanismsById={mechanismsById}
           memberOptions={memberOptions}
           partInstances={partInstances}
           partInstancesById={partInstancesById}
+          partDefinitionsById={partDefinitionsById}
           subsystemsById={subsystemsById}
           taskSubsystemOptions={taskSubsystemOptions}
           themeColors={themeColors}
@@ -4039,22 +2733,7 @@ export default function App() {
 
         <MilestoneEditorModal
           appResponsiveStyles={appResponsiveStyles}
-          deleteMilestoneDraft={deleteMilestoneDraft}
-          milestoneDraft={milestoneDraft}
-          milestoneEditorMode={milestoneEditorMode}
-          milestoneEndDate={milestoneEndDate}
-          milestoneEndTime={milestoneEndTime}
-          milestoneError={milestoneError}
-          milestoneStartDate={milestoneStartDate}
-          milestoneStartTime={milestoneStartTime}
-          onCancel={closeMilestoneEditor}
-          onSave={saveMilestoneDraft}
-          setMilestoneDraft={setMilestoneDraft}
-          setMilestoneEndDate={setMilestoneEndDate}
-          setMilestoneEndTime={setMilestoneEndTime}
-          setMilestoneError={setMilestoneError}
-          setMilestoneStartDate={setMilestoneStartDate}
-          setMilestoneStartTime={setMilestoneStartTime}
+          editor={milestoneEditor}
         />
 
         <WorkLogEditorModal
@@ -4071,80 +2750,26 @@ export default function App() {
           workLogError={workLogError}
         />
 
-        <ManufacturingEditorModal
-          appResponsiveStyles={appResponsiveStyles}
-          canDelete={canMentorApprove}
-          deleteManufacturingDraft={deleteManufacturingDraft}
-          manufacturingDraft={manufacturingDraft}
-          manufacturingEditorMode={manufacturingEditorMode}
-          manufacturingError={manufacturingError}
-          memberOptions={memberOptions}
-          onCancel={closeManufacturingEditor}
-          onSave={saveManufacturingDraft}
-          requesterName={
-            membersById[manufacturingDraft.requestedById]?.name ??
-            signedInMember?.name ??
-            "Signed-in person"
-          }
-          setManufacturingDraft={setManufacturingDraft}
-          setManufacturingError={setManufacturingError}
-          subsystemOptions={subsystemOptions}
-          themeColors={themeColors}
-        />
-
         <PurchaseEditorModal
+          editor={purchaseEditor}
           appResponsiveStyles={appResponsiveStyles}
-          canManageProtectedFields={canMentorApprove}
-          deletePurchaseDraft={deletePurchaseDraft}
-          memberOptions={memberOptions}
-          onCancel={closePurchaseEditor}
-          onSave={savePurchaseDraft}
-          purchaseDraft={purchaseDraft}
-          purchaseEditorMode={purchaseEditorMode}
-          purchaseError={purchaseError}
-          setPurchaseDraft={setPurchaseDraft}
-          setPurchaseError={setPurchaseError}
-          subsystemOptions={subsystemOptions}
         />
 
         <PartDefinitionEditorModal
+          editor={partDefinitionEditor}
           appResponsiveStyles={appResponsiveStyles}
-          deletePartDefinitionDraft={deletePartDefinitionDraft}
-          onCancel={closePartDefinitionEditor}
-          onSave={savePartDefinitionDraft}
-          partDefinitionDraft={partDefinitionDraft}
-          partDefinitionEditorMode={partDefinitionEditorMode}
-          partDefinitionError={partDefinitionError}
-          setPartDefinitionDraft={setPartDefinitionDraft}
-          setPartDefinitionError={setPartDefinitionError}
         />
 
         <MemberEditorModal
+          editor={memberEditor}
           appResponsiveStyles={appResponsiveStyles}
-          deleteMemberDraft={deleteMemberDraft}
-          disciplineOptions={disciplineOptions}
-          memberDraft={memberDraft}
-          memberEditorMode={memberEditorMode}
-          memberError={memberError}
-          onCancel={closeMemberEditor}
-          onSave={saveMemberDraft}
-          setMemberDraft={setMemberDraft}
-          setMemberError={setMemberError}
-          showProfilePhotoUrlOnlyMessage={showProfilePhotoUrlOnlyMessage}
           themeColors={themeColors}
         />
 
         <SubsystemEditorModal
+          editor={subsystemEditor}
           appResponsiveStyles={appResponsiveStyles}
-          deleteSubsystemDraft={deleteSubsystemDraft}
           memberOptions={memberOptions}
-          onCancel={closeSubsystemEditor}
-          onSave={saveSubsystemDraft}
-          setSubsystemDraft={setSubsystemDraft}
-          setSubsystemError={setSubsystemError}
-          subsystemDraft={subsystemDraft}
-          subsystemEditorMode={subsystemEditorMode}
-          subsystemError={subsystemError}
         />
 
         <QaReportEditorModal
@@ -4196,8 +2821,7 @@ export default function App() {
             activeTab={activeTab}
             activeTabContent={<ActiveTabContent activeTab={activeTab} screenProps={screenProps}
               taskContent={<TasksScreen {...taskScreenProps} />}
-              scheduleView={scheduleView} onScheduleViewChange={setScheduleView}
-              manufacturingView={manufacturingView} onManufacturingViewChange={setManufacturingView} />}
+              schedulePresentation={schedulePresentation} onSchedulePresentationChange={setSchedulePresentation} />}
             deviceSessions={deviceSessions}
             deviceSessionsError={deviceSessionsError}
             editorModals={renderEditorModals()}

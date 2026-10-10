@@ -1,3 +1,4 @@
+import { ActionButton } from "../../ui/ActionButton";
 import { Pressable, View } from "react-native";
 
 import { Text } from "../../i18n";
@@ -13,6 +14,7 @@ import {
   OptionChipRow,
   SearchField,
   StatusPill,
+  DropdownField,
   SummaryRow,
   WorkspacePanel,
 } from "../../ui/ui";
@@ -22,89 +24,66 @@ import type { AppScreenProps } from "../types";
 export function InventoryPartsScreen(props: AppScreenProps) {
   const {
     appResponsiveStyles,
+    partsBrowse,
     editTagStyle,
-    filteredPartDefinitions,
-    filteredPartInstances,
     openCreatePartDefinitionEditor,
     openEditPartDefinitionEditor,
     partDefinitionsById,
-    partInstancesWithStatus,
-    partsSearch,
-    partsStatusFilter,
-    partsSubsystemFilter,
-    mechanismsById,
     subsystems,
-    subsystemsById,
-    setPartsSearch,
-    setPartsStatusFilter,
-    setPartsSubsystemFilter,
+    updatePartInstance,
   } = props;
-
-  const partDefinitionStatsById = partInstancesWithStatus.reduce<Record<string, { count: number; spares: number }>>(
-    (statsById, { partInstance, status }) => {
-      const stats = statsById[partInstance.partDefinitionId] ?? { count: 0, spares: 0 };
-      statsById[partInstance.partDefinitionId] = {
-        count: stats.count + partInstance.quantity,
-        spares: stats.spares + (status === "available" ? partInstance.quantity : 0),
-      };
-      return statsById;
-    },
-    {},
-  );
-  const visibleInventoryCounts = filteredPartInstances.reduce(
-    (summary, { partInstance, status }) => ({
-      instanceCount: summary.instanceCount + partInstance.quantity,
-      spareCount: summary.spareCount + (status === "available" ? partInstance.quantity : 0),
-    }),
-    { instanceCount: 0, spareCount: 0 },
-  );
+  const { filters, updateFilters, definitions, instances, definitionStatsById, summary } = partsBrowse;
 
   return (
     <WorkspacePanel
       title="Part manager"
-      subtitle="Definition catalog on top with subsystem part instances and lifecycle state below."
+      subtitle="Part definitions describe designs; each PartInstance records one physical unit and its separate readiness."
       actions={
-        <Pressable onPress={openCreatePartDefinitionEditor} style={[styles.primaryAction, appResponsiveStyles.primaryAction]}>
-          <Text style={[styles.primaryActionLabel, appResponsiveStyles.primaryActionLabel]}>Add</Text>
-        </Pressable>
+        <ActionButton
+          onPress={openCreatePartDefinitionEditor}
+          variant="primary"
+          responsiveStyles={appResponsiveStyles}
+        >
+          Add
+        </ActionButton>
       }
     >
       <FilterToolbar>
         <SearchField
-          onChangeText={setPartsSearch}
+          onChangeText={(value) => updateFilters({ search: value })}
           placeholder="Search parts"
-          value={partsSearch}
+          value={filters.search}
         />
 
         <OptionChipRow
           allLabel="All subsystems"
-          onChange={setPartsSubsystemFilter}
+          onChange={(value) => updateFilters({ subsystemId: value })}
           options={subsystems.map((subsystem) => ({
             id: subsystem.id,
             name: subsystem.name,
           }))}
-          value={partsSubsystemFilter}
+          value={filters.subsystemId}
         />
 
         <OptionChipRow
           allLabel="All statuses"
-          onChange={setPartsStatusFilter}
+          onChange={(value) => updateFilters({ status: value })}
           options={PART_STATUS_OPTIONS}
-          value={partsStatusFilter}
+          value={filters.status}
         />
       </FilterToolbar>
 
       <SummaryRow
         chips={[
-          { label: "Definitions", value: String(filteredPartDefinitions.length) },
-          { label: "Instances", value: String(visibleInventoryCounts.instanceCount) },
-          { label: "Spares", value: String(visibleInventoryCounts.spareCount) },
+          { label: "Definitions", value: String(definitions.length) },
+          { label: "Instances", value: String(summary.instanceCount) },
+          { label: "Spares", value: String(summary.spareCount) },
         ]}
       />
 
       <Text style={[styles.subsectionLabel, appResponsiveStyles.subsectionLabel]}>Part definitions</Text>
-      {filteredPartDefinitions.map((partDefinition) => {
-        const stats = partDefinitionStatsById[partDefinition.id] ?? {
+      {definitions.map((partDefinition) => {
+        const stats = definitionStatsById[partDefinition.id] ?? {
           count: 0,
           spares: 0,
         };
@@ -125,44 +104,48 @@ export function InventoryPartsScreen(props: AppScreenProps) {
               <Text style={editTagStyle}>EDIT</Text>
             </View>
 
-            <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
-              Source {partDefinition.source} | Count {stats.count} | Spares {stats.spares}
+        <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
+              CAD {partDefinition.cadSource} | Default acquisition {partDefinition.defaultAcquisitionMethod} | Count {stats.count} | Stock {stats.spares}
             </Text>
           </Pressable>
         );
       })}
 
       <Text style={[styles.subsectionLabel, appResponsiveStyles.subsectionLabel]}>Part instances</Text>
-      {filteredPartInstances.map(({ partInstance, status }) => {
+      {instances.map(({ partInstance, locationLabel }) => {
         const definition = partDefinitionsById[partInstance.partDefinitionId];
-        const mechanismName = partInstance.mechanismId
-          ? (mechanismsById[partInstance.mechanismId]?.name ?? "Unknown mechanism")
-          : "Unassigned";
-        const subsystemName = subsystemsById[partInstance.subsystemId]?.name ?? "Unknown";
+        const locationKind = partInstance.location.kind;
+        const nextLocation = (kind: string) => {
+          const location = kind === "installed"
+            ? { kind: "installed" as const, subsystemId: partInstance.intendedSubsystemId ?? subsystems[0]?.id ?? "", mechanismId: partInstance.intendedMechanismId }
+            : kind === "stock" || kind === "repair"
+              ? { kind: kind as "stock" | "repair", location: locationKind === kind && (partInstance.location.kind === "stock" || partInstance.location.kind === "repair") ? partInstance.location.location : "Unassigned" }
+              : kind === "retired" ? { kind: "retired" as const, location: "Unassigned" }
+                : kind === "lost" ? { kind: "lost" as const } : { kind: "unlocated" as const };
+          void updatePartInstance(partInstance, { location });
+        };
 
         return (
           <View key={partInstance.id} style={[styles.queueRowCard, appResponsiveStyles.rowCard]}>
             <View style={styles.queueRowHeader}>
               <View style={styles.queueRowPrimaryText}>
-                <Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>{partInstance.name}</Text>
+                <Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>{definition?.partNumber ?? partInstance.id}</Text>
                 <Text style={[styles.queueRowSubtitle, appResponsiveStyles.rowSubtitle]}>
-                  {definition?.name ?? "Unknown definition"} - {subsystemName}
+                  {definition?.name ?? "Unknown definition"} - {locationLabel}
                 </Text>
               </View>
-              <StatusPill label={status} value={status} />
+              <StatusPill label={`Derived readiness: ${partInstance.readinessStatus ?? "not available"}`} value={partInstance.readinessStatus ?? "neutral"} />
             </View>
 
             <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
-              Mechanism {mechanismName} | Qty {partInstance.quantity}
+              Physical location
             </Text>
-            <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
-              Tracking {partInstance.trackIndividually ? "Individual" : "Bulk"}
-            </Text>
+            <DropdownField label="Location state" value={locationKind} options={[{id:"stock",name:"Stock"},{id:"installed",name:"Installed"},{id:"repair",name:"Repair"},{id:"retired",name:"Retired"},{id:"lost",name:"Lost"},{id:"unlocated",name:"Unlocated"}]} onChange={nextLocation} />
           </View>
         );
       })}
 
-      {filteredPartDefinitions.length === 0 && filteredPartInstances.length === 0 ? (
+      {definitions.length === 0 && instances.length === 0 ? (
         <EmptyState text="No parts match the current filters." />
       ) : null}
 

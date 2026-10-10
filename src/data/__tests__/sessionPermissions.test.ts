@@ -1,11 +1,12 @@
 import { getSessionPermissions } from "../sessionPermissions";
 import type { Member, SessionUser } from "../../types/domain";
+import { makeMember } from "./fixtures/factories";
 
 const user: SessionUser = {
   accountId: "student", name: "Student", email: "student@example.com",
   authProvider: "email", picture: null, hostedDomain: "example.com",
 };
-const mentor: Member = { id: "mentor", name: "Mentor", role: "mentor" };
+const mentor: Member = makeMember({ id: "mentor", name: "Mentor", role: "mentor" });
 
 test.each([
   ["student", false, false], ["external", false, false], ["lead", false, true],
@@ -23,7 +24,7 @@ test("absent session cannot inherit a roster member's missing email", () => {
 });
 
 test.each(["lead", "mentor", "admin"] as const)("matched %s member remains a session fallback", (role) => {
-  const member: Member = { id: user.accountId, name: user.name, role };
+  const member: Member = makeMember({ id: user.accountId, name: user.name, role });
   expect(getSessionPermissions({ ...user, role: "student" }, [member])).toEqual({
     signedInMember: member, canMentorApprove: role !== "lead", canReassignTasks: true, canSubmitQa: false,
   });
@@ -37,7 +38,7 @@ test.each([
 });
 
 test("selected person and roster filter do not grant privileges", () => {
-  const student: Member = { id: user.accountId, name: user.name, role: "student" };
+  const student: Member = makeMember({ id: user.accountId, name: user.name, role: "student" });
   for (const selectedMemberId of [student.id, mentor.id]) {
     const session = { ...user, selectedMemberId, activePersonFilter: selectedMemberId };
     expect(getSessionPermissions(session, [mentor, student])).toMatchObject({

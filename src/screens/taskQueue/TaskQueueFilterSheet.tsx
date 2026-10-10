@@ -6,7 +6,6 @@ import {
   BLOCKER_FILTER_OPTIONS,
   TASK_PRIORITY_OPTIONS,
   TASK_STATUS_OPTIONS,
-  TASK_SUBTEAM_OPTIONS,
 } from "../../ui/constants";
 import { styles } from "../../ui/styles";
 import {
@@ -21,57 +20,32 @@ import type { TaskScreenProps } from "../tasks/taskScreenTypes";
 
 type TaskQueueFilterSheetProps = Pick<
   TaskScreenProps,
-  | "activeTaskSubteam"
+  | "queue"
+  | "activeResponsibleGroupId"
   | "appResponsiveStyles"
   | "members"
-  | "setActiveTaskSubteam"
-  | "setTaskArchiveFilter"
-  | "setTaskBlockerFilter"
-  | "setTaskOwnerFilter"
-  | "setTaskPriorityFilter"
-  | "setTaskSearch"
-  | "setTaskStatusFilter"
-  | "setTaskSubsystemFilter"
+  | "setActiveResponsibleGroupId"
+  | "responsibleGroups"
   | "subsystems"
-  | "taskArchiveFilter"
-  | "taskBlockerFilter"
-  | "taskOwnerFilter"
-  | "taskPriorityFilter"
-  | "taskSearch"
-  | "taskStatusFilter"
-  | "taskSubsystemFilter"
   | "themeColors"
 > & {
   onClose: () => void;
-  onReset: () => void;
   visible: boolean;
 };
 
 export function TaskQueueFilterSheet({
-  activeTaskSubteam,
+  queue,
+  activeResponsibleGroupId,
   appResponsiveStyles,
   members,
   onClose,
-  onReset,
-  setActiveTaskSubteam,
-  setTaskArchiveFilter,
-  setTaskBlockerFilter,
-  setTaskOwnerFilter,
-  setTaskPriorityFilter,
-  setTaskSearch,
-  setTaskStatusFilter,
-  setTaskSubsystemFilter,
+  setActiveResponsibleGroupId,
+  responsibleGroups,
   subsystems,
-  taskArchiveFilter,
-  taskBlockerFilter,
-  taskOwnerFilter,
-  taskPriorityFilter,
-  taskSearch,
-  taskStatusFilter,
-  taskSubsystemFilter,
   themeColors,
   visible,
 }: TaskQueueFilterSheetProps) {
+  const { filters, setFilter, resetFilters } = queue;
   return (
     <Modal
       animationType="fade"
@@ -117,74 +91,74 @@ export function TaskQueueFilterSheet({
           >
             <View style={styles.taskQueueFilterGroup}>
               <Text style={[styles.subsectionLabel, appResponsiveStyles.subsectionLabel]}>
-                Subteam
+                Responsible group
               </Text>
               <SectionTabs
-                activeValue={activeTaskSubteam}
-                onChange={setActiveTaskSubteam}
-                options={TASK_SUBTEAM_OPTIONS}
+                activeValue={activeResponsibleGroupId}
+                onChange={setActiveResponsibleGroupId}
+                options={[{ value: "all", label: "All groups" }, ...responsibleGroups.filter((group) => !group.isArchived).map((group) => ({ value: group.id, label: group.name }))]}
               />
             </View>
 
             <FilterToolbar>
               <SearchField
-                onChangeText={setTaskSearch}
+                onChangeText={(value) => setFilter("taskSearch", value)}
                 placeholder="Search tasks"
-                value={taskSearch}
+                value={filters.taskSearch}
               />
 
               <OptionChipRow
                 allLabel="All subsystems"
-                onChange={setTaskSubsystemFilter}
+                onChange={(value) => setFilter("taskSubsystemFilter", value)}
                 options={subsystems.map((subsystem) => ({
                   id: subsystem.id,
                   name: subsystem.name,
                 }))}
-                value={taskSubsystemFilter}
+                value={filters.taskSubsystemFilter}
               />
 
               <OptionChipRow
                 allLabel="All owners"
-                onChange={setTaskOwnerFilter}
+                onChange={(value) => setFilter("taskOwnerFilter", value)}
                 options={members.map((member) => ({
                   id: member.id,
                   name: member.name,
                 }))}
-                value={taskOwnerFilter}
+                value={filters.taskOwnerFilter}
               />
 
               <OptionChipRow
                 allLabel="All statuses"
-                onChange={setTaskStatusFilter}
+                onChange={(value) => setFilter("taskStatusFilter", value)}
                 options={TASK_STATUS_OPTIONS}
-                value={taskStatusFilter}
+                value={filters.taskStatusFilter}
               />
 
               <OptionChipRow
                 allLabel="All priorities"
-                onChange={setTaskPriorityFilter}
+                onChange={(value) => setFilter("taskPriorityFilter", value)}
                 options={TASK_PRIORITY_OPTIONS}
-                value={taskPriorityFilter}
+                value={filters.taskPriorityFilter}
               />
 
               <OptionChipRow
                 allLabel="All flags"
-                onChange={(value) => setTaskBlockerFilter(value as BlockerFilterMode)}
+                onChange={(value) => setFilter("taskBlockerFilter", value as BlockerFilterMode)}
                 options={BLOCKER_FILTER_OPTIONS}
-                value={taskBlockerFilter}
+                value={filters.taskBlockerFilter}
               />
 
               <OptionChipRow
                 allLabel="Any archive"
-                onChange={(value) => setTaskArchiveFilter(value as ArchiveFilterMode)}
+                onChange={(value) => setFilter("taskArchiveFilter", value as ArchiveFilterMode)}
                 options={ARCHIVE_FILTER_OPTIONS}
-                value={taskArchiveFilter}
+                value={filters.taskArchiveFilter}
               />
             </FilterToolbar>
 
             <View style={styles.quickActionRow}>
               <Pressable
-                onPress={onReset}
+                onPress={resetFilters}
                 style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
               >
                 <Text

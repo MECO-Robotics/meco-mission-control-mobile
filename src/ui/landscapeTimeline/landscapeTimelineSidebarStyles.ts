@@ -1,20 +1,19 @@
 import { StyleSheet } from "react-native";
 
-import { spacing } from "../../theme";
-import { planner } from "./landscapeTimelinePalette";
+import { plannerColors, spacing } from "../../theme";
 
 export const landscapeTimelineSidebarStyles = StyleSheet.create({
   sidebar: {
     width: 330,
     borderRightWidth: 1,
-    borderColor: planner.border,
+    borderColor: plannerColors.border,
   },
   sidebarHeader: {
     height: 66,
     flexDirection: "row",
     borderBottomWidth: 1,
-    borderColor: planner.border,
-    backgroundColor: planner.header,
+    borderColor: plannerColors.border,
+    backgroundColor: plannerColors.header,
   },
   sidebarHeaderCell: {
     flex: 1,
@@ -24,7 +23,7 @@ export const landscapeTimelineSidebarStyles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
     borderRightWidth: 1,
-    borderColor: planner.border,
+    borderColor: plannerColors.border,
   },
   projectHeaderCell: {
     flex: 0.82,
@@ -34,7 +33,7 @@ export const landscapeTimelineSidebarStyles = StyleSheet.create({
     fontWeight: "900",
   },
   headerEye: {
-    color: planner.muted,
+    color: plannerColors.muted,
     fontSize: 12,
     fontWeight: "900",
   },
@@ -43,8 +42,8 @@ export const landscapeTimelineSidebarStyles = StyleSheet.create({
     alignItems: "center",
     borderLeftWidth: 3,
     borderBottomWidth: 1,
-    borderBottomColor: planner.border,
-    backgroundColor: planner.panel,
+    borderBottomColor: plannerColors.border,
+    backgroundColor: plannerColors.panel,
   },
   projectCell: {
     flex: 0.82,
@@ -54,8 +53,8 @@ export const landscapeTimelineSidebarStyles = StyleSheet.create({
     gap: spacing.xs,
     paddingHorizontal: spacing.sm,
     borderRightWidth: 1,
-    borderColor: planner.border,
-    backgroundColor: planner.project,
+    borderColor: plannerColors.border,
+    backgroundColor: plannerColors.project,
   },
   subsystemCell: {
     flex: 1,
@@ -66,7 +65,7 @@ export const landscapeTimelineSidebarStyles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   disclosure: {
-    color: planner.muted,
+    color: plannerColors.muted,
     fontSize: 11,
     fontWeight: "900",
   },
@@ -88,7 +87,7 @@ export const landscapeTimelineSidebarStyles = StyleSheet.create({
     fontWeight: "900",
   },
   laneSecondary: {
-    color: planner.muted,
+    color: plannerColors.muted,
     fontSize: 9,
     fontWeight: "700",
     textAlign: "right",

@@ -94,14 +94,15 @@ export function ToggleField({
   );
 }
 
-export function ParticipantField({ options, value, onChange }: {
+export function ParticipantField({ options, value, onChange, label = "Participants" }: {
   options: { id: string; name: string }[];
   value: string;
   onChange: (value: string) => void;
+  label?: string;
 }) {
   const selected = value.split(",").map((id) => id.trim()).filter(Boolean);
   return <View style={styles.modalField}>
-    <Text style={styles.modalFieldLabel}>Participants</Text>
+    <Text style={styles.modalFieldLabel}>{label}</Text>
     {options.map((option) => <ToggleField key={option.id} role="checkbox" label={option.name}
       value={selected.includes(option.id)} onToggle={(checked) => onChange(
         (checked ? [...selected, option.id] : selected.filter((id) => id !== option.id)).join(","),

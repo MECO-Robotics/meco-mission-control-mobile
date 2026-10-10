@@ -1,6 +1,8 @@
-import { View } from "react-native";
+import { useState } from "react";
+import { Pressable, View } from "react-native";
 
 import { Text } from "../../i18n";
+import { ActionButton } from "../../ui/ActionButton";
 import { SUBVIEW_INTERACTION_GUIDANCE } from "../../ui/constants";
 import { capitalize } from "../../ui/helpers";
 import { styles } from "../../ui/styles";
@@ -13,6 +15,8 @@ import {
 } from "../../ui/ui";
 
 import type { AppScreenProps } from "../types";
+import type { Risk } from "../../types/domain";
+import { RiskEditorModal } from "./RiskEditorModal";
 
 const RISK_PRIORITY_COLUMNS = [
   { label: "High", priority: "high" },
@@ -25,10 +29,20 @@ export function RisksScreen(props: AppScreenProps) {
     appResponsiveStyles,
     isLandscapeCardLayout,
     riskRows,
+    risks,
     riskSummary,
+    projects,
+    responsibleGroups,
+    tasks,
+    subsystems,
+    saveRisk,
+    deleteRisk,
     subsystemsById,
     themeColors,
   } = props;
+  const [editingRisk, setEditingRisk] = useState<Risk | null>(null);
+  const [creatingRisk, setCreatingRisk] = useState(false);
+  const closeEditor = () => { setEditingRisk(null); setCreatingRisk(false); };
 
   const renderRiskCard = (risk: (typeof riskRows)[number]) => {
     const subsystemName = risk.subsystemId
@@ -37,8 +51,11 @@ export function RisksScreen(props: AppScreenProps) {
     const priorityLabel = capitalize(risk.priority);
 
     return (
-      <View
+      <Pressable
         key={risk.id}
+        accessibilityRole="button"
+        accessibilityLabel={`Edit risk: ${risk.title}`}
+        onPress={() => setEditingRisk(risks.find((item) => item.id === risk.id) ?? null)}
         style={[
           styles.queueRowCard,
           appResponsiveStyles.rowCard,
@@ -74,7 +91,7 @@ export function RisksScreen(props: AppScreenProps) {
         >
           {risk.detail}
         </Text>
-      </View>
+      </Pressable>
     );
   };
 
@@ -86,7 +103,8 @@ export function RisksScreen(props: AppScreenProps) {
   return (
     <WorkspacePanel
       title="Risk management"
-      subtitle="Open blockers, subsystem risks, and iteration-worthy QA findings grouped into one risk register."
+      subtitle="Track unresolved risks across projects and Robot structure. Readiness and dependency signals are derived from their owning domains."
+      actions={<ActionButton onPress={() => setCreatingRisk(true)} variant="primary" responsiveStyles={appResponsiveStyles}>Add risk</ActionButton>}
     >
       <SummaryRow chips={riskSummary} />
 
@@ -144,6 +162,9 @@ export function RisksScreen(props: AppScreenProps) {
 
       {riskRows.length === 0 ? <EmptyState text="No active risks are currently visible." /> : null}
       <InteractionNote steps={SUBVIEW_INTERACTION_GUIDANCE.risks} />
+      {creatingRisk || editingRisk ? <RiskEditorModal key={editingRisk?.id ?? "new-risk"}
+        visible appResponsiveStyles={appResponsiveStyles} risk={editingRisk} projects={projects} groups={responsibleGroups} subsystems={subsystems}
+        tasks={tasks} onCancel={closeEditor} onSave={saveRisk} onDelete={deleteRisk} /> : null}
     </WorkspacePanel>
   );
 }

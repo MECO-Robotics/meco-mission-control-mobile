@@ -1,6 +1,7 @@
-import { Pressable, View } from "react-native";
+import { Callout } from "../../ui/Callout";
+import { ActionButton } from "../../ui/ActionButton";
+import { View } from "react-native";
 
-import { Text } from "../../i18n";
 import type { Member, Task } from "../../types/domain";
 import { styles } from "../../ui/styles";
 import { EditorModal } from "../../ui/ui";
@@ -36,33 +37,28 @@ export function TaskReassignModal({
     >
       {task ? (
         <>
-          <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
-            <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>
-              Current owner
-            </Text>
-            <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-              {task.ownerId ? membersById[task.ownerId]?.name ?? "Unknown owner" : "Unassigned"}
-            </Text>
-          </View>
+          <Callout
+            responsiveStyles={appResponsiveStyles}
+            title="Current owner"
+            body={task.ownerId ? membersById[task.ownerId]?.name ?? "Unknown owner" : "Unassigned"}
+          />
           <View style={styles.quickActionRow}>
-            <Pressable
+            <ActionButton
               onPress={() => onChangeOwner(null)}
-              style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+              variant="quick"
+              responsiveStyles={appResponsiveStyles}
             >
-              <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                Unassigned
-              </Text>
-            </Pressable>
+              Unassigned
+            </ActionButton>
             {ownerOptions.map((member) => (
-              <Pressable
+              <ActionButton
                 key={member.id}
                 onPress={() => onChangeOwner(member.id)}
-                style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}
+                variant="quick"
+                responsiveStyles={appResponsiveStyles}
               >
-                <Text style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>
-                  {ownerId === member.id ? `${member.name} selected` : member.name}
-                </Text>
-              </Pressable>
+                {ownerId === member.id ? `${member.name} selected` : member.name}
+              </ActionButton>
             ))}
           </View>
         </>

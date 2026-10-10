@@ -1,3 +1,4 @@
+import { ActionButton } from "../../ui/ActionButton";
 import { Pressable, View } from "react-native";
 
 import { Text } from "../../i18n";
@@ -19,66 +20,53 @@ export function SubsystemsScreen(props: AppScreenProps) {
   const {
     appResponsiveStyles,
     editTagStyle,
-    filteredSubsystems,
-    mechanisms,
+    subsystemBrowse,
+    riskRows,
     membersById,
     openCreateSubsystemEditor,
     openEditSubsystemEditor,
-    selectedSubsystem,
-    setSelectedSubsystemId,
-    setSubsystemSearch,
-    subsystemCountsById,
-    subsystemSearch,
   } = props;
 
-  const visibleSubsystemIds = new Set(filteredSubsystems.map((subsystem) => subsystem.id));
-  const visibleMechanismCount = mechanisms.filter((mechanism) => {
-    return visibleSubsystemIds.has(mechanism.subsystemId);
-  }).length;
+  const { filters, updateFilters, toggleExpanded, rows, visibleMechanismCount } = subsystemBrowse;
 
   return (
     <WorkspacePanel
       title="Subsystem manager"
       subtitle="Review ownership, risk, and mechanism coverage with expandable subsystem cards."
       actions={
-        <Pressable onPress={openCreateSubsystemEditor} style={[styles.primaryAction, appResponsiveStyles.primaryAction]}>
-          <Text style={[styles.primaryActionLabel, appResponsiveStyles.primaryActionLabel]}>Add subsystem</Text>
-        </Pressable>
+        <ActionButton
+          onPress={openCreateSubsystemEditor}
+          variant="primary"
+          responsiveStyles={appResponsiveStyles}
+        >
+          Add subsystem
+        </ActionButton>
       }
     >
       <FilterToolbar>
         <SearchField
-          onChangeText={setSubsystemSearch}
+          onChangeText={(search) => updateFilters({ search })}
           placeholder="Search subsystems"
-          value={subsystemSearch}
+          value={filters.search}
         />
       </FilterToolbar>
 
       <SummaryRow
         chips={[
-          { label: "Visible subsystems", value: String(filteredSubsystems.length) },
+          { label: "Visible subsystems", value: String(rows.length) },
           { label: "Visible mechanisms", value: String(visibleMechanismCount) },
         ]}
       />
 
-      {filteredSubsystems.map((subsystem) => {
-        const counts = subsystemCountsById[subsystem.id];
-        const isSelected = selectedSubsystem?.id === subsystem.id;
+      {rows.map(({ subsystem, counts, mechanisms: subsystemMechanisms, isExpanded }) => {
         const mentorNames = subsystem.mentorIds
           .map((mentorId) => membersById[mentorId]?.name ?? "Unknown")
           .join(", ");
-        const subsystemMechanisms = mechanisms.filter(
-          (mechanism) => mechanism.subsystemId === subsystem.id,
-        );
 
         return (
           <View key={subsystem.id} style={[styles.subsystemCard, appResponsiveStyles.rowCard]}>
             <Pressable
-              onPress={() => {
-                setSelectedSubsystemId((current) =>
-                  current === subsystem.id ? "" : subsystem.id,
-                );
-              }}
+              onPress={() => toggleExpanded(subsystem.id)}
               onLongPress={() => openEditSubsystemEditor(subsystem)}
               style={styles.subsystemCardHeader}
             >
@@ -92,12 +80,12 @@ export function SubsystemsScreen(props: AppScreenProps) {
                   - Mentors {mentorNames || "None"}
                 </Text>
               </View>
-              <Text style={editTagStyle}>{isSelected ? "HIDE" : "OPEN"}</Text>
+              <Text style={editTagStyle}>{isExpanded ? "HIDE" : "OPEN"}</Text>
             </Pressable>
 
             <Text style={[styles.queueRowBody, appResponsiveStyles.rowBody]}>{subsystem.description}</Text>
             <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
-              Mechanisms {counts.mechanisms} | Open tasks {counts.openTasks}/{counts.tasks} | Risks {counts.risks}
+              Mechanisms {subsystemMechanisms.length} | Open tasks {counts.openTasks}/{counts.tasks} | Risks {counts.risks}
             </Text>
             <View style={styles.queuePillRow}>
               <StatusPill
@@ -127,15 +115,15 @@ export function SubsystemsScreen(props: AppScreenProps) {
               ) : null}
             </View>
 
-            {subsystem.risks.length > 0 ? (
+            {riskRows.some((risk) => risk.subsystemId === subsystem.id) ? (
               <View style={styles.queuePillRow}>
-                {subsystem.risks.map((risk) => (
-                  <StatusPill key={risk} label={risk} value="warning" />
+                {riskRows.filter((risk) => risk.subsystemId === subsystem.id).map((risk) => (
+                  <StatusPill key={risk.id} label={risk.title} value={risk.priority} />
                 ))}
               </View>
             ) : null}
 
-            {isSelected ? (
+            {isExpanded ? (
               <View style={styles.subsystemExpansion}>
                 {subsystemMechanisms.map((mechanism) => (
                   <View key={mechanism.id} style={[styles.mechanismCard, appResponsiveStyles.rowCard]}>
@@ -158,7 +146,7 @@ export function SubsystemsScreen(props: AppScreenProps) {
         );
       })}
 
-      {filteredSubsystems.length === 0 ? (
+      {rows.length === 0 ? (
         <EmptyState text="No subsystems match the current search." />
       ) : null}
 

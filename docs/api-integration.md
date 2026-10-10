@@ -105,11 +105,13 @@ Workspace data is loaded from:
 GET /api/bootstrap
 ```
 
-The payload may include:
+The generated bootstrap contract in `contracts/platform/bootstrap/v1/contract.json` is authoritative for collection names and exact fields. It includes:
 
 - members
 - subsystems
-- disciplines
+- workTypes
+- responsibleGroups
+- workstreams
 - mechanisms
 - partDefinitions
 - partInstances
@@ -117,7 +119,8 @@ The payload may include:
 - events
 - milestones
 - workLogs
-- manufacturingItems
+- manufacturingProcesses
+- reports
 - purchaseItems
 - qaRequests
 - qaFindings
@@ -125,13 +128,17 @@ The payload may include:
 - designIterations
 - actions
 
-Milestones can be mapped into event-like records for mobile timeline behavior.
+The app presents Meetings, Events, Milestones, and dated Task deadlines through Schedule presentations: Calendar, Timeline, and Agenda. These presentations do not collapse the distinct stored record types. Manufacturing execution remains represented by Tasks with optional nested ManufacturingDetails; there is no standalone manufacturing queue or `manufacturingItems` collection. PurchaseItem owns the one-way `taskId` link to procurement work.
+
+Schedule record fields are `startAt` and `endAt`. Artifacts use `uri` and typed `targetRefs`. Task owns human execution; ManufacturingDetails is a technical 1:1 extension nested on a Robot Manufacturing Task. PurchaseItem owns the optional one-way `taskId` relationship and all commercial state. COTS purchase does not require ManufacturingDetails. Task purchase/manufacturing ID arrays, free-text subsystem risks, and stored PartInstance readiness are not part of the contract.
 
 `actions` are platform audit history. Automatic expiration and privacy maintenance are not implemented. Before deployment, establish the [platform audit retention policy](https://github.com/MECO-Robotics/meco-mission-control-platform/blob/development/docs/backend-overview.md) and its enforcement; the policy is a requirement, not an existing background process.
 
+The platform owns snapshot schema versioning. If a local prototype snapshot is older or incompatible, startup archives it and creates canonical seed data; `npm run snapshot:reset` performs the destructive reset explicitly. Mobile does not migrate ambiguous prototype records or maintain compatibility fields.
+
 ## Mutation Endpoints Used By The App
 
-The mobile app currently writes to these resource paths:
+The mobile app writes to these resource paths (manufacturing technical details are part of Task writes; commercial purchase state is owned by PurchaseItem):
 
 - `POST /api/tasks`
 - `POST /api/tasks/:id/claim`
@@ -145,11 +152,6 @@ The mobile app currently writes to these resource paths:
 - `POST /api/work-logs`
 - `PATCH /api/work-logs/:id`
 - `DELETE /api/work-logs/:id`
-- `POST /api/manufacturing`
-- `PATCH /api/manufacturing/:id`
-- `PUT /api/manufacturing/:id/review`
-- `POST /api/manufacturing/:id/transition`
-- `DELETE /api/manufacturing/:id`
 - `POST /api/purchases`
 - `PATCH /api/purchases/:id`
 - `PUT /api/purchases/:id/approval`
@@ -165,7 +167,7 @@ The mobile app currently writes to these resource paths:
 - `PATCH /api/part-definitions/:id`
 - `DELETE /api/part-definitions/:id`
 
-After a successful mutation, the app refreshes `/api/bootstrap` so derived lists and summaries are recalculated from server state.
+After a successful mutation, the app refreshes `/api/bootstrap` so derived lists and summaries are recalculated from server state. Do not add standalone `/api/manufacturing` records or queues; Task and PurchaseItem route semantics are platform-owned.
 
 Work-log creation has an offline-safe mobile fallback. Draft payloads are
 encrypted with XChaCha20-Poly1305 under an installation key held in SecureStore;
@@ -175,7 +177,6 @@ available for seven days after logout, while other accounts' drafts stay hidden.
 Corrupt, expired, or undecryptable envelopes are purged.
 
 The server remains authoritative for permissions: any internal user may create
-work logs and pending purchase/manufacturing requests, but only mentors/admins
-may edit/delete synced work logs, approve purchases/reviews, progress purchases,
-or delete purchase/manufacturing records. Any internal user may make adjacent
-manufacturing transitions after an active mentor review.
+work logs and pending purchase requests, but only mentors/admins may edit/delete
+synced work logs, approve purchases/reviews, progress purchases, or delete
+purchase records.

@@ -1,13 +1,14 @@
 import { getAutoTaskStatus, isTaskBlocked, isTaskReadyForQaPass, hasOpenTaskDependency } from "../taskReadiness";
 import { getTaskAssignmentState } from "../taskAssignment";
-import { mecoSnapshot } from "../mockData";
+import { mecoSnapshot } from "./fixtures/mockData";
+import { makeMember } from "./fixtures/factories";
 
-const member = { id: "member", name: "Member", role: "student" as const };
+const member = makeMember({ id: "member", name: "Member", role: "student" as const });
 test.each([
   { isBlocked: true, isWaitingOnDependency: false },
   { isBlocked: false, isWaitingOnDependency: true },
 ])("queue and controls respect separate server readiness flags: %o", (readiness) => {
-  const task = { ...mecoSnapshot.tasks[0], ownerId: member.id, blockers: [], ...readiness, status: "not-started" as const };
+  const task = { ...mecoSnapshot.tasks[0], ownerId: member.id, ...readiness, status: "not-started" as const };
   expect(isTaskBlocked(task)).toBe(true);
   expect(hasOpenTaskDependency(task)).toBe(readiness.isWaitingOnDependency);
   expect(getAutoTaskStatus(task)).toBe("not-started");

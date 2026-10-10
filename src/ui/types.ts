@@ -1,21 +1,20 @@
-import type { EventType, ManufacturingItem, MemberRole, PurchaseItem } from "../types/domain";
+import type { MemberRole } from "../types/domain";
 export type ViewTab =
   | "home"
-  | "work-tasks" | "work-schedule" | "work-risks" | "work-activity"
+  | "work-tasks" | "work-schedule" | "work-risks" | "work-activity" | "work-documents" | "work-reports"
   | "resources-materials" | "resources-parts" | "resources-purchases"
-  | "resources-manufacturing" | "resources-structure"
-  | "team-people" | "team-attendance";
+  | "resources-structure"
+  | "team-people" | "team-teams";
 
-export type TaskViewTab = "timeline" | "queue" | "milestones";
-export type TaskSubteamTab = "programming" | "mechanical" | "electrical";
-export type ManufacturingViewTab = "all" | "cnc" | "prints" | "fabrication";
+export type KanbanView = "queue";
+export type SchedulePresentation = "agenda" | "calendar" | "timeline";
+export type TaskWorkspaceView = { domain: "kanban"; view: KanbanView } | { domain: "schedule"; presentation: SchedulePresentation };
+export type ResponsibleGroupFilter = string;
 
 export type StatusGroup = "success" | "info" | "warning" | "danger" | "neutral";
 
-export type PartLifecycleStatus = "planned" | "needed" | "available" | "installed" | "retired";
-
 export type WorkLogSortMode = "recent" | "oldest" | "longest" | "shortest";
-export type AcquisitionMethod = "manufacture" | "purchase" | "stock";
+export type AcquisitionMethod = "stock" | "purchase-cots" | "manufacture";
 
 export type Option = {
   id: string;
@@ -51,40 +50,12 @@ export type WorkLogDraft = {
   notes: string;
 };
 
-export type ManufacturingDraft = {
-  title: string;
-  subsystemId: string;
-  requestedById: string;
-  process: ManufacturingItem["process"];
-  dueDate: string;
-  material: string;
-  quantity: string;
-  status: ManufacturingItem["status"];
-  mentorReviewed: boolean;
-  batchLabel: string;
-  qaReviewCount: string;
-};
-
-export type PurchaseDraft = {
-  title: string;
-  subsystemId: string;
-  requestedById: string;
-  quantity: string;
-  vendor: string;
-  linkLabel: string;
-  estimatedCost: string;
-  finalCost: string;
-  approvedByMentor: boolean;
-  status: PurchaseItem["status"];
-};
-
 export type MemberDraft = {
   email: string;
   photoUrl: string;
   name: string;
   role: MemberRole;
   elevated: boolean;
-  disciplineId: string;
   plannedWeeklyAttendanceHours: string;
   plannedAttendanceDays: string[];
   plannedAttendanceNotes: string;
@@ -95,23 +66,6 @@ export type SubsystemDraft = {
   description: string;
   responsibleEngineerId: string;
   mentorIdsText: string;
-  risksText: string;
-};
-
-export type PartDefinitionDraft = {
-  name: string;
-  partNumber: string;
-  revision: string;
-  source: string;
-  acquisitionMethod: AcquisitionMethod;
-};
-
-export type MilestoneDraft = {
-  title: string;
-  type: EventType;
-  isExternal: boolean;
-  description: string;
-  relatedSubsystemIdsText: string;
 };
 
 export type MilestoneSortField = "startDateTime" | "title" | "type";

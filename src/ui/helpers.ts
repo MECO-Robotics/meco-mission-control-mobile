@@ -1,39 +1,19 @@
 import * as Localization from "expo-localization";
 
 import type {
-  Event,
-  ManufacturingItem,
   MemberRole,
-  PartInstance,
-  PurchaseItem,
   Subsystem,
-  Task,
   TaskStatus,
   WorkLog,
 } from "../types/domain";
 
 import { STATUS_GROUPS } from "./constants";
 import type {
-  ManufacturingDraft,
   MemberDraft,
-  MilestoneDraft,
-  PartDefinitionDraft,
-  PartLifecycleStatus,
-  PurchaseDraft,
   StatusGroup,
   SubsystemDraft,
   WorkLogDraft,
 } from "./types";
-export function buildMilestoneDraft(seed?: Partial<Event>): MilestoneDraft {
-  return {
-    title: seed?.title ?? "",
-    type: seed?.type ?? "internal-review",
-    isExternal: seed?.isExternal ?? false,
-    description: seed?.description ?? "",
-    relatedSubsystemIdsText: seed?.relatedSubsystemIds?.join(", ") ?? "",
-  };
-}
-
 export function buildWorkLogDraft(seed?: Partial<WorkLog>): WorkLogDraft {
   return {
     taskId: seed?.taskId ?? "",
@@ -44,41 +24,6 @@ export function buildWorkLogDraft(seed?: Partial<WorkLog>): WorkLogDraft {
   };
 }
 
-export function buildManufacturingDraft(
-  process: ManufacturingItem["process"],
-  seed?: Partial<ManufacturingItem>,
-): ManufacturingDraft {
-  return {
-    title: seed?.title ?? "",
-    subsystemId: seed?.subsystemId ?? "",
-    requestedById: seed?.requestedById ?? "",
-    process: seed?.process ?? process,
-    dueDate: seed?.dueDate ?? isoToday(),
-    material: seed?.material ?? "",
-    quantity: typeof seed?.quantity === "number" ? String(seed.quantity) : "1",
-    status: seed?.status ?? "requested",
-    mentorReviewed: seed?.mentorReviewed ?? false,
-    batchLabel: seed?.batchLabel ?? "",
-    qaReviewCount: typeof seed?.qaReviewCount === "number" ? String(seed.qaReviewCount) : "0",
-  };
-}
-
-export function buildPurchaseDraft(seed?: Partial<PurchaseItem>): PurchaseDraft {
-  return {
-    title: seed?.title ?? "",
-    subsystemId: seed?.subsystemId ?? "",
-    requestedById: seed?.requestedById ?? "",
-    quantity: typeof seed?.quantity === "number" ? String(seed.quantity) : "1",
-    vendor: seed?.vendor ?? "",
-    linkLabel: seed?.linkLabel ?? "",
-    estimatedCost:
-      typeof seed?.estimatedCost === "number" ? String(seed.estimatedCost) : "",
-    finalCost: typeof seed?.finalCost === "number" ? String(seed.finalCost) : "",
-    approvedByMentor: seed?.approvedByMentor ?? false,
-    status: seed?.status ?? "requested",
-  };
-}
-
 export function buildMemberDraft(
   seed?: Partial<{
     email: string;
@@ -86,7 +31,6 @@ export function buildMemberDraft(
     name: string;
     role: MemberRole;
     elevated: boolean;
-    disciplineId: string | null;
     plannedWeeklyAttendanceHours: number;
     plannedAttendanceDays: string[];
     plannedAttendanceNotes: string;
@@ -99,7 +43,6 @@ export function buildMemberDraft(
     role: seed?.role ?? "student",
     elevated:
       seed?.elevated ?? (seed?.role === "lead" || seed?.role === "admin"),
-    disciplineId: seed?.disciplineId ?? "",
     plannedWeeklyAttendanceHours:
       typeof seed?.plannedWeeklyAttendanceHours === "number"
         ? String(seed.plannedWeeklyAttendanceHours)
@@ -115,30 +58,6 @@ export function buildSubsystemDraft(seed?: Partial<Subsystem>): SubsystemDraft {
     description: seed?.description ?? "",
     responsibleEngineerId: seed?.responsibleEngineerId ?? "",
     mentorIdsText: seed?.mentorIds?.join(",") ?? "",
-    risksText: seed?.risks?.join(", ") ?? "",
-  };
-}
-
-export function buildPartDefinitionDraft(
-  seed?: Partial<{
-    name: string;
-    partNumber: string;
-    revision: string;
-    source: string;
-    acquisitionMethod: PartDefinitionDraft["acquisitionMethod"];
-}>,
-): PartDefinitionDraft {
-  const source =
-    seed?.source === "Onshape" || seed?.source === "FRC Supplier" || seed?.source === "COTS"
-      ? seed.source
-      : "Onshape";
-
-  return {
-    name: seed?.name ?? "",
-    partNumber: seed?.partNumber ?? "",
-    revision: seed?.revision ?? "A",
-    source,
-    acquisitionMethod: seed?.acquisitionMethod ?? "manufacture",
   };
 }
 
@@ -206,31 +125,6 @@ export function inferMaterialCategory(materialName: string): string {
   }
 
   return "other";
-}
-
-export function derivePartLifecycleStatus(
-  partInstance: PartInstance,
-  tasks: Task[],
-): PartLifecycleStatus {
-  const linkedTasks = tasks.filter((task) => task.partInstanceId === partInstance.id);
-
-  if (linkedTasks.length === 0) {
-    return "planned";
-  }
-
-  if (linkedTasks.every((task) => task.status === "complete")) {
-    return "installed";
-  }
-
-  if (linkedTasks.some((task) => task.status === "waiting-for-qa")) {
-    return "available";
-  }
-
-  if (linkedTasks.some((task) => task.status === "in-progress")) {
-    return "needed";
-  }
-
-  return "planned";
 }
 
 function parseDateOnly(value: string) {
