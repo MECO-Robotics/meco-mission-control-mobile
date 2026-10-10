@@ -34,7 +34,7 @@ export function useSubsystemEditor({ members, mutate }: Inputs) {
     const payload = {
       name,
       description,
-      parentSubsystemId: null,
+      ...(editor.id ? {} : { parentSubsystemId: null }),
       responsibleEngineerId: editor.draft.responsibleEngineerId,
       mentorIds: mentors,
     };

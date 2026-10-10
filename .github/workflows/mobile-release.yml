@@ -22,8 +22,6 @@ on:
         type: choice
         options:
           - production
-          - preview
-          - development
       draft:
         description: Create as draft release
         required: true
@@ -172,7 +170,7 @@ jobs:
           EXPO_PUBLIC_API_BASE_URL: ${{ secrets.EXPO_PUBLIC_API_BASE_URL }}
         run: |
           set -euo pipefail
-          for EAS_ENV in production preview development; do
+          for EAS_ENV in production; do
             eas env:create "$EAS_ENV" \
               --name EXPO_PUBLIC_API_BASE_URL \
               --value "$EXPO_PUBLIC_API_BASE_URL" \

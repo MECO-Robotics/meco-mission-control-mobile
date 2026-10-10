@@ -57,7 +57,7 @@ import {
   buildLocalDevSessionUser,
   isLocalDevAuthBypassEnabled,
 } from "./src/data/devAuthBypass";
-import { buildHelpRequest, type HelpRequestInput } from "./src/data/helpRequests";
+import { helpRequestsFromRisks, getHelpRequestValidationError, type HelpRequestInput } from "./src/data/helpRequests";
 import {
   claimTaskRequest,
   getDefaultWorkLogParticipantIds,
@@ -80,7 +80,6 @@ import type {
   PartDefinition,
   PartInstance,
   MobileDeviceSessionSummary,
-  HelpRequest,
   PlatformBootstrapPayload,
   PublicAuthConfig,
   PurchaseItem,
@@ -419,7 +418,7 @@ export default function App() {
   const [qaFindings, setQaFindings] = useState<QaFinding[]>([]);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [qaRequests, setQaRequests] = useState<QaRequest[]>([]);
-  const [helpRequests, setHelpRequests] = useState<HelpRequest[]>([]);
+  const helpRequests = useMemo(() => helpRequestsFromRisks(risks), [risks]);
   const systemThemeMode: AppThemeName = systemColorScheme === "dark" ? "dark" : "light";
   const themeMode = themeOverride ?? systemThemeMode;
   const isDarkModeEnabled = themeMode === "dark";
@@ -498,7 +497,6 @@ export default function App() {
     setReports(ensureArray(payload.reports));
     setQaFindings(ensureArray(payload.qaFindings));
     setArtifacts(ensureArray(payload.artifacts));
-    setHelpRequests(ensureArray(payload.helpRequests));
     setPartDefinitions(ensureArray(payload.partDefinitions));
     setPartInstances(ensureArray(payload.partInstances));
   }, [setTasks]);
@@ -1264,7 +1262,8 @@ export default function App() {
       .filter((task) =>
         timelineMilestoneFilter === "all" ? true : task.scheduleRefs.some((ref) => ref.id === timelineMilestoneFilter),
       )
-      .filter((task) => taskArchiveFilter === "all" || task.status !== "complete")
+      .filter((task) => taskArchiveFilter === "all" ||
+        (taskArchiveFilter === "archived" ? task.status === "complete" : task.status !== "complete"))
       .sort((left, right) =>
       left.dueDate.localeCompare(right.dueDate),
     );
@@ -2292,22 +2291,20 @@ export default function App() {
     ]);
   };
 
-  const requestHelp = (input: HelpRequestInput) => {
+  const requestHelp = async (input: HelpRequestInput) => {
     if (!rosterMentors.some((mentor) => mentor.id === input.mentorId)) {
       return false;
     }
 
-    const request = buildHelpRequest({
-      ...input,
-      requestedById: input.requestedById ?? signedInMember?.id ?? null,
-    });
-
-    if (!request) {
-      return false;
-    }
-
-    setHelpRequests((current) => [request, ...current]);
-    return true;
+    const task = taskById[input.taskId ?? ""];
+    if (!task || getHelpRequestValidationError(input)) return false;
+    return runMutation("/api/risks", { method: "POST", body: JSON.stringify({
+      projectId: task.projectId, title: `Help requested: ${task.title}`, detail: input.reason.trim(),
+      category: "help", severity: "medium", status: "open", blocksWork: false,
+      source: { kind: "task", id: task.id }, relatedTargets: [{ kind: "task", id: task.id }],
+      ownerMemberId: input.mentorId, createdByMemberId: signedInMember?.id ?? null,
+      ownerGroupId: null, mitigationTaskId: null, mitigationDueDate: null,
+    }) });
   };
 
   const saveQaReportDraft = async () => {
@@ -2408,7 +2405,6 @@ export default function App() {
     setQaFindings([]);
     setArtifacts([]);
     setQaRequests([]);
-    setHelpRequests([]);
     setActivePersonFilter("all");
     setSelectedMemberId(null);
     setIsPersonMenuVisible(false);
