@@ -9,7 +9,7 @@ const subsystem = (id: string): Subsystem => ({
 const risk: Risk = {
   id: "risk-drive", projectId: "robot", title: "Drive chain slip", detail: "", category: "design", severity: "high",
   status: "open", blocksWork: true, source: { kind: "manual" }, relatedTargets: [{ kind: "subsystem", id: "drive" }],
-  mitigationTaskId: null, ownerGroupId: null, createdAt: "2026-09-01", updatedAt: "2026-09-01", resolvedAt: null,
+  mitigationTaskId: null, ownerGroupId: null, ownerMemberId: null, mitigationDueDate: null, createdAt: "2026-09-01", updatedAt: "2026-09-01", resolvedAt: null,
 };
 
 test("canonical risks drive subsystem health and search without a free-text subsystem risk store", () => {

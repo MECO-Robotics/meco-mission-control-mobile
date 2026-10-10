@@ -1,19 +1,21 @@
-import { createElement, Fragment } from "react";
+import { createElement, Fragment, type ReactElement } from "react";
 import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import App from "../../../App";
-import { requestJson } from "../../data/api";
+import { isLocalDevAuthBypassEnabled } from "../../data/devAuthBypass";
+import { ApiRequestError, requestJson } from "../../data/api";
 import { mecoSnapshot } from "../../data/__tests__/fixtures/mockData";
 import { LoginScreen } from "../components/LoginScreen";
 import { WorkspaceShell } from "../components/WorkspaceShell";
-import { loadPersistedAuthSession } from "../../services/authSessionStorage";
+import { loadPersistedAuthSession, savePersistedAuthSession } from "../../services/authSessionStorage";
 import type { AppScreenProps } from "../../screens/types";
+import type { TaskScreenProps } from "../../screens/tasks/taskScreenTypes";
 
 jest.mock("../../data/api", () => ({ ...jest.requireActual("../../data/api"), requestJson: jest.fn() }));
-jest.mock("../../data/devAuthBypass", () => ({ ...jest.requireActual("../../data/devAuthBypass"), isLocalDevAuthBypassEnabled: () => true }));
+jest.mock("../../data/devAuthBypass", () => ({ ...jest.requireActual("../../data/devAuthBypass"), isLocalDevAuthBypassEnabled: jest.fn(() => true) }));
 jest.mock("../components/LoginScreen", () => ({ LoginScreen: jest.fn(() => null) }));
 jest.mock("../components/WorkspaceShell", () => ({ WorkspaceShell: jest.fn(({ editorModals }) => editorModals) }));
 jest.mock("@react-native-async-storage/async-storage", () => ({ getItem: jest.fn(async () => null), setItem: jest.fn(async () => undefined), removeItem: jest.fn(async () => undefined), getAllKeys: jest.fn(async () => []) }));
-jest.mock("../../services/authSessionStorage", () => ({ getOrCreateAuthDeviceNumber: jest.fn(async () => "test"), loadPersistedAuthSession: jest.fn(async () => null), clearPersistedAuthSession: jest.fn(async () => undefined) }));
+jest.mock("../../services/authSessionStorage", () => ({ getOrCreateAuthDeviceNumber: jest.fn(async () => "test"), loadPersistedAuthSession: jest.fn(async () => null), clearPersistedAuthSession: jest.fn(async () => undefined), savePersistedAuthSession: jest.fn(async () => undefined) }));
 jest.mock("../../services/workLogTimerNotifications", () => ({ cancelWorkLogTimerReminders: jest.fn(async () => undefined), clearPersistedWorkLogTimerState: jest.fn(async () => undefined), restorePersistedWorkLogTimerReminder: jest.fn(async () => null), persistWorkLogTimerState: jest.fn(async () => undefined), schedulePersistedWorkLogTimerReminders: jest.fn(async () => []) }));
 
 const task = { ...mecoSnapshot.tasks[0], status: "waiting-for-qa", isBlocked: false, isWaitingOnDependency: false };
@@ -23,9 +25,10 @@ let failRefresh: boolean;
 const request = jest.mocked(requestJson);
 function shell() { return jest.mocked(WorkspaceShell).mock.calls.at(-1)![0]; }
 function screenProps() { return (shell().activeTabContent as ReturnType<typeof createElement<{ screenProps: AppScreenProps }>>).props.screenProps; }
+function taskProps() { return (shell().activeTabContent as ReactElement<{ taskContent: ReactElement<TaskScreenProps> }>).props.taskContent.props; }
 
 beforeEach(() => {
-  jest.clearAllMocks(); reports = []; failSave = false; failRefresh = false; jest.mocked(loadPersistedAuthSession).mockResolvedValue(null);
+  jest.clearAllMocks(); jest.mocked(isLocalDevAuthBypassEnabled).mockReturnValue(true); reports = []; failSave = false; failRefresh = false; jest.mocked(loadPersistedAuthSession).mockResolvedValue(null);
   request.mockImplementation(async (_base, path, init) => {
     if (path === "/api/auth/config") return { enabled: false, hostedDomain: "mecorobotics.org", emailEnabled: true };
     if (path === "/api/bootstrap") {
@@ -192,4 +195,220 @@ test("subsystem search and expansion survive rendered tab navigation and refresh
   } finally {
     workspace.mockImplementation(({ editorModals }) => createElement(Fragment, null, editorModals));
   }
+});
+
+test("accepted milestone creation closes its draft when bootstrap refresh fails", async () => {
+  const view = render(createElement(App));
+  await signIn();
+  act(() => taskProps().openCreateMilestoneEditor());
+  fireEvent.changeText(view.getByLabelText("Title"), "Inspection deadline");
+  failRefresh = true;
+  await act(async () => { fireEvent.press(view.getByRole("button", { name: "Create milestone" })); });
+  expect(request.mock.calls.filter(([, path, init]) => path === "/api/milestones" && init?.method === "POST")).toHaveLength(1);
+  expect(view.queryByRole("button", { name: "Create milestone" })).toBeNull();
+  expect(shell().syncError).toContain("Saved. Workspace refresh failed:");
+});
+
+test("mixed deadline shift outcomes reconcile persisted dates after every request settles", async () => {
+  const secondTask = { ...task, id: "second-task", dueDate: "2026-10-12" };
+  let firstDueDate = "2026-10-10";
+  const originalRequest = request.getMockImplementation()!;
+  request.mockImplementation(async (base, path, init, ...rest) => {
+    if (path === "/api/bootstrap") return { ...mecoSnapshot, tasks: [{ ...task, dueDate: firstDueDate }, secondTask], reports: [], taskDependencies: [] };
+    if (path === `/api/tasks/${task.id}` && init?.method === "PATCH") { firstDueDate = JSON.parse(String(init.body)).dueDate; return {}; }
+    if (path === "/api/tasks/second-task" && init?.method === "PATCH") throw new Error("Second task rejected");
+    return originalRequest(base, path, init, ...rest);
+  });
+  render(createElement(App));
+  await signIn();
+  await act(async () => { await screenProps().shiftTaskDueDates(screenProps().tasks, 1); });
+  expect(screenProps().tasks.map(({ dueDate }) => dueDate)).toEqual(["2026-10-11", "2026-10-12"]);
+  expect(shell().syncError).toBe("Second task rejected");
+});
+
+test("a successful old-session bootstrap cannot overwrite the newly signed-in workspace", async () => {
+  render(createElement(App));
+  await signIn();
+  let respond!: (payload: unknown) => void;
+  const originalRequest = request.getMockImplementation()!;
+  let delayNextBootstrap = true;
+  request.mockImplementation((base, path, ...rest) => {
+    if (path === "/api/bootstrap" && delayNextBootstrap) {
+      delayNextBootstrap = false;
+      return new Promise((resolve) => { respond = resolve; });
+    }
+    return originalRequest(base, path, ...rest);
+  });
+  let refreshing!: Promise<void>;
+  act(() => { refreshing = shell().onRefresh() as unknown as Promise<void>; });
+  await waitFor(() => expect(respond).toBeDefined());
+  await act(async () => { await shell().onSignOut(); });
+  await signIn();
+  await act(async () => { respond({ ...mecoSnapshot, tasks: [{ ...task, id: "stale-task" }] }); await refreshing; });
+  expect(screenProps().tasks).not.toEqual(expect.arrayContaining([expect.objectContaining({ id: "stale-task" })]));
+});
+
+test("accepted creation followed by authentication rejection clears the create draft", async () => {
+  const view = render(createElement(App));
+  await signIn();
+  act(() => taskProps().openCreateMilestoneEditor());
+  fireEvent.changeText(view.getByLabelText("Title"), "Saved before expiry");
+  const originalRequest = request.getMockImplementation()!;
+  request.mockImplementation((base, path, ...rest) => {
+    if (path === "/api/bootstrap") return Promise.reject(new ApiRequestError("expired", 401, null));
+    return originalRequest(base, path, ...rest);
+  });
+  await act(async () => { fireEvent.press(view.getByRole("button", { name: "Create milestone" })); });
+  expect(view.queryByRole("button", { name: "Create milestone" })).toBeNull();
+  request.mockImplementation(originalRequest);
+  await signIn();
+  expect(view.queryByRole("button", { name: "Create milestone" })).toBeNull();
+  expect(request.mock.calls.filter(([, path, init]) => path === "/api/milestones" && init?.method === "POST")).toHaveLength(1);
+});
+
+test("late email verification cannot supersede a newer sign-in", async () => {
+  render(createElement(App));
+  await waitFor(() => expect(LoginScreen).toHaveBeenCalled());
+  act(() => { jest.mocked(LoginScreen).mock.calls.at(-1)![0].setAuthEmail("member@mecorobotics.org"); jest.mocked(LoginScreen).mock.calls.at(-1)![0].setHasRequestedEmailCode(true); jest.mocked(LoginScreen).mock.calls.at(-1)![0].setAuthCode("123456"); });
+  let respond!: (session: unknown) => void;
+  const originalRequest = request.getMockImplementation()!;
+  request.mockImplementation((base, path, ...rest) => path === "/api/auth/mobile/email/verify"
+    ? new Promise((resolve) => { respond = resolve; }) : originalRequest(base, path, ...rest));
+  let verifying!: Promise<void>;
+  act(() => { verifying = jest.mocked(LoginScreen).mock.calls.at(-1)![0].signInWithEmail() as unknown as Promise<void>; });
+  await waitFor(() => expect(respond).toBeDefined());
+  await signIn();
+  await act(async () => { respond({ token: "old-email-token", user: { accountId: "old-account" } }); await verifying; });
+  expect(request.mock.calls.filter(([, path]) => path === "/api/bootstrap")).toHaveLength(1);
+});
+
+test("task QA requests persist through refresh and remount using one atomic command", async () => {
+  let persistedTask: typeof task = { ...task, status: "in-progress" };
+  const qaRequests: object[] = [];
+  const originalRequest = request.getMockImplementation()!;
+  request.mockImplementation(async (base, path, init, ...rest) => {
+    if (path === "/api/bootstrap") return { ...mecoSnapshot, tasks: [persistedTask], qaRequests, reports: [], taskDependencies: [] };
+    if (path === "/api/qa-requests") {
+      const item = { id: "persisted-qa-request", projectId: persistedTask.projectId, ...JSON.parse(String(init?.body)), requestedById: "ava", status: "requested", createdAt: "2026-10-10" };
+      qaRequests.push(item);
+      persistedTask = { ...persistedTask, status: "waiting-for-qa" };
+      return { item, task: persistedTask };
+    }
+    return originalRequest(base, path, init, ...rest);
+  });
+  const view = render(createElement(App));
+  await signIn();
+  await act(async () => { await taskProps().requestTaskQa(screenProps().tasks[0]); });
+  expect(screenProps().qaRequests).toEqual(expect.arrayContaining([expect.objectContaining({ id: "persisted-qa-request" })]));
+  expect(screenProps().tasks[0].status).toBe("waiting-for-qa");
+  expect(request.mock.calls.filter(([, , init]) => init?.method === "POST").map(([, path]) => path)).toEqual(["/api/qa-requests"]);
+  expect(request.mock.calls.some(([, path, init]) => path.startsWith("/api/tasks/") && init?.method === "PATCH")).toBe(false);
+  view.unmount();
+  render(createElement(App));
+  await signIn();
+  expect(screenProps().qaRequests[0].id).toBe("persisted-qa-request");
+});
+
+test("failed task start keeps the authoritative task status and leaves the work-log editor closed", async () => {
+  const readyTask = { ...task, ownerId: "ava", status: "not-started" as const };
+  const originalRequest = request.getMockImplementation()!;
+  request.mockImplementation(async (base, path, init, ...rest) => {
+    if (path === "/api/bootstrap") return { ...mecoSnapshot, tasks: [readyTask], reports: [], taskDependencies: [] };
+    if (path.startsWith("/api/tasks/") && init?.method === "PATCH") throw new Error("Start rejected");
+    return originalRequest(base, path, init, ...rest);
+  });
+  const view = render(createElement(App));
+  await waitFor(() => expect(LoginScreen).toHaveBeenCalled());
+  act(() => jest.mocked(LoginScreen).mock.calls.at(-1)![0].setAuthEmail("ava@team7667.org"));
+  await signIn();
+  await act(async () => { await taskProps().startTask(screenProps().tasks[0]); });
+  expect(request.mock.calls.some(([, path, init]) => path === `/api/tasks/${task.id}` && init?.method === "PATCH")).toBe(true);
+  expect(screenProps().tasks[0].status).toBe("not-started");
+  expect(view.queryByRole("button", { name: "Save work log" })).toBeNull();
+});
+
+test("late remote dev sign-in cannot supersede a newer local sign-in", async () => {
+  jest.mocked(isLocalDevAuthBypassEnabled).mockReturnValue(false);
+  let respond!: (session: unknown) => void;
+  const originalRequest = request.getMockImplementation()!;
+  request.mockImplementation((base, path, ...rest) => {
+    if (path === "/api/auth/config") return Promise.resolve({ enabled: false, devBypassAvailable: true, hostedDomain: "mecorobotics.org", emailEnabled: true });
+    if (path === "/api/auth/dev-bypass") return new Promise((resolve) => { respond = resolve; });
+    return originalRequest(base, path, ...rest);
+  });
+  render(createElement(App));
+  await waitFor(() => expect(LoginScreen).toHaveBeenCalled());
+  let signingIn!: Promise<void>;
+  act(() => { signingIn = jest.mocked(LoginScreen).mock.calls.at(-1)![0].signInWithDevBypass() as unknown as Promise<void>; });
+  await waitFor(() => expect(respond).toBeDefined());
+  jest.mocked(isLocalDevAuthBypassEnabled).mockReturnValue(true);
+  act(() => jest.mocked(LoginScreen).mock.calls.at(-1)![0].setAuthEmail("new@mecorobotics.org"));
+  await signIn();
+  await act(async () => { respond({ token: "old-dev-token", user: { accountId: "old-account" } }); await signingIn; });
+  expect(request.mock.calls.filter(([, path]) => path === "/api/bootstrap")).toHaveLength(1);
+});
+
+test.each([false, true])("older bootstrap cannot overwrite a newer accepted mutation snapshot (failure=%s)", async (fails) => {
+  render(createElement(App));
+  await signIn();
+  let respondOld!: (payload: unknown) => void;
+  let rejectOld!: (error: Error) => void;
+  let delayNextBootstrap = true;
+  const originalRequest = request.getMockImplementation()!;
+  request.mockImplementation((base, path, ...rest) => {
+    if (path === "/api/bootstrap") {
+      if (delayNextBootstrap) {
+        delayNextBootstrap = false;
+        return new Promise((resolve, reject) => { respondOld = resolve; rejectOld = reject; });
+      }
+      return Promise.resolve({ ...mecoSnapshot, tasks: [{ ...task, title: "Newly saved task" }], reports: [], taskDependencies: [] });
+    }
+    return originalRequest(base, path, ...rest);
+  });
+  let oldRefresh!: Promise<void>;
+  act(() => { oldRefresh = shell().onRefresh() as unknown as Promise<void>; });
+  await waitFor(() => expect(respondOld).toBeDefined());
+  await act(async () => { await screenProps().mutate(`/api/tasks/${task.id}`, { method: "PATCH", body: JSON.stringify({ title: "Newly saved task" }) }); });
+  expect(screenProps().tasks[0].title).toBe("Newly saved task");
+  await act(async () => {
+    if (fails) rejectOld(new Error("Obsolete refresh failure"));
+    else respondOld({ ...mecoSnapshot, tasks: [task], reports: [], taskDependencies: [] });
+    await oldRefresh;
+  });
+  expect(screenProps().tasks[0].title).toBe("Newly saved task");
+  expect(shell().syncError).toBeNull();
+});
+
+test("a captured old-session mutation callback cannot issue a request after a new sign-in", async () => {
+  render(createElement(App));
+  await signIn();
+  const oldMutation = screenProps().mutate;
+  await act(async () => { await shell().onSignOut(); });
+  await signIn();
+  const before = request.mock.calls.length;
+  await act(async () => { expect(await oldMutation("/api/tasks/stale-task", { method: "PATCH", body: "{}" })).toBe(false); });
+  expect(request.mock.calls).toHaveLength(before);
+});
+
+test("successful mobile email sign-in durably saves its session and loads theme and bootstrap with its new token", async () => {
+  const mobileSession = {
+    token: "new-mobile-token", refreshToken: "new-refresh-token", accessTokenExpiresAt: "2999-01-01T00:00:00Z", sessionExpiresAt: "2999-01-02T00:00:00Z",
+    user: { accountId: "ava", authProvider: "email", email: "ava@team7667.org", name: "Ava Chen", picture: null, hostedDomain: "team7667.org", role: "student" },
+    session: { id: "new-mobile-session", createdAt: "2026-10-10T00:00:00Z", lastUsedAt: "2026-10-10T00:00:00Z" },
+  };
+  const originalRequest = request.getMockImplementation()!;
+  request.mockImplementation((base, path, ...rest) => {
+    if (path === "/api/auth/mobile/email/verify") return Promise.resolve(mobileSession);
+    if (path === "/api/users/me/preferences") return Promise.resolve({ themeMode: "dark" });
+    return originalRequest(base, path, ...rest);
+  });
+  render(createElement(App));
+  await waitFor(() => expect(LoginScreen).toHaveBeenCalled());
+  act(() => { jest.mocked(LoginScreen).mock.calls.at(-1)![0].setAuthEmail("member@mecorobotics.org"); jest.mocked(LoginScreen).mock.calls.at(-1)![0].setHasRequestedEmailCode(true); jest.mocked(LoginScreen).mock.calls.at(-1)![0].setAuthCode("123456"); });
+  await act(async () => { await jest.mocked(LoginScreen).mock.calls.at(-1)![0].signInWithEmail(); });
+  await waitFor(() => expect(WorkspaceShell).toHaveBeenCalled());
+  expect(savePersistedAuthSession).toHaveBeenCalledWith(expect.objectContaining({ token: "new-mobile-token", deviceNumber: "test" }));
+  expect(request.mock.calls.find(([, path]) => path === "/api/users/me/preferences")?.[3]).toBe("new-mobile-token");
+  expect(request.mock.calls.find(([, path]) => path === "/api/bootstrap")?.[3]).toBe("new-mobile-token");
+  expect(taskProps().signedInMember?.id).toBe("ava");
 });

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
+import { spawnSync } from "node:child_process";
 
 const root = path.resolve(import.meta.dirname, "..");
 const workflowsDirectory = path.join(root, ".github", "workflows");
@@ -107,4 +108,38 @@ test("release and CI tool versions are reproducible", async () => {
   assert.doesNotMatch(`${release}\n${ci}`, /node-version:\s*22(?:\s|$)/);
   assert.equal(nvm, "22.13.0");
   assert.equal(pkg.engines.node, ">=22.13 <23");
+});
+
+test("bootstrap verification never falls back from the selected remote revision", () => {
+  for (const branch of ["missing-revision", "development"]) {
+    const result = spawnSync(process.execPath, ["--input-type=module", "--eval", `
+      globalThis.fetch = async (url) => { console.log("FETCH " + url); return new Response("missing", { status: 404 }); };
+      await import("./scripts/verify-bootstrap-contract.mjs");
+    `], { cwd: root, encoding: "utf8", env: {
+      ...process.env, CI: "true", PLATFORM_BOOTSTRAP_CONTRACT_SOURCE_PATH: "",
+      PLATFORM_BOOTSTRAP_CONTRACT_URL: "https://example.test/%s/contract.json",
+      PLATFORM_BOOTSTRAP_CONTRACT_BRANCH: branch,
+    } });
+    assert.equal(result.status, 1);
+    assert.deepEqual(result.stdout.trim().split("\n"), [`FETCH https://example.test/${branch}/contract.json`]);
+  }
+});
+
+test("explicit contract sources fail closed outside CI", () => {
+  const result = spawnSync(process.execPath, ["scripts/verify-bootstrap-contract.mjs"], {
+    cwd: root, encoding: "utf8", env: { ...process.env, CI: "false", PLATFORM_BOOTSTRAP_CONTRACT_SOURCE_PATH: "missing-contract.json" },
+  });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /validation failed/);
+});
+
+test("selected remote contract verifies", () => {
+  const result = spawnSync(process.execPath, ["--input-type=module", "--eval", `
+    import { readFile } from "node:fs/promises";
+    const contract = await readFile("contracts/platform/bootstrap/v1/contract.json", "utf8");
+    globalThis.fetch = async () => new Response(contract);
+    await import("./scripts/verify-bootstrap-contract.mjs");
+  `], { cwd: root, encoding: "utf8", env: { ...process.env, CI: "true", PLATFORM_BOOTSTRAP_CONTRACT_SOURCE_PATH: "", PLATFORM_BOOTSTRAP_CONTRACT_BRANCH: "pinned-revision" } });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /pinned-revision/);
 });

@@ -5,7 +5,7 @@ import { AppThemeProvider } from "../../../ui/themeContext";
 import type { AppScreenProps } from "../../types";
 import { TeamsScreen } from "../TeamsScreen";
 
-const group = { id: "group", seasonId: "season", name: "Build", projectIds: ["project"], memberIds: ["member"], isArchived: false };
+const group = { id: "group", seasonId: "season", name: "Build", projectIds: ["project"], workTypeIds: [], primaryMemberIds: [], memberIds: ["member"], isArchived: false };
 function props(isArchived = false) {
   return {
     responsibleGroups: [{ ...group, isArchived }], members: [{ id: "member", name: "Student", role: "student", email: "", elevated: false, seasonId: "season", activeSeasonIds: ["season"] }],

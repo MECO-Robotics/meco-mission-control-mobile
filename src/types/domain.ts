@@ -1,5 +1,4 @@
 export type MemberRole = "student" | "lead" | "mentor" | "admin" | "external";
-export type ClassYear = "freshman" | "sophomore" | "junior" | "senior";
 export type PlannedAttendanceDay =
   | "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday";
 export type ProjectType = "robot" | "media" | "outreach" | "operations" | "strategy" | "training";
@@ -14,7 +13,7 @@ export type PurchaseOrderStatus = "not-ordered" | "ordered" | "shipped" | "deliv
 export type CadSource = "manual" | "step" | "onshape";
 export type CadImportSource = "MANUAL" | "STEP_UPLOAD" | "ONSHAPE_API" | "ONSHAPE_BOM_CSV" | "MANUAL_BOM_CSV";
 export type RiskSeverity = "low" | "medium" | "high" | "critical";
-export type RiskStatus = "open" | "mitigating" | "accepted" | "resolved";
+export type RiskStatus = "open" | "in-progress" | "blocked" | "resolved";
 export type QaResult = "pass" | "minor-fix" | "iteration-worthy";
 
 export interface Season {
@@ -49,7 +48,9 @@ export interface ResponsibleGroup {
   seasonId: string;
   name: string;
   projectIds: string[];
+  workTypeIds: string[];
   memberIds: string[];
+  primaryMemberIds: string[];
   isArchived: boolean;
 }
 
@@ -68,7 +69,6 @@ export interface Member {
   email: string;
   photoUrl?: string;
   role: MemberRole;
-  classYear?: ClassYear | null;
   elevated: boolean;
   seasonId: string;
   activeSeasonIds: string[];
@@ -296,6 +296,8 @@ export interface Risk {
   relatedTargets: DomainReference[];
   mitigationTaskId: string | null;
   ownerGroupId: string | null;
+  ownerMemberId: string | null;
+  mitigationDueDate: string | null;
   createdAt: string;
   updatedAt: string;
   resolvedAt: string | null;

@@ -13,7 +13,7 @@ const workTypes: WorkType[] = [
   ...["design", "manufacturing", "assembly", "electrical-wiring", "programming", "testing", "driving", "planning"].map((code) => ({ id: code, projectType: "robot" as const, code, name: code, isActive: true })),
   ...(["media", "outreach", "operations", "strategy", "training"] as const).map((projectType) => ({ id: `${projectType}-planning`, projectType, code: "planning", name: "Planning", isActive: true })),
 ];
-const responsibleGroups: ResponsibleGroup[] = [{ id: "robot-build", seasonId, name: "Robot Build", projectIds: [project.id], memberIds: ["ava", "lucas", "priya", "ethan"], isArchived: false }];
+const responsibleGroups: ResponsibleGroup[] = [{ id: "robot-build", seasonId, name: "Robot Build", projectIds: [project.id], workTypeIds: [], primaryMemberIds: [], memberIds: ["ava", "lucas", "priya", "ethan"], isArchived: false }];
 const members: Member[] = [
   ["ava", "Ava Chen", "student"], ["lucas", "Lucas Brooks", "student"], ["priya", "Priya Patel", "student"],
   ["ethan", "Ethan Hall", "student"], ["jordan", "Jordan Lee", "mentor"], ["riley", "Riley Kim", "mentor"], ["maya", "Maya Ortiz", "admin"],
@@ -48,7 +48,7 @@ const purchaseItems: PurchaseItem[] = [
   finalCost: null, expectedDeliveryDate: null, trackingNumber: null, trackingUrl: null, orderedAt: null, deliveredAt: null,
 }));
 const qaReports: QaReport[] = [{ id: "qa-1", projectId: project.id, targetRefs: [{ kind: "task", id: tasks[0].id }], createdByMemberId: "jordan", participantIds: ["ava"], mentorId: "jordan", requestedById: "ava", summary: "Inspection evidence", notes: "", createdAt: "2026-04-20", status: "reviewed", reportType: "qa", result: "pass", reviewedById: "jordan", reviewedAt: "2026-04-21" }];
-const risks: Risk[] = [{ id: "risk-drive", projectId: project.id, title: "Sensor drift", detail: "Validate encoder readings", category: "design", severity: "medium", status: "open", blocksWork: false, source: { kind: "manual" }, relatedTargets: [{ kind: "subsystem", id: "drive" }], mitigationTaskId: null, ownerGroupId: "robot-build", createdAt: "2026-04-20", updatedAt: "2026-04-20", resolvedAt: null }];
+const risks: Risk[] = [{ id: "risk-drive", projectId: project.id, title: "Sensor drift", detail: "Validate encoder readings", category: "design", severity: "medium", status: "open", blocksWork: false, source: { kind: "manual" }, relatedTargets: [{ kind: "subsystem", id: "drive" }], mitigationTaskId: null, ownerGroupId: "robot-build", ownerMemberId: null, mitigationDueDate: null, createdAt: "2026-04-20", updatedAt: "2026-04-20", resolvedAt: null }];
 const workLogs: WorkLog[] = [{ id: "log-1", taskId: tasks[0].id, date: "2026-04-20", hours: 3, participantIds: ["ava", "jordan"], notes: "Encoder check" }];
 const attendanceRecords: AttendanceRecord[] = [{ id: "attendance-1", memberId: "ava", date: "2026-04-20", totalHours: 3 }];
 

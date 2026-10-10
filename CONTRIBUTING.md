@@ -24,7 +24,7 @@ npm run verify
 
 This owns ESLint, Jest (including role permissions and approval controls), workflow security tests, TypeScript and bootstrap contract verification. Run the relevant existing command while iterating; do not rerun its constituent checks after a successful full verification on the same revision. Documentation-only changes need link/command review and `git diff --check`.
 
-For coordinated contract work, set `PLATFORM_BOOTSTRAP_CONTRACT_SOURCE_PATH` to the platform checkout's `contracts/platform/bootstrap/v1/contract.json`. Otherwise verification compares the published platform development contract (with existing main/sibling fallbacks). CI fails when no source is available; local verification reports a skipped remote check. Report that limitation rather than claiming drift was checked.
+For coordinated contract work, set `PLATFORM_BOOTSTRAP_CONTRACT_SOURCE_PATH` to the platform checkout's `contracts/platform/bootstrap/v1/contract.json`. Otherwise verification compares the published platform development contract. An explicitly selected branch, revision, URL or local source is authoritative: a missing source fails verification without falling back. CI also fails when the default source is unavailable; local verification without an explicit source reports a skipped remote check. Report that limitation rather than claiming drift was checked.
 
 For changed device behavior, record the tested OS/device and relevant lifecycle, offline or permission scenarios. Include screenshots or recordings when they help assess a UI change; identify platforms not exercised.
 
