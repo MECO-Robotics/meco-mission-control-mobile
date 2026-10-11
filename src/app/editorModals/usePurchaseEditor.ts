@@ -20,9 +20,16 @@ export function usePurchaseEditor({ tasks, materials, vendors, purchaseItems, ca
     }
     if (editor.draft.vendorId && !vendors.some((vendor) => vendor.id === editor.draft.vendorId)) { setError("Choose a known vendor."); return; }
     if (editor.draft.materialId && !materials.some((material) => material.id === editor.draft.materialId)) { setError("Choose a known material."); return; }
-    const quoteId = editor.draft.vendorId ? (editor.draft.vendorId + "-quote") : null;
-    const quotes = editor.draft.vendorId ? [{ id: quoteId!, vendorId: editor.draft.vendorId, reference: null, amount: amount === null ? null : { amount, currency: "USD" }, quotedAt: new Date().toISOString() }] : [];
-    const payload = { taskId: editor.draft.taskId, kind: editor.draft.kind, partDefinitionId: null, materialId: editor.draft.materialId || null, title: editor.draft.title.trim(), quantity, quotes, selectedQuoteId: quoteId, approvalStatus: "pending", approvedById: null, approvedAt: null, purchaseOrderNumber: null, orderStatus: "not-ordered", finalCost: null, expectedDeliveryDate: null, trackingNumber: null, trackingUrl: null, orderedAt: null, deliveredAt: null };
+    const existing = purchaseItems.find((item) => item.id === editor.id);
+    const previousQuote = existing?.quotes.find((quote) => quote.id === existing.selectedQuoteId) ?? existing?.quotes[0];
+    const quoteId = editor.draft.vendorId ? (previousQuote?.id ?? editor.draft.vendorId + "-quote") : null;
+    const quoteChanged = !existing || previousQuote?.vendorId !== (editor.draft.vendorId || undefined) || (previousQuote?.amount?.amount ?? null) !== amount;
+    const nextQuote = editor.draft.vendorId ? { id: quoteId!, vendorId: editor.draft.vendorId, reference: previousQuote?.reference ?? null, amount: amount === null ? null : { amount, currency: previousQuote?.amount?.currency ?? "USD" }, quotedAt: previousQuote?.quotedAt ?? new Date().toISOString() } : null;
+    const quotes = [...(existing?.quotes.filter((quote) => quote.id !== previousQuote?.id) ?? []), ...(nextQuote ? [nextQuote] : [])];
+    const payload = { taskId: editor.draft.taskId, kind: editor.draft.kind, materialId: editor.draft.materialId || null, title: editor.draft.title.trim(), quantity,
+      ...(quoteChanged ? { quotes, selectedQuoteId: quoteId } : {}),
+      ...(editor.id ? {} : { partDefinitionId: null, approvalStatus: "pending", approvedById: null, approvedAt: null, purchaseOrderNumber: null, orderStatus: "not-ordered", finalCost: null, expectedDeliveryDate: null, trackingNumber: null, trackingUrl: null, orderedAt: null, deliveredAt: null }),
+    };
     const ok = await mutate(editor.id ? `/api/purchases/${editor.id}` : "/api/purchases", { method: editor.id ? "PATCH" : "POST", body: JSON.stringify(payload) });
     complete(ok, "Could not confirm the purchase item was saved. Your draft is still here.");
   };

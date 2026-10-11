@@ -69,7 +69,7 @@ export function splitList(value: string): string[] {
 }
 
 export function isoToday() {
-  return new Date().toISOString().slice(0, 10);
+  return localTodayDate();
 }
 
 export function getStatusGroup(value: string): StatusGroup {

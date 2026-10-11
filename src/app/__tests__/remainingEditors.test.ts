@@ -62,4 +62,16 @@ test("part definition edits do not recreate acquisition work", async () => {
   expect(mutate.mock.calls[0][0]).toBe(`/api/part-definitions/${mecoSnapshot.partDefinitions[0].id}`);
   expect(mutate.mock.calls[0][1].method).toBe("PATCH");
   expect(body(mutate)).not.toHaveProperty("taskId");
+  expect(body(mutate)).not.toHaveProperty("iteration");
+  expect(body(mutate)).not.toHaveProperty("isArchived");
+  expect(body(mutate)).not.toHaveProperty("cadImportSource");
+});
+
+test("editing subsystem description preserves its existing hierarchy", async () => {
+  const mutate = mutation();
+  const { result } = renderHook(() => useSubsystemEditor({ members: mecoSnapshot.members, mutate }));
+  act(() => result.current.open({ ...mecoSnapshot.subsystems[0], parentSubsystemId: "parent", responsibleEngineerId: "ava" }));
+  act(() => result.current.updateDraft({ description: "Updated description" }));
+  await act(async () => { await result.current.save(); });
+  expect(body(mutate)).not.toHaveProperty("parentSubsystemId");
 });

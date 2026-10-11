@@ -48,7 +48,7 @@ export interface TaskScreenProps {
   openCreateWorkLogEditor: (taskId?: string) => void;
   partInstancesById: Record<string, PartInstance>;
   partDefinitionsById: Record<string, PartDefinition>;
-  requestHelp: (input: HelpRequestInput) => boolean;
+  requestHelp: (input: HelpRequestInput) => Promise<boolean>;
   requestTaskQa: (task: Task) => Promise<void>;
   reassignTask: (task: Task, ownerId: string | null) => Promise<void>;
   releaseTask: (task: Task) => Promise<void>;

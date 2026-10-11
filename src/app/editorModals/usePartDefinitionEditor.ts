@@ -15,7 +15,9 @@ export function usePartDefinitionEditor({ partDefinitions, canCreateParts, mutat
     const { draft, id } = editor;
     if (!id && uncertainCreate.current) { setError("Creation was already submitted. Reopen the part definition before trying again."); return; }
     if (!id && !canCreateParts) { setError("Only leads, mentors, and admins can add part definitions."); return; }
-    const payload = { name: draft.name.trim(), partNumber: draft.partNumber.trim(), revision: draft.revision.trim(), iteration: 0, isArchived: false, type: draft.type.trim(), defaultAcquisitionMethod: draft.defaultAcquisitionMethod, materialId: draft.materialId || null, description: draft.description.trim(), cadSource: draft.cadSource, cadImportSource: "MANUAL" as const, cadEditedAfterImport: false };
+    const payload = { name: draft.name.trim(), partNumber: draft.partNumber.trim(), revision: draft.revision.trim(), type: draft.type.trim(), defaultAcquisitionMethod: draft.defaultAcquisitionMethod, materialId: draft.materialId || null, description: draft.description.trim(), cadSource: draft.cadSource,
+      ...(id ? {} : { iteration: 0, isArchived: false, cadImportSource: "MANUAL" as const, cadEditedAfterImport: false }),
+    };
     if (!payload.name || !payload.partNumber || !payload.revision || !payload.type) { setError("Add a name, part number, revision, and type."); return; }
     const ok = await mutate(id ? `/api/part-definitions/${id}` : "/api/part-definitions", { method: id ? "PATCH" : "POST", body: JSON.stringify(payload) });
     if (!id && !ok) uncertainCreate.current = true;

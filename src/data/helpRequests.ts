@@ -1,4 +1,11 @@
-import type { HelpRequest, Member, Task, WorkLog } from "../types/domain";
+import type { HelpRequest, Member, Risk, Task, WorkLog } from "../types/domain";
+
+export function helpRequestsFromRisks(risks: Risk[]): HelpRequest[] {
+  return risks.filter((risk) => risk.category === "help")
+    .map((risk) => ({ id: risk.id, taskId: risk.source.kind === "task" ? risk.source.id : risk.relatedTargets.find((target) => target.kind === "task")?.id ?? null,
+      reason: risk.detail, mentorId: risk.ownerMemberId ?? "", requestedById: risk.createdByMemberId ?? null,
+      createdAt: risk.createdAt, status: risk.status }));
+}
 
 export type HelpRequestInput = {
   taskId?: string | null;
@@ -31,25 +38,6 @@ export function getHelpRequestValidationError(input: HelpRequestInput) {
   }
 
   return null;
-}
-
-export function buildHelpRequest(input: HelpRequestInput): HelpRequest | null {
-  if (getHelpRequestValidationError(input)) {
-    return null;
-  }
-
-  const createdAt = input.createdAt ?? new Date().toISOString();
-
-  return {
-    id: input.id ?? `help-request-local-${Date.now()}`,
-    taskId: input.taskId ?? null,
-    workLogId: input.workLogId ?? null,
-    reason: input.reason.trim(),
-    mentorId: input.mentorId,
-    requestedById: input.requestedById,
-    createdAt,
-    status: "requested",
-  };
 }
 
 export function getDefaultHelpMentorId(

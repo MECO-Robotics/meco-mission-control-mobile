@@ -8,16 +8,17 @@
   "scripts": {
     "prepare": "git config core.hooksPath .githooks",
     "verify": "npm run verify:core && npm run verify:bootstrap-contract",
-    "verify:core": "npm run lint && npm run test && npm run test:workflow-security && npm run typecheck",
+    "verify:core": "npm run lint && npm run test && npm run test:workflow-security && npm run verify:dependencies && npm run typecheck",
     "dev": "npm run android --",
     "start": "expo start",
     "android": "expo start --android",
     "ios": "DEVELOPER_DIR=${DEVELOPER_DIR:-/Applications/Xcode-beta.app/Contents/Developer} expo start --localhost --port 8081",
     "lint": "eslint .",
     "test": "jest --runInBand",
-    "test:workflow-security": "node --test scripts/workflow-security.test.mjs",
+    "test:workflow-security": "node --test scripts/workflow-security.test.mjs scripts/dependency-security.test.mjs",
     "typecheck": "tsc --noEmit",
-    "verify:bootstrap-contract": "node scripts/verify-bootstrap-contract.mjs"
+    "verify:bootstrap-contract": "node scripts/verify-bootstrap-contract.mjs",
+    "verify:dependencies": "node scripts/verify-dependencies.mjs"
   },
   "dependencies": {
     "@noble/ciphers": "2.3.0",
@@ -32,7 +33,7 @@
     "expo-splash-screen": "~57.0.6",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
-    "react-native": "0.86.2"
+    "react-native": "0.86.3"
   },
   "devDependencies": {
     "@testing-library/react-native": "^13.3.3",
@@ -49,7 +50,9 @@
   "overrides": {
     "js-yaml": "^4.3.2",
     "postcss": "^8.5.15",
-    "uuid": "^11.1.1"
+    "uuid": "^11.1.1",
+    "image-size": "^2.0.4",
+    "minimatch@3": { "brace-expansion": "^1.1.21" }
   },
   "private": true
 }

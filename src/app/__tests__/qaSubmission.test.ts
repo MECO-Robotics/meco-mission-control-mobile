@@ -444,3 +444,36 @@ test("QA selection reports missing eligible mentors without issuing a write", as
   expect(shell().syncError).toBe("Assign an active mentor in this task's season before requesting QA.");
   expect(screenProps().tasks[0].status).toBe("in-progress");
 });
+
+test("help requests persist mentor-owned task risk and survive workspace refresh", async () => {
+  const originalRequest = request.getMockImplementation()!;
+  const persistedRisks: object[] = [];
+  request.mockImplementation(async (base, path, ...rest) => {
+    if (path === "/api/risks" && rest[0]?.method === "POST") {
+      const saved = { ...JSON.parse(String(rest[0].body)), id: "saved-help", createdAt: "2026-10-10T12:00:00Z", updatedAt: "2026-10-10T12:00:00Z", resolvedAt: null };
+      persistedRisks.push(saved); return { item: saved };
+    }
+    const response = await originalRequest(base, path, ...rest);
+    return path === "/api/bootstrap" ? { ...response as object, risks: [...persistedRisks] } : response;
+  });
+  render(createElement(App)); await signIn();
+  await act(async () => {
+    expect(await taskProps().requestHelp({ taskId: task.id, reason: "Verify calibration", mentorId: mecoSnapshot.members.find((member) => member.role === "mentor")!.id, requestedById: null })).toBe(true);
+  });
+  expect(request.mock.calls.find(([, path]) => path === "/api/risks")?.[2]?.body).toContain('"source":{"kind":"task"');
+  expect(screenProps().helpRequests).toContainEqual(expect.objectContaining({ id: "saved-help", reason: "Verify calibration", status: "open" }));
+});
+
+test("timeline distinguishes active, archived and all task selections", async () => {
+  const originalRequest = request.getMockImplementation()!;
+  request.mockImplementation(async (base, path, ...rest) => {
+    const response = await originalRequest(base, path, ...rest);
+    return path === "/api/bootstrap" ? { ...response as object, tasks: [task, { ...task, id: "completed", status: "complete" }] } : response;
+  });
+  render(createElement(App)); await signIn();
+  expect(taskProps().timelineTasks.map((item) => item.id)).toEqual([task.id]);
+  act(() => taskProps().queue.setFilter("taskArchiveFilter", "archived"));
+  expect(taskProps().timelineTasks.map((item) => item.id)).toEqual(["completed"]);
+  act(() => taskProps().queue.setFilter("taskArchiveFilter", "all"));
+  expect(taskProps().timelineTasks).toHaveLength(2);
+});

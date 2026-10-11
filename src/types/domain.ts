@@ -282,7 +282,7 @@ export type DomainReference =
   | { kind: "project" | "workstream" | "responsible-group" | "task" | "subsystem" | "mechanism" | "part-definition" | "part-instance" | "material" | "vendor" | "manufacturing-details" | "purchase-item" | "meeting" | "event" | "milestone" | "qa-request" | "test-result" | "report" | "artifact" | "qa-finding" | "test-finding" | "task-dependency" | "risk" | "design-iteration"; id: string };
 
 export type RiskSource = { kind: "manual" } | { kind: "task" | "task-dependency" | "qa-finding" | "test-finding" | "qa-request" | "test-result" | "report" | "event" | "milestone" | "manufacturing-details" | "part-instance" | "material"; id: string };
-export type RiskCategory = "dependency" | "design" | "manufacturing" | "supply" | "schedule" | "qa" | "inventory" | "other";
+export type RiskCategory = "dependency" | "design" | "manufacturing" | "supply" | "schedule" | "qa" | "inventory" | "other" | "help";
 export interface Risk {
   id: string;
   projectId: string;
@@ -301,6 +301,7 @@ export interface Risk {
   createdAt: string;
   updatedAt: string;
   resolvedAt: string | null;
+  createdByMemberId?: string | null;
 }
 
 export type RiskMutationPayload = Omit<Risk, "id" | "createdAt" | "updatedAt" | "resolvedAt">;
@@ -411,7 +412,7 @@ export interface Artifact {
 
 export interface WorkLog { id: string; taskId: string; date: string; hours: number; participantIds: string[]; notes: string }
 export interface AttendanceRecord { id: string; memberId: string; date: string; totalHours: number }
-export interface HelpRequest { id: string; taskId?: string | null; workLogId?: string | null; reason: string; mentorId: string; requestedById: string | null; createdAt: string; status: "requested" }
+export interface HelpRequest { id: string; taskId?: string | null; workLogId?: string | null; reason: string; mentorId: string; requestedById: string | null; createdAt: string; status: "requested" | RiskStatus }
 export interface DesignIteration { id: string; taskId?: string | null; artifactId?: string | null; artifactIds?: string[]; [key: string]: unknown }
 
 export interface PlatformBootstrapPayload {
@@ -446,7 +447,6 @@ export interface PlatformBootstrapPayload {
   workLogs: WorkLog[];
   attendanceRecords: AttendanceRecord[];
   milestoneRequirements: MilestoneRequirement[];
-  helpRequests?: HelpRequest[];
   designIterations?: DesignIteration[];
 }
 

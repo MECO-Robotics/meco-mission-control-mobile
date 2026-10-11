@@ -100,7 +100,7 @@ export function useTaskEditor({ mechanisms, partInstances, projects, workTypes, 
     const dependencyRefs = taskDraft.dependencies.filter((edge) => edge.kind === "task").map((edge) => edge.refId).filter((id) => taskById[id] && id !== activeTaskId);
     const title = taskDraft.title.trim(); const summary = taskDraft.summary.trim(); const estimatedHours = Number(taskDraft.estimatedHours);
     const missing = [!title ? "title" : null, !summary ? "summary" : null, !taskDraft.projectId ? "project" : null, !taskDraft.workTypeId ? "work type" : null,
-      !taskDraft.ownerId ? "owner" : null, Number.isNaN(estimatedHours) || estimatedHours < 0 ? "estimated hours" : null].filter((field): field is string => Boolean(field));
+      !taskDraft.ownerId ? "owner" : null, !Number.isFinite(estimatedHours) || estimatedHours < 0 ? "estimated hours" : null].filter((field): field is string => Boolean(field));
     if (missing.length) { setTaskEditorError(`Add ${missing.join(", ")} before saving this work item.`); return; }
     if (activeTaskId) {
       const circular = dependencyRefs.filter((id) => taskDependsOnTarget(id, activeTaskId, taskDependencies));
@@ -113,7 +113,7 @@ export function useTaskEditor({ mechanisms, partInstances, projects, workTypes, 
       scheduleRefs: taskDraft.scheduleRefs, workstreamIds: taskDraft.workstreamIds, ownerId: taskDraft.ownerId || null,
       assigneeIds: taskDraft.assigneeIds, requestedById: existingTask?.requestedById ?? null, mentorId: taskDraft.mentorId || null,
       startDate: taskDraft.startDate || isoToday(), dueDate: taskDraft.dueDate || isoToday(), priority: taskDraft.priority, status: taskDraft.status,
-      checklistItems, estimatedHours, actualHours: existingTask?.actualHours ?? 0,
+      checklistItems, estimatedHours,
       requiresDocumentation: existingTask?.requiresDocumentation ?? false, manufacturingDetails: taskDraft.manufacturingDetails,
     };
     saving.current = true;

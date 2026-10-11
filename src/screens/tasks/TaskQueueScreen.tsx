@@ -111,7 +111,7 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
     setHelpRequestTask(null);
   };
 
-  const submitTaskHelpRequest = ({
+  const submitTaskHelpRequest = async ({
     mentorId,
     reason,
   }: {
@@ -122,7 +122,7 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
       return false;
     }
 
-    const didRequestHelp = requestHelp({
+    const didRequestHelp = await requestHelp({
       taskId: helpRequestTask.id,
       reason,
       mentorId,

@@ -15,3 +15,11 @@ test("archived groups can be surfaced alongside active groups for restoration", 
   expect(getVisibleGroups(groups, "archived").map(({ id }) => id)).toEqual(["archived"]);
   expect(getVisibleGroups(groups, "all")).toHaveLength(2);
 });
+
+test("default overdue cutoff follows the device calendar rather than UTC", () => {
+  jest.useFakeTimers().setSystemTime(new Date("2026-10-09T11:30:00Z"));
+  const offset = jest.spyOn(Date.prototype, "getTimezoneOffset").mockReturnValue(-780);
+  try {
+    expect(getTaskMetrics([task({ dueDate: "2026-10-09" })]).overdue).toBe(1);
+  } finally { offset.mockRestore(); jest.useRealTimers(); }
+});

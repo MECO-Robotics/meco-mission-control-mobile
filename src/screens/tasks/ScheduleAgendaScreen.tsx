@@ -6,7 +6,7 @@ import {
   EVENT_TYPE_STYLES,
   SUBVIEW_INTERACTION_GUIDANCE,
 } from "../../ui/constants";
-import { formatDateTime } from "../../ui/helpers";
+import { formatDateTime, localTodayDate } from "../../ui/helpers";
 import { styles } from "../../ui/styles";
 import {
   EmptyState,
@@ -51,7 +51,7 @@ export function ScheduleAgendaScreen(props: ScheduleAgendaScreenProps) {
   } = props;
 
   const milestoneTypeOptions = [...new Set(filteredMilestones.map((item) => item.type))].map((type) => ({ id: type, name: type.replaceAll("-", " ") }));
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localTodayDate();
   const agendaItems = [
     ...filteredMilestones.filter((entry) => entry.startDateTime.slice(0, 10) >= today).map((entry) => ({ kind: "schedule" as const, date: entry.startDateTime, entry })),
     ...tasks.filter((task) => task.dueDate >= today).map((task) => ({ kind: "task-deadline" as const, date: task.dueDate, task })),
