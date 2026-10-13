@@ -39,6 +39,9 @@ export function useTaskEditor({ mechanisms, partInstances, projects, workTypes, 
   const selectedTaskDependencyIds = useMemo(() => taskDraft.dependencies.filter((edge) => edge.kind === "task").map((edge) => edge.refId)
     .filter((id) => taskById[id] && id !== activeTaskId), [activeTaskId, taskById, taskDraft.dependencies]);
   const selectedTaskDependencies = useMemo(() => selectedTaskDependencyIds.map((id) => taskById[id]).filter((task): task is Task => Boolean(task)), [selectedTaskDependencyIds, taskById]);
+  const missingTaskDependencyIds = useMemo(() => [...new Set(taskDraft.dependencies
+    .filter((edge): edge is Extract<DependencyDraft, { kind: "task" }> => edge.kind === "task" && !taskById[edge.refId])
+    .map((edge) => edge.refId))], [taskById, taskDraft.dependencies]);
   const taskDependencyReadinessMessage = useMemo(() => {
     const unresolved = taskDraft.dependencies.filter((edge): edge is Extract<DependencyDraft, { kind: "task" }> => edge.kind === "task" && edge.dependencyType === "hard" && taskById[edge.refId]?.status !== edge.requiredState);
     return unresolved.length ? `Waiting on: ${unresolved.map((edge) => `${taskById[edge.refId]?.title ?? `Missing task ${edge.refId}`} (${edge.requiredState} required)`).join(", ")}.` : null;
@@ -148,6 +151,6 @@ export function useTaskEditor({ mechanisms, partInstances, projects, workTypes, 
   };
 
   return { selectSubsystem, selectMechanism, selectPart, taskDraft, taskEditorError, taskEditorMode, taskDependencySearch, setTaskDependencySearch, setTaskDraft,
-    availableTaskDependencyOptions, downstreamTaskDependencies, selectedTaskDependencies, taskDependencyReadinessMessage, openCreateTaskEditor, openEditTaskEditor,
+    availableTaskDependencyOptions, downstreamTaskDependencies, selectedTaskDependencies, missingTaskDependencyIds, taskDependencyReadinessMessage, openCreateTaskEditor, openEditTaskEditor,
     openDuplicateTaskEditor, closeTaskEditor, addTaskDependency, removeTaskDependency, saveTaskDraft, deleteTaskDraft };
 }

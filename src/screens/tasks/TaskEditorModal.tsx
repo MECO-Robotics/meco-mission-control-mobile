@@ -76,7 +76,7 @@ export function TaskEditorModal({
   themeColors,
 }: TaskEditorModalProps) {
   const [partDependencyId, setPartDependencyId] = useState("");
-  const { selectSubsystem, selectMechanism, selectPart, addTaskDependency, availableTaskDependencyOptions, deleteTaskDraft, downstreamTaskDependencies, removeTaskDependency, selectedTaskDependencies, setTaskDependencySearch, setTaskDraft, taskDependencyReadinessMessage, taskDependencySearch, taskDraft, taskEditorError, taskEditorMode, closeTaskEditor: onCancel, saveTaskDraft: onSave } = editor;
+  const { selectSubsystem, selectMechanism, selectPart, addTaskDependency, availableTaskDependencyOptions, deleteTaskDraft, downstreamTaskDependencies, missingTaskDependencyIds, removeTaskDependency, selectedTaskDependencies, setTaskDependencySearch, setTaskDraft, taskDependencyReadinessMessage, taskDependencySearch, taskDraft, taskEditorError, taskEditorMode, closeTaskEditor: onCancel, saveTaskDraft: onSave } = editor;
 
   const mechanismOptions = mechanisms
     .filter((mechanism) => mechanism.subsystemId === taskDraft.subsystemIds[0])
@@ -279,6 +279,7 @@ export function TaskEditorModal({
               addTaskDependency={addTaskDependency}
               availableTaskDependencyOptions={availableTaskDependencyOptions}
               downstreamTaskDependencies={downstreamTaskDependencies}
+              missingTaskDependencyIds={missingTaskDependencyIds}
               removeTaskDependency={removeTaskDependency}
               selectedTaskDependencies={selectedTaskDependencies}
               setTaskDependencySearch={setTaskDependencySearch}
