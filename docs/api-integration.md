@@ -179,4 +179,8 @@ Corrupt, expired, or undecryptable envelopes are purged.
 The server remains authoritative for permissions: any internal user may create
 work logs and pending purchase requests, but only mentors/admins may edit/delete
 synced work logs, approve purchases/reviews, progress purchases, or delete
-purchase records.
+purchase records or record purchase receipts. Purchase receipt history is
+displayed from bootstrap when present; older snapshots without `receipts` remain
+supported and display the full purchase quantity as remaining.
+The platform exposes `POST /api/purchases/:itemId/receipts` for this receiving
+workflow; mobile consumes its bootstrap result without submitting receipts.

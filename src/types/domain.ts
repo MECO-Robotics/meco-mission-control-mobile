@@ -255,6 +255,14 @@ export interface PurchaseQuote {
   quotedAt: string | null;
 }
 
+export interface PurchaseReceipt {
+  id: string;
+  quantity: number;
+  location: string;
+  receivedAt: string;
+  partInstanceIds: string[];
+}
+
 export interface PurchaseItem {
   id: string;
   taskId: string;
@@ -276,6 +284,7 @@ export interface PurchaseItem {
   trackingUrl: string | null;
   orderedAt: string | null;
   deliveredAt: string | null;
+  receipts?: PurchaseReceipt[];
 }
 
 export type DomainReference =
