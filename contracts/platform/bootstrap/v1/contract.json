@@ -5385,9 +5385,8 @@
           ]
         },
         "quantity": {
-          "type": "integer",
-          "exclusiveMinimum": 0,
-          "maximum": 1000
+          "type": "number",
+          "minimum": 1
         },
         "quotes": {
           "type": "array",
