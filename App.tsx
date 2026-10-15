@@ -6,6 +6,7 @@ import { useMilestoneEditor, type MilestonePayload } from "./src/app/editorModal
 import { formatHoursFromTimer, getWorkLogTimerElapsedMs, type WorkLogTimerState } from "./src/screens/worklogs/workLogTimer";
 import { getAutoTaskStatus, isTaskBlocked, isTaskReadyForQaPass } from "./src/data/taskReadiness";
 import { useTaskEditor } from "./src/screens/tasks/useTaskEditor";
+import { eligibleTaskMentors, eligibleTaskOwners } from "./src/data/taskPeople";
 import { createWorkLogQueue } from "./src/services/workLogQueue";
 import { createTaskState } from "./src/screens/tasks/taskState";
 import { getSessionPermissions } from "./src/data/sessionPermissions";
@@ -2676,6 +2677,8 @@ export default function App() {
   const renderEditorModals = () => {
     const taskOptions = tasks.map((task) => ({ id: task.id, name: task.title }));
     const memberOptions = members.map((member) => ({ id: member.id, name: member.name }));
+    const taskOwnerOptions = eligibleTaskOwners(members).map((member) => ({ id: member.id, name: member.name }));
+    const taskMentorOptions = eligibleTaskMentors(members).map((member) => ({ id: member.id, name: member.name }));
     const selectedProjectType = projects.find((project) => project.id === taskEditor.taskDraft.projectId)?.projectType;
     const workTypeOptions = workTypes.filter((workType) => workType.projectType === selectedProjectType).map((workType) => ({
       id: workType.id,
@@ -2706,7 +2709,8 @@ export default function App() {
           isLandscapeCardLayout={isLandscapeCardLayout}
           mechanisms={mechanisms}
           mechanismsById={mechanismsById}
-          memberOptions={memberOptions}
+          ownerOptions={taskOwnerOptions}
+          mentorOptions={taskMentorOptions}
           partInstances={partInstances}
           partInstancesById={partInstancesById}
           partDefinitionsById={partDefinitionsById}

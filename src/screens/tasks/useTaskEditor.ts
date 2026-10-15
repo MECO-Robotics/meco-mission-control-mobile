@@ -4,6 +4,7 @@ import type { EditorMode, Option } from "../../ui/types";
 import { STATUS_LABELS } from "../../ui/constants";
 import { isoToday, localTodayDate } from "../../ui/helpers";
 import { taskDependsOnTarget } from "../../data/taskReadiness";
+import { eligibleTaskMentors, eligibleTaskOwners, getDefaultTaskPeople } from "../../data/taskPeople";
 import { getClientErrorMessage } from "../../app/appModel";
 import { buildTaskDraft, selectTaskSubsystem, selectTaskMechanism, selectTaskPart, type TaskDraft } from "./taskDraft";
 
@@ -35,6 +36,8 @@ export function useTaskEditor({ mechanisms, partInstances, projects, workTypes, 
   const [taskDraft, setTaskDraft] = useState<TaskDraft>(buildTaskDraft());
   const [taskEditorError, setTaskEditorError] = useState<string | null>(null);
   const [taskDependencySearch, setTaskDependencySearch] = useState("");
+  const taskOwners = eligibleTaskOwners(members);
+  const taskMentors = eligibleTaskMentors(members);
 
   const selectedTaskDependencyIds = useMemo(() => taskDraft.dependencies.filter((edge) => edge.kind === "task").map((edge) => edge.refId)
     .filter((id) => taskById[id] && id !== activeTaskId), [activeTaskId, taskById, taskDraft.dependencies]);
@@ -65,8 +68,7 @@ export function useTaskEditor({ mechanisms, partInstances, projects, workTypes, 
     const workType = workTypes.find((item) => item.projectType === project?.projectType && item.code === "planning") ?? workTypes.find((item) => item.projectType === project?.projectType);
     setActiveTaskId(null);
     setTaskDraft(buildTaskDraft({ projectId: project?.id ?? "", workTypeId: workType?.id ?? "", responsibleGroupId: activeResponsibleGroupId === "all" ? "" : activeResponsibleGroupId,
-      subsystemIds: taskSubsystemOptions[0] ? [taskSubsystemOptions[0].id] : [], ownerId: members[0]?.id ?? "",
-      mentorId: members.find((member) => member.role === "mentor" || member.role === "admin")?.id ?? "", startDate: today, dueDate: today }));
+      subsystemIds: taskSubsystemOptions[0] ? [taskSubsystemOptions[0].id] : [], ...getDefaultTaskPeople(members), startDate: today, dueDate: today }));
     setTaskEditorError(null); setTaskDependencySearch(""); setTaskEditorMode("create");
   };
   const openEditTaskEditor = (task: Task) => {
@@ -80,7 +82,10 @@ export function useTaskEditor({ mechanisms, partInstances, projects, workTypes, 
   };
   const openDuplicateTaskEditor = (task: Task) => {
     editorVersion.current += 1; setActiveTaskId(null);
-    setTaskDraft(buildTaskDraft({ ...task, id: "", title: `Copy of ${task.title}`, dueDate: isoToday(), status: "not-started", actualHours: 0, isBlocked: false }));
+    const defaults = getDefaultTaskPeople(members);
+    setTaskDraft(buildTaskDraft({ ...task, id: "", title: `Copy of ${task.title}`, dueDate: isoToday(), status: "not-started", actualHours: 0, isBlocked: false,
+      ownerId: taskOwners.some((member) => member.id === task.ownerId) ? task.ownerId : defaults.ownerId,
+      mentorId: taskMentors.some((member) => member.id === task.mentorId) ? task.mentorId : defaults.mentorId }));
     setTaskEditorError(null); setTaskDependencySearch(""); setTaskEditorMode("create");
   };
   const closeTaskEditor = () => { editorVersion.current += 1; setTaskEditorMode(null); setActiveTaskId(null); setTaskEditorError(null); setTaskDependencySearch(""); };

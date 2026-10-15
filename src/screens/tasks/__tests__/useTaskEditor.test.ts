@@ -7,7 +7,7 @@ const project: Project = { id: "robot-project", teamId: "team", seasonId: "seaso
 const workType: WorkType = { id: "robot-planning", projectType: "robot", code: "planning", name: "Planning", isActive: true };
 const task: Task = {
   id: "robot-task", projectId: project.id, workTypeId: workType.id, responsibleGroupId: "robot-build", workstreamIds: [], title: "Robot work", summary: "",
-  subsystemIds: [], mechanismIds: [], partInstanceIds: [], scheduleRefs: [], requestedById: "member", ownerId: "member", assigneeIds: [], mentorId: null,
+  subsystemIds: [], mechanismIds: [], partInstanceIds: [], scheduleRefs: [], requestedById: "ava", ownerId: "ava", assigneeIds: [], mentorId: "jordan",
   startDate: "2026-09-01", dueDate: "2026-09-10", priority: "medium", status: "not-started", checklistItems: [], estimatedHours: 1, actualHours: 0,
   requiresDocumentation: false, manufacturingDetails: null,
 };
@@ -58,6 +58,42 @@ test("creating a work item sends one canonical Task payload", async () => {
   expect(JSON.parse(writes[0].init.body as string)).toMatchObject({ projectId: task.projectId, workTypeId: task.workTypeId, responsibleGroupId: "robot-build", title: "New task" });
   expect(JSON.parse(writes[0].init.body as string)).not.toHaveProperty("disciplineId");
   expect(JSON.parse(writes[0].init.body as string)).not.toHaveProperty("actualHours");
+});
+
+test("create defaults use eligible members and keep the current project selection", () => {
+  const setupResult = setup();
+  act(() => setupResult.result.current.openCreateTaskEditor());
+  expect(setupResult.result.current.taskDraft).toMatchObject({ projectId: project.id, ownerId: "ava", mentorId: "jordan" });
+});
+
+test("editing retains the existing owner and mentor fields", () => {
+  const { result } = setup();
+  act(() => result.current.openEditTaskEditor(task));
+  expect(result.current.taskDraft).toMatchObject({ ownerId: "ava", mentorId: "jordan", projectId: project.id });
+});
+
+test("empty and mentor-only rosters leave the owner unassigned", () => {
+  const members = [mecoSnapshot.members.find((member) => member.role === "mentor")!];
+  // Exercise the same editor hook with a roster that has no owner-eligible member.
+  const hook = renderHook(() => useTaskEditor({
+    projects: [project], workTypes: [workType], mechanisms: mecoSnapshot.mechanisms, partInstances: mecoSnapshot.partInstances,
+    tasks: [task], taskById: { [task.id]: task }, taskDependencies: [], members, membersById: Object.fromEntries(members.map((row) => [row.id, row])),
+    subsystemsById: {}, taskSubsystemOptions: [], activeResponsibleGroupId: "all", setActiveResponsibleGroupId: jest.fn(),
+    request: async <T,>() => ({ item: task } as T), refresh: async () => undefined,
+  }));
+  act(() => hook.result.current.openCreateTaskEditor());
+  expect(hook.result.current.taskDraft.ownerId).toBe("");
+  expect(hook.result.current.taskDraft.mentorId).toBe(members[0].id);
+  hook.unmount();
+  const empty = renderHook(() => useTaskEditor({
+    projects: [project], workTypes: [workType], mechanisms: [], partInstances: [], tasks: [], taskById: {}, taskDependencies: [], members: [], membersById: {},
+    subsystemsById: {}, taskSubsystemOptions: [], activeResponsibleGroupId: "all", setActiveResponsibleGroupId: jest.fn(),
+    request: async <T,>() => ({ item: task } as T), refresh: async () => undefined,
+  }));
+  act(() => empty.result.current.openCreateTaskEditor());
+  expect(empty.result.current.taskDraft.ownerId).toBe("");
+  expect(empty.result.current.taskDraft.mentorId).toBe("");
+  empty.unmount();
 });
 
 test.each(["resolve", "reject"])("deleting an old task cannot change a newer editor on %s", async (outcome) => {

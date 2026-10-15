@@ -19,12 +19,7 @@ import {
 import type { AppScreenProps } from "../types";
 import { QaReviewDetail } from "./QaReviewDetail";
 import { getQaReviewTaskId } from "../../app/appModel";
-
-const QA_FIX_SIZE_RANK: Record<string, number> = {
-  "iteration-worthy": 0,
-  "minor-fix": 1,
-  pass: 2,
-};
+import { isUnverifiedLegacyQaReview, sortQaReviews } from "./qaReviewOrdering";
 
 const formatQaStatus = (value: string) =>
   value
@@ -39,6 +34,7 @@ export function QaActivity(props: AppScreenProps & { mode: "pending" | "history"
     createQaRequest,
     helpRequests,
     membersById,
+    partDefinitionsById,
     openCreateQaReportEditor,
     qaRequests,
     qaReports,
@@ -70,35 +66,7 @@ export function QaActivity(props: AppScreenProps & { mode: "pending" | "history"
     (qaRequestDraft.subject.trim() || qaRequestDraft.taskId) && qaRequestDraft.mentorId,
   );
   const selectedQaReview = qaReports.find((review) => review.id === selectedQaReviewId);
-  const sortedQaReviews = useMemo(
-    () =>
-      [...qaReports].sort((left, right) => {
-        const createdDelta =
-          ((right as typeof right & { createdAt?: string }).createdAt ?? right.id)
-            .localeCompare((left as typeof left & { createdAt?: string }).createdAt ?? left.id);
-        if (createdDelta !== 0) {
-          return createdDelta;
-        }
-
-        const leftTaskId = getQaReviewTaskId(left);
-        const rightTaskId = getQaReviewTaskId(right);
-        const leftTask = leftTaskId ? taskById[leftTaskId] : null;
-        const rightTask = rightTaskId ? taskById[rightTaskId] : null;
-        const dependencyDelta =
-          taskDependencies.filter((edge) => edge.taskId === rightTask?.id).length - taskDependencies.filter((edge) => edge.taskId === leftTask?.id).length;
-        if (dependencyDelta !== 0) {
-          return dependencyDelta;
-        }
-
-        const fixSizeDelta = QA_FIX_SIZE_RANK[left.result] - QA_FIX_SIZE_RANK[right.result];
-        if (fixSizeDelta !== 0) {
-          return fixSizeDelta;
-        }
-
-        return left.summary.localeCompare(right.summary);
-      }),
-    [qaReports, taskById, taskDependencies],
-  );
+  const sortedQaReviews = useMemo(() => sortQaReviews(qaReports, taskById, taskDependencies), [qaReports, taskById, taskDependencies]);
   const submitQaRequest = () => {
     if (!canSubmitQaRequest) {
       return;
@@ -177,7 +145,7 @@ const renderScreen = () => {
         />
       </EditorModal>
 
-      <QaReviewDetail review={selectedQaReview ?? null} membersById={membersById} onClose={() => setSelectedQaReviewId(null)} />
+      <QaReviewDetail review={selectedQaReview ?? null} membersById={membersById} partDefinitionsById={partDefinitionsById} onClose={() => setSelectedQaReviewId(null)} />
 
       {props.mode === "help" ? <>
       <Text style={[styles.subsectionLabel, appResponsiveStyles.subsectionLabel]}>Help requests</Text>
@@ -298,11 +266,14 @@ const renderScreen = () => {
                 <View style={styles.queueRowPrimaryText}>
                   <Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>{review.summary || getQaReviewTaskId(review) || "QA report"}</Text>
                   <Text style={[styles.queueRowSubtitle, appResponsiveStyles.rowSubtitle]}>
-                    {requester} - {review.status}
+                    {requester} - {review.status}{isUnverifiedLegacyQaReview(review) ? " · legacy review order unverified" : ""}
                   </Text>
                 </View>
                 <StatusPill label={formatQaStatus(review.result)} value={review.result} />
               </View>
+              <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>
+                Observed {formatDateTime(review.createdAt)}
+              </Text>
               <Text style={[styles.queueRowBody, appResponsiveStyles.rowBody]}>{review.notes}</Text>
               {review.evidenceNotes ? (
                 <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>

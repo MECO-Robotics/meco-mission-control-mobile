@@ -45,3 +45,21 @@ test("complete and legacy purchases show correct received and remaining quantiti
   const legacy = screen(basePurchase, false);
   expect(legacy.getByText("Received 0 of 4 | 4 remaining")).toBeTruthy();
 });
+
+test("fractional receipt history normalizes partial and complete totals", () => {
+  const complete = screen({ ...basePurchase, quantity: 1.3, receipts: [
+    { id: "receipt-1", operationId: "op-1", quantity: 1.1, location: "Liquid shelf", receivedAt: "2026-10-13T10:00:00Z", partInstanceIds: [] },
+    { id: "receipt-2", quantity: 0.2, location: "Liquid shelf", receivedAt: "2026-10-14T10:00:00Z", partInstanceIds: [] },
+  ] }, false);
+  expect(complete.getByText("Received 1.3 of 1.3 | 0 remaining")).toBeTruthy();
+  expect(complete.getByText("Liquid shelf · 1.1 received · 2026-10-13T10:00:00Z")).toBeTruthy();
+
+  const partial = screen({ ...basePurchase, quantity: 1.3, receipts: [
+    { id: "receipt-3", quantity: 0.1, location: "Liquid shelf", receivedAt: "2026-10-14T11:00:00Z", partInstanceIds: [] },
+    { id: "receipt-4", quantity: 0.2, location: "Liquid shelf", receivedAt: "2026-10-14T12:00:00Z", partInstanceIds: [] },
+  ] }, false);
+  expect(partial.getByText("Received 0.3 of 1.3 | 1 remaining")).toBeTruthy();
+
+  const receipt = JSON.parse(JSON.stringify({ id: "receipt-1", operationId: "op-1", quantity: 0.75, location: "Liquid shelf", receivedAt: "2026-10-13T10:00:00Z", partInstanceIds: [] }));
+  expect(receipt.operationId).toBe("op-1");
+});

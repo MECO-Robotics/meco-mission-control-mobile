@@ -9,6 +9,10 @@ import type { PurchaseOrderStatus } from "../../types/domain";
 import type { AppScreenProps } from "../types";
 
 const nextStatus: Partial<Record<PurchaseOrderStatus, PurchaseOrderStatus>> = { "not-ordered": "ordered", ordered: "shipped", shipped: "delivered" };
+function normalizeDisplayedQuantity(value: number) {
+  return Number(value.toPrecision(15));
+}
+
 export function InventoryPurchasesScreen(props: AppScreenProps) {
   const { purchaseBrowse, appResponsiveStyles, approvePurchaseItem, canMentorApprove, editTagStyle, taskById, openCreatePurchaseEditor, openEditPurchaseEditor, themeColors, transitionPurchaseItem } = props;
   const { filters, updateFilters, rows, vendorOptions } = purchaseBrowse;
@@ -20,12 +24,13 @@ export function InventoryPurchasesScreen(props: AppScreenProps) {
       const quote = item.quotes.find((candidate) => candidate.id === item.selectedQuoteId);
       const action = nextStatus[item.orderStatus];
       const receipts = item.receipts ?? [];
-      const received = receipts.reduce((total, receipt) => total + receipt.quantity, 0);
+      const received = normalizeDisplayedQuantity(receipts.reduce((total, receipt) => total + receipt.quantity, 0));
+      const remaining = normalizeDisplayedQuantity(Math.max(0, item.quantity - received));
       return <Pressable key={item.id} onPress={() => openEditPurchaseEditor(item)} style={[styles.queueRowCard, appResponsiveStyles.rowCard]}>
         <View style={styles.queueRowHeader}><View style={styles.queueRowPrimaryText}><Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>{item.title}</Text><Text style={[styles.queueRowSubtitle, appResponsiveStyles.rowSubtitle]}>Task: {task?.title ?? "Missing linked Task"}</Text></View><Text style={editTagStyle}>VIEW</Text></View>
         <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>Qty {item.quantity} | Quote {quote?.amount ? `${quote.amount.currency ?? ""} ${quote.amount.amount.toFixed(2)}` : "Not quoted"}</Text>
         <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>Vendor {vendorId ?? "Not selected"} | PO {item.purchaseOrderNumber ?? "Not ordered"}</Text>
-        <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>Received {received} of {item.quantity} | {Math.max(0, item.quantity - received)} remaining</Text>
+        <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>Received {received} of {item.quantity} | {remaining} remaining</Text>
         {receipts.map((receipt) => <Text key={receipt.id} style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>{receipt.location} · {receipt.quantity} received · {receipt.receivedAt}</Text>)}
         <View style={styles.queuePillRow}><StatusPill label={item.approvalStatus} value={item.approvalStatus} /><StatusPill label={item.orderStatus} value={item.orderStatus} /></View>
         {canMentorApprove && item.approvalStatus === "pending" ? <View style={styles.quickActionRow}><Pressable onPress={() => approvePurchaseItem(item, true)} style={[styles.quickActionButton, styles.quickActionButtonPrimary]}><Text style={styles.quickActionButtonPrimaryLabel}>Approve</Text></Pressable></View> : null}
