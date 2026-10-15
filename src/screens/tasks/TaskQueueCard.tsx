@@ -23,6 +23,7 @@ type TaskQueueCardContext = Pick<TaskScreenProps,
   | "partInstancesById" | "partDefinitionsById" | "qaRequests" | "qaReports" | "releaseTask"
   | "requestTaskQa" | "signedInMember" | "startTask" | "subsystemsById"
   | "taskById" | "taskDependencies" | "taskLoggedHoursById" | "themeColors"
+  | "risks" | "setActiveTab"
 >;
 
 type TaskQueueCardActions = {
@@ -65,6 +66,8 @@ export function TaskQueueCard({
     subsystemsById,
     taskById,
     taskDependencies,
+    risks,
+    setActiveTab,
     taskLoggedHoursById,
     themeColors,
   } = context;
@@ -84,6 +87,10 @@ export function TaskQueueCard({
     .filter((edge) => taskById[edge.refId]?.status !== edge.requiredState)
     .map((edge) => taskById[edge.refId])
     .filter((dependency): dependency is Task => Boolean(dependency));
+  const blockingRisks = risks.filter((risk) => risk.status !== "resolved" && risk.blocksWork && (
+    (risk.source.kind === "task" && risk.source.id === task.id) ||
+    risk.relatedTargets.some((target) => target.kind === "task" && target.id === task.id)
+  ));
   const loggedHours = taskLoggedHoursById[task.id] ?? task.actualHours;
   const isOverEstimate = task.estimatedHours > 0 && loggedHours > task.estimatedHours;
   const todayDate = localTodayDate();
@@ -156,15 +163,26 @@ export function TaskQueueCard({
       {isTaskBlocked(task) ? (
         <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
           <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>Blocked by unresolved work</Text>
-          <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>Review linked dependencies and risks in their owning domains.</Text>
-          <View style={styles.quickActionRow}>
+          {openDependencies.length > 0 ? (
+            <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>Review the unresolved hard task dependency.</Text>
+          ) : null}
+          {blockingRisks.length > 0 ? blockingRisks.map((risk) => (
+            <View key={risk.id}>
+              <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>{risk.title}</Text>
+              <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>{risk.detail}</Text>
+            </View>
+          )) : openDependencies.length === 0 ? (
+            <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>No linked blocker details are available.</Text>
+          ) : null}
+          {openDependencies.length > 0 || blockingRisks.length > 0 ? <View style={styles.quickActionRow}>
             <ActionButton onPress={() => {
               const blockingTask = openDependencies[0];
               if (blockingTask) openEditTaskEditor(blockingTask);
+              else setActiveTab("work-risks");
             }} variant="quick" responsiveStyles={appResponsiveStyles}>
-              {openDependencies.length > 0 ? "Open blocking task" : "View dependencies"}
+              {openDependencies.length > 0 ? "Open blocking task" : "View blocking risk"}
             </ActionButton>
-          </View>
+          </View> : null}
         </View>
       ) : null}
 

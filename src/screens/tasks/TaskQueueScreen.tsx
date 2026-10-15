@@ -41,6 +41,7 @@ type TaskQueueScreenProps = Pick<TaskScreenProps,
   | "subsystems" | "subsystemsById" | "responsibleGroups"
   | "taskById" | "taskDependencies"
   | "taskLoggedHoursById"
+  | "risks" | "setActiveTab"
   | "themeColors" | "qaReports"
 >;
 
@@ -84,6 +85,8 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
     taskById,
     taskDependencies,
     taskLoggedHoursById,
+    risks,
+    setActiveTab,
     themeColors,
     qaReports,
   } = props;
@@ -163,6 +166,8 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
     taskById,
     taskDependencies,
     taskLoggedHoursById,
+    risks,
+    setActiveTab,
     themeColors,
   };
   const taskCardActions = {

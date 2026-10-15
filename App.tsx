@@ -2564,6 +2564,8 @@ export default function App() {
     subsystemsById,
     taskById,
     taskDependencies,
+    risks,
+    setActiveTab,
     taskLoggedHoursById,
     qaReports,
     eventOptions,

@@ -20,7 +20,7 @@ function queueProps(count: number, taskSearch = "", dueDate = "2026-10-01") {
     taskSummary: [], setFilter: jest.fn(), resetFilters: jest.fn(),
     filters: { taskSearch, taskArchiveFilter: "active", taskOwnerFilter: "all", taskPriorityFilter: "all",
     taskBlockerFilter: "all", taskStatusFilter: "all", taskSubsystemFilter: "all" } },
-    taskDependencies: [], taskById: {}, taskLoggedHoursById: {}, qaReports: [],
+    taskDependencies: [], taskById: {}, taskLoggedHoursById: {}, qaReports: [], risks: [], setActiveTab: jest.fn(),
   } as unknown as TaskScreenProps;
 }
 
