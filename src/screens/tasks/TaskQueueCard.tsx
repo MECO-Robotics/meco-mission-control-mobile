@@ -121,9 +121,10 @@ export function TaskQueueCard({
   const isOverdue = task.status !== "complete" && task.dueDate < todayDate;
   const isDueSoon = task.status !== "complete" && task.dueDate >= todayDate && task.dueDate <= soonDate;
   const assignmentState = getTaskAssignmentState({ canReassignTasks, membersById, signedInMember, task });
-  const hasPendingQaRequest = qaRequests.some((request) =>
+  const pendingQaRequest = qaRequests.find((request) =>
     request.status !== "complete" && request.status !== "cancelled" &&
     request.targetRefs.some((target) => target.kind === "task" && target.id === task.id));
+  const hasPendingQaRequest = Boolean(pendingQaRequest);
   const canLogWork = task.status !== "complete";
   const canRequestQa = task.status === "in-progress" && !isTaskBlocked(task) && !hasPendingQaRequest;
   const checklistItems = task.checklistItems ?? [];
@@ -296,7 +297,7 @@ export function TaskQueueCard({
         {canRequestQa ? <ActionButton onPress={() => { void requestTaskQa(task); }} variant="quick" responsiveStyles={appResponsiveStyles}>Request QA</ActionButton> : null}
         {canSubmitQa && task.status === "waiting-for-qa" ? (
           <ActionButton accessibilityRole="button"
-            onPress={() => openCreateQaReportEditor(task.id, qaRequests.find((request) => request.targetRefs.some((target) => target.kind === "task" && target.id === task.id))?.id)}
+            onPress={() => openCreateQaReportEditor(task.id, pendingQaRequest?.id)}
             variant="quick" responsiveStyles={appResponsiveStyles}>Write QA report</ActionButton>
         ) : null}
         {task.status === "in-progress" ? <ActionButton onPress={() => onOpenHelpRequest(task)} variant="quick" responsiveStyles={appResponsiveStyles}>Need help</ActionButton> : null}

@@ -33,7 +33,7 @@ const milestone: Milestone = {
 
 function renderCard({
   risks = [], taskDependencies = [], taskOverride = {}, qaReports = [], qaRequests = [],
-  partInstancesById = {}, milestonesById = {},
+  partInstancesById = {}, milestonesById = {}, canSubmitQa = false,
 }: {
   risks?: Risk[];
   taskDependencies?: TaskDependency[];
@@ -42,25 +42,27 @@ function renderCard({
   qaRequests?: QaRequest[];
   partInstancesById?: Record<string, PartInstance>;
   milestonesById?: Record<string, Milestone>;
+  canSubmitQa?: boolean;
 } = {}) {
   const openEditTaskEditor = jest.fn();
   const setActiveTab = jest.fn();
   const claimTask = jest.fn(async () => undefined);
   const openCreateWorkLogEditor = jest.fn();
   const requestTaskQa = jest.fn(async () => undefined);
+  const openCreateQaReportEditor = jest.fn();
   const view = render(createElement(TaskQueueCard, {
     task: { ...task, ...taskOverride },
     actions: { onOpenHelpRequest: jest.fn(), onOpenQaReview: jest.fn(), onOpenReassign: jest.fn() },
     context: {
-      appResponsiveStyles: {}, canReassignTasks: false, canSubmitQa: false, claimTask, workTypesById: {}, editTagStyle: {}, eventsById: {},
-      workstreamsById: {}, isLandscapeCardLayout: false, mechanismsById: {}, milestonesById, membersById: {}, openCreateQaReportEditor: jest.fn(),
+      appResponsiveStyles: {}, canReassignTasks: false, canSubmitQa, claimTask, workTypesById: {}, editTagStyle: {}, eventsById: {},
+      workstreamsById: {}, isLandscapeCardLayout: false, mechanismsById: {}, milestonesById, membersById: {}, openCreateQaReportEditor,
       openCreateWorkLogEditor, openEditTaskEditor, partInstancesById, partDefinitionsById: { [partDefinition.id]: partDefinition }, qaRequests, qaReports,
       releaseTask: jest.fn(), requestTaskQa, signedInMember: { id: "member", role: "student" } as never, startTask: jest.fn(),
       subsystemsById: {}, taskById: { [dependency.id]: dependency }, taskDependencies, taskLoggedHoursById: {}, themeColors: {} as never,
       risks, setActiveTab,
     } as never,
   }));
-  return { ...view, openEditTaskEditor, openCreateWorkLogEditor, requestTaskQa, setActiveTab, claimTask };
+  return { ...view, openEditTaskEditor, openCreateQaReportEditor, openCreateWorkLogEditor, requestTaskQa, setActiveTab, claimTask };
 }
 
 test("risk-only blocked task opens the risk register with blocker context shown", () => {
@@ -169,6 +171,33 @@ test("pending QA request prevents a duplicate request while current work remains
   expect(queryByText("Request QA")).toBeNull();
   fireEvent.press(getByText("Log work"));
   expect(openCreateWorkLogEditor).toHaveBeenCalledWith(task.id);
+});
+
+test.each(["complete", "cancelled"] as const)("Write QA report uses the active request after a %s history record", (historicalStatus) => {
+  const request = (id: string, status: QaRequest["status"]): QaRequest => ({
+    id, projectId: "robot", targetRefs: [{ kind: "task", id: task.id }], subject: id,
+    requestedById: `${id}-requester`, mentorId: `${id}-mentor`, createdAt: "2026-06-01", status,
+  });
+  const activeRequest = request("active-request", "in-review");
+  const { getByText, openCreateQaReportEditor, queryByText } = renderCard({
+    canSubmitQa: true, taskOverride: { status: "waiting-for-qa" },
+    qaRequests: [request(`historical-${historicalStatus}`, historicalStatus), activeRequest],
+  });
+  expect(queryByText("Request QA")).toBeNull();
+  fireEvent.press(getByText("Write QA report"));
+  expect(openCreateQaReportEditor).toHaveBeenCalledWith(task.id, activeRequest.id);
+});
+
+test("Write QA report does not pass a completed historical request when no active request exists", () => {
+  const historicalRequest: QaRequest = {
+    id: "historical-request", projectId: "robot", targetRefs: [{ kind: "task", id: task.id }], subject: "Previous cycle",
+    requestedById: "old-requester", mentorId: "old-mentor", createdAt: "2026-06-01", status: "complete",
+  };
+  const { getByText, openCreateQaReportEditor } = renderCard({
+    canSubmitQa: true, taskOverride: { status: "waiting-for-qa" }, qaRequests: [historicalRequest],
+  });
+  fireEvent.press(getByText("Write QA report"));
+  expect(openCreateQaReportEditor).toHaveBeenCalledWith(task.id, undefined);
 });
 
 test("blocked in-progress task keeps work logging and gates QA requests", () => {
