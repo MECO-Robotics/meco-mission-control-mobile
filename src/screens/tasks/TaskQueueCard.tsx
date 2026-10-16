@@ -10,7 +10,7 @@ import {
   getTaskStartActionLabel,
 } from "../../data/taskAssignment";
 import { styles } from "../../ui/styles";
-import { getQaReviewTaskId } from "../../app/appModel";
+import { getQaReviewTaskId, isActiveQaRequest } from "../../app/appModel";
 import { StatusPill } from "../../ui/ui";
 import type { DomainReference, ReadinessStatus, RiskSource, Task } from "../../types/domain";
 import type { TaskScreenProps } from "./taskScreenTypes";
@@ -122,7 +122,7 @@ export function TaskQueueCard({
   const isDueSoon = task.status !== "complete" && task.dueDate >= todayDate && task.dueDate <= soonDate;
   const assignmentState = getTaskAssignmentState({ canReassignTasks, membersById, signedInMember, task });
   const pendingQaRequest = qaRequests.find((request) =>
-    request.status !== "complete" && request.status !== "cancelled" &&
+    isActiveQaRequest(request) &&
     request.targetRefs.some((target) => target.kind === "task" && target.id === task.id));
   const hasPendingQaRequest = Boolean(pendingQaRequest);
   const canLogWork = task.status !== "complete";

@@ -18,7 +18,7 @@ import {
 
 import type { AppScreenProps } from "../types";
 import { QaReviewDetail } from "./QaReviewDetail";
-import { getQaReviewTaskId } from "../../app/appModel";
+import { getQaReviewTaskId, isActiveQaRequest } from "../../app/appModel";
 import { isUnverifiedLegacyQaReview, sortQaReviews } from "./qaReviewOrdering";
 
 const formatQaStatus = (value: string) =>
@@ -67,6 +67,7 @@ export function QaActivity(props: AppScreenProps & { mode: "pending" | "history"
   );
   const selectedQaReview = qaReports.find((review) => review.id === selectedQaReviewId);
   const sortedQaReviews = useMemo(() => sortQaReviews(qaReports, taskById, taskDependencies), [qaReports, taskById, taskDependencies]);
+  const activeQaRequests = qaRequests.filter(isActiveQaRequest);
   const submitQaRequest = () => {
     if (!canSubmitQaRequest) {
       return;
@@ -184,7 +185,7 @@ const renderScreen = () => {
       {props.mode === "pending" ? <>
       <Text style={[styles.subsectionLabel, appResponsiveStyles.subsectionLabel]}>QA requests</Text>
       <View style={styles.reportGrid}>
-        {qaRequests.map((request) => {
+        {activeQaRequests.map((request) => {
           const mentor = request.mentorId ? membersById[request.mentorId]?.name ?? "Unknown mentor" : "Unassigned mentor";
           const requester = request.requestedById
             ? membersById[request.requestedById]?.name
@@ -241,7 +242,7 @@ const renderScreen = () => {
           );
         })}
       </View>
-      {qaRequests.length === 0 ? <EmptyState text="No QA requests are waiting yet." /> : null}
+      {activeQaRequests.length === 0 ? <EmptyState text="No QA requests are waiting yet." /> : null}
 
       </> : null}
       {props.mode === "history" ? <>

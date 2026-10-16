@@ -200,6 +200,7 @@ export interface ManufacturingDetails {
 
 export interface Task {
   id: string;
+  completionScopeReviewOrder?: number;
   createdAt?: string;
   serialNumber?: number;
   serial?: string;

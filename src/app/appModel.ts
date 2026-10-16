@@ -9,6 +9,7 @@ import type {
   Event,
   Meeting,
   Milestone,
+  QaRequest,
   QaReport,
   RiskSeverity,
   SessionUser,
@@ -136,6 +137,10 @@ export function buildTaskById(tasks: Task[]) {
 
 export function getQaReviewTaskId(report: QaReport) {
   return report.targetRefs.find((target) => target.kind === "task")?.id ?? null;
+}
+
+export function isActiveQaRequest(request: QaRequest) {
+  return request.status === "requested" || request.status === "in-review";
 }
 
 export function ensureArray<T>(value: T[] | undefined | null): T[] {
