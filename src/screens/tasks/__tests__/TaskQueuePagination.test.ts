@@ -15,12 +15,12 @@ function queueProps(count: number, taskSearch = "", dueDate = "2026-10-01") {
     activeResponsibleGroupLabel: "Robot Build", activeResponsibleGroupId: "robot-build", responsibleGroups: [{ id: "robot-build", seasonId: "season", name: "Robot Build", projectIds: ["robot-project"], workTypeIds: [], primaryMemberIds: [], memberIds: [], isArchived: false }],
     appResponsiveStyles: {}, themeColors: {}, members: [], membersById: {},
     rosterMentors: [], rosterStudents: [], subsystems: [], subsystemsById: {},
-    workTypesById: {}, mechanismsById: {}, partInstancesById: {}, eventsById: {},
+    workTypesById: {}, mechanismsById: {}, milestonesById: {}, partInstancesById: {}, eventsById: {},
     queue: { filteredTaskQueue: tasks, taskQueueSections: [{ id: "queue", title: "Ready", tasks }],
     taskSummary: [], setFilter: jest.fn(), resetFilters: jest.fn(),
     filters: { taskSearch, taskArchiveFilter: "active", taskOwnerFilter: "all", taskPriorityFilter: "all",
     taskBlockerFilter: "all", taskStatusFilter: "all", taskSubsystemFilter: "all" } },
-    taskDependencies: [], taskById: {}, taskLoggedHoursById: {}, qaReports: [], risks: [], setActiveTab: jest.fn(),
+    taskDependencies: [], taskById: {}, taskLoggedHoursById: {}, qaRequests: [], qaReports: [], risks: [], setActiveTab: jest.fn(),
   } as unknown as TaskScreenProps;
 }
 

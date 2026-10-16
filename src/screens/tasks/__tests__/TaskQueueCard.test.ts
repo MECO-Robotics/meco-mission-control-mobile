@@ -1,7 +1,7 @@
 import { fireEvent, render } from "@testing-library/react-native";
 import { createElement } from "react";
 import { TaskQueueCard } from "../TaskQueueCard";
-import type { Risk, Task, TaskDependency } from "../../../types/domain";
+import type { Milestone, PartDefinition, PartInstance, QaRequest, Risk, Task, TaskDependency } from "../../../types/domain";
 
 const task: Task = {
   actualHours: 0, projectId: "robot", workTypeId: "programming", responsibleGroupId: "programming", dueDate: "2026-06-10", estimatedHours: 2,
@@ -16,24 +16,51 @@ const blocker: Risk = {
 };
 const dependency: Task = { ...task, id: "dependency", title: "Confirm connector", isBlocked: false, status: "in-progress" };
 const edge: TaskDependency = { id: "edge", taskId: task.id, kind: "task", refId: dependency.id, requiredState: "complete", dependencyType: "hard", createdAt: "2026-06-01" };
+const partInstance: PartInstance = {
+  id: "part-instance", partDefinitionId: "part-definition", intendedSubsystemId: "controls", intendedMechanismId: null,
+  location: { kind: "repair", location: "electronics bench" }, readinessStatus: "blocked",
+  cadSource: "manual", cadImportSource: "MANUAL", cadEditedAfterImport: false,
+};
+const partDefinition: PartDefinition = {
+  id: "part-definition", seasonId: "season", activeSeasonIds: ["season"], name: "Encoder bracket", partNumber: "ENC-1",
+  revision: "A", iteration: 1, isArchived: false, type: "custom", defaultAcquisitionMethod: "manufacture", materialId: null,
+  description: "", cadSource: "manual", cadImportSource: "MANUAL", cadEditedAfterImport: false,
+};
+const milestone: Milestone = {
+  id: "milestone", seasonId: "season", projectIds: ["robot"], type: "internal-review", title: "Design review",
+  startAt: "2026-06-10T12:00:00Z", endAt: null, status: "active", readinessStatus: "blocked", description: "",
+};
 
-function renderCard({ risks = [], taskDependencies = [] }: { risks?: Risk[]; taskDependencies?: TaskDependency[] } = {}) {
+function renderCard({
+  risks = [], taskDependencies = [], taskOverride = {}, qaReports = [], qaRequests = [],
+  partInstancesById = {}, milestonesById = {},
+}: {
+  risks?: Risk[];
+  taskDependencies?: TaskDependency[];
+  taskOverride?: Partial<Task>;
+  qaReports?: unknown[];
+  qaRequests?: QaRequest[];
+  partInstancesById?: Record<string, PartInstance>;
+  milestonesById?: Record<string, Milestone>;
+} = {}) {
   const openEditTaskEditor = jest.fn();
   const setActiveTab = jest.fn();
   const claimTask = jest.fn(async () => undefined);
+  const openCreateWorkLogEditor = jest.fn();
+  const requestTaskQa = jest.fn(async () => undefined);
   const view = render(createElement(TaskQueueCard, {
-    task,
+    task: { ...task, ...taskOverride },
     actions: { onOpenHelpRequest: jest.fn(), onOpenQaReview: jest.fn(), onOpenReassign: jest.fn() },
     context: {
       appResponsiveStyles: {}, canReassignTasks: false, canSubmitQa: false, claimTask, workTypesById: {}, editTagStyle: {}, eventsById: {},
-      workstreamsById: {}, isLandscapeCardLayout: false, mechanismsById: {}, membersById: {}, openCreateQaReportEditor: jest.fn(),
-      openCreateWorkLogEditor: jest.fn(), openEditTaskEditor, partInstancesById: {}, partDefinitionsById: {}, qaRequests: [], qaReports: [],
-      releaseTask: jest.fn(), requestTaskQa: jest.fn(), signedInMember: { id: "member", role: "student" } as never, startTask: jest.fn(),
+      workstreamsById: {}, isLandscapeCardLayout: false, mechanismsById: {}, milestonesById, membersById: {}, openCreateQaReportEditor: jest.fn(),
+      openCreateWorkLogEditor, openEditTaskEditor, partInstancesById, partDefinitionsById: { [partDefinition.id]: partDefinition }, qaRequests, qaReports,
+      releaseTask: jest.fn(), requestTaskQa, signedInMember: { id: "member", role: "student" } as never, startTask: jest.fn(),
       subsystemsById: {}, taskById: { [dependency.id]: dependency }, taskDependencies, taskLoggedHoursById: {}, themeColors: {} as never,
       risks, setActiveTab,
     } as never,
   }));
-  return { ...view, openEditTaskEditor, setActiveTab, claimTask };
+  return { ...view, openEditTaskEditor, openCreateWorkLogEditor, requestTaskQa, setActiveTab, claimTask };
 }
 
 test("risk-only blocked task opens the risk register with blocker context shown", () => {
@@ -84,4 +111,166 @@ test("claim action does not open the task editor", () => {
   fireEvent.press(getByText("Claim only"));
   expect(claimTask).toHaveBeenCalledWith(task);
   expect(openEditTaskEditor).not.toHaveBeenCalled();
+});
+
+test.each(["draft", "submitted", "reviewed"] as const)("%s QA history does not control eligible in-progress actions", (status) => {
+  const { getByText, openCreateWorkLogEditor, requestTaskQa } = renderCard({
+    taskOverride: { status: "in-progress", isBlocked: false, ownerId: "member", assigneeIds: ["member"], mentorId: "mentor" },
+    qaReports: [{ id: `qa-${status}`, targetRefs: [{ kind: "task", id: task.id }], status }],
+  });
+  expect(getByText("Log work")).toBeTruthy();
+  expect(getByText("Request QA")).toBeTruthy();
+  expect(getByText("QA report")).toBeTruthy();
+  fireEvent.press(getByText("Log work"));
+  fireEvent.press(getByText("Request QA"));
+  expect(openCreateWorkLogEditor).toHaveBeenCalledWith(task.id);
+  expect(requestTaskQa).toHaveBeenCalledWith(expect.objectContaining({ id: task.id }));
+});
+
+test("pending QA request prevents a duplicate request while current work remains loggable", () => {
+  const request: QaRequest = {
+    id: "request", projectId: "robot", targetRefs: [{ kind: "task", id: task.id }], subject: "Review work",
+    requestedById: "member", mentorId: "mentor", createdAt: "2026-06-01", status: "in-review",
+  };
+  const { getByText, queryByText, openCreateWorkLogEditor } = renderCard({
+    taskOverride: { status: "in-progress", isBlocked: false, ownerId: "member" }, qaRequests: [request],
+  });
+  expect(getByText("Log work")).toBeTruthy();
+  expect(queryByText("Request QA")).toBeNull();
+  fireEvent.press(getByText("Log work"));
+  expect(openCreateWorkLogEditor).toHaveBeenCalledWith(task.id);
+});
+
+test("blocked in-progress task keeps work logging and gates QA requests", () => {
+  const { getByText, queryByText, openCreateWorkLogEditor } = renderCard({
+    taskOverride: { status: "in-progress", isBlocked: true, ownerId: "member" },
+    qaReports: [{ id: "draft", targetRefs: [{ kind: "task", id: task.id }], status: "draft" }],
+  });
+  expect(getByText("Log work")).toBeTruthy();
+  expect(queryByText("Request QA")).toBeNull();
+  expect(queryByText("QA report")).toBeTruthy();
+  fireEvent.press(getByText("Log work"));
+  expect(openCreateWorkLogEditor).toHaveBeenCalledWith(task.id);
+});
+
+test.each(["not-started", "waiting-for-qa"] as const)("%s task keeps work logging available while QA request stays gated", (status) => {
+  const { getByText, queryByText, openCreateWorkLogEditor } = renderCard({ taskOverride: { status, isBlocked: false, isWaitingOnDependency: false } });
+  expect(getByText("Log work")).toBeTruthy();
+  expect(queryByText("Request QA")).toBeNull();
+  fireEvent.press(getByText("Log work"));
+  expect(openCreateWorkLogEditor).toHaveBeenCalledWith(task.id);
+});
+
+test("completed task keeps the existing read-only work-log policy", () => {
+  const { queryByText } = renderCard({ taskOverride: { status: "complete", isBlocked: false, isWaitingOnDependency: false } });
+  expect(queryByText("Log work")).toBeNull();
+  expect(queryByText("Request QA")).toBeNull();
+});
+
+test("hard derived-readiness dependency shows the part instance, condition and inventory destination", () => {
+  const partEdge: TaskDependency = {
+    id: "part-edge", taskId: task.id, kind: "part-instance", refId: partInstance.id,
+    requiredCondition: { kind: "derived-readiness", value: "ready" }, dependencyType: "hard", createdAt: "2026-06-01",
+  };
+  const { getByText, setActiveTab } = renderCard({
+    taskOverride: { isWaitingOnDependency: true }, taskDependencies: [partEdge],
+    partInstancesById: { [partInstance.id]: partInstance },
+  });
+  expect(getByText("Encoder bracket · instance part-instance")).toBeTruthy();
+  expect(getByText("Required derived readiness: ready · Current derived readiness: blocked")).toBeTruthy();
+  fireEvent.press(getByText("View part inventory"));
+  expect(setActiveTab).toHaveBeenCalledWith("resources-parts");
+});
+
+test("part readiness above a required QA threshold is satisfied", () => {
+  const partEdge: TaskDependency = {
+    id: "part-qa-edge", taskId: task.id, kind: "part-instance", refId: partInstance.id,
+    requiredCondition: { kind: "derived-readiness", value: "qa" }, dependencyType: "hard", createdAt: "2026-06-01",
+  };
+  const { queryByText } = renderCard({
+    taskOverride: { isBlocked: false, isWaitingOnDependency: false }, taskDependencies: [partEdge],
+    partInstancesById: { [partInstance.id]: { ...partInstance, readinessStatus: "ready" } },
+  });
+  expect(queryByText("Waiting on dependencies")).toBeNull();
+});
+
+test("part readiness below a required QA threshold remains unresolved", () => {
+  const partEdge: TaskDependency = {
+    id: "part-qa-edge", taskId: task.id, kind: "part-instance", refId: partInstance.id,
+    requiredCondition: { kind: "derived-readiness", value: "ready" }, dependencyType: "hard", createdAt: "2026-06-01",
+  };
+  const { getByText } = renderCard({
+    taskOverride: { isWaitingOnDependency: true }, taskDependencies: [partEdge],
+    partInstancesById: { [partInstance.id]: { ...partInstance, readinessStatus: "qa" } },
+  });
+  expect(getByText("Required derived readiness: ready · Current derived readiness: qa")).toBeTruthy();
+});
+
+test("hard physical-location dependency shows the actual location and required location", () => {
+  const partEdge: TaskDependency = {
+    id: "part-location-edge", taskId: task.id, kind: "part-instance", refId: partInstance.id,
+    requiredCondition: { kind: "physical-location", value: "stock" }, dependencyType: "hard", createdAt: "2026-06-01",
+  };
+  const { getByText } = renderCard({ taskOverride: { isWaitingOnDependency: true }, taskDependencies: [partEdge], partInstancesById: { [partInstance.id]: partInstance } });
+  expect(getByText("Required physical location: stock · Current physical location: repair · electronics bench")).toBeTruthy();
+});
+
+test("hard milestone dependency shows readiness context and opens schedule", () => {
+  const milestoneEdge: TaskDependency = {
+    id: "milestone-edge", taskId: task.id, kind: "milestone", refId: milestone.id,
+    requiredState: "ready", dependencyType: "hard", createdAt: "2026-06-01",
+  };
+  const { getByText, setActiveTab } = renderCard({ taskOverride: { isWaitingOnDependency: true }, taskDependencies: [milestoneEdge], milestonesById: { [milestone.id]: milestone } });
+  expect(getByText("Design review")).toBeTruthy();
+  expect(getByText("Required readiness: ready · Current readiness: blocked · Milestone status: active")).toBeTruthy();
+  fireEvent.press(getByText("View schedule"));
+  expect(setActiveTab).toHaveBeenCalledWith("work-schedule");
+});
+
+test("milestone readiness above a required QA threshold is satisfied", () => {
+  const milestoneEdge: TaskDependency = {
+    id: "milestone-qa-edge", taskId: task.id, kind: "milestone", refId: milestone.id,
+    requiredState: "qa", dependencyType: "hard", createdAt: "2026-06-01",
+  };
+  const { queryByText } = renderCard({
+    taskOverride: { isBlocked: false, isWaitingOnDependency: false }, taskDependencies: [milestoneEdge],
+    milestonesById: { [milestone.id]: { ...milestone, readinessStatus: "ready" } },
+  });
+  expect(queryByText("Waiting on dependencies")).toBeNull();
+});
+
+test("milestone readiness below a required QA threshold remains unresolved", () => {
+  const milestoneEdge: TaskDependency = {
+    id: "milestone-qa-edge", taskId: task.id, kind: "milestone", refId: milestone.id,
+    requiredState: "qa", dependencyType: "hard", createdAt: "2026-06-01",
+  };
+  const { getByText } = renderCard({
+    taskOverride: { isWaitingOnDependency: true }, taskDependencies: [milestoneEdge],
+    milestonesById: { [milestone.id]: { ...milestone, readinessStatus: "blocked" } },
+  });
+  expect(getByText("Required readiness: qa · Current readiness: blocked · Milestone status: active")).toBeTruthy();
+});
+
+test("missing part dependency reference is explicit and has no dead destination", () => {
+  const partEdge: TaskDependency = {
+    id: "missing-part-edge", taskId: task.id, kind: "part-instance", refId: "missing-part",
+    requiredCondition: { kind: "derived-readiness", value: "ready" }, dependencyType: "hard", createdAt: "2026-06-01",
+  };
+  const { getByText, queryByText, setActiveTab } = renderCard({ taskOverride: { isWaitingOnDependency: true }, taskDependencies: [partEdge] });
+  expect(getByText("Part instance unavailable (missing-part)")).toBeTruthy();
+  expect(getByText("Required derived readiness: ready · Current derived readiness: unavailable")).toBeTruthy();
+  expect(queryByText("View part inventory")).toBeNull();
+  expect(setActiveTab).not.toHaveBeenCalled();
+});
+
+test("missing milestone dependency reference is explicit and has no dead destination", () => {
+  const milestoneEdge: TaskDependency = {
+    id: "missing-milestone-edge", taskId: task.id, kind: "milestone", refId: "missing-milestone",
+    requiredState: "ready", dependencyType: "hard", createdAt: "2026-06-01",
+  };
+  const { getByText, queryByText, setActiveTab } = renderCard({ taskOverride: { isWaitingOnDependency: true }, taskDependencies: [milestoneEdge] });
+  expect(getByText("Milestone unavailable (missing-milestone)")).toBeTruthy();
+  expect(getByText("Required readiness: ready · Current readiness: unavailable")).toBeTruthy();
+  expect(queryByText("View schedule")).toBeNull();
+  expect(setActiveTab).not.toHaveBeenCalled();
 });

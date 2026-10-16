@@ -32,7 +32,7 @@ type TaskQueueScreenProps = Pick<TaskScreenProps,
   | "canReassignTasks" | "claimTask"
   | "workTypesById" | "editTagStyle" | "eventsById" | "workstreamsById"
   | "isCompactLayout" | "isLandscapeCardLayout"
-  | "mechanismsById" | "members" | "membersById"
+  | "mechanismsById" | "milestonesById" | "members" | "membersById"
   | "openCreateTaskEditor" | "openCreateWorkLogEditor" | "openEditTaskEditor"
   | "partInstancesById" | "partDefinitionsById" | "requestHelp" | "requestTaskQa"
   | "reassignTask" | "releaseTask" | "rosterMentors"
@@ -61,6 +61,7 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
     isCompactLayout,
     isLandscapeCardLayout,
     mechanismsById,
+    milestonesById,
     members,
     membersById,
     openCreateTaskEditor,
@@ -150,6 +151,7 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
     eventsById,
     isLandscapeCardLayout,
     mechanismsById,
+    milestonesById,
     membersById,
     openCreateQaReportEditor,
     openCreateWorkLogEditor,

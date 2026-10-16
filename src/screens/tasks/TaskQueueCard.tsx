@@ -12,13 +12,13 @@ import {
 import { styles } from "../../ui/styles";
 import { getQaReviewTaskId } from "../../app/appModel";
 import { StatusPill } from "../../ui/ui";
-import type { Task, TaskDependency } from "../../types/domain";
+import type { ReadinessStatus, Task } from "../../types/domain";
 import type { TaskScreenProps } from "./taskScreenTypes";
 
 type TaskQueueCardContext = Pick<TaskScreenProps,
   | "appResponsiveStyles" | "canReassignTasks" | "canSubmitQa"
   | "claimTask" | "workTypesById" | "editTagStyle" | "eventsById" | "workstreamsById"
-  | "isLandscapeCardLayout" | "mechanismsById" | "membersById"
+  | "isLandscapeCardLayout" | "mechanismsById" | "milestonesById" | "membersById"
   | "openCreateQaReportEditor" | "openCreateWorkLogEditor" | "openEditTaskEditor"
   | "partInstancesById" | "partDefinitionsById" | "qaRequests" | "qaReports" | "releaseTask"
   | "requestTaskQa" | "signedInMember" | "startTask" | "subsystemsById"
@@ -31,6 +31,17 @@ type TaskQueueCardActions = {
   onOpenQaReview: (task: Task) => void;
   onOpenReassign: (task: Task) => void;
 };
+
+const READINESS_ORDER: Record<ReadinessStatus, number> = {
+  "not-ready": 0,
+  blocked: 1,
+  qa: 2,
+  ready: 3,
+};
+
+function isBelowRequiredReadiness(current: ReadinessStatus | undefined, required: ReadinessStatus) {
+  return current === undefined || READINESS_ORDER[current] < READINESS_ORDER[required];
+}
 
 export function TaskQueueCard({
   task,
@@ -52,6 +63,7 @@ export function TaskQueueCard({
     eventsById,
     isLandscapeCardLayout,
     mechanismsById,
+    milestonesById,
     membersById,
     openCreateQaReportEditor,
     openCreateWorkLogEditor,
@@ -82,11 +94,18 @@ export function TaskQueueCard({
     ? (context.partDefinitionsById[partInstancesById[task.partInstanceIds[0]]?.partDefinitionId ?? ""]?.name ?? "Unknown part")
     : "No part";
   const targetEvent = task.scheduleRefs[0] ? (eventsById[`${task.scheduleRefs[0].kind}:${task.scheduleRefs[0].id}`]?.title ?? "Schedule item") : "No schedule item";
-  const openDependencies = taskDependencies
-    .filter((edge): edge is Extract<TaskDependency, { kind: "task" }> => edge.taskId === task.id && edge.kind === "task" && edge.dependencyType === "hard")
-    .filter((edge) => taskById[edge.refId]?.status !== edge.requiredState)
-    .map((edge) => taskById[edge.refId])
-    .filter((dependency): dependency is Task => Boolean(dependency));
+  const openDependencies = taskDependencies.filter((edge) => {
+    if (edge.taskId !== task.id || edge.dependencyType !== "hard") return false;
+    if (edge.kind === "task") return taskById[edge.refId]?.status !== edge.requiredState;
+    if (edge.kind === "milestone") return isBelowRequiredReadiness(milestonesById[edge.refId]?.readinessStatus, edge.requiredState);
+    const partInstance = partInstancesById[edge.refId];
+    return edge.requiredCondition.kind === "physical-location"
+      ? partInstance?.location.kind !== edge.requiredCondition.value
+      : isBelowRequiredReadiness(partInstance?.readinessStatus, edge.requiredCondition.value);
+  });
+  const actionableDependency = openDependencies.find((edge) => edge.kind === "task"
+    ? Boolean(taskById[edge.refId])
+    : edge.kind === "part-instance" ? Boolean(partInstancesById[edge.refId]) : Boolean(milestonesById[edge.refId]));
   const blockingRisks = risks.filter((risk) => risk.status !== "resolved" && risk.blocksWork && (
     (risk.source.kind === "task" && risk.source.id === task.id) ||
     risk.relatedTargets.some((target) => target.kind === "task" && target.id === task.id)
@@ -98,7 +117,11 @@ export function TaskQueueCard({
   const isOverdue = task.status !== "complete" && task.dueDate < todayDate;
   const isDueSoon = task.status !== "complete" && task.dueDate >= todayDate && task.dueDate <= soonDate;
   const assignmentState = getTaskAssignmentState({ canReassignTasks, membersById, signedInMember, task });
-  const canRequestQa = task.status === "in-progress" && !isTaskBlocked(task);
+  const hasPendingQaRequest = qaRequests.some((request) =>
+    request.status !== "complete" && request.status !== "cancelled" &&
+    request.targetRefs.some((target) => target.kind === "task" && target.id === task.id));
+  const canLogWork = task.status !== "complete";
+  const canRequestQa = task.status === "in-progress" && !isTaskBlocked(task) && !hasPendingQaRequest;
   const checklistItems = task.checklistItems ?? [];
   const hasQaReport = qaReports.some((review) => getQaReviewTaskId(review) === task.id);
   const exceptionPills = [
@@ -164,7 +187,7 @@ export function TaskQueueCard({
         <View style={[styles.calloutBox, appResponsiveStyles.calloutBox]}>
           <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>Blocked by unresolved work</Text>
           {openDependencies.length > 0 ? (
-            <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>Review the unresolved hard task dependency.</Text>
+            <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>Review the unresolved hard dependency.</Text>
           ) : null}
           {blockingRisks.length > 0 ? blockingRisks.map((risk) => (
             <View key={risk.id}>
@@ -174,13 +197,20 @@ export function TaskQueueCard({
           )) : openDependencies.length === 0 ? (
             <Text style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>No linked blocker details are available.</Text>
           ) : null}
-          {openDependencies.length > 0 || blockingRisks.length > 0 ? <View style={styles.quickActionRow}>
+          {actionableDependency || blockingRisks.length > 0 ? <View style={styles.quickActionRow}>
             <ActionButton onPress={() => {
-              const blockingTask = openDependencies[0];
-              if (blockingTask) openEditTaskEditor(blockingTask);
-              else setActiveTab("work-risks");
+              const dependency = actionableDependency;
+              if (!dependency) setActiveTab("work-risks");
+              else if (dependency.kind === "task") {
+                const blockingTask = taskById[dependency.refId];
+                if (blockingTask) openEditTaskEditor(blockingTask);
+              } else if (dependency.kind === "part-instance") {
+                if (partInstancesById[dependency.refId]) setActiveTab("resources-parts");
+              } else if (milestonesById[dependency.refId]) setActiveTab("work-schedule");
             }} variant="quick" responsiveStyles={appResponsiveStyles}>
-              {openDependencies.length > 0 ? "Open blocking task" : "View blocking risk"}
+              {actionableDependency?.kind === "task" ? "Open blocking task"
+                : actionableDependency?.kind === "part-instance" ? "View part inventory"
+                  : actionableDependency?.kind === "milestone" ? "View schedule" : "View blocking risk"}
             </ActionButton>
           </View> : null}
         </View>
@@ -198,15 +228,53 @@ export function TaskQueueCard({
           <Text style={[styles.calloutTitle, appResponsiveStyles.calloutTitle]}>Waiting on dependencies</Text>
           <View style={styles.quickActionRow}>
             {openDependencies.map((dependency) => {
-              const dependencyOwner = dependency.ownerId ? (membersById[dependency.ownerId]?.name ?? "Unassigned") : "Unassigned";
-              const dependencySubsystem = subsystemsById[(dependency.subsystemIds[0] ?? "")]?.name ?? "Unknown subsystem";
+              if (dependency.kind === "task") {
+                const blockingTask = taskById[dependency.refId];
+                const dependencyOwner = blockingTask?.ownerId ? (membersById[blockingTask.ownerId]?.name ?? "Unassigned") : "Unassigned";
+                const dependencySubsystem = blockingTask ? subsystemsById[(blockingTask.subsystemIds[0] ?? "")]?.name ?? "Unknown subsystem" : "Unavailable";
+                return (
+                  <Pressable key={dependency.id} onPress={() => { if (blockingTask) openEditTaskEditor(blockingTask); }}
+                    style={[styles.quickActionButton, appResponsiveStyles.quickActionButton, { alignItems: "flex-start", gap: 2, maxWidth: "100%" }]}>
+                    <Text numberOfLines={2} style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>{blockingTask?.title ?? `Blocking task unavailable (${dependency.refId})`}</Text>
+                    <Text numberOfLines={2} style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
+                      {blockingTask ? `${STATUS_LABELS[blockingTask.status]} · required ${dependency.requiredState} · due ${formatDate(blockingTask.dueDate)} · ${dependencySubsystem} · ${dependencyOwner}` : `Required status: ${dependency.requiredState} · Current status: unavailable`}
+                    </Text>
+                  </Pressable>
+                );
+              }
+              if (dependency.kind === "milestone") {
+                const milestone = milestonesById[dependency.refId];
+                return (
+                  <Pressable key={dependency.id} onPress={() => { if (milestone) setActiveTab("work-schedule"); }}
+                    style={[styles.quickActionButton, appResponsiveStyles.quickActionButton, { alignItems: "flex-start", gap: 2, maxWidth: "100%" }]}>
+                    <Text numberOfLines={2} style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>{milestone?.title ?? `Milestone unavailable (${dependency.refId})`}</Text>
+                    <Text numberOfLines={2} style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
+                      {`Required readiness: ${dependency.requiredState} · Current readiness: ${milestone?.readinessStatus ?? "unavailable"}${milestone ? ` · Milestone status: ${milestone.status}` : ""}`}
+                    </Text>
+                  </Pressable>
+                );
+              }
+              const partInstance = partInstancesById[dependency.refId];
+              const partDefinition = partInstance ? context.partDefinitionsById[partInstance.partDefinitionId] : undefined;
+              const required = dependency.requiredCondition;
+              const current = required.kind === "physical-location"
+                ? partInstance
+                  ? partInstance.location.kind === "stock" || partInstance.location.kind === "repair"
+                    ? `${partInstance.location.kind} · ${partInstance.location.location}`
+                    : partInstance.location.kind === "installed"
+                      ? `installed · ${subsystemsById[partInstance.location.subsystemId]?.name ?? partInstance.location.subsystemId}${partInstance.location.mechanismId ? ` / ${mechanismsById[partInstance.location.mechanismId]?.name ?? partInstance.location.mechanismId}` : ""}`
+                      : partInstance.location.kind
+                  : "unavailable"
+                : partInstance?.readinessStatus ?? "unavailable";
+              const label = partInstance
+                ? `${partDefinition?.name ?? `Part definition unavailable (${partInstance.partDefinitionId})`} · instance ${partInstance.id}`
+                : `Part instance unavailable (${dependency.refId})`;
               return (
-                <Pressable key={dependency.id} onPress={() => openEditTaskEditor(dependency)}
-                  style={[styles.quickActionButton, appResponsiveStyles.quickActionButton,
-                    { alignItems: "flex-start", gap: 2, maxWidth: "100%" }]}>
-                  <Text numberOfLines={2} style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>{dependency.title}</Text>
+                <Pressable key={dependency.id} onPress={() => { if (partInstance) setActiveTab("resources-parts"); }}
+                  style={[styles.quickActionButton, appResponsiveStyles.quickActionButton, { alignItems: "flex-start", gap: 2, maxWidth: "100%" }]}>
+                  <Text numberOfLines={2} style={[styles.quickActionButtonLabel, appResponsiveStyles.quickActionButtonLabel]}>{label}</Text>
                   <Text numberOfLines={2} style={[styles.calloutBody, appResponsiveStyles.calloutBody]}>
-                    {`${STATUS_LABELS[dependency.status]} - due ${formatDate(dependency.dueDate)} - ${dependencySubsystem} - ${dependencyOwner}`}
+                    {`Required ${required.kind === "physical-location" ? "physical location" : "derived readiness"}: ${required.value} · Current ${required.kind === "physical-location" ? "physical location" : "derived readiness"}: ${current}`}
                   </Text>
                 </Pressable>
               );
@@ -220,8 +288,8 @@ export function TaskQueueCard({
         {assignmentState.canStartWork ? <ActionButton onPress={() => { void startTask(task); }} variant="quick" responsiveStyles={appResponsiveStyles}>{getTaskStartActionLabel(task)}</ActionButton> : null}
         {assignmentState.canRelease ? <ActionButton onPress={() => { void releaseTask(task); }} variant="quick" responsiveStyles={appResponsiveStyles}>Release</ActionButton> : null}
         {assignmentState.canReassign ? <ActionButton onPress={() => onOpenReassign(task)} variant="quick" responsiveStyles={appResponsiveStyles}>Reassign</ActionButton> : null}
-        {!hasQaReport ? <ActionButton onPress={() => openCreateWorkLogEditor(task.id)} variant="quick" responsiveStyles={appResponsiveStyles}>Log work</ActionButton> : null}
-        {canRequestQa && !hasQaReport ? <ActionButton onPress={() => { void requestTaskQa(task); }} variant="quick" responsiveStyles={appResponsiveStyles}>Request QA</ActionButton> : null}
+        {canLogWork ? <ActionButton onPress={() => openCreateWorkLogEditor(task.id)} variant="quick" responsiveStyles={appResponsiveStyles}>Log work</ActionButton> : null}
+        {canRequestQa ? <ActionButton onPress={() => { void requestTaskQa(task); }} variant="quick" responsiveStyles={appResponsiveStyles}>Request QA</ActionButton> : null}
         {canSubmitQa && task.status === "waiting-for-qa" ? (
           <ActionButton accessibilityRole="button"
             onPress={() => openCreateQaReportEditor(task.id, qaRequests.find((request) => request.targetRefs.some((target) => target.kind === "task" && target.id === task.id))?.id)}

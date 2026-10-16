@@ -1128,6 +1128,10 @@ export default function App() {
     ) as Record<string, (typeof partInstances)[number]>;
   }, [partInstances]);
 
+  const milestonesById = useMemo(() => Object.fromEntries(
+    milestones.map((milestone) => [milestone.id, milestone]),
+  ) as Record<string, (typeof milestones)[number]>, [milestones]);
+
   const scheduleEntries = useMemo(() => buildScheduleEntries(meetings, events, milestones), [events, meetings, milestones]);
   const eventsById = useMemo(() => {
     return Object.fromEntries(
@@ -2548,6 +2552,7 @@ export default function App() {
     isCompactLayout,
     isLandscapeCardLayout,
     mechanismsById,
+    milestonesById,
     members,
     membersById,
     openCreateWorkLogEditor,
