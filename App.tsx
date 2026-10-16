@@ -117,6 +117,7 @@ import {
   mapPendingWorkLogDraftToWorkLog,
   normalizeRequiredEmailDomain,
   parseClientError,
+  resolveActiveTaskQaRequest,
   shouldQueueWorkLogDraftAfterError,
   type BackendReachability,
   type StartTaskOptions,
@@ -2249,7 +2250,7 @@ export default function App() {
 
   const openCreateQaReportEditor = (taskId = tasks[0]?.id ?? "", qaRequestId?: string) => {
     if (!canSubmitQa) return;
-    const request = qaRequestId ? qaRequests.find((candidate) => candidate.id === qaRequestId) : null;
+    const request = resolveActiveTaskQaRequest(qaRequests, taskId, qaRequestId);
 
     setQaReportDraft({
       taskId,
@@ -2260,7 +2261,7 @@ export default function App() {
       evidenceNotes: "",
       followUpTaskTitle: "",
     });
-    setActiveQaRequestId(request?.id ?? null);
+    setActiveQaRequestId(qaRequestId ?? null);
     setQaReportError(null);
     setQaReportEditorMode("create");
   };
@@ -2338,11 +2339,7 @@ export default function App() {
     }
 
     setQaReportError(null);
-    const linkedQaRequest =
-      (activeQaRequestId
-        ? qaRequests.find((request) => request.id === activeQaRequestId)
-        : null) ??
-      qaRequests.find((request) => request.targetRefs.some((target) => target.kind === "task" && target.id === task.id));
+    const linkedQaRequest = resolveActiveTaskQaRequest(qaRequests, task.id, activeQaRequestId);
     const sessionVersion = authSessionVersionRef.current;
     try {
       const { item } = await authenticatedRequestJson<{ item: Extract<Report, { reportType: "qa" }> }>("/api/qa-reports/submit", {

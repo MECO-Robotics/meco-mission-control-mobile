@@ -9,6 +9,7 @@ import { WorkspaceShell } from "../components/WorkspaceShell";
 import { loadPersistedAuthSession, savePersistedAuthSession } from "../../services/authSessionStorage";
 import type { AppScreenProps } from "../../screens/types";
 import type { TaskScreenProps } from "../../screens/tasks/taskScreenTypes";
+import type { QaRequest } from "../../types/domain";
 
 jest.mock("../../data/api", () => ({ ...jest.requireActual("../../data/api"), requestJson: jest.fn() }));
 jest.mock("../../data/devAuthBypass", () => ({ ...jest.requireActual("../../data/devAuthBypass"), isLocalDevAuthBypassEnabled: jest.fn(() => true) }));
@@ -20,6 +21,7 @@ jest.mock("../../services/workLogTimerNotifications", () => ({ cancelWorkLogTime
 
 const task = { ...mecoSnapshot.tasks[0], status: "waiting-for-qa", isBlocked: false, isWaitingOnDependency: false };
 let reports: object[];
+let qaRequests: QaRequest[];
 let failSave: boolean;
 let failRefresh: boolean;
 const request = jest.mocked(requestJson);
@@ -28,12 +30,12 @@ function screenProps() { return (shell().activeTabContent as ReturnType<typeof c
 function taskProps() { return (shell().activeTabContent as ReactElement<{ taskContent: ReactElement<TaskScreenProps> }>).props.taskContent.props; }
 
 beforeEach(() => {
-  jest.clearAllMocks(); jest.mocked(isLocalDevAuthBypassEnabled).mockReturnValue(true); reports = []; failSave = false; failRefresh = false; jest.mocked(loadPersistedAuthSession).mockResolvedValue(null);
+  jest.clearAllMocks(); jest.mocked(isLocalDevAuthBypassEnabled).mockReturnValue(true); reports = []; qaRequests = []; failSave = false; failRefresh = false; jest.mocked(loadPersistedAuthSession).mockResolvedValue(null);
   request.mockImplementation(async (_base, path, init) => {
     if (path === "/api/auth/config") return { enabled: false, hostedDomain: "mecorobotics.org", emailEnabled: true };
     if (path === "/api/bootstrap") {
       if (failRefresh) throw new Error("Refresh unavailable");
-      return { ...mecoSnapshot, tasks: [task], reports, qaRequests: [], taskDependencies: [] };
+      return { ...mecoSnapshot, tasks: [task], reports, qaRequests, taskDependencies: [] };
     }
     if (path === "/api/qa-reports/submit") {
       if (failSave) throw new Error("Report write failed");
@@ -104,6 +106,70 @@ test("QA uses one atomic command, survives bootstrap and retains a failed draft"
   render(createElement(App));
   await signIn();
   expect(screenProps().qaReports[0].id).toBe("persisted-report");
+});
+
+test.each(["complete", "cancelled"] as const)("QA without an active request does not inherit %s request context", async (status) => {
+  const historical = {
+    id: `historical-${status}`, projectId: task.projectId, targetRefs: [{ kind: "task" as const, id: task.id }],
+    subject: "Old QA cycle", requestedById: "historical-requester", mentorId: "historical-mentor", createdAt: "2026-01-01", status,
+  };
+  qaRequests = [historical];
+  const view = render(createElement(App));
+  await signIn();
+  act(() => screenProps().openCreateQaReportEditor(task.id));
+  fireEvent.changeText(view.getByLabelText("Notes"), "New QA cycle without a request");
+  await act(async () => fireEvent.press(view.getByRole("button", { name: "Save QA report" })));
+  const payload = JSON.parse(String(request.mock.calls.find(([, path]) => path === "/api/qa-reports/submit")?.[2]?.body));
+  expect(payload).toMatchObject({ qaRequestId: null, mentorId: null });
+  expect(payload.requestedById).not.toBe("historical-requester");
+  view.unmount();
+});
+
+test("QA fallback selects an active request after historical records", async () => {
+  qaRequests = [
+    { id: "old-complete", projectId: task.projectId, targetRefs: [{ kind: "task", id: task.id }], subject: "Old", requestedById: "ava", mentorId: "jordan", createdAt: "2026-01-01", status: "complete" },
+    { id: "current-request", projectId: task.projectId, targetRefs: [{ kind: "task", id: task.id }], subject: "Current", requestedById: "lucas", mentorId: "riley", createdAt: "2026-02-01", status: "requested" },
+  ];
+  const view = render(createElement(App));
+  await signIn();
+  act(() => screenProps().openCreateQaReportEditor(task.id));
+  fireEvent.changeText(view.getByLabelText("Notes"), "Current QA cycle");
+  await act(async () => fireEvent.press(view.getByRole("button", { name: "Save QA report" })));
+  const payload = JSON.parse(String(request.mock.calls.find(([, path]) => path === "/api/qa-reports/submit")?.[2]?.body));
+  expect(payload).toMatchObject({ qaRequestId: "current-request", mentorId: "riley", requestedById: "lucas" });
+  view.unmount();
+});
+
+test("stale selected QA request does not inherit context or switch to another request", async () => {
+  qaRequests = [
+    { id: "selected-cancelled", projectId: task.projectId, targetRefs: [{ kind: "task", id: task.id }], subject: "Old", requestedById: "ava", mentorId: "jordan", createdAt: "2026-01-01", status: "cancelled" },
+    { id: "other-active", projectId: task.projectId, targetRefs: [{ kind: "task", id: task.id }], subject: "Current", requestedById: "lucas", mentorId: "riley", createdAt: "2026-02-01", status: "requested" },
+  ];
+  const view = render(createElement(App));
+  await signIn();
+  act(() => screenProps().openCreateQaReportEditor(task.id, "selected-cancelled"));
+  fireEvent.changeText(view.getByLabelText("Notes"), "Unlinked QA cycle");
+  await act(async () => fireEvent.press(view.getByRole("button", { name: "Save QA report" })));
+  const payload = JSON.parse(String(request.mock.calls.find(([, path]) => path === "/api/qa-reports/submit")?.[2]?.body));
+  expect(payload).toMatchObject({ qaRequestId: null, mentorId: null });
+  expect(payload.requestedById).not.toBe("ava");
+  expect(payload.requestedById).not.toBe("lucas");
+  view.unmount();
+});
+
+test("selected QA request for another task is not attached", async () => {
+  qaRequests = [
+    { id: "wrong-task-request", projectId: task.projectId, targetRefs: [{ kind: "task", id: "another-task" }], subject: "Other task", requestedById: "ava", mentorId: "jordan", createdAt: "2026-02-01", status: "requested" },
+  ];
+  const view = render(createElement(App));
+  await signIn();
+  act(() => screenProps().openCreateQaReportEditor(task.id, "wrong-task-request"));
+  fireEvent.changeText(view.getByLabelText("Notes"), "QA without the unrelated request");
+  await act(async () => fireEvent.press(view.getByRole("button", { name: "Save QA report" })));
+  const payload = JSON.parse(String(request.mock.calls.find(([, path]) => path === "/api/qa-reports/submit")?.[2]?.body));
+  expect(payload).toMatchObject({ qaRequestId: null, mentorId: null });
+  expect(payload.requestedById).not.toBe("ava");
+  view.unmount();
 });
 
 test("refreshing the workspace retains the active timer and open editor draft", async () => {
