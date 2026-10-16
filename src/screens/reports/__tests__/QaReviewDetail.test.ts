@@ -48,6 +48,7 @@ test("QA detail keeps reviewer, notes, evidence, and close actions in one modal"
   };
   const view = render(createElement(QaReviewDetail, {
     review,
+    partDefinitionsById: {},
     membersById: {
       "student-1": makeMember({ id: "student-1", name: "Student", role: "student" }),
       "mentor-1": makeMember({ id: "mentor-1", name: "Mentor", role: "mentor" }),
@@ -91,7 +92,7 @@ test("legacy part QA detail reports revision freshness as unknown", () => {
     createdByMemberId: null, participantIds: [], mentorId: null, requestedById: null, summary: "Legacy review", notes: "",
     createdAt: "2026-10-01", status: "reviewed", reportType: "qa", result: "pass", reviewedById: "mentor-1", reviewedAt: "2026-10-01",
   };
-  const view = render(createElement(QaReviewDetail, { review, membersById: {}, onClose: jest.fn() }));
+  const view = render(createElement(QaReviewDetail, { review, membersById: {}, partDefinitionsById: {}, onClose: jest.fn() }));
   expect(view.getByText("Unknown: this report has no recorded target revisions.")).toBeTruthy();
 });
 
@@ -122,6 +123,7 @@ test("submitted QA names no reviewer and keeps its assigned mentor separate", ()
     membersById: {
       "mentor-1": makeMember({ id: "mentor-1", name: "Assigned Mentor", role: "mentor" }),
     },
+    partDefinitionsById: {},
     onClose: jest.fn(),
   }));
 
@@ -143,6 +145,7 @@ test("reviewed QA identifies the actual reviewing actor rather than the assigned
       "mentor-1": makeMember({ id: "mentor-1", name: "Assigned Mentor", role: "mentor" }),
       "admin-1": makeMember({ id: "admin-1", name: "Actual Reviewer", role: "admin" }),
     },
+    partDefinitionsById: {},
     onClose: jest.fn(),
   }));
 

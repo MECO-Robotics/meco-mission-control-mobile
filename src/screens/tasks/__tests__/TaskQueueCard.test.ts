@@ -86,6 +86,36 @@ test("mixed blockers show risk context and preserve dependency navigation", () =
   expect(openEditTaskEditor).toHaveBeenCalledWith(dependency);
 });
 
+test("dependency-sourced risk resolves to its task and preserves blocking-task navigation", () => {
+  const dependencyRisk: Risk = {
+    ...blocker, id: "dependency-risk", title: "Connector dependency risk",
+    source: { kind: "task-dependency", id: edge.id }, relatedTargets: [],
+  };
+  const { getByText, openEditTaskEditor } = renderCard({ risks: [dependencyRisk], taskDependencies: [edge] });
+  expect(getByText("Connector dependency risk")).toBeTruthy();
+  expect(getByText("The wire gauge is not confirmed.")).toBeTruthy();
+  fireEvent.press(getByText("Open blocking task"));
+  expect(openEditTaskEditor).toHaveBeenCalledWith(dependency);
+});
+
+test("risk related to a task dependency resolves to the owning task", () => {
+  const dependencyRisk: Risk = {
+    ...blocker, id: "related-dependency-risk", title: "Related dependency risk",
+    source: { kind: "manual" }, relatedTargets: [{ kind: "task-dependency", id: edge.id }],
+  };
+  const { getByText } = renderCard({ risks: [dependencyRisk], taskDependencies: [edge] });
+  expect(getByText("Related dependency risk")).toBeTruthy();
+});
+
+test("unrelated and resolved dependency-sourced risks are omitted", () => {
+  const { queryByText } = renderCard({ risks: [
+    { ...blocker, id: "unrelated-edge-risk", title: "Unrelated edge risk", source: { kind: "task-dependency", id: "other-edge" }, relatedTargets: [] },
+    { ...blocker, id: "resolved-edge-risk", title: "Resolved edge risk", source: { kind: "task-dependency", id: edge.id }, relatedTargets: [], status: "resolved" },
+  ], taskDependencies: [edge] });
+  expect(queryByText("Unrelated edge risk")).toBeNull();
+  expect(queryByText("Resolved edge risk")).toBeNull();
+});
+
 test("blocked task without linked blocker details has no misleading blocker action", () => {
   const { queryByText, getByText, setActiveTab, openEditTaskEditor } = renderCard();
   expect(getByText("No linked blocker details are available.")).toBeTruthy();

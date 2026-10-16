@@ -7,7 +7,7 @@ import { Text } from "../../i18n";
 import { styles } from "../../ui/styles";
 import { useAppTheme } from "../../ui/themeContext";
 
-type Props = { review: QaReport | null; membersById: Record<string, Member>; partDefinitionsById?: Record<string, PartDefinition>; onClose: () => void };
+type Props = { review: QaReport | null; membersById: Record<string, Member>; partDefinitionsById: Record<string, PartDefinition>; onClose: () => void };
 
 type QaDetailRow = {
   label: string;
@@ -15,7 +15,7 @@ type QaDetailRow = {
   multiline?: boolean;
 };
 
-export function QaReviewDetail({ review, membersById, partDefinitionsById = {}, onClose }: Props) {
+export function QaReviewDetail({ review, membersById, partDefinitionsById, onClose }: Props) {
   const recordedRevisions = Object.entries(review?.targetRevisions ?? {});
   const hasPartTarget = review?.targetRefs.some((target) => target.kind === "part-definition" || target.kind === "part-instance") ?? false;
   const unavailableRevision = recordedRevisions.some(([id]) => !partDefinitionsById[id]);

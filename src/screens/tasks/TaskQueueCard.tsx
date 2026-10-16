@@ -12,7 +12,7 @@ import {
 import { styles } from "../../ui/styles";
 import { getQaReviewTaskId } from "../../app/appModel";
 import { StatusPill } from "../../ui/ui";
-import type { ReadinessStatus, Task } from "../../types/domain";
+import type { DomainReference, ReadinessStatus, RiskSource, Task } from "../../types/domain";
 import type { TaskScreenProps } from "./taskScreenTypes";
 
 type TaskQueueCardContext = Pick<TaskScreenProps,
@@ -106,9 +106,13 @@ export function TaskQueueCard({
   const actionableDependency = openDependencies.find((edge) => edge.kind === "task"
     ? Boolean(taskById[edge.refId])
     : edge.kind === "part-instance" ? Boolean(partInstancesById[edge.refId]) : Boolean(milestonesById[edge.refId]));
+  const taskDependencyIds = new Set(taskDependencies.filter((edge) => edge.taskId === task.id).map((edge) => edge.id));
+  const matchesTaskOrDependency = (reference: RiskSource | DomainReference) => {
+    if (reference.kind === "task") return reference.id === task.id;
+    return reference.kind === "task-dependency" && taskDependencyIds.has(reference.id);
+  };
   const blockingRisks = risks.filter((risk) => risk.status !== "resolved" && risk.blocksWork && (
-    (risk.source.kind === "task" && risk.source.id === task.id) ||
-    risk.relatedTargets.some((target) => target.kind === "task" && target.id === task.id)
+    matchesTaskOrDependency(risk.source) || risk.relatedTargets.some(matchesTaskOrDependency)
   ));
   const loggedHours = taskLoggedHoursById[task.id] ?? task.actualHours;
   const isOverEstimate = task.estimatedHours > 0 && loggedHours > task.estimatedHours;

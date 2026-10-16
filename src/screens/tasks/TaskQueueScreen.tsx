@@ -213,7 +213,7 @@ const renderScreen = () => {
       }
     >
       <QaReviewDetail review={selectedQaTaskId ? qaReports.find((review) => getQaReviewTaskId(review) === selectedQaTaskId) ?? null : null}
-        membersById={membersById} onClose={() => setSelectedQaTaskId(null)} />
+        membersById={membersById} partDefinitionsById={partDefinitionsById} onClose={() => setSelectedQaTaskId(null)} />
       <SummaryRow chips={taskSummary} />
 
       {!isCompactLayout ? (
