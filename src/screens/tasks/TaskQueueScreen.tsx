@@ -1,6 +1,6 @@
 import { Callout } from "../../ui/Callout";
 import { ActionButton } from "../../ui/ActionButton";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
 
 import { Text } from "../../i18n";
@@ -15,6 +15,7 @@ import {
 import { QaReviewDetail } from "../reports/QaReviewDetail";
 import { getQaReviewTaskId } from "../../app/appModel";
 import type { Task } from "../../types/domain";
+import { sortQaReviews } from "../reports/qaReviewOrdering";
 
 import type { TaskScreenProps } from "./taskScreenTypes";
 import { TaskQueueCard } from "./TaskQueueCard";
@@ -95,6 +96,10 @@ export function TaskQueueScreen(props: TaskQueueScreenProps) {
   const [helpRequestTask, setHelpRequestTask] = useState<Task | null>(null);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const { filteredTaskQueue, taskQueueSections, taskSummary, resetFilters } = queue;
+  const sortedQaReviews = useMemo(() => sortQaReviews(qaReports, taskById, taskDependencies), [qaReports, taskById, taskDependencies]);
+  const selectedQaReview = selectedQaTaskId
+    ? sortedQaReviews.find((review) => getQaReviewTaskId(review) === selectedQaTaskId) ?? null
+    : null;
   const filterKey = JSON.stringify([activeResponsibleGroupId, queue.filters]);
   const [pagination, setPagination] = useState({ filterKey, page: 0 });
   const taskCount = taskQueueSections.reduce((count, section) => count + section.tasks.length, 0);
@@ -212,7 +217,7 @@ const renderScreen = () => {
         </View>
       }
     >
-      <QaReviewDetail review={selectedQaTaskId ? qaReports.find((review) => getQaReviewTaskId(review) === selectedQaTaskId) ?? null : null}
+      <QaReviewDetail review={selectedQaReview}
         membersById={membersById} partDefinitionsById={partDefinitionsById} onClose={() => setSelectedQaTaskId(null)} />
       <SummaryRow chips={taskSummary} />
 

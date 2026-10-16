@@ -32,7 +32,7 @@ jest.mock("../../help/NeedHelpModal", () => ({ NeedHelpModal: () => null }));
 jest.mock("../../taskQueue/TaskQueueFilterSheet", () => ({ TaskQueueFilterSheet: () => null }));
 jest.mock("../../taskQueue/TaskReassignModal", () => ({ TaskReassignModal: () => null }));
 
-function renderTaskQueueDetail(currentRevision: string) {
+function renderTaskQueueDetail(currentRevision: string, qaReports?: QaReport[]) {
   const task = makeTask({ id: "task-qa", title: "Inspect gearbox", status: "in-progress" });
   const review: QaReport = {
     id: "qa-task-review", projectId: task.projectId, targetRefs: [{ kind: "task", id: task.id }],
@@ -50,13 +50,17 @@ function renderTaskQueueDetail(currentRevision: string) {
     activeResponsibleGroupId: "robot-build", activeResponsibleGroupLabel: "Robot Build", responsibleGroups: [],
     appResponsiveStyles: {}, canReassignTasks: false, canSubmitQa: false, claimTask: jest.fn(),
     workTypesById: {}, workstreamsById: {}, editTagStyle: {}, eventsById: {}, isCompactLayout: true, isLandscapeCardLayout: false,
-    mechanismsById: {}, milestonesById: {}, members: [], membersById: { reviewer: { id: "reviewer", name: "QA reviewer" } },
+    mechanismsById: {}, milestonesById: {}, members: [], membersById: {
+      reviewer: { id: "reviewer", name: "QA reviewer" },
+      "older-reviewer": { id: "older-reviewer", name: "Earlier QA reviewer" },
+      "newest-reviewer": { id: "newest-reviewer", name: "Latest QA reviewer" },
+    },
     openCreateTaskEditor: jest.fn(), openCreateWorkLogEditor: jest.fn(), openEditTaskEditor: jest.fn(),
     partInstancesById: {}, partDefinitionsById: { "part-1": partDefinition }, requestHelp: jest.fn(async () => false),
     requestTaskQa: jest.fn(), reassignTask: jest.fn(), releaseTask: jest.fn(), rosterMentors: [], rosterStudents: [],
     setActiveResponsibleGroupId: jest.fn(), qaRequests: [], openCreateQaReportEditor: jest.fn(), signedInMember: null,
     startTask: jest.fn(), subsystems: [], subsystemsById: {}, taskById: { [task.id]: task }, taskDependencies: [],
-    taskLoggedHoursById: {}, risks: [], setActiveTab: jest.fn(), themeColors: {}, qaReports: [review],
+    taskLoggedHoursById: {}, risks: [], setActiveTab: jest.fn(), themeColors: {}, qaReports: qaReports ?? [review],
   } as never));
   fireEvent.press(view.getByText("Open QA report"));
   return view;
@@ -69,4 +73,30 @@ test.each([
   const view = renderTaskQueueDetail(currentRevision);
   expect(view.getByText("QA reviewer")).toBeTruthy();
   expect(view.getByText(expectedFreshness)).toBeTruthy();
+});
+
+test("task queue opens the newest task QA report regardless of bootstrap array order", () => {
+  const report = (overrides: Partial<QaReport>): QaReport => ({
+    id: "qa-report", projectId: "robot", targetRefs: [{ kind: "task", id: "task-qa" }],
+    createdByMemberId: "student", participantIds: ["student"], mentorId: "mentor", requestedById: "student",
+    summary: "QA cycle", notes: "Review notes", evidenceNotes: "Cycle evidence", createdAt: "2026-10-10",
+    status: "reviewed", reportType: "qa", result: "pass", reviewedById: "reviewer", reviewedAt: "2026-10-11",
+    targetRevisions: { "part-1": "revision-1" }, ...overrides,
+  });
+  const olderReport = report({
+    id: "older-report", summary: "Earlier cycle", notes: "Earlier review notes", evidenceNotes: "Earlier evidence",
+    reviewedById: "older-reviewer", reviewOrder: 1, targetRevisions: { "part-1": "revision-1" },
+  });
+  const newestReport = report({
+    id: "newest-report", summary: "Latest cycle", notes: "Latest review notes", evidenceNotes: "Latest evidence",
+    reviewedById: "newest-reviewer", reviewOrder: 2, targetRevisions: { "part-1": "revision-2" },
+  });
+  const view = renderTaskQueueDetail("revision-2", [olderReport, newestReport]);
+
+  expect(view.getAllByText("Latest cycle")).toHaveLength(2);
+  expect(view.getByText("Latest QA reviewer")).toBeTruthy();
+  expect(view.getByText("Latest review notes")).toBeTruthy();
+  expect(view.getByText("Latest evidence")).toBeTruthy();
+  expect(view.getByText("Current for the recorded part definitions.")).toBeTruthy();
+  expect(view.queryByText("Earlier cycle")).toBeNull();
 });
