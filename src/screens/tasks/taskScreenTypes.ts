@@ -4,9 +4,9 @@ import type { StyleProp, TextStyle } from "react-native";
 import type { AppThemeColors } from "../../theme";
 import type { HelpRequestInput } from "../../data/helpRequests";
 import type { useTaskQueue } from "./useTaskQueue";
-import type { Mechanism, Member, PartDefinition, PartInstance, Project, QaReport, ResponsibleGroup, Subsystem, Task, Workstream, WorkType } from "../../types/domain";
+import type { Mechanism, Member, Milestone, PartDefinition, PartInstance, Project, QaReport, ResponsibleGroup, Risk, Subsystem, Task, Workstream, WorkType } from "../../types/domain";
 import type { ScheduleEntry } from "../../app/appModel";
-import type { MilestoneSortField, Option, SummaryChipData, ResponsibleGroupFilter, TaskWorkspaceView } from "../../ui/types";
+import type { MilestoneSortField, Option, SummaryChipData, ResponsibleGroupFilter, TaskWorkspaceView, ViewTab } from "../../ui/types";
 
 import type { ResponsiveScreenStyles } from "../types";
 
@@ -43,6 +43,7 @@ export interface TaskScreenProps {
   isCompactLayout: boolean;
   isLandscapeCardLayout: boolean;
   mechanismsById: Record<string, Mechanism>;
+  milestonesById: Record<string, Milestone>;
   members: Member[];
   membersById: Record<string, Member>;
   openCreateWorkLogEditor: (taskId?: string) => void;
@@ -59,6 +60,8 @@ export interface TaskScreenProps {
   subsystemsById: Record<string, Subsystem>;
   taskById: Record<string, Task>;
   taskDependencies: import("../../types/domain").TaskDependency[];
+  risks: Risk[];
+  setActiveTab: Dispatch<SetStateAction<ViewTab>>;
   taskLoggedHoursById: Record<string, number>;
   qaReports: QaReport[];
   eventOptions: Option[];

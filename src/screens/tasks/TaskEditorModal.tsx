@@ -42,7 +42,8 @@ type TaskEditorModalProps = {
   isLandscapeCardLayout: boolean;
   mechanisms: Mechanism[];
   mechanismsById: Record<string, Mechanism | undefined>;
-  memberOptions: Option[];
+  ownerOptions: Option[];
+  mentorOptions: Option[];
   partInstances: PartInstance[];
   partDefinitionsById: Record<string, PartDefinition | undefined>;
   partInstancesById: Record<string, PartInstance | undefined>;
@@ -67,7 +68,8 @@ export function TaskEditorModal({
   isLandscapeCardLayout,
   mechanisms,
   mechanismsById,
-  memberOptions,
+  ownerOptions,
+  mentorOptions,
   partInstances,
   partInstancesById,
   partDefinitionsById,
@@ -76,7 +78,7 @@ export function TaskEditorModal({
   themeColors,
 }: TaskEditorModalProps) {
   const [partDependencyId, setPartDependencyId] = useState("");
-  const { selectSubsystem, selectMechanism, selectPart, addTaskDependency, availableTaskDependencyOptions, deleteTaskDraft, downstreamTaskDependencies, removeTaskDependency, selectedTaskDependencies, setTaskDependencySearch, setTaskDraft, taskDependencyReadinessMessage, taskDependencySearch, taskDraft, taskEditorError, taskEditorMode, closeTaskEditor: onCancel, saveTaskDraft: onSave } = editor;
+  const { selectSubsystem, selectMechanism, selectPart, addTaskDependency, availableTaskDependencyOptions, deleteTaskDraft, downstreamTaskDependencies, missingTaskDependencyIds, removeTaskDependency, selectedTaskDependencies, setTaskDependencySearch, setTaskDraft, taskDependencyReadinessMessage, taskDependencySearch, taskDraft, taskEditorError, taskEditorMode, closeTaskEditor: onCancel, saveTaskDraft: onSave } = editor;
 
   const mechanismOptions = mechanisms
     .filter((mechanism) => mechanism.subsystemId === taskDraft.subsystemIds[0])
@@ -206,7 +208,7 @@ export function TaskEditorModal({
             clearLabel="No owner"
             label="Owner"
             onChange={(value) => setTaskDraft((current) => ({ ...current, ownerId: value }))}
-            options={memberOptions}
+            options={ownerOptions}
             placeholder="Select owner"
             value={taskDraft.ownerId}
           />
@@ -214,7 +216,7 @@ export function TaskEditorModal({
             clearLabel="No mentor"
             label="Mentor"
             onChange={(value) => setTaskDraft((current) => ({ ...current, mentorId: value }))}
-            options={memberOptions}
+            options={mentorOptions}
             placeholder="Select mentor"
             value={taskDraft.mentorId}
           />
@@ -279,6 +281,7 @@ export function TaskEditorModal({
               addTaskDependency={addTaskDependency}
               availableTaskDependencyOptions={availableTaskDependencyOptions}
               downstreamTaskDependencies={downstreamTaskDependencies}
+              missingTaskDependencyIds={missingTaskDependencyIds}
               removeTaskDependency={removeTaskDependency}
               selectedTaskDependencies={selectedTaskDependencies}
               setTaskDependencySearch={setTaskDependencySearch}

@@ -200,6 +200,7 @@ export interface ManufacturingDetails {
 
 export interface Task {
   id: string;
+  completionScopeReviewOrder?: number;
   createdAt?: string;
   serialNumber?: number;
   serial?: string;
@@ -255,6 +256,15 @@ export interface PurchaseQuote {
   quotedAt: string | null;
 }
 
+export interface PurchaseReceipt {
+  id: string;
+  operationId?: string;
+  quantity: number;
+  location: string;
+  receivedAt: string;
+  partInstanceIds: string[];
+}
+
 export interface PurchaseItem {
   id: string;
   taskId: string;
@@ -276,6 +286,7 @@ export interface PurchaseItem {
   trackingUrl: string | null;
   orderedAt: string | null;
   deliveredAt: string | null;
+  receipts?: PurchaseReceipt[];
 }
 
 export type DomainReference =
@@ -368,8 +379,19 @@ export interface ReportBase {
   photoUrl?: string;
   createdAt: string;
   status: "draft" | "submitted" | "reviewed";
+  needsReverification?: boolean;
 }
-export interface QaReport extends ReportBase { reportType: "qa"; result: QaResult; reviewedById: string | null; reviewedAt: string | null }
+export interface QaReport extends ReportBase {
+  reportType: "qa";
+  result: QaResult;
+  reviewedById: string | null;
+  reviewedAt: string | null;
+  targetRevisions?: Record<string, string>;
+  inspectedPartInstanceIds?: string[];
+  reviewOrder?: number;
+  followUpTaskId?: string | null;
+  followUpRiskId?: string | null;
+}
 export interface TeamReport extends ReportBase { reportType: "practice" | "competition" | "review"; result: string | null }
 export type Report = QaReport | TeamReport;
 
@@ -394,8 +416,38 @@ export interface QaFinding {
   status: "open" | "in-progress" | "resolved";
   createdAt: string;
   updatedAt: string;
+  correctiveTaskId?: string | null;
+  riskId?: string | null;
+  retests?: QaRetest[];
 }
-export interface TestResult { id: string; projectId: string; targetRefs: DomainReference[]; title: string; status: "pass" | "fail" | "blocked" }
+export interface TestResult {
+  id: string;
+  projectId: string;
+  targetRefs: DomainReference[];
+  title: string;
+  status: "pass" | "fail" | "blocked";
+  createdAt?: string;
+  observedAt?: string;
+  verificationOrder?: number;
+  targetRevisions?: Record<string, string>;
+  inspectedPartInstanceIds?: string[];
+  needsReverification?: boolean;
+}
+export interface QaRetest {
+  operationId?: string;
+  sourceType?: "qa" | "test";
+  result: "pass" | "fail";
+  notes: string;
+  evidenceNotes?: string;
+  observedAt?: string;
+  reviewedAt: string;
+  reviewedById: string;
+  order: number;
+  verificationOrder?: number;
+  targetRevisions?: Record<string, string>;
+  inspectedPartInstanceIds?: string[];
+  supersedesId?: string;
+}
 export interface TestFinding extends QaFinding { testResultId: string }
 export interface Artifact {
   id: string;

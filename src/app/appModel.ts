@@ -9,6 +9,7 @@ import type {
   Event,
   Meeting,
   Milestone,
+  QaRequest,
   QaReport,
   RiskSeverity,
   SessionUser,
@@ -136,6 +137,19 @@ export function buildTaskById(tasks: Task[]) {
 
 export function getQaReviewTaskId(report: QaReport) {
   return report.targetRefs.find((target) => target.kind === "task")?.id ?? null;
+}
+
+export function isActiveQaRequest(request: QaRequest) {
+  return request.status === "requested" || request.status === "in-review";
+}
+
+export function resolveActiveTaskQaRequest(requests: QaRequest[], taskId: string, selectedRequestId?: string | null) {
+  const matchesTask = (request: QaRequest) =>
+    isActiveQaRequest(request) && request.targetRefs.some((target) => target.kind === "task" && target.id === taskId);
+  if (selectedRequestId != null) {
+    return requests.find((request) => request.id === selectedRequestId && matchesTask(request)) ?? null;
+  }
+  return requests.find(matchesTask) ?? null;
 }
 
 export function ensureArray<T>(value: T[] | undefined | null): T[] {

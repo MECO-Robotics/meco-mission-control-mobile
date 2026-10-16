@@ -6,6 +6,7 @@ import { useMilestoneEditor, type MilestonePayload } from "./src/app/editorModal
 import { formatHoursFromTimer, getWorkLogTimerElapsedMs, type WorkLogTimerState } from "./src/screens/worklogs/workLogTimer";
 import { getAutoTaskStatus, isTaskBlocked, isTaskReadyForQaPass } from "./src/data/taskReadiness";
 import { useTaskEditor } from "./src/screens/tasks/useTaskEditor";
+import { eligibleTaskMentors, eligibleTaskOwners } from "./src/data/taskPeople";
 import { createWorkLogQueue } from "./src/services/workLogQueue";
 import { createTaskState } from "./src/screens/tasks/taskState";
 import { getSessionPermissions } from "./src/data/sessionPermissions";
@@ -116,6 +117,7 @@ import {
   mapPendingWorkLogDraftToWorkLog,
   normalizeRequiredEmailDomain,
   parseClientError,
+  resolveActiveTaskQaRequest,
   shouldQueueWorkLogDraftAfterError,
   type BackendReachability,
   type StartTaskOptions,
@@ -1127,6 +1129,10 @@ export default function App() {
     ) as Record<string, (typeof partInstances)[number]>;
   }, [partInstances]);
 
+  const milestonesById = useMemo(() => Object.fromEntries(
+    milestones.map((milestone) => [milestone.id, milestone]),
+  ) as Record<string, (typeof milestones)[number]>, [milestones]);
+
   const scheduleEntries = useMemo(() => buildScheduleEntries(meetings, events, milestones), [events, meetings, milestones]);
   const eventsById = useMemo(() => {
     return Object.fromEntries(
@@ -1885,8 +1891,7 @@ export default function App() {
     const currentTask = taskState.getSnapshot().find((candidate) => candidate.id === task.id);
     if (!currentTask || currentTask.status !== "in-progress" || isTaskBlocked(currentTask)) return;
     const seasonId = projects.find((project) => project.id === currentTask.projectId)?.seasonId;
-    const eligibleMentors = members.filter((member) => member.role === "mentor" &&
-      (member.seasonId === seasonId || (seasonId !== undefined && member.activeSeasonIds?.includes(seasonId))));
+    const eligibleMentors = eligibleTaskMentors(members, seasonId);
     const mentorId = eligibleMentors.find((member) => member.id === currentTask.mentorId)?.id ?? eligibleMentors[0]?.id;
     if (!mentorId) {
       setSyncError("Assign an active mentor in this task's season before requesting QA.");
@@ -2245,7 +2250,7 @@ export default function App() {
 
   const openCreateQaReportEditor = (taskId = tasks[0]?.id ?? "", qaRequestId?: string) => {
     if (!canSubmitQa) return;
-    const request = qaRequestId ? qaRequests.find((candidate) => candidate.id === qaRequestId) : null;
+    const request = resolveActiveTaskQaRequest(qaRequests, taskId, qaRequestId);
 
     setQaReportDraft({
       taskId,
@@ -2256,7 +2261,7 @@ export default function App() {
       evidenceNotes: "",
       followUpTaskTitle: "",
     });
-    setActiveQaRequestId(request?.id ?? null);
+    setActiveQaRequestId(qaRequestId ?? null);
     setQaReportError(null);
     setQaReportEditorMode("create");
   };
@@ -2334,11 +2339,7 @@ export default function App() {
     }
 
     setQaReportError(null);
-    const linkedQaRequest =
-      (activeQaRequestId
-        ? qaRequests.find((request) => request.id === activeQaRequestId)
-        : null) ??
-      qaRequests.find((request) => request.targetRefs.some((target) => target.kind === "task" && target.id === task.id));
+    const linkedQaRequest = resolveActiveTaskQaRequest(qaRequests, task.id, activeQaRequestId);
     const sessionVersion = authSessionVersionRef.current;
     try {
       const { item } = await authenticatedRequestJson<{ item: Extract<Report, { reportType: "qa" }> }>("/api/qa-reports/submit", {
@@ -2547,6 +2548,7 @@ export default function App() {
     isCompactLayout,
     isLandscapeCardLayout,
     mechanismsById,
+    milestonesById,
     members,
     membersById,
     openCreateWorkLogEditor,
@@ -2563,6 +2565,8 @@ export default function App() {
     subsystemsById,
     taskById,
     taskDependencies,
+    risks,
+    setActiveTab,
     taskLoggedHoursById,
     qaReports,
     eventOptions,
@@ -2676,13 +2680,16 @@ export default function App() {
   const renderEditorModals = () => {
     const taskOptions = tasks.map((task) => ({ id: task.id, name: task.title }));
     const memberOptions = members.map((member) => ({ id: member.id, name: member.name }));
+    const projectsById = Object.fromEntries(projects.map((project) => [project.id, project]));
+    const selectedProjectSeasonId = projectsById[taskEditor.taskDraft.projectId]?.seasonId;
+    const taskOwnerOptions = eligibleTaskOwners(members, selectedProjectSeasonId).map((member) => ({ id: member.id, name: member.name }));
+    const taskMentorOptions = eligibleTaskMentors(members, selectedProjectSeasonId).map((member) => ({ id: member.id, name: member.name }));
     const selectedProjectType = projects.find((project) => project.id === taskEditor.taskDraft.projectId)?.projectType;
     const workTypeOptions = workTypes.filter((workType) => workType.projectType === selectedProjectType).map((workType) => ({
       id: workType.id,
       name: workType.name,
     }));
     const projectOptions = projects.map((project) => ({ id: project.id, name: project.name }));
-    const projectsById = Object.fromEntries(projects.map((project) => [project.id, project]));
     const responsibleGroupOptions = responsibleGroups.filter((group) => !group.projectIds.length || group.projectIds.includes(taskEditor.taskDraft.projectId)).map((group) => ({ id: group.id, name: group.name }));
     const workstreamOptions = workstreams.filter((workstream) => workstream.projectId === taskEditor.taskDraft.projectId && !workstream.isArchived).map((workstream) => ({ id: workstream.id, name: workstream.name }));
     const scheduleOptions = scheduleEntries.map((entry) => ({ id: `${entry.recordType}:${entry.id}`, name: `${entry.title} (${formatDateTime(entry.startDateTime)})` }));
@@ -2706,7 +2713,8 @@ export default function App() {
           isLandscapeCardLayout={isLandscapeCardLayout}
           mechanisms={mechanisms}
           mechanismsById={mechanismsById}
-          memberOptions={memberOptions}
+          ownerOptions={taskOwnerOptions}
+          mentorOptions={taskMentorOptions}
           partInstances={partInstances}
           partInstancesById={partInstancesById}
           partDefinitionsById={partDefinitionsById}
