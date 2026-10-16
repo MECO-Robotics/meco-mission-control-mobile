@@ -415,6 +415,8 @@ export interface QaFinding {
   status: "open" | "in-progress" | "resolved";
   createdAt: string;
   updatedAt: string;
+  correctiveTaskId?: string | null;
+  riskId?: string | null;
   retests?: QaRetest[];
 }
 export interface TestResult {
