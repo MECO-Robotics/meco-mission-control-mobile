@@ -12,6 +12,7 @@ type TaskDependenciesFieldProps = {
   addTaskDependency: (dependencyId: string) => void;
   availableTaskDependencyOptions: Task[];
   downstreamTaskDependencies: Task[];
+  missingTaskDependencyIds: string[];
   removeTaskDependency: (dependencyId: string) => void;
   selectedTaskDependencies: Task[];
   setTaskDependencySearch: (value: string) => void;
@@ -80,6 +81,7 @@ export function TaskDependenciesField({
   addTaskDependency,
   availableTaskDependencyOptions,
   downstreamTaskDependencies,
+  missingTaskDependencyIds,
   removeTaskDependency,
   selectedTaskDependencies,
   setTaskDependencySearch,
@@ -98,7 +100,7 @@ export function TaskDependenciesField({
           { backgroundColor: themeColors.canvas, borderColor: themeColors.border },
         ]}
       >
-        {selectedTaskDependencies.length > 0 ? (
+        {selectedTaskDependencies.length > 0 || missingTaskDependencyIds.length > 0 ? (
           <View style={styles.quickActionRow}>
             {selectedTaskDependencies.map((dependency) => (
               <DependencyChip
@@ -109,6 +111,28 @@ export function TaskDependenciesField({
                 themeColors={themeColors}
                 variant="selected"
               />
+            ))}
+            {missingTaskDependencyIds.map((dependencyId) => (
+              <Pressable
+                accessibilityLabel={`Remove missing task dependency ${dependencyId}`}
+                accessibilityRole="button"
+                key={dependencyId}
+                onPress={() => removeTaskDependency(dependencyId)}
+                style={[styles.quickActionButton, {
+                  alignItems: "flex-start",
+                  backgroundColor: themeColors.canvas,
+                  borderColor: themeColors.border,
+                  gap: 2,
+                  maxWidth: "100%",
+                }]}
+              >
+                <Text numberOfLines={2} style={[styles.quickActionButtonLabel, { color: themeColors.ink }]}>
+                  Missing task {dependencyId}
+                </Text>
+                <Text style={{ color: themeColors.subtleText, fontSize: 11, fontWeight: "700" }}>
+                  Remove
+                </Text>
+              </Pressable>
             ))}
           </View>
         ) : (
