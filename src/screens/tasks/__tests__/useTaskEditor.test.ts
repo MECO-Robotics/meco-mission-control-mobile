@@ -1,9 +1,9 @@
 import { act, renderHook } from "@testing-library/react-native";
 import { useTaskEditor } from "../useTaskEditor";
 import { mecoSnapshot } from "../../../data/__tests__/fixtures/mockData";
-import type { Project, Task, TaskDependency, WorkType } from "../../../types/domain";
+import type { Member, Project, Task, TaskDependency, WorkType } from "../../../types/domain";
 
-const project: Project = { id: "robot-project", teamId: "team", seasonId: "season", name: "Robot", projectType: "robot", description: "", status: "active" };
+const project: Project = { id: "robot-project", teamId: "team", seasonId: "season-2026", name: "Robot", projectType: "robot", description: "", status: "active" };
 const workType: WorkType = { id: "robot-planning", projectType: "robot", code: "planning", name: "Planning", isActive: true };
 const task: Task = {
   id: "robot-task", projectId: project.id, workTypeId: workType.id, responsibleGroupId: "robot-build", workstreamIds: [], title: "Robot work", summary: "",
@@ -12,7 +12,7 @@ const task: Task = {
   requiresDocumentation: false, manufacturingDetails: null,
 };
 
-function setup(deletion?: Promise<void>) {
+function setup(deletion?: Promise<void>, members: Member[] = mecoSnapshot.members, projects: Project[] = [project]) {
   const relation: TaskDependency = { id: "edge", taskId: task.id, kind: "part-instance", refId: "part", requiredCondition: { kind: "physical-location", value: "stock" }, dependencyType: "soft", createdAt: "2026-09-08" };
   const calls: { path: string; init: RequestInit }[] = [];
   const request = async <T,>(path: string, init: RequestInit): Promise<T> => {
@@ -22,10 +22,10 @@ function setup(deletion?: Promise<void>) {
     return { item: task } as T;
   };
   const inputs = {
-    projects: [project], workTypes: [workType],
+    projects, workTypes: [workType],
     mechanisms: mecoSnapshot.mechanisms, partInstances: mecoSnapshot.partInstances,
     tasks: [task], taskById: { [task.id]: task }, taskDependencies: [relation],
-    members: mecoSnapshot.members, membersById: Object.fromEntries(mecoSnapshot.members.map((row) => [row.id, row])),
+    members, membersById: Object.fromEntries(members.map((row) => [row.id, row])),
     subsystemsById: Object.fromEntries(mecoSnapshot.subsystems.map((row) => [row.id, row])), taskSubsystemOptions: mecoSnapshot.subsystems.map((row) => ({ id: row.id, name: row.name })),
     activeResponsibleGroupId: "robot-build", setActiveResponsibleGroupId: jest.fn(), request, refresh: jest.fn(async () => undefined),
   };
@@ -64,6 +64,105 @@ test("create defaults use eligible members and keep the current project selectio
   const setupResult = setup();
   act(() => setupResult.result.current.openCreateTaskEditor());
   expect(setupResult.result.current.taskDraft).toMatchObject({ projectId: project.id, ownerId: "ava", mentorId: "jordan" });
+});
+
+test("create and duplicate defaults use the selected task project's season", () => {
+  const otherSeasonProject: Project = { ...project, id: "past-robot-project", seasonId: "past-season" };
+  const ava = mecoSnapshot.members.find((member) => member.id === "ava")!;
+  const jordan = mecoSnapshot.members.find((member) => member.id === "jordan")!;
+  const members: Member[] = [
+    { ...ava, id: "past-owner", seasonId: "past-season", activeSeasonIds: ["past-season"] },
+    { ...ava, id: "current-owner", seasonId: project.seasonId, activeSeasonIds: [project.seasonId] },
+    { ...ava, id: "cross-season-owner", role: "lead", seasonId: "past-season", activeSeasonIds: [project.seasonId] },
+    { ...jordan, id: "past-mentor", seasonId: "past-season", activeSeasonIds: ["past-season"] },
+    { ...jordan, id: "current-mentor", seasonId: project.seasonId, activeSeasonIds: [project.seasonId] },
+    { ...jordan, id: "cross-season-mentor", seasonId: "past-season", activeSeasonIds: [project.seasonId] },
+  ];
+  const { result } = setup(undefined, members, [project, otherSeasonProject]);
+
+  act(() => result.current.openCreateTaskEditor());
+  expect(result.current.taskDraft).toMatchObject({ projectId: project.id, ownerId: "current-owner", mentorId: "current-mentor" });
+
+  act(() => result.current.openDuplicateTaskEditor({
+    ...task, projectId: otherSeasonProject.id, ownerId: "current-owner", mentorId: "current-mentor",
+  }));
+  expect(result.current.taskDraft).toMatchObject({ projectId: otherSeasonProject.id, ownerId: "past-owner", mentorId: "past-mentor" });
+
+  act(() => result.current.openDuplicateTaskEditor({
+    ...task, projectId: otherSeasonProject.id, ownerId: "past-owner", mentorId: "past-mentor",
+  }));
+  expect(result.current.taskDraft).toMatchObject({ projectId: otherSeasonProject.id, ownerId: "past-owner", mentorId: "past-mentor" });
+});
+
+test("duplicate defaults leave an owner blank when its project season has no eligible owner", async () => {
+  const otherSeasonProject: Project = { ...project, id: "past-robot-project", seasonId: "past-season" };
+  const ava = mecoSnapshot.members.find((member) => member.id === "ava")!;
+  const jordan = mecoSnapshot.members.find((member) => member.id === "jordan")!;
+  const members: Member[] = [
+    { ...ava, id: "current-owner", seasonId: project.seasonId, activeSeasonIds: [project.seasonId] },
+    { ...jordan, id: "current-mentor", seasonId: project.seasonId, activeSeasonIds: [project.seasonId] },
+  ];
+  const { calls, result } = setup(undefined, members, [project, otherSeasonProject]);
+  act(() => result.current.openDuplicateTaskEditor({
+    ...task, projectId: otherSeasonProject.id, summary: "Existing summary", ownerId: "current-owner", mentorId: "current-mentor",
+  }));
+
+  expect(result.current.taskDraft).toMatchObject({ projectId: otherSeasonProject.id, ownerId: "", mentorId: "" });
+  await act(async () => result.current.saveTaskDraft());
+  expect(result.current.taskEditorError).toMatch(/owner/);
+  expect(calls).toHaveLength(0);
+});
+
+test("saving after a project change rejects stale people until eligible current-season members are selected", async () => {
+  const otherSeasonProject: Project = { ...project, id: "past-robot-project", seasonId: "past-season" };
+  const ava = mecoSnapshot.members.find((member) => member.id === "ava")!;
+  const jordan = mecoSnapshot.members.find((member) => member.id === "jordan")!;
+  const members: Member[] = [
+    { ...ava, id: "past-owner", seasonId: "past-season", activeSeasonIds: ["past-season"] },
+    { ...ava, id: "current-owner", seasonId: project.seasonId, activeSeasonIds: [project.seasonId] },
+    { ...jordan, id: "past-mentor", seasonId: "past-season", activeSeasonIds: ["past-season"] },
+    { ...jordan, id: "current-mentor", seasonId: project.seasonId, activeSeasonIds: [project.seasonId] },
+  ];
+  const { calls, result } = setup(undefined, members, [project, otherSeasonProject]);
+  act(() => result.current.openEditTaskEditor(task));
+  act(() => result.current.setTaskDraft((draft) => ({
+    ...draft, projectId: otherSeasonProject.id, title: "Robot work", summary: "Existing summary",
+    ownerId: "current-owner", mentorId: "current-mentor",
+  })));
+
+  await act(async () => result.current.saveTaskDraft());
+  expect(result.current.taskEditorError).toMatch(/selected project's season/i);
+  expect(calls).toHaveLength(0);
+
+  act(() => result.current.setTaskDraft((draft) => ({ ...draft, ownerId: "past-owner", mentorId: "past-mentor" })));
+  await act(async () => result.current.saveTaskDraft());
+  expect(result.current.taskEditorError).toBeNull();
+  const update = calls.find((call) => call.path === `/api/tasks/${task.id}`)!;
+  expect(update).toBeTruthy();
+  expect(JSON.parse(update.init.body as string)).toMatchObject({ ownerId: "past-owner", mentorId: "past-mentor" });
+});
+
+test("task editor fails closed when the draft has no project season", async () => {
+  const { calls, result } = setup(undefined, mecoSnapshot.members, []);
+  act(() => result.current.openCreateTaskEditor());
+  act(() => result.current.setTaskDraft((draft) => ({
+    ...draft, title: "Unscoped work", summary: "Must choose a project", workTypeId: workType.id,
+    ownerId: "ava", mentorId: "jordan",
+  })));
+
+  await act(async () => result.current.saveTaskDraft());
+  expect(result.current.taskEditorError).toMatch(/project/);
+  expect(calls).toHaveLength(0);
+});
+
+test("task submission keeps mentor optional when the required owner is season-eligible", async () => {
+  const { calls, result } = setup();
+  act(() => result.current.openCreateTaskEditor());
+  act(() => result.current.setTaskDraft((draft) => ({ ...draft, title: "Student-owned work", summary: "No mentor assigned", mentorId: "" })));
+
+  await act(async () => result.current.saveTaskDraft());
+  const create = calls.find((call) => call.path === "/api/tasks")!;
+  expect(JSON.parse(create.init.body as string)).toMatchObject({ ownerId: "ava", mentorId: null });
 });
 
 test("editing retains the existing owner and mentor fields", () => {

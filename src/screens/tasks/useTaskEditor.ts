@@ -36,9 +36,6 @@ export function useTaskEditor({ mechanisms, partInstances, projects, workTypes, 
   const [taskDraft, setTaskDraft] = useState<TaskDraft>(buildTaskDraft());
   const [taskEditorError, setTaskEditorError] = useState<string | null>(null);
   const [taskDependencySearch, setTaskDependencySearch] = useState("");
-  const taskOwners = eligibleTaskOwners(members);
-  const taskMentors = eligibleTaskMentors(members);
-
   const selectedTaskDependencyIds = useMemo(() => taskDraft.dependencies.filter((edge) => edge.kind === "task").map((edge) => edge.refId)
     .filter((id) => taskById[id] && id !== activeTaskId), [activeTaskId, taskById, taskDraft.dependencies]);
   const selectedTaskDependencies = useMemo(() => selectedTaskDependencyIds.map((id) => taskById[id]).filter((task): task is Task => Boolean(task)), [selectedTaskDependencyIds, taskById]);
@@ -66,9 +63,10 @@ export function useTaskEditor({ mechanisms, partInstances, projects, workTypes, 
     const today = localTodayDate();
     const project = projects.find((item) => item.projectType === "robot") ?? projects[0];
     const workType = workTypes.find((item) => item.projectType === project?.projectType && item.code === "planning") ?? workTypes.find((item) => item.projectType === project?.projectType);
+    const defaults = getDefaultTaskPeople(members, project?.seasonId);
     setActiveTaskId(null);
     setTaskDraft(buildTaskDraft({ projectId: project?.id ?? "", workTypeId: workType?.id ?? "", responsibleGroupId: activeResponsibleGroupId === "all" ? "" : activeResponsibleGroupId,
-      subsystemIds: taskSubsystemOptions[0] ? [taskSubsystemOptions[0].id] : [], ...getDefaultTaskPeople(members), startDate: today, dueDate: today }));
+      subsystemIds: taskSubsystemOptions[0] ? [taskSubsystemOptions[0].id] : [], ...defaults, startDate: today, dueDate: today }));
     setTaskEditorError(null); setTaskDependencySearch(""); setTaskEditorMode("create");
   };
   const openEditTaskEditor = (task: Task) => {
@@ -82,10 +80,13 @@ export function useTaskEditor({ mechanisms, partInstances, projects, workTypes, 
   };
   const openDuplicateTaskEditor = (task: Task) => {
     editorVersion.current += 1; setActiveTaskId(null);
-    const defaults = getDefaultTaskPeople(members);
+    const projectSeasonId = projects.find((project) => project.id === task.projectId)?.seasonId;
+    const taskOwners = eligibleTaskOwners(members, projectSeasonId);
+    const taskMentors = eligibleTaskMentors(members, projectSeasonId);
+    const defaults = getDefaultTaskPeople(members, projectSeasonId);
     setTaskDraft(buildTaskDraft({ ...task, id: "", title: `Copy of ${task.title}`, dueDate: isoToday(), status: "not-started", actualHours: 0, isBlocked: false,
-      ownerId: taskOwners.some((member) => member.id === task.ownerId) ? task.ownerId : defaults.ownerId,
-      mentorId: taskMentors.some((member) => member.id === task.mentorId) ? task.mentorId : defaults.mentorId }));
+      ownerId: taskOwners.some((member) => member.id === task.ownerId) ? task.ownerId ?? defaults.ownerId : defaults.ownerId,
+      mentorId: taskMentors.some((member) => member.id === task.mentorId) ? task.mentorId ?? defaults.mentorId : defaults.mentorId }));
     setTaskEditorError(null); setTaskDependencySearch(""); setTaskEditorMode("create");
   };
   const closeTaskEditor = () => { editorVersion.current += 1; setTaskEditorMode(null); setActiveTaskId(null); setTaskEditorError(null); setTaskDependencySearch(""); };
@@ -104,12 +105,20 @@ export function useTaskEditor({ mechanisms, partInstances, projects, workTypes, 
     const assertCurrent = () => { if (editorVersion.current !== version) throw new Error("The task editor changed during save."); };
     const isEdit = taskEditorMode === "edit" && activeTaskId;
     const existingTask = isEdit ? taskById[activeTaskId] : null;
+    const projectSeasonId = projects.find((project) => project.id === taskDraft.projectId)?.seasonId;
+    const taskOwners = eligibleTaskOwners(members, projectSeasonId);
+    const taskMentors = eligibleTaskMentors(members, projectSeasonId);
     const checklistItems = taskDraft.checklistItemsText.split(",").map((item) => item.trim()).filter(Boolean);
     const dependencyRefs = taskDraft.dependencies.filter((edge) => edge.kind === "task").map((edge) => edge.refId).filter((id) => taskById[id] && id !== activeTaskId);
     const title = taskDraft.title.trim(); const summary = taskDraft.summary.trim(); const estimatedHours = Number(taskDraft.estimatedHours);
-    const missing = [!title ? "title" : null, !summary ? "summary" : null, !taskDraft.projectId ? "project" : null, !taskDraft.workTypeId ? "work type" : null,
+    const missing = [!title ? "title" : null, !summary ? "summary" : null, !projects.some((project) => project.id === taskDraft.projectId) ? "project" : null, !taskDraft.workTypeId ? "work type" : null,
       !taskDraft.ownerId ? "owner" : null, !Number.isFinite(estimatedHours) || estimatedHours < 0 ? "estimated hours" : null].filter((field): field is string => Boolean(field));
     if (missing.length) { setTaskEditorError(`Add ${missing.join(", ")} before saving this work item.`); return; }
+    if (!taskOwners.some((member) => member.id === taskDraft.ownerId) ||
+      (taskDraft.mentorId !== "" && !taskMentors.some((member) => member.id === taskDraft.mentorId))) {
+      setTaskEditorError("Choose an owner and any mentor from the selected project's season before saving this work item.");
+      return;
+    }
     if (activeTaskId) {
       const circular = dependencyRefs.filter((id) => taskDependsOnTarget(id, activeTaskId, taskDependencies));
       if (circular.length) { setTaskEditorError(`Remove circular dependencies before saving: ${circular.map((id) => taskById[id]?.title ?? id).join(", ")}.`); return; }
