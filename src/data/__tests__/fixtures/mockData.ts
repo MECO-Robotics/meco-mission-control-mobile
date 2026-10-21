@@ -13,7 +13,7 @@ const workTypes: WorkType[] = [
   ...["design", "manufacturing", "assembly", "electrical-wiring", "programming", "testing", "driving", "planning"].map((code) => ({ id: code, projectType: "robot" as const, code, name: code, isActive: true })),
   ...(["media", "outreach", "operations", "strategy", "training"] as const).map((projectType) => ({ id: `${projectType}-planning`, projectType, code: "planning", name: "Planning", isActive: true })),
 ];
-const responsibleGroups: ResponsibleGroup[] = [{ id: "robot-build", seasonId, name: "Robot Build", projectIds: [project.id], workTypeIds: [], primaryMemberIds: [], memberIds: ["ava", "lucas", "priya", "ethan"], isArchived: false }];
+const responsibleGroups: ResponsibleGroup[] = [{ id: "robot-build", seasonId, name: "Robot Build", icon: "wrench", color: "#B45309", projectIds: [project.id], workTypeIds: [], primaryMemberIds: [], memberIds: ["ava", "lucas", "priya", "ethan"], isArchived: false }];
 const members: Member[] = [
   ["ava", "Ava Chen", "student"], ["lucas", "Lucas Brooks", "student"], ["priya", "Priya Patel", "student"],
   ["ethan", "Ethan Hall", "student"], ["jordan", "Jordan Lee", "mentor"], ["riley", "Riley Kim", "mentor"], ["maya", "Maya Ortiz", "admin"],

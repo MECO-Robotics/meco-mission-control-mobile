@@ -43,10 +43,14 @@ export interface WorkType {
   isActive: boolean;
 }
 
+export type TeamIcon = "wrench" | "zap" | "code" | "briefcase" | "target" | "clipboard" | "clapperboard" | "megaphone" | "graduation-cap" | "users";
+
 export interface ResponsibleGroup {
   id: string;
   seasonId: string;
   name: string;
+  icon: TeamIcon;
+  color: string;
   projectIds: string[];
   workTypeIds: string[];
   memberIds: string[];
@@ -468,7 +472,6 @@ export interface HelpRequest { id: string; taskId?: string | null; workLogId?: s
 export interface DesignIteration { id: string; taskId?: string | null; artifactId?: string | null; artifactIds?: string[]; [key: string]: unknown }
 
 export interface PlatformBootstrapPayload {
-  x_contract: { contractVersion: "v1" };
   seasons: Season[];
   projects: Project[];
   workTypes: WorkType[];
