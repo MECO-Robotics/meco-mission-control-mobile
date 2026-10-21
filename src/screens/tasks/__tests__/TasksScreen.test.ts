@@ -25,7 +25,7 @@ function routerProps(workspaceView: TaskScreenProps["workspaceView"], landscape 
     workspaceView,
     isLandscapeTimelineLayout: landscape,
     activeResponsibleGroupId: "programming",
-    responsibleGroups: [{ id: "programming", seasonId: "season", name: "Programming", projectIds: [], workTypeIds: [], primaryMemberIds: [], memberIds: [], isArchived: false }],
+    responsibleGroups: [{ id: "programming", seasonId: "season", name: "Programming", icon: "code", color: "#7C3AED", projectIds: [], workTypeIds: [], primaryMemberIds: [], memberIds: [], isArchived: false }],
     events: [],
     subsystems: [],
     timelineTasks: [],
