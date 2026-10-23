@@ -9,8 +9,8 @@ function buildDraft(milestone?: Milestone) {
     type: milestone?.type ?? "internal-review",
     projectIdsText: milestone?.projectIds.join(", ") ?? "",
     description: milestone?.description ?? "",
-    startDate: milestone ? datePortion(milestone.startAt) : localTodayDate(),
-    startTime: milestone ? timePortion(milestone.startAt) : "18:00",
+    startDate: milestone ? (milestone.startAt ? datePortion(milestone.startAt) : milestone.date ?? "") : localTodayDate(),
+    startTime: milestone ? (milestone.startAt ? timePortion(milestone.startAt) : "") : "18:00",
     endDate: milestone?.endAt ? datePortion(milestone.endAt) : "",
     endTime: milestone?.endAt ? timePortion(milestone.endAt) : "",
   };

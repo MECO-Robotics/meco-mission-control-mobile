@@ -53,8 +53,8 @@ export function ScheduleAgendaScreen(props: ScheduleAgendaScreenProps) {
   const milestoneTypeOptions = [...new Set(filteredMilestones.map((item) => item.type))].map((type) => ({ id: type, name: type.replaceAll("-", " ") }));
   const today = localTodayDate();
   const agendaItems = [
-    ...filteredMilestones.filter((entry) => entry.startDateTime.slice(0, 10) >= today).map((entry) => ({ kind: "schedule" as const, date: entry.startDateTime, entry })),
-    ...tasks.filter((task) => task.dueDate >= today).map((task) => ({ kind: "task-deadline" as const, date: task.dueDate, task })),
+    ...filteredMilestones.filter((entry) => !entry.startDateTime || entry.startDateTime.slice(0, 10) >= today).map((entry) => ({ kind: "schedule" as const, date: entry.startDateTime || "9999", entry })),
+    ...tasks.filter((task) => task.dueDate !== null && task.dueDate >= today).map((task) => ({ kind: "task-deadline" as const, date: task.dueDate!, task })),
   ].sort((left, right) => left.date.localeCompare(right.date));
 
   const getMilestoneSortIcon = (field: MilestoneSortField) => {
@@ -145,7 +145,7 @@ export function ScheduleAgendaScreen(props: ScheduleAgendaScreenProps) {
         const projectNames = entry.projectIds.map((projectId) => projects.find((project) => project.id === projectId)?.name ?? "Unknown project").join(", ");
         const content = <View style={[styles.queueRowCard, { backgroundColor: eventStyle.rowBackground, borderColor: eventStyle.borderColor }, appResponsiveStyles.rowCard]}>
           <Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>{entry.title}</Text>
-          <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>{entry.recordType} · {entry.type} · {formatDateTime(entry.startDateTime)}{entry.endAt ? ` – ${formatDateTime(entry.endAt)}` : ""}</Text>
+          <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>{entry.recordType} · {entry.type} · {entry.dateLabel || formatDateTime(entry.startDateTime || null)}{entry.endAt ? ` – ${formatDateTime(entry.endAt)}` : ""}</Text>
           <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>{projectNames || "All projects"}</Text>
         </View>;
         return entry.recordType === "milestone"

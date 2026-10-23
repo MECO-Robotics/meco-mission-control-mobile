@@ -4,7 +4,7 @@ import { useMaterialsBrowse } from "../inventory/useMaterialsBrowse";
 import { usePartsBrowse } from "../inventory/usePartsBrowse";
 
 const definition = (id: string, name: string): PartDefinition => ({
-  id, seasonId: "season-2026", activeSeasonIds: ["season-2026"], name, partNumber: id.toUpperCase(), revision: "A", iteration: 1, isArchived: false,
+  id, seasonId: "season-2026", activeSeasonIds: ["season-2026"], name, partNumber: id.toUpperCase(), vendorPartNumbers: {}, revision: "A", iteration: 1, isArchived: false,
   type: "custom", defaultAcquisitionMethod: "manufacture", materialId: null, description: "", cadSource: "manual", cadImportSource: "MANUAL", cadEditedAfterImport: false,
 });
 
@@ -27,6 +27,24 @@ test("materials calculate commercial open orders from PurchaseItems and keep raw
   ]));
   act(() => result.current.updateFilters({ search: "steel", category: "metal", stock: "low" }));
   expect(result.current.rows).toHaveLength(1);
+});
+
+test("unknown stock remains unknown instead of producing a guessed restock quantity", () => {
+  const materials: Material[] = [
+    { id: "steel", name: "Steel", category: "metal", unit: "sheet", onHandQuantity: null, reorderPoint: 5, location: "Rack A", preferredVendorId: null, notes: "" },
+  ];
+  const { result } = renderHook(() => useMaterialsBrowse({ materials, purchaseItems: [] }));
+
+  expect(result.current.rows[0]).toMatchObject({ onHand: null, stock: "unknown", suggestedOrderQuantity: null });
+});
+
+test("an unset reorder point stays unknown and does not produce a restock suggestion", () => {
+  const materials: Material[] = [
+    { id: "steel", name: "Steel", category: "metal", unit: "sheet", onHandQuantity: 1, reorderPoint: null, location: "Rack A", preferredVendorId: null, notes: "" },
+  ];
+  const { result } = renderHook(() => useMaterialsBrowse({ materials, purchaseItems: [] }));
+
+  expect(result.current.rows[0]).toMatchObject({ reorderPoint: null, stock: "unknown", suggestedOrderQuantity: null });
 });
 
 test("part inventory counts physical instances and keeps location distinct from readiness", () => {

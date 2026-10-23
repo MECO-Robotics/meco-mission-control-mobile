@@ -11,7 +11,7 @@ type Inputs = { tasks: Task[]; materials: Material[]; vendors: Vendor[]; purchas
 export function usePurchaseEditor({ tasks, materials, vendors, purchaseItems, canMentorApprove, mutate }: Inputs) {
   const { view: editor, open: openDraft, setError, complete } = useEditorDraft(buildDraft);
   const open = (seed?: PurchaseItem) => openDraft(buildDraft(seed), seed?.id ?? null);
-  const restock = (row: MaterialRollup) => openDraft({ ...buildDraft(), title: `Restock ${row.name}`, materialId: row.id, quantity: String(Math.max(1, row.suggestedOrderQuantity)) });
+  const restock = (row: MaterialRollup) => openDraft({ ...buildDraft(), title: `Restock ${row.name}`, materialId: row.id, quantity: row.suggestedOrderQuantity === null ? "" : String(Math.max(1, row.suggestedOrderQuantity)) });
   const save = async () => {
     const quantity = Number(editor.draft.quantity);
     const amount = editor.draft.amount.trim() ? Number(editor.draft.amount) : null;

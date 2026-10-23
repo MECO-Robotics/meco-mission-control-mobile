@@ -28,7 +28,7 @@ const requirements: Requirement[] = [{ id: "drive-req-1", subsystemId: "drive", 
 const partDefinitions: PartDefinition[] = [
   ["pd-swerve-encoder-bracket", "Swerve Encoder Bracket", "DRV-101"], ["pd-intake-guard", "Intake Guard Plate", "MAN-214"], ["pd-pdh-label-sheet", "PDH Label Set", "ELE-052"],
   ["pd-swerve-wheel-service-kit", "Swerve Wheel Service Kit", "DRV-330"], ["pd-battery-cart-harness", "Battery Cart Harness", "OPS-305"], ["pd-driver-station-image", "Driver Station Image", "CTL-410"],
-].map(([id, name, partNumber]) => ({ id, seasonId, activeSeasonIds: [seasonId], name, partNumber, revision: "A", iteration: 1, isArchived: false, type: "custom", defaultAcquisitionMethod: "manufacture", materialId: null, description: "", cadSource: "manual", cadImportSource: "MANUAL", cadEditedAfterImport: false }));
+].map(([id, name, partNumber]) => ({ id, seasonId, activeSeasonIds: [seasonId], name, partNumber, vendorPartNumbers: {}, revision: "A", iteration: 1, isArchived: false, type: "custom", defaultAcquisitionMethod: "manufacture", materialId: null, description: "", cadSource: "manual", cadImportSource: "MANUAL", cadEditedAfterImport: false }));
 const partInstances: PartInstance[] = partDefinitions.slice(0, 3).map((definition, index) => ({
   id: `pi-${definition.id}`, partDefinitionId: definition.id, intendedSubsystemId: index === 1 ? "manipulator" : "drive", intendedMechanismId: index === 1 ? "intake-roller" : "swerve-module",
   location: { kind: "installed", subsystemId: index === 1 ? "manipulator" : "drive", mechanismId: index === 1 ? "intake-roller" : "swerve-module" }, readinessStatus: "ready",

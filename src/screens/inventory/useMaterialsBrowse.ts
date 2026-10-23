@@ -24,9 +24,13 @@ export function useMaterialsBrowse({ materials, purchaseItems }: Inputs) {
         openDemand: 0,
         openPurchaseCount: openPurchases.length,
         openPurchaseQuantity,
-        suggestedOrderQuantity: Math.max(0, material.reorderPoint - material.onHandQuantity - openPurchaseQuantity),
+        suggestedOrderQuantity: material.onHandQuantity === null || material.reorderPoint === null
+          ? null
+          : Math.max(0, material.reorderPoint - material.onHandQuantity - openPurchaseQuantity),
         vendor: "See purchasing records",
-        stock: material.onHandQuantity <= material.reorderPoint ? "low" : "ok",
+        stock: material.onHandQuantity === null || material.reorderPoint === null
+          ? "unknown"
+          : material.onHandQuantity <= material.reorderPoint ? "low" : "ok",
       });
     }
 
@@ -57,7 +61,7 @@ export function useMaterialsBrowse({ materials, purchaseItems }: Inputs) {
     (summary, row) => ({
       lowStockCount: summary.lowStockCount + (row.stock === "low" ? 1 : 0),
       suggestedRestockCount:
-        summary.suggestedRestockCount + (row.suggestedOrderQuantity > 0 ? 1 : 0),
+        summary.suggestedRestockCount + (row.suggestedOrderQuantity !== null && row.suggestedOrderQuantity > 0 ? 1 : 0),
     }),
     { lowStockCount: 0, suggestedRestockCount: 0 },
   ), [rows]);

@@ -30,14 +30,14 @@ export type MaterialRollup = {
   id: string;
   name: string;
   category: string;
-  onHand: number;
-  reorderPoint: number;
+  onHand: number | null;
+  reorderPoint: number | null;
   openDemand: number;
   openPurchaseCount: number;
   openPurchaseQuantity: number;
-  suggestedOrderQuantity: number;
+  suggestedOrderQuantity: number | null;
   vendor: string;
-  stock: "low" | "ok";
+  stock: "low" | "ok" | "unknown";
 };
 
 export type EditorMode = "create" | "edit";

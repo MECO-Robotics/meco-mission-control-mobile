@@ -1,11 +1,12 @@
 import { isTaskBlocked } from "./taskReadiness";
 import type { ResponsibleGroup, Task } from "../types/domain";
+import { compareNullableDateStrings } from "../ui/helpers";
 
 export type TaskQueueSectionId = "primary-available" | "other-available" | "blocked" | "waiting-qa" | "completed";
 export type TaskQueueSection = { emptyBody?: string; emptyTitle?: string; id: TaskQueueSectionId; tasks: Task[]; title: string };
 type BuildTaskQueueSectionsInput = { activeResponsibleGroupId: string; responsibleGroups: ResponsibleGroup[]; canViewAllQueues: boolean; tasks: Task[] };
 
-function compareTasksByDueDate(left: Task, right: Task) { return left.dueDate.localeCompare(right.dueDate) || left.title.localeCompare(right.title); }
+function compareTasksByDueDate(left: Task, right: Task) { return compareNullableDateStrings(left.dueDate, right.dueDate) || left.title.localeCompare(right.title); }
 
 export function buildTaskQueueSections({ activeResponsibleGroupId, responsibleGroups, canViewAllQueues, tasks }: BuildTaskQueueSectionsInput) {
   const group = responsibleGroups.find((item) => item.id === activeResponsibleGroupId);
