@@ -37,6 +37,15 @@ test("filter changes compose and queue navigation resets the entire selection", 
   expect(result.current.filters.taskPriorityFilter).toBe("all");
 });
 
+test("status filters can isolate unrecorded source tasks", () => {
+  const sourceTask = { ...ready, id: "source", status: "unrecorded" as const };
+  const { result } = renderHook(() => useTaskQueue({ ...inputs, tasks: [ready, sourceTask] }));
+
+  act(() => result.current.setFilter("taskStatusFilter", "unrecorded"));
+
+  expect(result.current.filteredTaskQueue.map((task) => task.id)).toEqual(["source"]);
+});
+
 test.each([
   ["blocked", ["blocked", "waiting"]], ["dependency-wait", ["waiting"]], ["ready-now", ["ready"]],
 ] as const)("%s selection preserves dependency and readiness behavior", (filter, ids) => {

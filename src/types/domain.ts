@@ -2,7 +2,8 @@ export type MemberRole = "student" | "lead" | "mentor" | "admin" | "external" | 
 export type PlannedAttendanceDay =
   | "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday";
 export type ProjectType = "robot" | "media" | "outreach" | "operations" | "strategy" | "training";
-export type TaskStatus = "not-started" | "in-progress" | "waiting-for-qa" | "complete";
+export type TaskStatus = "not-started" | "in-progress" | "waiting-for-qa" | "complete" | "unrecorded";
+export type TaskWorkflowStatus = Exclude<TaskStatus, "unrecorded">;
 export type TaskPriority = "critical" | "high" | "medium" | "low";
 export type ReadinessStatus = "not-ready" | "blocked" | "qa" | "ready";
 export type FulfillmentSource = "in-house" | "outsourced";
@@ -190,7 +191,7 @@ export type ScheduleReference =
   | { kind: "milestone"; id: string };
 
 export type TaskDependency =
-  | { id: string; taskId: string; kind: "task"; refId: string; requiredState: TaskStatus; dependencyType: "hard" | "soft"; createdAt: string }
+  | { id: string; taskId: string; kind: "task"; refId: string; requiredState: TaskWorkflowStatus; dependencyType: "hard" | "soft"; createdAt: string }
   | { id: string; taskId: string; kind: "milestone"; refId: string; requiredState: ReadinessStatus; dependencyType: "hard" | "soft"; createdAt: string }
   | { id: string; taskId: string; kind: "part-instance"; refId: string; requiredCondition: { kind: "physical-location"; value: PartInstanceLocation["kind"] } | { kind: "derived-readiness"; value: ReadinessStatus }; dependencyType: "hard" | "soft"; createdAt: string };
 

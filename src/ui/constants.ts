@@ -16,6 +16,11 @@ export const TASK_STATUS_OPTIONS: Option[] = [
   { id: "complete", name: "Complete" },
 ];
 
+export const TASK_STATUS_FILTER_OPTIONS: Option[] = [
+  ...TASK_STATUS_OPTIONS,
+  { id: "unrecorded", name: "Unrecorded" },
+];
+
 export const TASK_PRIORITY_OPTIONS: Option[] = [
   { id: "critical", name: "Critical" },
   { id: "high", name: "High" },
@@ -193,6 +198,7 @@ export const STATUS_LABELS: Record<TaskStatus, string> = {
   "in-progress": "In progress",
   "waiting-for-qa": "Waiting for QA",
   complete: "Complete",
+  unrecorded: "Unrecorded",
 };
 
 export const SUBVIEW_INTERACTION_GUIDANCE: Record<string, string[]> = {

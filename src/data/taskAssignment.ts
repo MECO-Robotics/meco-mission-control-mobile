@@ -114,7 +114,7 @@ export function getTaskAssignmentState({
       canSignedInMemberOwnTasks &&
       !isDone &&
       !isBlocked &&
-      (task.status === "not-started" || task.status === "in-progress") &&
+      (task.status === "not-started" || task.status === "in-progress" || task.status === "unrecorded") &&
       (!task.ownerId || isClaimedByCurrentMember),
     isClaimedByCurrentMember,
     isClaimedByOtherMember,

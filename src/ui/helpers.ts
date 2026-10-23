@@ -85,7 +85,11 @@ export function getStatusGroup(value: string): StatusGroup {
   return "neutral";
 }
 
-export function timelineProgress(status: TaskStatus): number {
+export function timelineProgress(status: TaskStatus): number | null {
+  if (status === "unrecorded") {
+    return null;
+  }
+
   if (status === "complete") {
     return 1;
   }

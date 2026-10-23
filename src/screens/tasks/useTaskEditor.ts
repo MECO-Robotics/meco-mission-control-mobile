@@ -129,7 +129,10 @@ export function useTaskEditor({ mechanisms, partInstances, projects, workTypes, 
       title, summary, subsystemIds: taskDraft.subsystemIds, mechanismIds: taskDraft.mechanismIds, partInstanceIds: taskDraft.partInstanceIds,
       scheduleRefs: taskDraft.scheduleRefs, workstreamIds: taskDraft.workstreamIds, ownerId: taskDraft.ownerId || null,
       assigneeIds: taskDraft.assigneeIds, requestedById: existingTask?.requestedById ?? null, mentorId: taskDraft.mentorId || null,
-      startDate: taskDraft.startDate || null, dueDate: taskDraft.dueDate || null, priority: taskDraft.priority, status: taskDraft.status,
+      startDate: taskDraft.startDate || null, dueDate: taskDraft.dueDate || null, priority: taskDraft.priority,
+      ...(isEdit && existingTask?.status === "unrecorded" && taskDraft.status === "unrecorded"
+        ? {}
+        : { status: taskDraft.status }),
       checklistItems, estimatedHours,
       requiresDocumentation: existingTask?.requiresDocumentation ?? false, manufacturingDetails: taskDraft.manufacturingDetails,
     };

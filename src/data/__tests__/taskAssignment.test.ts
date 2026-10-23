@@ -54,6 +54,18 @@ describe("task assignment state", () => {
     expect(state.canRelease).toBe(false);
   });
 
+  it("lets a student explicitly start an unrecorded source task", () => {
+    const state = getTaskAssignmentState({
+      canReassignTasks: false,
+      membersById,
+      signedInMember: student,
+      task: { ...baseTask, status: "unrecorded" },
+    });
+
+    expect(state.canClaim).toBe(true);
+    expect(state.canStartWork).toBe(true);
+  });
+
   it("lets the current owner release and start work", () => {
     const state = getTaskAssignmentState({
       canReassignTasks: false,
