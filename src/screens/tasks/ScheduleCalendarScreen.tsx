@@ -26,7 +26,7 @@ function localDate(value: string) {
 }
 
 function monthStartFor(entries: ScheduleEntry[], tasks: Task[]) {
-  const firstDate = [...entries.map((entry) => entry.startDateTime), ...tasks.map((task) => task.dueDate)].map(localDate).filter((date) => !Number.isNaN(date.getTime())).sort((a, b) => a.getTime() - b.getTime())[0];
+  const firstDate = [...entries.map((entry) => entry.startDateTime), ...tasks.map((task) => task.dueDate)].filter((value): value is string => value !== null).map(localDate).filter((date) => !Number.isNaN(date.getTime())).sort((a, b) => a.getTime() - b.getTime())[0];
   const date = firstDate ?? new Date();
   return new Date(date.getFullYear(), date.getMonth(), 1);
 }
@@ -35,7 +35,7 @@ export function ScheduleCalendarScreen({ appResponsiveStyles, events, tasks, mem
   const { colors } = useAppTheme();
   const [visibleMonth, setVisibleMonth] = useState(() => monthStartFor(events, tasks));
   const [selectedDate, setSelectedDate] = useState(() => {
-    const firstDate = [...events.map((entry) => entry.startDateTime), ...tasks.map((task) => task.dueDate)].map(localDate).filter((date) => !Number.isNaN(date.getTime())).sort((a, b) => a.getTime() - b.getTime())[0];
+    const firstDate = [...events.map((entry) => entry.startDateTime), ...tasks.map((task) => task.dueDate)].filter((value): value is string => value !== null).map(localDate).filter((date) => !Number.isNaN(date.getTime())).sort((a, b) => a.getTime() - b.getTime())[0];
     return dateKey(firstDate ?? new Date());
   });
   const days = useMemo(() => {

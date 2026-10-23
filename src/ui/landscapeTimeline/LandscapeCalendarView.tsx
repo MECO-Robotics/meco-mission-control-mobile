@@ -61,8 +61,8 @@ export function LandscapeCalendarView({
                 const isCurrentMonth = day.getMonth() === timelineStart.getMonth();
                 const isToday = dayKey === todayKey;
                 const tasksForDay = taskItems.filter(({ task }) => {
-                  const { start, end } = getTaskDateRange(task);
-                  return daysBetween(start, day) >= 0 && daysBetween(day, end) >= 0;
+                  const taskRange = getTaskDateRange(task);
+                  return taskRange !== null && daysBetween(taskRange.start, day) >= 0 && daysBetween(day, taskRange.end) >= 0;
                 });
                 const eventsForDay = events.filter((event) => toDateKey(parseDate(event.startDateTime)) === dayKey);
                 const visibleTasks = tasksForDay.slice(0, MAX_ITEMS_PER_DAY);

@@ -157,7 +157,14 @@ export function getAppLocale() {
   return appLocaleOverride ?? getDeviceLocale();
 }
 
-export function formatDate(value: string, locale = getAppLocale()) {
+export function compareNullableDateStrings(left: string | null, right: string | null) {
+  if (left === null) return right === null ? 0 : 1;
+  if (right === null) return -1;
+  return left.localeCompare(right);
+}
+
+export function formatDate(value: string | null, locale = getAppLocale()) {
+  if (!value) return "Date unknown";
   const date = parseDateOnly(value);
 
   if (!date) {
@@ -196,7 +203,8 @@ export function localTodayDate() {
   return offsetAdjusted.toISOString().slice(0, 10);
 }
 
-export function formatDateTime(value: string, locale = getAppLocale()) {
+export function formatDateTime(value: string | null, locale = getAppLocale()) {
+  if (!value) return "Date unknown";
   return new Date(value).toLocaleString(locale, {
     month: "short",
     day: "numeric",

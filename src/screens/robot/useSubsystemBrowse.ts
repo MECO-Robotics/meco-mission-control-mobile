@@ -83,7 +83,7 @@ export function useSubsystemBrowse({ subsystems, mechanisms, tasks, purchaseItem
         if (task.status !== "complete" && (task.isBlocked || task.isWaitingOnDependency)) {
           bucket.blockedTasks += 1;
         }
-        if (task.status !== "complete" && task.dueDate < today) {
+        if (task.status !== "complete" && task.dueDate !== null && task.dueDate < today) {
           bucket.overdueTasks += 1;
         }
         if (task.status === "waiting-for-qa") {

@@ -21,6 +21,7 @@ import {
 import {
   buildDateTime,
   buildWorkLogDraft,
+  compareNullableDateStrings,
   formatDate,
   formatDateTime,
   isoToday,
@@ -77,6 +78,7 @@ import type {
   Member,
   Mechanism,
   Material,
+  MaterialTransaction,
   Project,
   PartDefinition,
   PartInstance,
@@ -410,6 +412,7 @@ export default function App() {
     return () => workLogQueue.dispose();
   }, [workLogQueue]);
   const [materials, setMaterials] = useState<Material[]>([]);
+  const [materialTransactions, setMaterialTransactions] = useState<MaterialTransaction[]>([]);
   const [manufacturingProcesses, setManufacturingProcesses] = useState<ManufacturingProcess[]>([]);
   const [purchaseItems, setPurchaseItems] = useState<PurchaseItem[]>([]);
   const [partDefinitions, setPartDefinitions] = useState<PartDefinition[]>([]);
@@ -492,6 +495,7 @@ export default function App() {
     workLogsRef.current = payloadWorkLogs;
     setWorkLogs(payloadWorkLogs);
     setMaterials(ensureArray(payload.materials));
+    setMaterialTransactions(ensureArray(payload.materialTransactions));
     setManufacturingProcesses(ensureArray(payload.manufacturingProcesses));
     setPurchaseItems(ensureArray(payload.purchaseItems));
     setQaRequests(ensureArray(payload.qaRequests));
@@ -1270,9 +1274,7 @@ export default function App() {
       )
       .filter((task) => taskArchiveFilter === "all" ||
         (taskArchiveFilter === "archived" ? task.status === "complete" : task.status !== "complete"))
-      .sort((left, right) =>
-      left.dueDate.localeCompare(right.dueDate),
-    );
+      .sort((left, right) => compareNullableDateStrings(left.dueDate, right.dueDate));
   }, [activeResponsibleGroupIdTasks, activePersonFilter, taskArchiveFilter, timelineMilestoneFilter, timelineSubsystemFilter]);
 
   const filteredWorkLogs = useMemo(() => {
@@ -1427,7 +1429,7 @@ export default function App() {
             source: "task" as const,
             title: task.title,
           });
-        } else if (task.dueDate < today) {
+        } else if (task.dueDate && task.dueDate < today) {
           actions.push({
             detail: `${subsystemName} - ${ownerName} - was due ${formatDate(task.dueDate)}`,
             id: `overdue-${task.id}`,
@@ -1457,7 +1459,7 @@ export default function App() {
             source: "task" as const,
             title: task.title,
           });
-        } else if (task.dueDate <= dueSoonDate) {
+        } else if (task.dueDate && task.dueDate <= dueSoonDate) {
           actions.push({
             detail: `${subsystemName} - ${ownerName} - due ${formatDate(task.dueDate)}`,
             id: `due-soon-${task.id}`,
@@ -1493,7 +1495,7 @@ export default function App() {
   const homeTaskSummary = useMemo(() => {
     const openTasks = tasks.filter((task) => task.status !== "complete");
     const blockedTasks = openTasks.filter((task) => task.isBlocked);
-    const dueToday = openTasks.filter((task) => task.dueDate <= isoToday());
+    const dueToday = openTasks.filter((task) => task.dueDate === isoToday());
     const waitingQa = openTasks.filter((task) => task.status === "waiting-for-qa");
 
     return [
@@ -1705,7 +1707,7 @@ export default function App() {
   };
 
   const shiftTaskDueDates = async (tasksToShift: Task[], dayDelta: number) => {
-    const openTasksToShift = tasksToShift.filter((task) => task.status !== "complete");
+    const openTasksToShift = tasksToShift.filter((task) => task.status !== "complete" && task.dueDate !== null);
 
     if (openTasksToShift.length === 0 || dayDelta === 0) {
       return;
@@ -1723,7 +1725,7 @@ export default function App() {
             {
               method: "PATCH",
               body: JSON.stringify({
-                dueDate: shiftDateByDays(task.dueDate, dayDelta),
+                dueDate: shiftDateByDays(task.dueDate!, dayDelta),
               }),
             },
           ),
@@ -2397,6 +2399,7 @@ export default function App() {
     setWorkLogs([]);
     workLogQueue.dispose();
     setMaterials([]);
+    setMaterialTransactions([]);
     setManufacturingProcesses([]);
     setPurchaseItems([]);
     setPartDefinitions([]);
@@ -2596,6 +2599,8 @@ export default function App() {
     projectsById: Object.fromEntries(projects.map((project) => [project.id, project])),
     purchaseBrowse,
     materialsBrowse,
+    materialTransactions,
+    materials,
     partsBrowse,
     subsystemBrowse,
     appResponsiveStyles,

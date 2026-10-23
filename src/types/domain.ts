@@ -1,4 +1,4 @@
-export type MemberRole = "student" | "lead" | "mentor" | "admin" | "external";
+export type MemberRole = "student" | "lead" | "mentor" | "admin" | "external" | "unknown";
 export type PlannedAttendanceDay =
   | "monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday";
 export type ProjectType = "robot" | "media" | "outreach" | "operations" | "strategy" | "training";
@@ -113,12 +113,29 @@ export interface Material {
   name: string;
   category: "metal" | "plastic" | "filament" | "electronics" | "hardware" | "consumable" | "other";
   unit: string;
-  onHandQuantity: number;
-  reorderPoint: number;
+  onHandQuantity: number | null;
+  reorderPoint: number | null;
   location: string;
   preferredVendorId: string | null;
   notes: string;
   photoUrl?: string;
+}
+
+export interface MaterialTransaction {
+  id: string;
+  operationId: string;
+  materialId: string;
+  movementType: "opening-balance" | "receipt" | "consumption" | "adjustment";
+  quantityDelta: number | null;
+  reason: string;
+  recordedAt: string;
+  actorMemberId: string | null;
+  taskId?: string;
+  projectId?: string;
+  purchaseItemId?: string;
+  purchaseReceiptId?: string;
+  occurredAt?: string | null;
+  sourceReference?: string;
 }
 
 export interface PartDefinition {
@@ -127,6 +144,7 @@ export interface PartDefinition {
   activeSeasonIds: string[];
   name: string;
   partNumber: string;
+  vendorPartNumbers: Record<string, string>;
   revision: string;
   iteration: number;
   isArchived: boolean;
@@ -223,8 +241,8 @@ export interface Task {
   ownerId: string | null;
   assigneeIds: string[];
   mentorId: string | null;
-  startDate: string;
-  dueDate: string;
+  startDate: string | null;
+  dueDate: string | null;
   priority: TaskPriority;
   status: TaskStatus;
   checklistItems: string[];
@@ -327,7 +345,9 @@ export interface Meeting {
   projectIds: string[];
   title: string;
   meetingType: "general" | "build" | "review" | "outreach" | "competition" | "other";
-  startAt: string;
+  date?: string | null;
+  dateLabel?: string;
+  startAt: string | null;
   endAt: string | null;
   location: string;
   description: string;
@@ -339,7 +359,9 @@ export interface Event {
   projectIds: string[];
   eventType: "competition" | "practice" | "other";
   title: string;
-  startAt: string;
+  date?: string | null;
+  dateLabel?: string;
+  startAt: string | null;
   endAt: string | null;
   location: string;
   description: string;
@@ -351,7 +373,9 @@ export interface Milestone {
   projectIds: string[];
   type: "practice" | "competition" | "deadline" | "internal-review" | "demo";
   title: string;
-  startAt: string;
+  date?: string | null;
+  dateLabel?: string;
+  startAt: string | null;
   endAt: string | null;
   status: "planned" | "active" | "complete";
   readinessStatus?: ReadinessStatus;
@@ -487,6 +511,7 @@ export interface PlatformBootstrapPayload {
   manufacturingProcesses: ManufacturingProcess[];
   purchaseItems: PurchaseItem[];
   materials: Material[];
+  materialTransactions: MaterialTransaction[];
   partDefinitions: PartDefinition[];
   partInstances: PartInstance[];
   meetings: Meeting[];

@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import type { Mechanism, PartInstance, Task, TaskDependency, Member, WorkType, Project } from "../../types/domain";
 import type { EditorMode, Option } from "../../ui/types";
 import { STATUS_LABELS } from "../../ui/constants";
-import { isoToday, localTodayDate } from "../../ui/helpers";
+import { compareNullableDateStrings, isoToday, localTodayDate } from "../../ui/helpers";
 import { taskDependsOnTarget } from "../../data/taskReadiness";
 import { eligibleTaskMentors, eligibleTaskOwners, getDefaultTaskPeople } from "../../data/taskPeople";
 import { getClientErrorMessage } from "../../app/appModel";
@@ -48,14 +48,14 @@ export function useTaskEditor({ mechanisms, partInstances, projects, workTypes, 
   }, [taskDraft.dependencies, taskById]);
   const downstreamTaskDependencies = useMemo(() => !activeTaskId ? [] : tasks.filter((task) => task.id !== activeTaskId)
     .filter((task) => taskDependencies.some((edge) => edge.taskId === task.id && edge.kind === "task" && edge.refId === activeTaskId))
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.title.localeCompare(b.title)).slice(0, 6), [activeTaskId, tasks, taskDependencies]);
+    .sort((a, b) => compareNullableDateStrings(a.dueDate, b.dueDate) || a.title.localeCompare(b.title)).slice(0, 6), [activeTaskId, tasks, taskDependencies]);
   const availableTaskDependencyOptions = useMemo(() => {
     const selected = new Set(selectedTaskDependencyIds);
     const search = taskDependencySearch.trim().toLowerCase();
     return tasks.filter((task) => task.id !== activeTaskId && !selected.has(task.id))
       .filter((task) => !activeTaskId || !taskDependsOnTarget(task.id, activeTaskId, taskDependencies))
       .filter((task) => !search || `${task.id} ${task.title} ${task.summary} ${STATUS_LABELS[task.status]} ${task.subsystemIds.map((id) => subsystemsById[id]?.name ?? "").join(" ")} ${task.ownerId ? membersById[task.ownerId]?.name ?? "" : ""}`.toLowerCase().includes(search))
-      .sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.title.localeCompare(b.title)).slice(0, search ? 20 : 10);
+      .sort((a, b) => compareNullableDateStrings(a.dueDate, b.dueDate) || a.title.localeCompare(b.title)).slice(0, search ? 20 : 10);
   }, [activeTaskId, membersById, selectedTaskDependencyIds, subsystemsById, taskDependencySearch, tasks, taskDependencies]);
 
   const openCreateTaskEditor = () => {
@@ -129,7 +129,7 @@ export function useTaskEditor({ mechanisms, partInstances, projects, workTypes, 
       title, summary, subsystemIds: taskDraft.subsystemIds, mechanismIds: taskDraft.mechanismIds, partInstanceIds: taskDraft.partInstanceIds,
       scheduleRefs: taskDraft.scheduleRefs, workstreamIds: taskDraft.workstreamIds, ownerId: taskDraft.ownerId || null,
       assigneeIds: taskDraft.assigneeIds, requestedById: existingTask?.requestedById ?? null, mentorId: taskDraft.mentorId || null,
-      startDate: taskDraft.startDate || isoToday(), dueDate: taskDraft.dueDate || isoToday(), priority: taskDraft.priority, status: taskDraft.status,
+      startDate: taskDraft.startDate || null, dueDate: taskDraft.dueDate || null, priority: taskDraft.priority, status: taskDraft.status,
       checklistItems, estimatedHours,
       requiresDocumentation: existingTask?.requiresDocumentation ?? false, manufacturingDetails: taskDraft.manufacturingDetails,
     };
