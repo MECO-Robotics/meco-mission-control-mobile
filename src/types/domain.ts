@@ -284,18 +284,22 @@ export interface PurchaseReceipt {
   operationId?: string;
   quantity: number;
   location: string;
-  receivedAt: string;
+  receivedAt: string | null;
   partInstanceIds: string[];
 }
 
 export interface PurchaseItem {
   id: string;
-  taskId: string;
+  taskId: string | null;
   kind: PurchaseKind;
   partDefinitionId: string | null;
   materialId: string | null;
   title: string;
-  quantity: number;
+  quantity: number | null;
+  seasonId?: string;
+  projectId?: string;
+  sourceStatus?: string;
+  sourceReference?: string;
   quotes: PurchaseQuote[];
   selectedQuoteId: string | null;
   approvalStatus: PurchaseApprovalStatus;

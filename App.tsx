@@ -1180,7 +1180,7 @@ export default function App() {
     }, {});
   }, [workLogsForDisplay]);
 
-  const purchaseTaskIds = useMemo(() => new Set(purchaseItems.map((item) => item.taskId)), [purchaseItems]);
+  const purchaseTaskIds = useMemo(() => new Set(purchaseItems.flatMap((item) => item.taskId ? [item.taskId] : [])), [purchaseItems]);
   const taskQueue = useTaskQueue({ tasks, taskLoggedHoursById, activeResponsibleGroupId, responsibleGroups, purchaseTaskIds,
     canMentorApprove, activePersonFilter, membersById, mechanismsById, subsystemsById });
   const { taskArchiveFilter } = taskQueue.filters;
@@ -1475,16 +1475,19 @@ export default function App() {
       });
 
     const purchaseActions = purchaseItems
-      .filter((item) => item.approvalStatus === "pending" || item.orderStatus === "not-ordered")
-      .map((item) => ({
-        detail: `${taskById[item.taskId]?.title ?? "Procurement work"} - Qty ${item.quantity} - ${item.approvalStatus}`,
-        id: `purchase-${item.taskId}`,
-        label: "Procurement work",
-        onPressTargetId: item.taskId,
-        priority: item.approvalStatus === "approved" ? "high" as const : "medium" as const,
-        source: "purchase" as const,
-        title: taskById[item.taskId]?.title ?? item.title,
-      }));
+      .filter((item) => item.taskId && (item.approvalStatus === "pending" || item.orderStatus === "not-ordered"))
+      .map((item) => {
+        const task = item.taskId ? taskById[item.taskId] : undefined;
+        return {
+          detail: `${task?.title ?? "Procurement work"} - Qty ${item.quantity ?? "unknown"} - ${item.approvalStatus}`,
+          id: `purchase-${item.id}`,
+          label: "Procurement work",
+          onPressTargetId: item.taskId!,
+          priority: item.approvalStatus === "approved" ? "high" as const : "medium" as const,
+          source: "purchase" as const,
+          title: task?.title ?? item.title,
+        };
+      });
 
     const priorityRank = { critical: 0, high: 1, medium: 2 };
 

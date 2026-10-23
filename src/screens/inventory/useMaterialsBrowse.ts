@@ -14,7 +14,7 @@ export function useMaterialsBrowse({ materials, purchaseItems }: Inputs) {
     for (const material of materials) {
       const relatedPurchases = purchaseItems.filter((item) => item.materialId === material.id);
       const openPurchases = relatedPurchases.filter((item) => !["delivered", "cancelled"].includes(item.orderStatus));
-      const openPurchaseQuantity = openPurchases.reduce((sum, item) => sum + item.quantity, 0);
+      const openPurchaseQuantity = openPurchases.reduce((sum, item) => sum + (item.quantity ?? 0), 0);
       rows.push({
         id: material.id,
         name: material.name,

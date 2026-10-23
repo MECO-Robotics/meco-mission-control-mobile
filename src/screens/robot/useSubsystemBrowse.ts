@@ -93,7 +93,7 @@ export function useSubsystemBrowse({ subsystems, mechanisms, tasks, purchaseItem
     }
 
     for (const purchase of purchaseItems) {
-      const task = taskById[purchase.taskId];
+      const task = purchase.taskId ? taskById[purchase.taskId] : undefined;
       for (const subsystemId of new Set(task?.subsystemIds ?? [])) {
         const bucket = counts[subsystemId];
         if (bucket && purchase.orderStatus !== "delivered" && purchase.orderStatus !== "cancelled") {
