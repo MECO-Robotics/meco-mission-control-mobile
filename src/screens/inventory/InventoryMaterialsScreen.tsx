@@ -37,7 +37,10 @@ export function InventoryMaterialsScreen(props: AppScreenProps) {
     openCreatePurchaseEditor,
     openMaterialRestockEditor,
   } = props;
+  const inventoryKind = props.inventoryKind ?? "materials";
+  const isToolsView = inventoryKind === "tools";
   const { filters, updateFilters, rows, summary } = materialsBrowse;
+  const visibleRows = rows.filter((row) => (row.category === "tool") === isToolsView);
   const [activeMaterialId, setActiveMaterialId] = useState<string | null>(null);
   const [historyMaterialId, setHistoryMaterialId] = useState<string | null>(null);
   const [operationId, setOperationId] = useState("");
@@ -52,7 +55,8 @@ export function InventoryMaterialsScreen(props: AppScreenProps) {
   const openTransaction = (materialId: string) => {
     setActiveMaterialId(materialId);
     setOperationId(Crypto.randomUUID());
-    setMovementType(props.materials.find((material) => material.id === materialId)?.onHandQuantity == null ? "receipt" : "consumption");
+    const material = props.materials.find((entry) => entry.id === materialId);
+    setMovementType(material?.category === "tool" ? "adjustment" : material?.onHandQuantity == null ? "receipt" : "consumption");
     setAdjustmentDirection("increase");
     setQuantity("");
     setReason("");
@@ -82,8 +86,8 @@ export function InventoryMaterialsScreen(props: AppScreenProps) {
 
   return (
     <WorkspacePanel
-      title="Materials manager"
-      subtitle="Rollup view for material demand, inferred on-hand stock, and reorder signals."
+      title={isToolsView ? "Tools manager" : "Materials manager"}
+      subtitle={isToolsView ? "Reusable shop tools and equipment with auditable count adjustments." : "Rollup view for fabrication stock, purchases, and reorder signals."}
       actions={
         <ActionButton
           onPress={openCreatePurchaseEditor}
@@ -97,14 +101,14 @@ export function InventoryMaterialsScreen(props: AppScreenProps) {
       <FilterToolbar>
         <SearchField
           onChangeText={(value) => updateFilters({ search: value })}
-          placeholder="Search materials"
+          placeholder={`Search ${isToolsView ? "tools" : "materials"}`}
           value={filters.search}
         />
 
         <OptionChipRow
           allLabel="All categories"
           onChange={(value) => updateFilters({ category: value })}
-          options={MATERIAL_CATEGORY_OPTIONS}
+          options={MATERIAL_CATEGORY_OPTIONS.filter((option) => (option.id === "tool") === isToolsView)}
           value={filters.category}
         />
 
@@ -122,13 +126,13 @@ export function InventoryMaterialsScreen(props: AppScreenProps) {
 
       <SummaryRow
         chips={[
-          { label: "Visible materials", value: String(rows.length) },
-          { label: "Low stock", value: String(summary.lowStockCount) },
-          { label: "Restock suggested", value: String(summary.suggestedRestockCount) },
+          { label: `Visible ${isToolsView ? "tools" : "materials"}`, value: String(visibleRows.length) },
+          { label: isToolsView ? "Count unknown" : "Low stock", value: String(isToolsView ? visibleRows.filter((row) => row.stock === "unknown").length : summary.lowStockCount) },
+          { label: isToolsView ? "Movement history" : "Restock suggested", value: String(isToolsView ? materialTransactions.filter((entry) => props.materials.some((material) => material.category === "tool" && material.id === entry.materialId)).length : summary.suggestedRestockCount) },
         ]}
       />
 
-      {rows.map((row) => (
+      {visibleRows.map((row) => (
         <View key={row.id} style={[styles.queueRowCard, appResponsiveStyles.rowCard]}>
           <View style={styles.queueRowHeader}>
             <View style={styles.queueRowPrimaryText}>
@@ -142,7 +146,7 @@ export function InventoryMaterialsScreen(props: AppScreenProps) {
                 onPress={() => openTransaction(row.id)}
                 style={[styles.quickActionButton, appResponsiveStyles.quickActionButton, styles.quickActionButtonPrimary]}
               >
-                <Text style={styles.quickActionButtonPrimaryLabel}>Record movement</Text>
+                <Text style={styles.quickActionButtonPrimaryLabel}>{isToolsView ? "Record adjustment" : "Record movement"}</Text>
               </Pressable>
               <Pressable onPress={() => openMaterialRestockEditor(row)} style={[styles.quickActionButton, appResponsiveStyles.quickActionButton]}>
                 <Text style={styles.quickActionButtonLabel}>Create purchase</Text>
@@ -187,21 +191,20 @@ export function InventoryMaterialsScreen(props: AppScreenProps) {
         </View>
       ))}
 
-      {rows.length === 0 ? (
-        <EmptyState text="No materials match the current filters." />
+      {visibleRows.length === 0 ? (
+        <EmptyState text={`No ${isToolsView ? "tools" : "materials"} match the current filters.`} />
       ) : null}
 
       <InteractionNote steps={SUBVIEW_INTERACTION_GUIDANCE.materials} />
       <EditorModal
         onCancel={() => setActiveMaterialId(null)}
         onSave={saveTransaction}
-        saveLabel="Record movement"
-        title={`Stock movement${selectedMaterial ? ` · ${selectedMaterial.name}` : ""}`}
+        saveLabel={isToolsView ? "Record adjustment" : "Record movement"}
+        title={`${isToolsView ? "Tool adjustment" : "Stock movement"}${selectedMaterial ? ` · ${selectedMaterial.name}` : ""}`}
         visible={Boolean(activeMaterial)}
       >
         <DropdownField label="Movement" onChange={(value) => setMovementType(value as typeof movementType)} options={[
-          { id: "receipt", name: "Receipt" },
-          { id: "consumption", name: "Consumption" },
+          ...(!isToolsView ? [{ id: "receipt", name: "Receipt" }, { id: "consumption", name: "Consumption" }] : []),
           { id: "adjustment", name: "Adjustment" },
         ].filter((option) => option.id !== "consumption" || (selectedMaterial !== undefined && selectedMaterial.onHandQuantity !== null))} value={movementType} />
         {movementType === "adjustment" ? <DropdownField label="Adjustment direction" onChange={(value) => setAdjustmentDirection(value as typeof adjustmentDirection)} options={[

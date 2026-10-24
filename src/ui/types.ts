@@ -2,7 +2,7 @@ import type { MemberRole } from "../types/domain";
 export type ViewTab =
   | "home"
   | "work-tasks" | "work-schedule" | "work-risks" | "work-activity" | "work-documents" | "work-reports"
-  | "resources-materials" | "resources-parts" | "resources-purchases"
+  | "resources-materials" | "resources-tools" | "resources-parts" | "resources-purchases"
   | "resources-structure"
   | "team-people" | "team-teams";
 

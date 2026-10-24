@@ -68,6 +68,7 @@ export type ResponsiveScreenStyles = {
 };
 
 export interface AppScreenProps {
+  inventoryKind?: "materials" | "tools";
   materialsBrowse: ReturnType<typeof useMaterialsBrowse>;
   materialTransactions: MaterialTransaction[];
   materials: Material[];
