@@ -112,7 +112,7 @@ export interface Requirement {
 export interface Material {
   id: string;
   name: string;
-  category: "metal" | "plastic" | "filament" | "electronics" | "hardware" | "consumable" | "other";
+  category: "metal" | "plastic" | "filament" | "electronics" | "hardware" | "consumable" | "tool" | "other";
   unit: string;
   onHandQuantity: number | null;
   reorderPoint: number | null;
