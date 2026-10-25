@@ -8,8 +8,8 @@ test("task metrics derive open, blocked, overdue and remaining estimate from tas
 
 test("archived groups can be surfaced alongside active groups for restoration", () => {
   const groups: ResponsibleGroup[] = [
-    { id: "active", seasonId: "s", name: "Active", projectIds: [], workTypeIds: [], primaryMemberIds: [], memberIds: [], isArchived: false },
-    { id: "archived", seasonId: "s", name: "Archived", projectIds: [], workTypeIds: [], primaryMemberIds: [], memberIds: [], isArchived: true },
+    { id: "active", seasonId: "s", name: "Active", icon: "wrench", color: "#B45309", projectIds: [], workTypeIds: [], primaryMemberIds: [], memberIds: [], isArchived: false },
+    { id: "archived", seasonId: "s", name: "Archived", icon: "code", color: "#7C3AED", projectIds: [], workTypeIds: [], primaryMemberIds: [], memberIds: [], isArchived: true },
   ];
   expect(getVisibleGroups(groups, "active").map(({ id }) => id)).toEqual(["active"]);
   expect(getVisibleGroups(groups, "archived").map(({ id }) => id)).toEqual(["archived"]);

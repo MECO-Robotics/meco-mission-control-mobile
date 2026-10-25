@@ -15,7 +15,7 @@ const tasks = [ready, blocked, waiting, complete];
 const inputs = {
   tasks, taskById: Object.fromEntries(tasks.map((task) => [task.id, task])),
   taskLoggedHoursById: { ready: 3 }, activeResponsibleGroupId: "programming" as const,
-  responsibleGroups: [{ id: "programming", seasonId: "season", name: "Programming", projectIds: ["robot"], workTypeIds: [], primaryMemberIds: [], memberIds: [], isArchived: false }],
+  responsibleGroups: [{ id: "programming", seasonId: "season", name: "Programming", icon: "code" as const, color: "#7C3AED", projectIds: ["robot"], workTypeIds: [], primaryMemberIds: [], memberIds: [], isArchived: false }],
   purchaseTaskIds: new Set<string>(), canMentorApprove: false, activePersonFilter: "all", mechanismsById: {}, subsystemsById: {},
   membersById: { student: { id: "student", name: "Ada", role: "student" as const, email: "ada@example.org", elevated: false, seasonId: "season", activeSeasonIds: ["season"] } },
 };

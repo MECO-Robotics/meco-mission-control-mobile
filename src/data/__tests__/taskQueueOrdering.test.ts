@@ -3,8 +3,8 @@ import type { Member, ResponsibleGroup, Task } from "../../types/domain";
 
 const mentor: Member = { id: "mentor-1", name: "Mentor One", role: "mentor", email: "mentor@example.org", elevated: true, seasonId: "season", activeSeasonIds: ["season"] };
 const groups: ResponsibleGroup[] = [
-  { id: "robot-build", seasonId: "season", name: "Robot Build", projectIds: ["robot"], workTypeIds: [], primaryMemberIds: [], memberIds: [mentor.id], isArchived: false },
-  { id: "programming", seasonId: "season", name: "Programming", projectIds: ["robot"], workTypeIds: [], primaryMemberIds: [], memberIds: [], isArchived: false },
+  { id: "robot-build", seasonId: "season", name: "Robot Build", icon: "wrench", color: "#B45309", projectIds: ["robot"], workTypeIds: [], primaryMemberIds: [], memberIds: [mentor.id], isArchived: false },
+  { id: "programming", seasonId: "season", name: "Programming", icon: "code", color: "#7C3AED", projectIds: ["robot"], workTypeIds: [], primaryMemberIds: [], memberIds: [], isArchived: false },
 ];
 const baseTask: Task = {
   actualHours: 0, projectId: "robot", workTypeId: "programming", responsibleGroupId: "programming", dueDate: "2026-06-10", estimatedHours: 2,
