@@ -115,7 +115,7 @@ export function TaskTimelineScreen(props: TaskTimelineScreenProps) {
             </View>
 
             <View style={styles.timelineTrack}>
-              <View style={[styles.timelineFill, { width: `${Math.max(8, progress * 100)}%` }]} />
+              {progress === null ? null : <View style={[styles.timelineFill, { width: `${Math.max(8, progress * 100)}%` }]} />}
             </View>
           </Pressable>
         );

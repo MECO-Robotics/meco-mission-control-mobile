@@ -118,8 +118,8 @@ export function TaskQueueCard({
   const isOverEstimate = task.estimatedHours > 0 && loggedHours > task.estimatedHours;
   const todayDate = localTodayDate();
   const soonDate = shiftDateByDays(todayDate, 7);
-  const isOverdue = task.status !== "complete" && task.dueDate < todayDate;
-  const isDueSoon = task.status !== "complete" && task.dueDate >= todayDate && task.dueDate <= soonDate;
+  const isOverdue = task.status !== "complete" && task.dueDate !== null && task.dueDate < todayDate;
+  const isDueSoon = task.status !== "complete" && task.dueDate !== null && task.dueDate >= todayDate && task.dueDate <= soonDate;
   const assignmentState = getTaskAssignmentState({ canReassignTasks, membersById, signedInMember, task });
   const pendingQaRequest = qaRequests.find((request) =>
     isActiveQaRequest(request) &&

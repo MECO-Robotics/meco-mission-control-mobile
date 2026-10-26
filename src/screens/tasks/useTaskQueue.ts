@@ -1,7 +1,7 @@
 import { useMemo, useState, type SetStateAction } from "react";
 import type { Member, Mechanism, Subsystem, Task, ResponsibleGroup } from "../../types/domain";
 import type { ArchiveFilterMode, BlockerFilterMode, SummaryChipData, ResponsibleGroupFilter } from "../../ui/types";
-import { localTodayDate, shiftDateByDays } from "../../ui/helpers";
+import { compareNullableDateStrings, localTodayDate, shiftDateByDays } from "../../ui/helpers";
 import { hasOpenTaskDependency, isTaskBlocked } from "../../data/taskReadiness";
 import { buildTaskQueueSections } from "../../data/taskQueueOrdering";
 
@@ -31,10 +31,10 @@ function matchesBlockerFilter(task: Task, filter: BlockerFilterMode, loggedHours
     case "blocked": return task.isBlocked === true || task.isWaitingOnDependency === true;
     case "clear": return task.isBlocked !== true && task.isWaitingOnDependency !== true;
     case "over-estimate": return task.estimatedHours > 0 && loggedHours > task.estimatedHours;
-    case "overdue": return task.status !== "complete" && task.dueDate < localTodayDate();
+    case "overdue": return task.status !== "complete" && task.dueDate !== null && task.dueDate < localTodayDate();
     case "due-soon": {
       const today = localTodayDate();
-      return task.status !== "complete" && task.dueDate >= today && task.dueDate <= shiftDateByDays(today, 7);
+      return task.status !== "complete" && task.dueDate !== null && task.dueDate >= today && task.dueDate <= shiftDateByDays(today, 7);
     }
     case "dependency-wait": return hasOpenTaskDependency(task);
     case "ready-now":
@@ -112,7 +112,7 @@ export function useTaskQueue({ tasks, taskLoggedHoursById, activeResponsibleGrou
           .toLowerCase()
           .includes(search);
       })
-      .sort((left, right) => left.dueDate.localeCompare(right.dueDate));
+      .sort((left, right) => compareNullableDateStrings(left.dueDate, right.dueDate));
   }, [
     activePersonFilter,
     membersById,

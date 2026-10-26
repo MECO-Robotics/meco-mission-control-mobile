@@ -7,7 +7,7 @@ import type { StyleProp, TextStyle, ViewStyle } from "react-native";
 
 import type { AppThemeColors } from "../theme";
 import type { WorkLogDraftSyncStatus } from "../services/workLogDraftSync";
-import type { Artifact, HelpRequest, Mechanism, Member, PartDefinition, PartInstance, Project, PurchaseItem, QaRequest, QaReport, ResponsibleGroup, Risk, RiskMutationPayload, RiskSeverity, Subsystem, Task, WorkLog, WorkType } from "../types/domain";
+import type { Artifact, HelpRequest, Material, MaterialTransaction, Mechanism, Member, PartDefinition, PartInstance, Project, PurchaseItem, QaRequest, QaReport, ResponsibleGroup, Risk, RiskMutationPayload, RiskSeverity, Subsystem, Task, WorkLog, WorkType } from "../types/domain";
 import type { MaterialRollup, SummaryChipData, ViewTab, WorkLogSortMode } from "../ui/types";
 import type { AttendanceStatus } from "../types/status";
 export type { AttendanceStatus } from "../types/status";
@@ -68,7 +68,10 @@ export type ResponsiveScreenStyles = {
 };
 
 export interface AppScreenProps {
+  inventoryKind?: "materials" | "tools";
   materialsBrowse: ReturnType<typeof useMaterialsBrowse>;
+  materialTransactions: MaterialTransaction[];
+  materials: Material[];
   subsystemBrowse: ReturnType<typeof useSubsystemBrowse>;
   partsBrowse: ReturnType<typeof usePartsBrowse>;
   purchaseBrowse: ReturnType<typeof usePurchaseBrowse>;

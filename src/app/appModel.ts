@@ -164,6 +164,7 @@ export type ScheduleEntry = {
   title: string;
   type: string;
   startDateTime: string;
+  dateLabel?: string;
   endAt: string | null;
   description: string;
   projectIds: string[];
@@ -173,9 +174,9 @@ export function buildScheduleEntries(
   meetings: Meeting[], events: Event[], milestones: Milestone[],
 ): ScheduleEntry[] {
   return [
-    ...meetings.map((item) => ({ id: item.id, recordType: "meeting" as const, title: item.title, type: item.meetingType, startDateTime: item.startAt, endAt: item.endAt, description: item.description, projectIds: item.projectIds })),
-    ...events.map((item) => ({ id: item.id, recordType: "event" as const, title: item.title, type: item.eventType, startDateTime: item.startAt, endAt: item.endAt, description: item.description, projectIds: item.projectIds })),
-    ...milestones.map((item) => ({ id: item.id, recordType: "milestone" as const, title: item.title, type: item.type, startDateTime: item.startAt, endAt: item.endAt, description: item.description, projectIds: item.projectIds })),
+    ...meetings.map((item) => ({ id: item.id, recordType: "meeting" as const, title: item.title, type: item.meetingType, startDateTime: item.startAt ?? item.date ?? "", dateLabel: item.dateLabel, endAt: item.endAt, description: item.description, projectIds: item.projectIds })),
+    ...events.map((item) => ({ id: item.id, recordType: "event" as const, title: item.title, type: item.eventType, startDateTime: item.startAt ?? item.date ?? "", dateLabel: item.dateLabel, endAt: item.endAt, description: item.description, projectIds: item.projectIds })),
+    ...milestones.map((item) => ({ id: item.id, recordType: "milestone" as const, title: item.title, type: item.type, startDateTime: item.startAt ?? item.date ?? "", dateLabel: item.dateLabel, endAt: item.endAt, description: item.description, projectIds: item.projectIds })),
   ];
 }
 

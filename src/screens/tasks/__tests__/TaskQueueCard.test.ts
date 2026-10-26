@@ -22,7 +22,7 @@ const partInstance: PartInstance = {
   cadSource: "manual", cadImportSource: "MANUAL", cadEditedAfterImport: false,
 };
 const partDefinition: PartDefinition = {
-  id: "part-definition", seasonId: "season", activeSeasonIds: ["season"], name: "Encoder bracket", partNumber: "ENC-1",
+  id: "part-definition", seasonId: "season", activeSeasonIds: ["season"], name: "Encoder bracket", partNumber: "ENC-1", vendorPartNumbers: {},
   revision: "A", iteration: 1, isArchived: false, type: "custom", defaultAcquisitionMethod: "manufacture", materialId: null,
   description: "", cadSource: "manual", cadImportSource: "MANUAL", cadEditedAfterImport: false,
 };

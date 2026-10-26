@@ -5,7 +5,7 @@ import {
   ARCHIVE_FILTER_OPTIONS,
   BLOCKER_FILTER_OPTIONS,
   TASK_PRIORITY_OPTIONS,
-  TASK_STATUS_OPTIONS,
+  TASK_STATUS_FILTER_OPTIONS,
 } from "../../ui/constants";
 import { styles } from "../../ui/styles";
 import {
@@ -130,7 +130,7 @@ export function TaskQueueFilterSheet({
               <OptionChipRow
                 allLabel="All statuses"
                 onChange={(value) => setFilter("taskStatusFilter", value)}
-                options={TASK_STATUS_OPTIONS}
+                options={TASK_STATUS_FILTER_OPTIONS}
                 value={filters.taskStatusFilter}
               />
 

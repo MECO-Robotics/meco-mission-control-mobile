@@ -23,7 +23,7 @@ export function usePurchaseBrowse({ items, tasksById, vendorsById }: Inputs) {
           (filters.approval !== "all" && item.approvalStatus !== filters.approval) ||
           (filters.archive === "active" && isClosed) || (filters.archive === "archived" && !isClosed)) return false;
       if (!search) return true;
-      const task = tasksById[item.taskId];
+      const task = item.taskId ? tasksById[item.taskId] : undefined;
       const vendors = vendorIds.map((id) => vendorsById[id]?.name ?? "").join(" ");
       return `${item.title} ${task?.title ?? ""} ${vendors} ${item.purchaseOrderNumber ?? ""}`.toLowerCase().includes(search);
     }).sort((a, b) => a.title.localeCompare(b.title));

@@ -225,7 +225,9 @@ export function TaskEditorModal({
             onChange={(value) =>
               setTaskDraft((current) => ({ ...current, status: value as TaskStatus }))
             }
-            options={TASK_STATUS_OPTIONS}
+            options={taskDraft.status === "unrecorded"
+              ? [...TASK_STATUS_OPTIONS, { id: "unrecorded", name: "Unrecorded" }]
+              : TASK_STATUS_OPTIONS}
             value={taskDraft.status}
           />
           <DropdownField

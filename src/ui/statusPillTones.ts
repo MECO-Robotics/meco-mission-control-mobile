@@ -1,6 +1,10 @@
 import { statusToneColors, workflowStatusToneColors } from "../theme";
 
 export const explicitStatusPillTones: Record<string, { backgroundColor: string; color: string }> = {
+  unrecorded: {
+    backgroundColor: statusToneColors.neutral.surface,
+    color: statusToneColors.neutral.ink,
+  },
   "not-started": {
     backgroundColor: workflowStatusToneColors.notStarted.surface,
     color: workflowStatusToneColors.notStarted.ink,
