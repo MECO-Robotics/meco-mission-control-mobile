@@ -15,7 +15,7 @@ export function getTaskMetrics(tasks: Task[], today = localTodayDate()): TeamTas
   return {
     open: open.length,
     blocked: open.filter(isTaskBlocked).length,
-    overdue: open.filter((task) => Boolean(task.dueDate) && task.dueDate < today).length,
+    overdue: open.filter((task) => task.dueDate !== null && task.dueDate < today).length,
     remainingHours: open.reduce((sum, task) => sum + getRemainingHours(task), 0),
   };
 }

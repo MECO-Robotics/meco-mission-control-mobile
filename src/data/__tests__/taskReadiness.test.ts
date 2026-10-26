@@ -20,3 +20,8 @@ test("satisfied server dependencies permit work without reconstructing readiness
   expect(getAutoTaskStatus(task)).toBe("in-progress");
   expect(isTaskReadyForQaPass({ ...task, status: "waiting-for-qa" })).toBe(true);
 });
+
+test("unrecorded source status remains unchanged by owner-based workflow promotion", () => {
+  const task = { ...mecoSnapshot.tasks[0], ownerId: member.id, isBlocked: false, isWaitingOnDependency: false, status: "unrecorded" as const };
+  expect(getAutoTaskStatus(task)).toBe("unrecorded");
+});

@@ -22,7 +22,7 @@ describe("canonical mobile FRC fixtures", () => {
     const partDefinitionIds = ids(mecoSnapshot.partDefinitions);
     const subsystemIds = ids(mecoSnapshot.subsystems);
     for (const purchase of mecoSnapshot.purchaseItems) {
-      expect(taskIds.has(purchase.taskId)).toBe(true);
+      if (purchase.taskId) expect(taskIds.has(purchase.taskId)).toBe(true);
       if (purchase.partDefinitionId) expect(partDefinitionIds.has(purchase.partDefinitionId)).toBe(true);
     }
     for (const instance of mecoSnapshot.partInstances) {

@@ -44,7 +44,8 @@ export function ActiveTabContent(props: Props) {
       ]} />
       <QaActivity {...screenProps} mode={reportView} />
     </>;
-    case "resources-materials": return <InventoryMaterialsScreen {...screenProps} />;
+    case "resources-materials": return <InventoryMaterialsScreen {...screenProps} inventoryKind="materials" />;
+    case "resources-tools": return <InventoryMaterialsScreen {...screenProps} inventoryKind="tools" />;
     case "resources-parts": return <InventoryPartsScreen {...screenProps} />;
     case "resources-purchases": return <InventoryPurchasesScreen {...screenProps} />;
     case "resources-structure": return <SubsystemsScreen {...screenProps} />;

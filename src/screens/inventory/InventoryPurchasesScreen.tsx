@@ -19,19 +19,19 @@ export function InventoryPurchasesScreen(props: AppScreenProps) {
   const [filtersVisible, setFiltersVisible] = useState(false);
   return <WorkspacePanel title="Purchasing" subtitle="Commercial records are linked to procurement Tasks; quotes, approvals, orders, cost, and delivery live here." actions={<View style={styles.taskQueueHeaderActions}><ActionButton onPress={() => setFiltersVisible(true)} variant="primary" responsiveStyles={appResponsiveStyles}>Filters</ActionButton><ActionButton onPress={openCreatePurchaseEditor} variant="primary" responsiveStyles={appResponsiveStyles}>Add</ActionButton></View>}>
     {rows.map((item) => {
-      const task = taskById[item.taskId];
+      const task = item.taskId ? taskById[item.taskId] : undefined;
       const vendorId = item.quotes.find((quote) => quote.id === item.selectedQuoteId)?.vendorId ?? item.quotes[0]?.vendorId;
       const quote = item.quotes.find((candidate) => candidate.id === item.selectedQuoteId);
       const action = nextStatus[item.orderStatus];
       const receipts = item.receipts ?? [];
       const received = normalizeDisplayedQuantity(receipts.reduce((total, receipt) => total + receipt.quantity, 0));
-      const remaining = normalizeDisplayedQuantity(Math.max(0, item.quantity - received));
-      return <Pressable key={item.id} onPress={() => openEditPurchaseEditor(item)} style={[styles.queueRowCard, appResponsiveStyles.rowCard]}>
-        <View style={styles.queueRowHeader}><View style={styles.queueRowPrimaryText}><Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>{item.title}</Text><Text style={[styles.queueRowSubtitle, appResponsiveStyles.rowSubtitle]}>Task: {task?.title ?? "Missing linked Task"}</Text></View><Text style={editTagStyle}>VIEW</Text></View>
-        <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>Qty {item.quantity} | Quote {quote?.amount ? `${quote.amount.currency ?? ""} ${quote.amount.amount.toFixed(2)}` : "Not quoted"}</Text>
+      const remaining = item.quantity === null ? null : normalizeDisplayedQuantity(Math.max(0, item.quantity - received));
+      return <Pressable key={item.id} disabled={Boolean(item.sourceReference)} onPress={() => openEditPurchaseEditor(item)} style={[styles.queueRowCard, appResponsiveStyles.rowCard]}>
+        <View style={styles.queueRowHeader}><View style={styles.queueRowPrimaryText}><Text style={[styles.queueRowTitle, appResponsiveStyles.rowTitle]}>{item.title}</Text><Text style={[styles.queueRowSubtitle, appResponsiveStyles.rowSubtitle]}>{task?.title ? `Task: ${task.title}` : item.sourceReference ? `Historical source record · ${item.sourceStatus ?? "status unknown"}` : "Task: Missing linked Task"}</Text></View><Text style={editTagStyle}>{item.sourceReference ? "SOURCE" : "VIEW"}</Text></View>
+        <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>Qty {item.quantity ?? "Unknown"} | Quote {quote?.amount ? `${quote.amount.currency ?? ""} ${quote.amount.amount.toFixed(2)}` : "Not quoted"}</Text>
         <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>Vendor {vendorId ?? "Not selected"} | PO {item.purchaseOrderNumber ?? "Not ordered"}</Text>
-        <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>Received {received} of {item.quantity} | {remaining} remaining</Text>
-        {receipts.map((receipt) => <Text key={receipt.id} style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>{receipt.location} · {receipt.quantity} received · {receipt.receivedAt}</Text>)}
+        <Text style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>Received {received} of {item.quantity ?? "unknown"} | {remaining === null ? "remaining unknown" : `${remaining} remaining`}</Text>
+        {receipts.map((receipt) => <Text key={receipt.id} style={[styles.queueMetaLine, appResponsiveStyles.metaLine]}>{receipt.location} · {receipt.quantity} received · {receipt.receivedAt ?? "date not recorded"}</Text>)}
         <View style={styles.queuePillRow}><StatusPill label={item.approvalStatus} value={item.approvalStatus} /><StatusPill label={item.orderStatus} value={item.orderStatus} /></View>
         {canMentorApprove && item.approvalStatus === "pending" ? <View style={styles.quickActionRow}><Pressable onPress={() => approvePurchaseItem(item, true)} style={[styles.quickActionButton, styles.quickActionButtonPrimary]}><Text style={styles.quickActionButtonPrimaryLabel}>Approve</Text></Pressable></View> : null}
         {canMentorApprove && action ? <View style={styles.quickActionRow}><ActionButton onPress={() => transitionPurchaseItem(item, action)} variant="quick" responsiveStyles={appResponsiveStyles}>Mark {action}</ActionButton></View> : null}

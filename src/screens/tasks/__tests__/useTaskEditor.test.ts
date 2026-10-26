@@ -12,24 +12,24 @@ const task: Task = {
   requiresDocumentation: false, manufacturingDetails: null,
 };
 
-function setup(deletion?: Promise<void>, members: Member[] = mecoSnapshot.members, projects: Project[] = [project]) {
-  const relation: TaskDependency = { id: "edge", taskId: task.id, kind: "part-instance", refId: "part", requiredCondition: { kind: "physical-location", value: "stock" }, dependencyType: "soft", createdAt: "2026-09-08" };
+function setup(deletion?: Promise<void>, members: Member[] = mecoSnapshot.members, projects: Project[] = [project], sourceTask: Task = task) {
+  const relation: TaskDependency = { id: "edge", taskId: sourceTask.id, kind: "part-instance", refId: "part", requiredCondition: { kind: "physical-location", value: "stock" }, dependencyType: "soft", createdAt: "2026-09-08" };
   const calls: { path: string; init: RequestInit }[] = [];
   const request = async <T,>(path: string, init: RequestInit): Promise<T> => {
     calls.push({ path, init });
     if (init.method === "DELETE") await deletion;
     if (path === "/api/bootstrap") return { taskDependencies: [relation] } as T;
-    return { item: task } as T;
+    return { item: sourceTask } as T;
   };
   const inputs = {
     projects, workTypes: [workType],
     mechanisms: mecoSnapshot.mechanisms, partInstances: mecoSnapshot.partInstances,
-    tasks: [task], taskById: { [task.id]: task }, taskDependencies: [relation],
+    tasks: [sourceTask], taskById: { [sourceTask.id]: sourceTask }, taskDependencies: [relation],
     members, membersById: Object.fromEntries(members.map((row) => [row.id, row])),
     subsystemsById: Object.fromEntries(mecoSnapshot.subsystems.map((row) => [row.id, row])), taskSubsystemOptions: mecoSnapshot.subsystems.map((row) => ({ id: row.id, name: row.name })),
     activeResponsibleGroupId: "robot-build", setActiveResponsibleGroupId: jest.fn(), request, refresh: jest.fn(async () => undefined),
   };
-  return { task, calls, ...renderHook(() => useTaskEditor(inputs)) };
+  return { task: sourceTask, calls, ...renderHook(() => useTaskEditor(inputs)) };
 }
 
 test("task edits keep execution data on Task and do not write a duplicate blocker store", async () => {
@@ -44,6 +44,18 @@ test("task edits keep execution data on Task and do not write a duplicate blocke
   expect(body).not.toHaveProperty("blockers");
   expect(body).not.toHaveProperty("actualHours");
   expect(calls.some((call) => call.path.includes("blocker"))).toBe(false);
+});
+
+test("editing an unrecorded source task preserves its status without sending an unsupported PATCH status", async () => {
+  const sourceTask = { ...task, status: "unrecorded" as const };
+  const { task: openedTask, calls, result } = setup(undefined, mecoSnapshot.members, [project], sourceTask);
+  act(() => result.current.openEditTaskEditor(openedTask));
+  act(() => result.current.setTaskDraft((draft) => ({ ...draft, summary: "Keep imported work evidence unchanged" })));
+  await act(async () => result.current.saveTaskDraft());
+
+  const update = calls.find((call) => call.path === `/api/tasks/${sourceTask.id}`)!;
+  expect(update).toBeDefined();
+  expect(JSON.parse(update.init.body as string)).not.toHaveProperty("status");
 });
 
 test("creating a work item sends one canonical Task payload", async () => {

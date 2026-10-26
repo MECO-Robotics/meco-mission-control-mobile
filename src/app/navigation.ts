@@ -16,6 +16,7 @@ export const NAVIGATION = [
   ] },
   { value: "resources", label: "Resources", views: [
     { value: "resources-materials", label: "Materials" },
+    { value: "resources-tools", label: "Tools" },
     { value: "resources-parts", label: "Parts" },
     { value: "resources-purchases", label: "Purchases" },
     { value: "resources-structure", label: "Structure" },

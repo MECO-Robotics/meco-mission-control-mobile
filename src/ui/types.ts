@@ -2,7 +2,7 @@ import type { MemberRole } from "../types/domain";
 export type ViewTab =
   | "home"
   | "work-tasks" | "work-schedule" | "work-risks" | "work-activity" | "work-documents" | "work-reports"
-  | "resources-materials" | "resources-parts" | "resources-purchases"
+  | "resources-materials" | "resources-tools" | "resources-parts" | "resources-purchases"
   | "resources-structure"
   | "team-people" | "team-teams";
 
@@ -30,14 +30,14 @@ export type MaterialRollup = {
   id: string;
   name: string;
   category: string;
-  onHand: number;
-  reorderPoint: number;
+  onHand: number | null;
+  reorderPoint: number | null;
   openDemand: number;
   openPurchaseCount: number;
   openPurchaseQuantity: number;
-  suggestedOrderQuantity: number;
+  suggestedOrderQuantity: number | null;
   vendor: string;
-  stock: "low" | "ok";
+  stock: "low" | "ok" | "unknown";
 };
 
 export type EditorMode = "create" | "edit";

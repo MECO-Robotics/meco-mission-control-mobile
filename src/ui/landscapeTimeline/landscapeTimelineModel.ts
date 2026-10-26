@@ -46,6 +46,7 @@ function getTaskStartDate(task: Task) {
   if (task.startDate) {
     return parseDate(task.startDate);
   }
+  if (!task.dueDate) return null;
 
   const estimatedDays = Math.max(1, Math.min(5, Math.ceil(task.estimatedHours / 4)));
   return addDays(parseDate(task.dueDate), -estimatedDays + 1);
@@ -54,6 +55,8 @@ function getTaskStartDate(task: Task) {
 function compareTasksByTimelineDate(left: Task, right: Task) {
   const leftRange = getTaskDateRange(left);
   const rightRange = getTaskDateRange(right);
+  if (!leftRange) return rightRange ? 1 : left.title.localeCompare(right.title);
+  if (!rightRange) return -1;
   return (
     leftRange.start.getTime() - rightRange.start.getTime() ||
     leftRange.end.getTime() - rightRange.end.getTime()
@@ -62,6 +65,7 @@ function compareTasksByTimelineDate(left: Task, right: Task) {
 
 export function getTaskDateRange(task: Task) {
   const taskStart = getTaskStartDate(task);
+  if (!taskStart || !task.dueDate) return null;
   const taskEnd = parseDate(task.dueDate);
 
   return taskStart <= taskEnd
@@ -89,8 +93,10 @@ export function getCalendarDays(monthStart: Date) {
 }
 
 function getTaskDateIndexes(task: Task, monthStart: Date) {
-  const startIndex = daysBetween(monthStart, getTaskStartDate(task));
-  const endIndex = daysBetween(monthStart, parseDate(task.dueDate));
+  const taskDateRange = getTaskDateRange(task);
+  if (!taskDateRange) return null;
+  const startIndex = daysBetween(monthStart, taskDateRange.start);
+  const endIndex = daysBetween(monthStart, taskDateRange.end);
   const firstIndex = Math.min(startIndex, endIndex);
   const lastIndex = Math.max(startIndex, endIndex);
 
@@ -98,7 +104,9 @@ function getTaskDateIndexes(task: Task, monthStart: Date) {
 }
 
 export function getLaneTaskRange(task: Task, monthStart: Date, dayCount: number) {
-  const { firstIndex, lastIndex } = getTaskDateIndexes(task, monthStart);
+  const indexes = getTaskDateIndexes(task, monthStart);
+  if (!indexes) return null;
+  const { firstIndex, lastIndex } = indexes;
   if (lastIndex < 0 || firstIndex >= dayCount) {
     return null;
   }
@@ -159,10 +167,10 @@ export function buildLanes(tasks: Task[], subsystems: Subsystem[], monthStart: D
     const trackEndIndexes: number[] = [];
     const taskColorOffset = getStableColorIndex(subsystemId, TASK_COLORS.length);
     const visibleTasks = lane.tasks
-      .filter((task) => getLaneTaskRange(task, monthStart, dayCount) !== null)
-      .sort(compareTasksByTimelineDate);
-    const packedTasks = visibleTasks.map((task, taskIndex) => {
-      const dateIndexes = getTaskDateIndexes(task, monthStart);
+      .map((task) => ({ task, dateIndexes: getTaskDateIndexes(task, monthStart) }))
+      .filter((item): item is { task: Task; dateIndexes: NonNullable<ReturnType<typeof getTaskDateIndexes>> } => item.dateIndexes !== null && item.dateIndexes.firstIndex < dayCount && item.dateIndexes.lastIndex >= 0)
+      .sort((left, right) => compareTasksByTimelineDate(left.task, right.task));
+    const packedTasks = visibleTasks.map(({ task, dateIndexes }, taskIndex) => {
       const trackIndex = trackEndIndexes.findIndex((endIndex) => endIndex < dateIndexes.firstIndex);
       const nextTrackIndex = trackIndex >= 0 ? trackIndex : trackEndIndexes.length;
       trackEndIndexes[nextTrackIndex] = dateIndexes.lastIndex;
